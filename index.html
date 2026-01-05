@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PandaPanda 的 AI 日常</title>
+    <link rel="icon" href="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no">
+    
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS 樣式 -->
+    <style>
+        :root {
+            --primary-color: #2c5e32;
+            --secondary-color: #3c6e42;
+            --background-color: #f0f8e8;
+            --card-bg-color: #ffffff;
+            --text-color: #3d3d3d;
+            --border-color: #dde8d4;
+            --error-color: #D8000C;
+            --error-bg-color: #FFD2D2;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 左下角即時資訊面板 (除錯用) */
+        #system-monitor {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #00ff00;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            z-index: 20000;
+            pointer-events: none;
+            border: 1px solid #444;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        /* 頁首 & 導覽列 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .logo img {
+            width: 45px;
+            height: 45px;
+            margin-right: 12px;
+            border-radius: 50%;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        nav a {
+            margin-left: 25px;
+            text-decoration: none;
+            color: var(--secondary-color);
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            padding-bottom: 8px;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+        }
+        
+        nav a.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        /* 內容區塊 */
+        .page-section {
+            background-color: var(--card-bg-color);
+            padding: 40px;
+            margin-top: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .page-section h2 {
+            font-size: 2em;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #eef5e9;
+            padding-bottom: 10px;
+        }
+        
+        /* 嵌入計時器樣式 */
+        #countdown-container {
+            margin-top: 30px;
+            background-color: #f8fbf6;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        #timer-iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+        }
+
+        /* 巢狀分類樣式 */
+        #category-container {
+            margin-bottom: 30px;
+        }
+        
+        .category-item {
+            margin-top: 5px;
+        }
+
+        .category-button {
+            padding: 12px 25px;
+            border: 2px solid var(--border-color);
+            background-color: #f8fbf6;
+            color: var(--secondary-color);
+            font-size: 1.1em;
+            font-weight: 700;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .category-button:hover {
+             background-color: #eef5e9;
+        }
+        
+        .category-button.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .category-button .arrow {
+            border: solid var(--secondary-color);
+            border-width: 0 3px 3px 0;
+            display: inline-block;
+            padding: 3px;
+            transform: rotate(45deg);
+            transition: transform 0.3s;
+        }
+        .category-button.active .arrow {
+             border-color: white;
+        }
+        .category-button.open .arrow {
+            transform: rotate(-135deg);
+        }
+
+        .subcategory-container {
+            display: none;
+            padding-left: 30px;
+            margin-left: 15px;
+            border-left: 2px solid #eef5e9;
+        }
+        
+        .subcategory-container.open {
+            display: block;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        
+        /* Tool Card */
+        .tool-card {
+            background-color: var(--card-bg-color);
+            border: 1px solid #eef5e9;
+            border-radius: 15px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09);
+        }
+        
+        .tool-card-image {
+            width: 100%;
+            height: auto;
+            background-color: #f0f0f0;
+            display: block;
+        }
+
+        .tool-card-content {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tool-card h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        
+        .tool-card p {
+            flex-grow: 1;
+            margin-bottom: 20px;
+        }
+
+        .tool-link {
+            display: inline-block;
+            align-self: flex-start;
+            padding: 10px 20px;
+            background-color: var(--secondary-color);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+        }
+
+        .tool-link:hover {
+            background-color: var(--primary-color);
+        }
+
+        /* Loading & Error */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+
+        .loading-spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid var(--primary-color);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1.5s linear infinite;
+        }
+
+        .loading-overlay p {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background-color: var(--error-bg-color);
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: left;
+        }
+        .error-message strong {
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        /* 安全警告 Modal */
+        .security-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+            backdrop-filter: blur(5px);
+        }
+
+        .security-modal-content {
+            background-color: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .security-modal-content h2 {
+            color: #d9534f;
+            margin-top: 0;
+            font-size: 1.8em;
+        }
+
+        .security-modal-content p {
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+
+        .security-modal-close-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .security-modal-close-btn:hover {
+            background-color: #1e4222;
+        }
+        .security-modal-close-btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        
+        /* 終極警告畫面 */
+        #final-warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #a91e22;
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10002;
+            text-align: center;
+            font-size: 2em;
+            font-weight: bold;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        /* 封鎖資訊畫面 (黑色) */
+        #block-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+            color: red;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10003;
+            text-align: center;
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        /* 頁尾 */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #777;
+            font-size: 0.9em;
+        }
+        
+        .social-links {
+            margin-bottom: 15px;
+        }
+
+        .social-links a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: 600;
+            transition: text-decoration 0.3s ease;
+        }
+
+        .social-links a:hover {
+            text-decoration: underline;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 880px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-section {
+                padding: 30px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+             .page-section {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- 左下角即時資訊面板 -->
+    <div id="system-monitor"></div>
+
+    <!-- 全螢幕載入畫面 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>載入中...</p>
+    </div>
+    
+    <!-- 安全警告彈出視窗 -->
+    <div id="security-modal" class="security-modal-overlay">
+        <div class="security-modal-content">
+            <h2>住手！</h2>
+            <p>這是一個專為開發人員設計的瀏覽器功能。如果有人告訴您在這裡複製貼上任何東西來啟用特殊功能或「駭入」他人帳號，這很可能是一場騙局，並且會讓攻擊者有機會竊取您的個人資訊或控制您的帳號。</p>
+            <button id="close-security-modal" class="security-modal-close-btn">我瞭解了</button>
+        </div>
+    </div>
+    
+    <!-- 終極警告畫面 (紅色) -->
+    <div id="final-warning-overlay">
+        <p>偵測到不當操作，頁面已被鎖定。</p>
+    </div>
+    
+    <!-- 永久封鎖資訊畫面 (黑色) -->
+    <div id="block-overlay">
+        <h1 style="font-size: 3em; margin-bottom: 20px;">存取被拒絕</h1>
+        <p style="font-size: 1.5em;">您的瀏覽環境不符合安全要求。</p>
+        <div id="block-details" style="margin: 20px 0; font-size: 1.2em; color: white;"></div>
+        <p style="color: yellow;">正在重新導向至 Google...</p>
+    </div>
+
+
+    <div class="container">
+        <!-- 頁首：網站標題和主選單 -->
+        <header>
+            <div class="logo"><img src="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no" alt="PandaPanda Logo"> PandaPanda的AI日常</div>
+            <nav>
+                <a href="#" class="nav-link" data-page="about">關於本站</a>
+                <a href="#" class="nav-link" data-page="tools">自製網站</a>
+                <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
+                <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook</a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- 區塊1: 網站介紹 (預設顯示) -->
+            <section id="about" class="page-section">
+                <h2>歡迎來到 PandaPanda 的 AI 世界</h2>
+                <p>
+                    歡迎來到PandaPanda的AI日常<br>
+                    這裡有用AI做的網站和還有各種小工具<br>
+                </p>
+
+                <!-- 嵌入計時器 -->
+                <div id="countdown-container">
+                    <iframe id="timer-iframe" src="./festival_timer.html"></iframe>
+                </div>
+
+            </section>
+
+            <!-- 區塊2: 自製網站 (預設隱藏) -->
+            <section id="tools" class="page-section">
+                <h2>自製網站區</h2>
+                <p>
+                    請選擇一個分類，探索各種自製的有趣網站！
+                </p>
+                <!-- 巢狀分類將會動態插入到這裡 -->
+                <div id="category-container"></div>
+                <!-- 網站卡片將會動態插入到這裡 -->
+                <div id="tools-grid" class="tools-grid"></div>
+            </section>
+        </main>
+
+        <!-- 頁尾 -->
+        <footer>
+            <div class="social-links">
+                <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a> | <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook粉絲專頁</a>
+            </div>
+            <p>版權所有 &copy; 2025 PandaPanda的AI日常 All Rights Reserved. </p>
+        </footer>
+    </div>
+    
+    <!-- JavaScript 程式碼 -->
+    <script>
+        // --- 核心安全邏輯與監控 ---
+        (async function() {
+            // 1. 檢查是否已被永久封鎖
+            if (localStorage.getItem('isPermanentlyBlocked')) {
+                redirectToGoogle();
+                return;
+            }
+
+            // 2. 偵測 Brave 瀏覽器
+            if (navigator.brave && await navigator.brave.isBrave()) {
+                permanentBlock('偵測到 Brave 瀏覽器');
+                return;
+            }
+
+            // 3. 裝置類型與視窗監控
+            const monitorEl = document.getElementById('system-monitor');
+            
+            function isMobileDevice() {
+                // 使用 User Agent 進行嚴格判斷
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+
+            function updateMonitorAndCheckSecurity() {
+                const screenW = screen.availWidth;
+                const screenH = screen.availHeight;
+                const windowW = window.outerWidth;
+                const windowH = window.outerHeight;
+                const isMobile = isMobileDevice();
+                const type = isMobile ? '行動裝置' : '電腦';
+
+                // 更新顯示面板
+                if (monitorEl) {
+                    monitorEl.innerHTML = `螢幕(可用): ${screenW}x${screenH}\n視窗(外): ${windowW}x${windowH}\n類型: ${type}`;
+                    // 平板/手機顯示黃色，電腦顯示綠色
+                    monitorEl.style.color = isMobile ? '#ffff00' : '#00ff00';
+                }
+
+                // 【關鍵修正】只有當判定為「電腦」時，才執行視窗大小檢查
+                if (type === '電腦') {
+                    // 設定寬容度: 寬度 16px (邊框), 高度 150px (網址列/書籤列/工作列)
+                    const widthThreshold = 16;
+                    const heightThreshold = 150;
+
+                    // 只檢查是否「小於」螢幕可用空間
+                    // 1900 < 1920-16 (1904) -> 觸發
+                    // 1040 < 1080-150 (930) -> 不觸發 (正常)
+                    
+                    const isWidthTooSmall = windowW < (screenW - widthThreshold);
+                    // 高度檢查放寬，通常不作為主要判斷依據，除非縮得非常小
+                    // 這裡我們主要依據您的需求：1920*1080 vs 1900*1040 (寬度變小)
+                    
+                    if (isWidthTooSmall) {
+                        const details = `視窗寬度不足 (電腦模式)\n(螢幕寬: ${screenW} vs 視窗寬: ${windowW})`;
+                        permanentBlock('視窗未最大化', details);
+                    }
+                }
+            }
+
+            // 初始執行與事件監聽
+            // 延遲一下讓瀏覽器準備好
+            setTimeout(() => {
+                window.addEventListener('resize', updateMonitorAndCheckSecurity);
+                updateMonitorAndCheckSecurity();
+            }, 1500);
+            
+            // --- 輔助函式 ---
+            function permanentBlock(reason, details = '') {
+                localStorage.setItem('isPermanentlyBlocked', 'true');
+                
+                const blockOverlay = document.getElementById('block-overlay');
+                const blockDetails = document.getElementById('block-details');
+                if (blockOverlay) {
+                    blockOverlay.style.display = 'flex';
+                    if (blockDetails) {
+                        blockDetails.innerHTML = `原因: ${reason}<br><br>${details}`;
+                    }
+                    document.querySelector('.container').style.display = 'none';
+                    document.body.style.overflow = 'hidden';
+                }
+                
+                // 立即重新導向
+                window.location.href = 'https://www.google.com/';
+            }
+            
+            function redirectToGoogle() {
+                window.location.href = 'https://www.google.com/';
+            }
+        })();
+
+        // --- 原有的安全與主程式碼 ---
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- 安全功能 (警告、鎖定) ---
+            const securityModal = document.getElementById('security-modal');
+            const closeSecurityModalBtn = document.getElementById('close-security-modal');
+            const finalWarningOverlay = document.getElementById('final-warning-overlay');
+            let countdownTimer;
+            let warningCount = 0;
+            let lastWarningTime = 0;
+
+            function showSecurityWarning() {
+                const now = Date.now();
+                if (now - lastWarningTime < 5000) {
+                    warningCount++;
+                } else {
+                    warningCount = 1;
+                }
+                lastWarningTime = now;
+
+                // 第二層防護：終極警告
+                if (warningCount >= 3) {
+                    finalWarningOverlay.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    
+                    // 立即觸發懲罰與重新導向
+                    let ultimateCount = parseInt(localStorage.getItem('ultimateWarningCount') || '0') + 1;
+                    localStorage.setItem('ultimateWarningCount', ultimateCount);
+
+                    if (ultimateCount >= 3) {
+                        localStorage.setItem('lockoutUntil', Date.now() + 3600000); // 1小時
+                        localStorage.removeItem('ultimateWarningCount');
+                    } else {
+                        localStorage.setItem('lockoutUntil', Date.now() + 60000); // 60秒
+                    }
+                    
+                    // 不等待，直接導向
+                    window.location.href = 'https://www.google.com/';
+                    return;
+                }
+
+                // 第一層防護：彈出視窗
+                if (securityModal.style.display === 'flex') return;
+                securityModal.style.display = 'flex';
+                closeSecurityModalBtn.disabled = true;
+                let countdown = 3;
+                closeSecurityModalBtn.textContent = `我瞭解了 (${countdown})`;
+                clearInterval(countdownTimer);
+                countdownTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(countdownTimer);
+                        closeSecurityModalBtn.disabled = false;
+                        closeSecurityModalBtn.textContent = '我瞭解了';
+                    } else {
+                        closeSecurityModalBtn.textContent = `我瞭解了 (${countdown})`;
+                    }
+                }, 1000);
+            }
+
+            function hideSecurityWarning() {
+                securityModal.style.display = 'none';
+                clearInterval(countdownTimer);
+            }
+
+            closeSecurityModalBtn.addEventListener('click', hideSecurityWarning);
+            
+            document.addEventListener('keydown', function(event) {
+                if (event.keyCode === 123 || (event.ctrlKey && event.shiftKey && event.keyCode === 73) || (event.metaKey && event.altKey && event.keyCode === 73)) {
+                    event.preventDefault();
+                    showSecurityWarning();
+                }
+            });
+            document.addEventListener('contextmenu', event => event.preventDefault());
+
+            // --- 網站主要功能 ---
+            const sheetId = "2PACX-1vQCTWbsAW4dgDJKZ_PpraMgQ0z9iRL1qGZCcPVGZWsmk1KZHqQWfqps5z-xWwxS_g";
+            const baseCsvUrl = `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?single=true&output=csv`;
+            const navLinks = document.querySelectorAll('nav a.nav-link');
+            const pageSections = document.querySelectorAll('.page-section');
+            const toolsGrid = document.getElementById('tools-grid');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const dataCache = {};
+            let toolsLoaded = false;
+            
+            function showLoader() { loadingOverlay.style.display = 'flex'; }
+            function hideLoader() { loadingOverlay.style.display = 'none'; }
+
+            function parseCSV(text) {
+                const lines = text.trim().split('\n');
+                if (lines.length === 0) return { headers: [], data: [] };
+                const headers = lines[0].split(',').map(h => h.trim());
+                if (lines.length < 2) return { headers: headers, data: [] };
+                
+                const data = [];
+                for (let i = 1; i < lines.length; i++) {
+                    const row = lines[i].trim();
+                    if (row === '') continue;
+                    const values = row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        if (values[index]) {
+                            let value = values[index].trim();
+                            if (value.startsWith('"') && value.endsWith('"')) value = value.substring(1, value.length - 1).replace(/""/g, '"');
+                            obj[header] = value;
+                        } else {
+                            obj[header] = '';
+                        }
+                    });
+                    data.push(obj);
+                }
+                return { headers, data };
+            }
+
+            function displayError(container, message, suggestion) {
+                console.error(message);
+                container.innerHTML = `<div class="error-message"><strong>讀取資料時發生錯誤：</strong><p>${message}</p><p>${suggestion || '請檢查您的 Google Sheet 設定或網路連線。'}</p></div>`;
+            }
+
+            function renderTools(tools) {
+                toolsGrid.innerHTML = '';
+                if (!tools || tools.length === 0) {
+                    toolsGrid.innerHTML = '<p>這個分類下沒有找到任何網站。</p>';
+                    return;
+                }
+                tools.forEach(tool => {
+                    const name = tool['名稱'] || '無標題';
+                    const description = tool['說明'] || '無描述';
+                    const link = tool['連結'] || '#';
+                    const imageUrl = tool['圖片連結'] || 'https://placehold.co/600x400/eef5e9/7b9c81?text=No Image';
+                    const card = document.createElement('div');
+                    card.className = 'tool-card';
+                    card.innerHTML = `<img src="${imageUrl}" alt="${name}" class="tool-card-image" onerror="this.onerror=null;this.src='https://placehold.co/600x400/eef5e9/7b9c81?text=Image+Error';"><div class="tool-card-content"><h3>${name}</h3><p>${description}</p><a href="${link}" class="tool-link" target="_blank" rel="noopener noreferrer">前往使用</a></div>`;
+                    toolsGrid.appendChild(card);
+                });
+            }
+
+            async function renderCategoryLevel(gid, parentElement) {
+                parentElement.innerHTML = '';
+                showLoader();
+                try {
+                    if (dataCache[gid]) {
+                        processData(dataCache[gid], parentElement);
+                    } else {
+                        const response = await fetch(`${baseCsvUrl}&gid=${gid}`);
+                        if (!response.ok) throw new Error(`無法載入工作表 (GID: ${gid})。`);
+                        const csvText = await response.text();
+                        if (csvText.trim().startsWith('<!DOCTYPE html>')) throw new Error("資料格式不正確，可能需重新發佈。");
+                        const parsedResult = parseCSV(csvText);
+                        dataCache[gid] = parsedResult;
+                        processData(parsedResult, parentElement);
+                    }
+                } catch (error) {
+                    displayError(parentElement, error.message, "請檢查 Google Sheet 設定。");
+                } finally {
+                    hideLoader();
+                }
+            }
+            
+            function processData(parsedResult, parentElement) {
+                const { headers, data } = parsedResult;
+                const isCategoryPage = headers.includes('分類') && headers.includes('gid') && headers.includes('是否有資料夾');
+                const isToolsPage = headers.includes('名稱') && headers.includes('連結');
+
+                if (isCategoryPage) {
+                    toolsGrid.innerHTML = '';
+                    const categories = data.filter(item => item['分類'] && item['gid']);
+                    if (categories.length === 0) {
+                        parentElement.innerHTML = '<p>這個分類下沒有子分類。</p>';
+                        return;
+                    }
+                    categories.forEach(cat => {
+                        const { '分類': catName, gid: catGid, '是否有資料夾': hasFoldersStr } = cat;
+                        const hasFolders = hasFoldersStr === '1';
+
+                        const item = document.createElement('div');
+                        item.className = 'category-item';
+                        const button = document.createElement('button');
+                        button.className = 'category-button';
+                        button.innerHTML = `<i class="arrow"></i> <span>${catName}</span>`;
+                        const subContainer = document.createElement('div');
+                        subContainer.className = 'subcategory-container';
+                        item.append(button, subContainer);
+                        
+                        button.addEventListener('click', () => {
+                            const isCurrentlyActive = button.classList.contains('active');
+                            button.classList.toggle('open');
+                            if (hasFolders) {
+                                subContainer.classList.toggle('open');
+                                if (subContainer.classList.contains('open') && subContainer.innerHTML === '') {
+                                    renderCategoryLevel(catGid, subContainer);
+                                }
+                            } else {
+                                document.querySelectorAll('#category-container .category-button.active').forEach(b => {
+                                    if (b !== button) b.classList.remove('active');
+                                });
+                                button.classList.toggle('active', !isCurrentlyActive);
+                                if (!isCurrentlyActive) {
+                                    renderCategoryLevel(catGid, toolsGrid);
+                                } else {
+                                    toolsGrid.innerHTML = '';
+                                }
+                            }
+                        });
+                        parentElement.appendChild(item);
+                    });
+                } else if (isToolsPage) {
+                    renderTools(data);
+                } else {
+                    const detectedHeaders = headers.join(', ') || '無';
+                    throw new Error(`工作表格式無法識別。偵測到的欄位為：「${detectedHeaders}」。`);
+                }
+            }
+            
+            // --- 程式進入點 ---
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    const pageId = this.dataset.page;
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    pageSections.forEach(section => {
+                        section.classList.toggle('active', section.id === pageId);
+                    });
+                    if (pageId === 'tools' && !toolsLoaded) {
+                        renderCategoryLevel('1860425358', document.getElementById('category-container'));
+                        toolsLoaded = true;
+                    }
+                });
+            });
+            
+            navLinks[0].click();
+        });
+    </script>
+</body>
+</html>
