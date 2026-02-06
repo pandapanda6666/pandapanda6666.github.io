@@ -73,10 +73,12 @@
         body.theme-original #display, body.theme-original #modalDisplay { font-family: 'JetBrains Mono', monospace; color: #0f172a; text-shadow: none; }
         body.theme-original .mode-select { color: #1e293b; background: white; border: 1px solid #cbd5e1; }
 
+        /* 模式隱藏邏輯 */
         body.mode-simple .pro-only { display: none !important; }
         body.mode-simple .main-grid { grid-template-columns: 1fr !important; }
         body.mode-simple .main-container { max-width: 800px !important; }
 
+        /* 純碼表模式：隱藏錄影、分圈、計分板等，只保留標題、碼表、按鈕、紀錄、主題 */
         body.mode-pure .pro-only, 
         body.mode-pure #monitorWrapper, 
         body.mode-pure #lapListContainer,
@@ -84,7 +86,7 @@
         body.mode-pure #lapBtn,
         body.mode-pure #recManualButtons { display: none !important; }
         body.mode-pure .main-grid { grid-template-columns: 1fr !important; }
-        body.mode-pure .main-container { max-width: 900px !important; }
+        body.mode-pure .main-container { max-width: 1000px !important; }
 
         .finished { animation: pulse 1s infinite; color: #ef4444 !important; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
@@ -147,40 +149,47 @@
             background: rgba(239, 68, 68, 0.2);
         }
 
-        /* 模擬全螢幕樣式修正 */
-        .simulated-fs {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
+        /* 全螢幕與模擬全螢幕共通樣式 */
+        #mainTimerContainer:fullscreen,
+        #mainTimerContainer.simulated-fs {
+            background-color: #000 !important;
             width: 100vw !important;
             height: 100vh !important;
-            background: #000 !important;
-            z-index: 9999 !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: center !important;
             align-items: center !important;
-            margin: 0 !important;
             padding: 20px !important;
-            overflow: hidden !important;
-            border: 1px solid #ffc300 !important;
+            border: 1px solid #ffc300 !important; /* 原本的黃色細邊框 */
             box-sizing: border-box !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            z-index: 9999 !important;
         }
-        .simulated-fs #display {
-            /* 移除固定的 min 限制，讓 JS 完全控制 */
-            margin-bottom: 2rem !important;
-            white-space: nowrap !important;
-        }
-        .simulated-fs .hide-in-fs {
+
+        /* 全螢幕狀態下隱藏特定元素：紀錄與選單 */
+        .simulated-fs .hide-in-fs,
+        #mainTimerContainer:fullscreen .hide-in-fs {
             display: none !important;
         }
+
+        /* 縮放容器確保不溢出 */
+        #display-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
         #exitFullscreenBtn { display: none; }
-        .simulated-fs #exitFullscreenBtn { display: block; }
+        .simulated-fs #exitFullscreenBtn,
+        #mainTimerContainer:fullscreen #exitFullscreenBtn { display: block; }
     </style>
 </head>
 <body class="theme-scifi mode-simple">
 
-    <!-- 啟動名稱遮罩 -->
     <div id="startupModal" class="modal-overlay">
         <div class="card p-8 rounded-3xl max-w-sm w-full flex flex-col items-center shadow-2xl bg-slate-900 border border-blue-500">
             <h2 class="text-xl font-bold mb-4 text-blue-400">請設定名稱</h2>
@@ -190,8 +199,8 @@
         </div>
     </div>
 
-    <!-- 頂部控制項 -->
-    <div class="top-controls hide-in-fs">
+    <!-- 頂部控制項：全螢幕時隱藏 -->
+    <div class="top-controls hide-in-fs" id="globalTopControls">
         <div class="card p-2 flex items-center gap-2 shadow-lg">
             <label class="text-xs font-bold text-slate-500">模式：</label>
             <select id="modeSelect" onchange="toggleUIMode(this.value)" class="mode-select rounded px-1 outline-none text-sm">
@@ -211,6 +220,7 @@
 
     <div class="main-container max-w-[1400px] w-full flex flex-col items-center gap-6 mt-10 mb-20 transition-all">
         
+        <!-- 全螢幕切換容器 (包含碼表、標題與基礎按鈕) -->
         <div id="mainTimerContainer" class="w-full flex flex-col items-center transition-all">
             
             <div class="text-center">
@@ -270,7 +280,7 @@
                         </div>
 
                         <!-- 碼表顯示區 -->
-                        <div class="w-full flex flex-col items-center relative overflow-hidden">
+                        <div id="display-container" class="w-full flex flex-col items-center relative">
                             <div id="display" class="font-bold mb-8 text-white transition-all flex justify-center items-center">
                                 <span class="digit">0</span><span class="digit">0</span>
                                 <span class="separator">:</span>
@@ -278,8 +288,9 @@
                                 <span class="separator">.</span>
                                 <span class="digit">0</span><span class="digit">0</span><span class="digit">0</span>
                             </div>
+                            <!-- 全螢幕按鈕：全螢幕時隱藏 -->
                             <div class="absolute -top-4 -right-4 non-fs hide-in-fs">
-                                <button onclick="enterPureTimerFullscreen()" class="p-2 bg-slate-800/50 hover:bg-blue-600 rounded-full text-white transition-all shadow-lg" title="全螢幕模式">
+                                <button onclick="enterPureTimerFullscreen()" class="p-2 bg-slate-800/50 hover:bg-blue-600 rounded-full text-white transition-all shadow-lg" title="進入全螢幕">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
                                 </button>
                             </div>
@@ -287,16 +298,14 @@
 
                         <div class="w-full flex flex-col gap-4">
                             <div id="controlLayout" class="flex flex-col gap-4 items-center w-full">
-                                <div id="operationalButtons" class="flex flex-col gap-4 w-full items-center">
-                                    <div class="flex flex-wrap justify-center gap-3 w-full border-b border-slate-700/30 pb-4">
-                                        <button id="timerStartBtn" onclick="toggleTimer()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg min-w-[120px]">開始</button>
-                                        <button id="lapBtn" onclick="recordLap()" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg min-w-[120px] pro-only hide-in-fs">分圈</button>
-                                        <button id="resetBtn" onclick="resetTimer()" class="bg-slate-500 hover:bg-slate-400 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg">歸零</button>
-                                    </div>
-                                    <div id="recManualButtons" class="flex flex-wrap justify-center gap-3 w-full hide-in-fs">
-                                        <button id="recStartBtn" onclick="startRecording()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-30">啟動錄影</button>
-                                        <button id="recStopBtn" onclick="stopRecording()" disabled class="bg-red-600 hover:bg-red-500 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-30">停止錄影</button>
-                                    </div>
+                                <div id="operationalButtons" class="flex flex-wrap justify-center gap-3 w-full border-b border-slate-700/30 pb-4">
+                                    <button id="timerStartBtn" onclick="toggleTimer()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg min-w-[120px]">開始</button>
+                                    <button id="lapBtn" onclick="recordLap()" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg min-w-[120px] pro-only hide-in-fs">分圈</button>
+                                    <button id="resetBtn" onclick="resetTimer()" class="bg-slate-500 hover:bg-slate-400 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg">歸零</button>
+                                </div>
+                                <div id="recManualButtons" class="flex flex-wrap justify-center gap-3 w-full hide-in-fs">
+                                    <button id="recStartBtn" onclick="startRecording()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-30">啟動錄影</button>
+                                    <button id="recStopBtn" onclick="stopRecording()" disabled class="bg-red-600 hover:bg-red-500 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-30">停止錄影</button>
                                 </div>
 
                                 <div id="syncControls" class="hidden flex flex-wrap justify-center gap-4 w-full hide-in-fs">
@@ -304,7 +313,6 @@
                                     <button id="syncStopBtn" onclick="syncStop()" disabled class="bg-red-600 hover:bg-red-500 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg min-w-[200px] disabled:opacity-30">停止儲存</button>
                                 </div>
 
-                                <!-- 快速設定區：預設改為 95% -->
                                 <div id="displayQuickSettings" class="mt-2 flex flex-wrap justify-center items-center gap-4 transition-all hide-in-fs">
                                     <div id="simpleDisplayConfig" class="flex items-center gap-2">
                                         <span class="text-xs opacity-60">顯示模式：</span>
@@ -447,8 +455,6 @@
         let db = null;
         let supportedMimeType = '';
         let canvasStream = null;
-        let laps = [];
-        let lastLapMark = 0;
         let isSimpleMode = true; 
 
         const canvas = document.getElementById('recordCanvas');
@@ -508,7 +514,6 @@
             requestAnimationFrame(drawMergedFrame);
             const startup = document.getElementById('startupModal');
             if (startup) startup.style.display = 'flex';
-            // 初始化大小計算預設為 95%
             updateUIScale(95);
             window.addEventListener('resize', () => updateUIScale(getVal('sw_uiScale', 95)));
         };
@@ -564,22 +569,40 @@
             resetTimer();
         }
 
-        function enterPureTimerFullscreen() {
+        // 修改後的進入全螢幕：嘗試真實 API，失敗則模擬
+        async function enterPureTimerFullscreen() {
             const container = document.getElementById('mainTimerContainer');
-            if (container) {
+            if (!container) return;
+
+            try {
+                if (container.requestFullscreen) {
+                    await container.requestFullscreen();
+                } else if (container.webkitRequestFullscreen) {
+                    await container.webkitRequestFullscreen();
+                } else {
+                    throw new Error("API not supported");
+                }
+            } catch (err) {
+                // 如果權限不允許或不支援，使用模擬模式
                 container.classList.add('simulated-fs');
                 document.body.style.overflow = 'hidden';
-                updateUIScale(getVal('sw_uiScale', 95));
             }
+            // 無論哪種全螢幕，都重新計算大小
+            updateUIScale(getVal('sw_uiScale', 95));
         }
 
         function exitPureTimerFullscreen() {
             const container = document.getElementById('mainTimerContainer');
-            if (container) {
+            if (!container) return;
+
+            if (document.fullscreenElement || document.webkitFullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } else {
                 container.classList.remove('simulated-fs');
                 document.body.style.overflow = '';
-                updateUIScale(getVal('sw_uiScale', 95));
             }
+            updateUIScale(getVal('sw_uiScale', 95));
         }
 
         function updateUIScale(percent) {
@@ -589,22 +612,17 @@
             
             const display = document.getElementById('display');
             if (!display) return;
-            const container = display.parentElement;
+            const container = display.parentElement; // display-container
             if (!container) return;
+            
             const containerWidth = container.offsetWidth || window.innerWidth;
+            const containerHeight = container.offsetHeight || window.innerHeight;
             
-            // 估算整串碼表寬度比例
-            const calculatedFontSize = (containerWidth * ratio) / 7.16;
+            // 使用 vmin 的概念手動計算限制
+            const fontSizeByWidth = (containerWidth * ratio) / 7.16;
+            const fontSizeByHeight = (containerHeight * ratio) / 1.5; // 預留高度空間
             
-            // 全螢幕下增加高度安全檢查
-            const isFS = container.closest('.simulated-fs');
-            if (isFS) {
-                const containerHeight = window.innerHeight * 0.8;
-                const heightLimit = containerHeight / 1.2;
-                display.style.fontSize = Math.min(calculatedFontSize, heightLimit) + 'px';
-            } else {
-                display.style.fontSize = calculatedFontSize + 'px';
-            }
+            display.style.fontSize = Math.min(fontSizeByWidth, fontSizeByHeight) + 'px';
         }
 
         function hexToRgba(hex, alphaPercent) {
@@ -857,6 +875,16 @@
             if (document.activeElement.tagName === 'INPUT' || document.activeElement.id === 'mainTitle') return;
             if (e.code === 'Space') { e.preventDefault(); getChecked('syncModeToggle') ? (recordingActive ? syncStop() : syncStart()) : toggleTimer(); }
             if (e.key.toLowerCase() === 'r') resetTimer();
+        });
+
+        // 監聽全螢幕變化，確保 API 退出時也能正確重置狀態
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                const container = document.getElementById('mainTimerContainer');
+                if (container) container.classList.remove('simulated-fs');
+                document.body.style.overflow = '';
+                updateUIScale(getVal('sw_uiScale', 95));
+            }
         });
     </script>
 </body>
