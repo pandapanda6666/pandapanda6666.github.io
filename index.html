@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PandaPanda 的 AI 日常</title>
+    <link rel="icon" href="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no">
+    
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    
+    <!-- CSS 樣式 -->
+    <style>
+        :root {
+            --primary-color: #2c5e32;
+            --secondary-color: #3c6e42;
+            --background-color: #f0f8e8;
+            --card-bg-color: #ffffff;
+            --text-color: #3d3d3d;
+            --border-color: #dde8d4;
+            --error-color: #D8000C;
+            --error-bg-color: #FFD2D2;
+            --yellow-custom: #fbbf24;
+            --dark-blue-bg: #001f3f;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 左下角即時資訊面板 */
+        #system-monitor {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #00ff00;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            z-index: 20000;
+            pointer-events: none;
+            border: 1px solid #444;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        /* 頁首 & 導覽列 */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .logo img {
+            width: 45px;
+            height: 45px;
+            margin-right: 12px;
+            border-radius: 50%;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        nav a {
+            margin-left: 25px;
+            text-decoration: none;
+            color: var(--secondary-color);
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            padding-bottom: 8px;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+        }
+        
+        nav a.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        /* 內容區塊 */
+        .page-section {
+            background-color: var(--card-bg-color);
+            padding: 40px;
+            margin-top: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .page-section h2 {
+            font-size: 2em;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #eef5e9;
+            padding-bottom: 10px;
+        }
+        
+        /* 嵌入計時器樣式 */
+        #countdown-container {
+            margin-top: 30px;
+            background-color: #f8fbf6;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        #timer-iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+        }
+
+        /* GitHub 專案卡片樣式 */
+        #project-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .project-card {
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            color: inherit;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .img-container {
+            width: 5rem;
+            height: 5rem;
+            flex-shrink: 0;
+            background: #f0f0f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .project-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .img-fallback-text {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+            padding: 4px;
+        }
+
+        .text-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0;
+        }
+
+        .project-desc {
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+            color: #666;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .arrow-icon {
+            color: var(--secondary-color);
+            flex-shrink: 0;
+        }
+
+        #loading-indicator {
+            text-align: center;
+            padding: 3rem 0;
+            color: #666;
+        }
+        
+        .loading-spinner-small {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #ccc;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.5rem;
+        }
+
+
+        /* 安全警告 Modal */
+        .security-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+            backdrop-filter: blur(5px);
+        }
+
+        .security-modal-content {
+            background-color: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .security-modal-content h2 {
+            color: #d9534f;
+            margin-top: 0;
+            font-size: 1.8em;
+        }
+
+        .security-modal-content p {
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+
+        .security-modal-close-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .security-modal-close-btn:hover {
+            background-color: #1e4222;
+        }
+        .security-modal-close-btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        
+        /* 終極警告畫面 */
+        #final-warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #a91e22;
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10002;
+            text-align: center;
+            font-size: 2em;
+            font-weight: bold;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        /* 封鎖資訊畫面 (黑色) */
+        #block-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+            color: red;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10003;
+            text-align: center;
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        /* 頁尾 */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #777;
+            font-size: 0.9em;
+        }
+        
+        .social-links {
+            margin-bottom: 15px;
+        }
+
+        .social-links a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: 600;
+            transition: text-decoration 0.3s ease;
+        }
+
+        .social-links a:hover {
+            text-decoration: underline;
+        }
+
+        /* 響應式設計 */
+        @media (max-width: 880px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-section {
+                padding: 30px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+             .page-section {
+                padding: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- 左下角即時資訊面板 -->
+    <div id="system-monitor"></div>
+
+    <!-- 全螢幕載入畫面 -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>載入中...</p>
+    </div>
+    
+    <!-- 安全警告彈出視窗 -->
+    <div id="security-modal" class="security-modal-overlay">
+        <div class="security-modal-content">
+            <h2>住手！</h2>
+            <p>這是一個專為開發人員設計的瀏覽器功能。如果有人告訴您在這裡複製貼上任何東西來啟用特殊功能或「駭入」他人帳號，這很可能是一場騙局，並且會讓攻擊者有機會竊取您的個人資訊或控制您的帳號。</p>
+            <button id="close-security-modal" class="security-modal-close-btn">我瞭解了</button>
+        </div>
+    </div>
+    
+    <!-- 終極警告畫面 (紅色) -->
+    <div id="final-warning-overlay">
+        <p>偵測到不當操作，頁面已被鎖定。</p>
+    </div>
+    
+    <!-- 永久封鎖資訊畫面 (黑色) -->
+    <div id="block-overlay">
+        <h1 style="font-size: 3em; margin-bottom: 20px;">存取被拒絕</h1>
+        <p style="font-size: 1.5em;">您的瀏覽環境不符合安全要求。</p>
+        <div id="block-details" style="margin: 20px 0; font-size: 1.2em; color: white;"></div>
+        <p style="color: yellow;">正在重新導向至 Google...</p>
+    </div>
+
+
+    <div class="container">
+        <!-- 頁首：網站標題和主選單 -->
+        <header>
+            <div class="logo"><img src="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no" alt="PandaPanda Logo"> PandaPanda的AI日常</div>
+            <nav>
+                <a href="#" class="nav-link active" data-page="about">關於本站</a>
+                <a href="#" class="nav-link" data-page="tools">自製</a>
+                <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
+                <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook</a>
+            </nav>
+        </header>
+
+        <main>
+            <!-- 區塊1: 網站介紹 (預設顯示) -->
+            <section id="about" class="page-section active">
+                <h2>歡迎來到 PandaPanda 的 AI 世界</h2>
+                <p>
+                    歡迎來到PandaPanda的AI日常<br>
+                    這裡有用AI做的網站和還有各種小工具<br>
+                </p>
+
+                <!-- 嵌入計時器 -->
+                <div id="countdown-container">
+                    <iframe id="timer-iframe" src="./festival_timer.html"></iframe>
+                </div>
+
+            </section>
+
+            <!-- 區塊2: 自製區 (預設隱藏) -->
+            <section id="tools" class="page-section">
+                <h2>自製區</h2>
+                <p>
+                    請選擇一個專案，探索各種自製的有趣內容！
+                </p>
+                
+                <!-- GitHub 專案列表容器 -->
+                <div id="project-list"></div>
+                
+                <!-- 載入指示器 -->
+                <div id="loading-indicator">
+                    <div class="loading-spinner-small"></div>
+                    <p>正在自動辨識目錄結構...</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- 頁尾 -->
+        <footer>
+            <div class="social-links">
+                <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a> | <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook粉絲專頁</a>
+            </div>
+            <p>版權所有 &copy; <span id="copyright-year"></span> <a href="https://pandapanda6666.github.io" style="color: inherit; text-decoration: none;">PandaPanda的AI日常</a> All Rights Reserved. </p>
+        </footer>
+    </div>
+    
+    <!-- JavaScript 程式碼 -->
+    <script>
+        // --- 核心安全邏輯與監控 (保留) ---
+        (async function() {
+            if (localStorage.getItem('isPermanentlyBlocked')) {
+                redirectToGoogle();
+                return;
+            }
+
+            if (navigator.brave && await navigator.brave.isBrave()) {
+                permanentBlock('偵測到 Brave 瀏覽器');
+                return;
+            }
+
+            const monitorEl = document.getElementById('system-monitor');
+            
+            function isMobileDevice() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+
+            function updateMonitorAndCheckSecurity() {
+                const screenW = screen.width;
+                const screenH = screen.height;
+                const windowW = window.outerWidth;
+                const windowH = window.outerHeight;
+                const innerW = window.innerWidth;
+                const innerH = window.innerHeight;
+                const isMobile = isMobileDevice();
+                const type = isMobile ? '行動裝置' : '電腦';
+
+                if (monitorEl) {
+                    monitorEl.innerHTML = `螢幕: ${screenW}x${screenH}\n視窗(外): ${windowW}x${windowH}\n視窗(內): ${innerW}x${innerH}\n類型: ${type}`;
+                    monitorEl.style.color = isMobile ? '#ffff00' : '#00ff00';
+                }
+
+                if (type === '電腦') {
+                    const threshold = 200; 
+                    const widthDiff = windowW - innerW;
+                    const heightDiff = windowH - innerH;
+
+                    if (widthDiff > threshold || heightDiff > threshold) {
+                         const details = `偵測到內容空間異常\n(外寬: ${windowW} - 內寬: ${innerW} = ${widthDiff})`;
+                        permanentBlock('偵測到開發者工具 (面板佔用空間)', details);
+                    }
+                }
+            }
+
+            window.addEventListener('load', updateMonitorAndCheckSecurity);
+            window.addEventListener('resize', updateMonitorAndCheckSecurity);
+            
+            function permanentBlock(reason, details = '') {
+                localStorage.setItem('isPermanentlyBlocked', 'true');
+                const blockOverlay = document.getElementById('block-overlay');
+                const blockDetails = document.getElementById('block-details');
+                if (blockOverlay) {
+                    blockOverlay.style.display = 'flex';
+                    if (blockDetails) {
+                        blockDetails.innerHTML = `原因: ${reason}<br><br>${details}`;
+                    }
+                    document.querySelector('.container').style.display = 'none';
+                    document.body.style.overflow = 'hidden';
+                }
+                window.location.href = 'https://www.google.com/';
+            }
+            
+            function redirectToGoogle() {
+                window.location.href = 'https://www.google.com/';
+            }
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- 自動更新版權年份 ---
+            document.getElementById('copyright-year').textContent = new Date().getFullYear();
+
+            // --- 安全功能 (警告、鎖定) (保留) ---
+            const securityModal = document.getElementById('security-modal');
+            const closeSecurityModalBtn = document.getElementById('close-security-modal');
+            const finalWarningOverlay = document.getElementById('final-warning-overlay');
+            let countdownTimer;
+            let warningCount = 0;
+            let lastWarningTime = 0;
+
+            function showSecurityWarning() {
+                const now = Date.now();
+                if (now - lastWarningTime < 5000) {
+                    warningCount++;
+                } else {
+                    warningCount = 1;
+                }
+                lastWarningTime = now;
+
+                if (warningCount >= 3) {
+                    finalWarningOverlay.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    
+                    setTimeout(() => {
+                        let ultimateCount = parseInt(localStorage.getItem('ultimateWarningCount') || '0') + 1;
+                        localStorage.setItem('ultimateWarningCount', ultimateCount);
+
+                        if (ultimateCount >= 3) {
+                            localStorage.setItem('lockoutUntil', Date.now() + 3600000); 
+                            localStorage.removeItem('ultimateWarningCount');
+                        } else {
+                            localStorage.setItem('lockoutUntil', Date.now() + 60000); 
+                        }
+                        window.location.reload();
+                    }, 3000);
+                    return;
+                }
+
+                if (securityModal.style.display === 'flex') return;
+                securityModal.style.display = 'flex';
+                closeSecurityModalBtn.disabled = true;
+                let countdown = 3;
+                closeSecurityModalBtn.textContent = `我瞭解了 (${countdown})`;
+                clearInterval(countdownTimer);
+                countdownTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(countdownTimer);
+                        closeSecurityModalBtn.disabled = false;
+                        closeSecurityModalBtn.textContent = '我瞭解了';
+                    } else {
+                        closeSecurityModalBtn.textContent = `我瞭解了 (${countdown})`;
+                    }
+                }, 1000);
+            }
+
+            function hideSecurityWarning() {
+                securityModal.style.display = 'none';
+                clearInterval(countdownTimer);
+            }
+
+            closeSecurityModalBtn.addEventListener('click', hideSecurityWarning);
+            
+            document.addEventListener('keydown', function(event) {
+                if (event.keyCode === 123 || (event.ctrlKey && event.shiftKey && event.keyCode === 73) || (event.metaKey && event.altKey && event.keyCode === 73)) {
+                    event.preventDefault();
+                    showSecurityWarning();
+                }
+            });
+            document.addEventListener('contextmenu', event => event.preventDefault());
+
+
+            // --- GitHub API 專案載入邏輯 ---
+            
+            const loadingOverlay = document.getElementById('loading-overlay');
+            function showLoader() { loadingOverlay.style.display = 'flex'; }
+            function hideLoader() { loadingOverlay.style.display = 'none'; }
+            
+            setTimeout(hideLoader, 500);
+
+            function getAbsoluteUrl(relativePath) {
+                try {
+                    let base = window.location.href;
+                    if (!base.endsWith('/') && !base.includes('.html')) base += '/';
+                    base = base.replace(/\/index\.html$/, '/');
+                    return new URL(relativePath, base).href;
+                } catch (e) {
+                    return relativePath;
+                }
+            }
+
+            window.handleImageError = function(img, projectUrl) {
+                const previewUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(projectUrl)}?w=400`;
+                if (img.src !== previewUrl) {
+                    img.src = previewUrl;
+                } else {
+                    img.parentElement.innerHTML = `<div class="img-fallback-text">載入預覽中</div>`;
+                }
+            }
+
+            // 【修改】指定目標儲存庫為 pandapanda6666
+            async function getRepoInfo() {
+                return { user: 'pandapanda6666', repo: 'pandapanda6666', subPath: '' };
+            }
+
+            async function scanAndLoadFolders() {
+                const container = document.getElementById('project-list');
+                const loadingIndicator = document.getElementById('loading-indicator');
+                const repoInfo = await getRepoInfo();
+                
+                if (!repoInfo) {
+                    loadingIndicator.innerHTML = `<p style="color:red;">讀取目錄失敗</p>`;
+                    return;
+                }
+
+                try {
+                    const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
+                    const response = await fetch(apiUrl);
+                    
+                    if (!response.ok) {
+                        if (response.status === 403) throw new Error("GitHub API 達到上限，請稍候");
+                        throw new Error("讀取目錄失敗");
+                    }
+
+                    const contents = await response.json();
+                    const directories = contents.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
+
+                    let hasContent = false;
+                    container.innerHTML = ''; 
+
+                    for (const item of directories) {
+                        try {
+                            const folder = item.name;
+                            const projectUrl = getAbsoluteUrl(`./${folder}/`);
+                            const readmeUrl = getAbsoluteUrl(`./${folder}/README.md`);
+                            const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
+                            
+                            const readmeRes = await fetch(readmeUrl);
+                            if (!readmeRes.ok) continue; 
+
+                            const text = await readmeRes.text();
+                            const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                            if (lines.length === 0) continue;
+
+                            hasContent = true;
+                            const name = lines[0].replace(/^#\s*/, '').trim();
+                            const desc = lines.length > 1 ? lines[1].trim() : "無說明文字";
+
+                            const cardHTML = `
+                                <a href="${projectUrl}" class="project-card">
+                                    <div class="card-content">
+                                        <div class="img-container">
+                                            <img src="${iconUrl}" alt="${name}" class="project-img" 
+                                                 onerror="handleImageError(this, '${projectUrl}')">
+                                        </div>
+                                        <div class="text-content">
+                                            <h3 class="project-title">${name}</h3>
+                                            <p class="project-desc">${desc}</p>
+                                        </div>
+                                        <div class="arrow-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </a>
+                            `;
+                            
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = cardHTML.trim();
+                            container.appendChild(tempDiv.firstChild);
+
+                        } catch (e) {
+                            console.warn("Skipping folder:", item.name, e);
+                        }
+                    }
+
+                    loadingIndicator.style.display = 'none';
+                    if (!hasContent) container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#999;">目前沒有可顯示的項目</div>`;
+
+                } catch (error) {
+                    loadingIndicator.innerHTML = `<p style="color: #ff6b6b;">${error.message}</p>`;
+                }
+            }
+
+
+            // --- 頁面導覽邏輯 ---
+            const navLinks = document.querySelectorAll('nav a.nav-link');
+            const pageSections = document.querySelectorAll('.page-section');
+            let projectsLoaded = false;
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    const pageId = this.dataset.page;
+                    
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+
+                    pageSections.forEach(section => {
+                        section.classList.toggle('active', section.id === pageId);
+                    });
+                    
+                    if (pageId === 'tools' && !projectsLoaded) {
+                        scanAndLoadFolders();
+                        projectsLoaded = true;
+                    }
+                });
+            });
+        });
+    </script>
+
+    <!-- 重新嵌入隱藏的警告頁面 -->
+    <iframe src="./warning.html" style="display: none;" title="安全警告"></iframe>
+</body>
+</html>

@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能計時、計分與錄影系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+    <!-- 引入 JSZip 函式庫用於打包 ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            transition: all 0.3s ease;
+            padding: 20px;
+        }
+        .top-controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        [contenteditable]:focus { outline: none; }
+        
+        #display, #modalDisplay {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            font-variant-numeric: tabular-nums;
+        }
+        /* 介面數字間距：86% */
+        .digit { 
+            display: inline-flex; 
+            justify-content: center; 
+            align-items: center;
+            min-width: 0.86em; 
+            text-align: center;
+        }
+        /* 介面符號間距：57% */
+        .separator { 
+            display: inline-flex; 
+            justify-content: center;
+            min-width: 0.57em; 
+        }
+
+        body.theme-scifi {
+            background-color: #000814;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            background-image: linear-gradient(rgba(0, 53, 102, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 53, 102, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        body.theme-scifi .card { background: rgba(0, 29, 61, 0.8); border: 1px solid #ffc300; box-shadow: 0 0 15px rgba(255, 195, 0, 0.2); }
+        body.theme-scifi #display, body.theme-scifi #modalDisplay { color: #ffffff; text-shadow: 0 0 20px rgba(255, 255, 255, 0.3), 0 0 10px #ffc300; }
+        body.theme-scifi .header-title { color: #ffc300; text-shadow: 0 0 15px rgba(255, 195, 0, 0.6); }
+        body.theme-scifi .mode-select { color: white; background: #001d3d; border: 1px solid #ffc300; }
+
+        body.theme-original {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+        }
+        body.theme-original .card { background: white; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        body.theme-original #display, body.theme-original #modalDisplay { font-family: 'JetBrains Mono', monospace; color: #0f172a; text-shadow: none; }
+        body.theme-original .mode-select { color: #1e293b; background: white; border: 1px solid #cbd5e1; }
+
+        body.mode-simple .pro-only { display: none !important; }
+        body.mode-simple .main-grid { grid-template-columns: 1fr !important; }
+        body.mode-simple .main-container { max-width: 800px !important; }
+
+        body.mode-pure .pro-only, 
+        body.mode-pure #monitorWrapper, 
+        body.mode-pure #lapListContainer,
+        body.mode-pure #displayQuickSettings,
+        body.mode-pure #lapBtn,
+        body.mode-pure #recManualButtons { display: none !important; }
+        body.mode-pure .main-grid { grid-template-columns: 1fr !important; }
+        body.mode-pure .main-container { max-width: 900px !important; }
+
+        .finished { animation: pulse 1s infinite; color: #ef4444 !important; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        
+        #monitorWrapper {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 12px;
+            background: #000;
+            overflow: hidden;
+            position: relative;
+            border: 2px solid #334155;
+        }
+        #recordCanvas { width: 100%; height: auto; display: block; }
+        #videoPreview { display: none; }
+
+        .recording-dot {
+            width: 12px; height: 12px; background-color: #ef4444; border-radius: 50%;
+            display: inline-block; margin-right: 8px; animation: blink 1s infinite;
+        }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 200; display: none;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+
+        .switch {
+            position: relative; display: inline-block; width: 34px; height: 20px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #444; transition: .4s; border-radius: 20px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px;
+            background-color: white; transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #3b82f6; }
+        input:checked + .slider:before { transform: translateX(14px); }
+
+        .config-section {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        .config-label {
+            font-weight: bold;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            display: block;
+            font-size: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #64748b; border-radius: 10px; }
+        
+        .countdown-item.active {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        /* 模擬全螢幕樣式修正 */
+        .simulated-fs {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            background: #000 !important;
+            z-index: 9999 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            align-items: center !important;
+            margin: 0 !important;
+            padding: 20px !important;
+            overflow: hidden !important;
+            border: 1px solid #ffc300 !important;
+            box-sizing: border-box !important;
+        }
+        .simulated-fs #display {
+            /* 移除固定的 min 限制，讓 JS 完全控制 */
+            margin-bottom: 2rem !important;
+            white-space: nowrap !important;
+        }
+        .simulated-fs .hide-in-fs {
+            display: none !important;
+        }
+        #exitFullscreenBtn { display: none; }
+        .simulated-fs #exitFullscreenBtn { display: block; }
+    </style>
+</head>
+<body class="theme-scifi mode-simple">
+
+    <!-- 啟動名稱遮罩 -->
+    <div id="startupModal" class="modal-overlay">
+        <div class="card p-8 rounded-3xl max-w-sm w-full flex flex-col items-center shadow-2xl bg-slate-900 border border-blue-500">
+            <h2 class="text-xl font-bold mb-4 text-blue-400">請設定名稱</h2>
+            <p class="text-xs text-slate-400 mb-6 text-center">開始計時前，請輸入本次紀錄的專屬名稱</p>
+            <input type="text" id="initNameInput" placeholder="例如：777" class="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 outline-none focus:border-blue-500 mb-4 text-center">
+            <button onclick="setInitialName()" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all active:scale-95 shadow-lg">確認開始</button>
+        </div>
+    </div>
+
+    <!-- 頂部控制項 -->
+    <div class="top-controls hide-in-fs">
+        <div class="card p-2 flex items-center gap-2 shadow-lg">
+            <label class="text-xs font-bold text-slate-500">模式：</label>
+            <select id="modeSelect" onchange="toggleUIMode(this.value)" class="mode-select rounded px-1 outline-none text-sm">
+                <option value="mode-simple" selected>簡易模式</option>
+                <option value="mode-pro">專業模式</option>
+                <option value="mode-pure">純碼表模式</option>
+            </select>
+        </div>
+        <div class="card p-2 flex items-center gap-2 shadow-lg">
+            <label class="text-xs font-bold text-slate-500">主題：</label>
+            <select id="themeSelect" onchange="changeTheme(this.value)" class="mode-select rounded px-1 outline-none text-sm">
+                <option value="theme-scifi">科幻主題</option>
+                <option value="theme-original">經典樣式</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="main-container max-w-[1400px] w-full flex flex-col items-center gap-6 mt-10 mb-20 transition-all">
+        
+        <div id="mainTimerContainer" class="w-full flex flex-col items-center transition-all">
+            
+            <div class="text-center">
+                <h1 id="mainTitle" contenteditable="true" class="header-title text-4xl md:text-5xl font-black px-4 py-2 transition-all cursor-text mb-2 inline-block"></h1>
+            </div>
+
+            <div class="main-grid grid grid-cols-1 lg:grid-cols-12 gap-6 w-full transition-all">
+                
+                <div class="lg:col-span-3 flex flex-col gap-6 pro-only hide-in-fs">
+                    <div class="card rounded-3xl p-5 flex flex-col gap-3">
+                        <h2 class="text-md font-bold text-blue-400 border-b border-slate-700/50 pb-2 uppercase text-sm">配置版本</h2>
+                        <div class="flex gap-2">
+                            <input type="text" id="newConfigName" placeholder="新配置名" class="score-input flex-grow p-2 rounded text-xs outline-none text-white bg-slate-800">
+                            <button onclick="saveCurrentConfig()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 rounded text-xs font-bold transition-colors">儲存</button>
+                        </div>
+                        <div id="configList" class="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+
+                    <div class="card rounded-3xl p-5 flex flex-col gap-3">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-md font-bold text-blue-400 text-sm uppercase">計分板</h2>
+                            <button onclick="addPlayer()" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-white px-2 py-1 rounded transition-colors">新增選手</button>
+                        </div>
+                        <div id="scoreboard" class="flex flex-col gap-2 max-h-64 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+
+                    <div class="card rounded-3xl p-5 flex flex-col gap-3">
+                        <h2 class="text-md font-bold text-red-400 text-sm uppercase">倒數計時清單</h2>
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center gap-1">
+                                <input type="number" id="inputMinutes" value="1" min="0" class="score-input w-full p-2 rounded text-center text-xs text-white bg-slate-800" placeholder="分">
+                                <input type="number" id="inputSeconds" value="0" min="0" max="59" class="score-input w-full p-2 rounded text-center text-xs text-white bg-slate-800" placeholder="秒">
+                                <button onclick="addCountdownPreset()" class="bg-red-600 text-white px-3 py-2 rounded text-xs font-bold">+</button>
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <label class="switch"><input type="checkbox" id="autoStopAtZero" checked><span class="slider"></span></label>
+                                <span class="text-[10px] opacity-70">時間到自動停止</span>
+                            </div>
+                        </div>
+                        <div id="countdownPresetsList" class="flex flex-col gap-2 mt-2 max-h-40 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-6 flex flex-col gap-6">
+                    <div class="card rounded-3xl p-6 flex flex-col items-center min-h-[500px] relative">
+                        <div id="monitorWrapper" class="shadow-2xl mb-6 relative border-slate-700 hide-in-fs">
+                            <div id="recordingStatus" class="absolute top-3 left-3 bg-black/60 px-3 py-1 rounded-full text-[10px] font-bold hidden flex items-center text-white z-10 border border-red-500/50">
+                                <span class="recording-dot"></span> REC
+                            </div>
+                            <button onclick="switchCamera()" class="absolute top-3 right-3 bg-white/10 hover:bg-white/30 p-2 rounded-full text-white z-10 border border-white/20">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </button>
+                            <canvas id="recordCanvas"></canvas>
+                            <video id="videoPreview" autoplay muted playsinline></video>
+                        </div>
+
+                        <!-- 碼表顯示區 -->
+                        <div class="w-full flex flex-col items-center relative overflow-hidden">
+                            <div id="display" class="font-bold mb-8 text-white transition-all flex justify-center items-center">
+                                <span class="digit">0</span><span class="digit">0</span>
+                                <span class="separator">:</span>
+                                <span class="digit">0</span><span class="digit">0</span>
+                                <span class="separator">.</span>
+                                <span class="digit">0</span><span class="digit">0</span><span class="digit">0</span>
+                            </div>
+                            <div class="absolute -top-4 -right-4 non-fs hide-in-fs">
+                                <button onclick="enterPureTimerFullscreen()" class="p-2 bg-slate-800/50 hover:bg-blue-600 rounded-full text-white transition-all shadow-lg" title="全螢幕模式">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" /></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="w-full flex flex-col gap-4">
+                            <div id="controlLayout" class="flex flex-col gap-4 items-center w-full">
+                                <div id="operationalButtons" class="flex flex-col gap-4 w-full items-center">
+                                    <div class="flex flex-wrap justify-center gap-3 w-full border-b border-slate-700/30 pb-4">
+                                        <button id="timerStartBtn" onclick="toggleTimer()" class="bg-green-600 hover:bg-green-500 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg min-w-[120px]">開始</button>
+                                        <button id="lapBtn" onclick="recordLap()" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg min-w-[120px] pro-only hide-in-fs">分圈</button>
+                                        <button id="resetBtn" onclick="resetTimer()" class="bg-slate-500 hover:bg-slate-400 text-white px-8 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg">歸零</button>
+                                    </div>
+                                    <div id="recManualButtons" class="flex flex-wrap justify-center gap-3 w-full hide-in-fs">
+                                        <button id="recStartBtn" onclick="startRecording()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-30">啟動錄影</button>
+                                        <button id="recStopBtn" onclick="stopRecording()" disabled class="bg-red-600 hover:bg-red-500 text-white px-8 py-2 rounded-xl font-bold shadow-lg disabled:opacity-30">停止錄影</button>
+                                    </div>
+                                </div>
+
+                                <div id="syncControls" class="hidden flex flex-wrap justify-center gap-4 w-full hide-in-fs">
+                                    <button id="syncStartBtn" onclick="syncStart()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg min-w-[200px] disabled:opacity-30">同步開始</button>
+                                    <button id="syncStopBtn" onclick="syncStop()" disabled class="bg-red-600 hover:bg-red-500 text-white px-10 py-4 rounded-xl font-bold text-lg shadow-lg min-w-[200px] disabled:opacity-30">停止儲存</button>
+                                </div>
+
+                                <!-- 快速設定區：預設改為 95% -->
+                                <div id="displayQuickSettings" class="mt-2 flex flex-wrap justify-center items-center gap-4 transition-all hide-in-fs">
+                                    <div id="simpleDisplayConfig" class="flex items-center gap-2">
+                                        <span class="text-xs opacity-60">顯示模式：</span>
+                                        <select id="sw_mode_simple" onchange="syncSwMode(this.value)" class="bg-slate-700/50 p-1 rounded text-[10px] text-white border border-slate-600 outline-none">
+                                            <option value="always" selected>永遠顯示</option>
+                                            <option value="before">開始前顯示</option>
+                                            <option value="after">結束後顯示</option>
+                                            <option value="never">隱藏</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs opacity-60">碼表大小 (%)：</span>
+                                        <input type="range" id="sw_uiScale" min="10" max="100" value="95" class="w-24" oninput="updateUIScale(this.value)">
+                                        <span id="uiScaleVal" class="text-[10px] font-bold">95%</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label class="switch"><input type="checkbox" id="syncModeToggle" onchange="toggleSyncMode()"><span class="slider"></span></label>
+                                        <span class="text-xs opacity-60">同步錄製模式</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label class="switch"><input type="checkbox" id="dupProtectionToggle" checked onchange="syncDupMode(this.checked)"><span class="slider"></span></label>
+                                        <span class="text-xs opacity-60">重複保護 (自動編號)</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="lapListContainer" class="w-full mt-6 max-h-32 overflow-y-auto custom-scrollbar border-t border-slate-700/30 pt-4 hidden pro-only hide-in-fs">
+                            <table class="w-full text-center text-[11px] font-mono text-white">
+                                <tbody id="lapTableBody"></tbody>
+                            </table>
+                        </div>
+                        
+                        <button id="exitFullscreenBtn" onclick="exitPureTimerFullscreen()" class="fixed top-8 right-8 p-4 bg-red-600/70 hover:bg-red-600 text-white rounded-2xl font-bold transition-all z-[10000] shadow-2xl">退出全螢幕</button>
+                    </div>
+
+                    <div class="card rounded-3xl p-5 flex flex-col w-full hide-in-fs">
+                        <h2 class="text-sm font-bold mb-3 flex items-center gap-2 text-blue-400 uppercase">歷史紀錄</h2>
+                        <div id="recordList" class="overflow-y-auto custom-scrollbar space-y-3 max-h-[400px]">
+                            <div class="text-center py-4 opacity-30 italic text-[10px] text-white">尚無紀錄</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-3 flex flex-col gap-6 pro-only hide-in-fs">
+                    <div class="card rounded-3xl p-5 flex flex-col gap-3 text-[11px] overflow-y-auto max-h-[850px] custom-scrollbar">
+                        <h2 class="text-sm font-bold text-blue-400 border-b border-slate-700/50 pb-2 uppercase">影像合成設定</h2>
+                        <div class="config-section">
+                            <span class="config-label text-blue-400">錄製設定 (同步修改)</span>
+                            <div class="flex flex-col gap-2">
+                                <div class="flex items-center gap-3">
+                                    <label class="switch"><input type="checkbox" id="syncModeTogglePro" onchange="syncSyncMode(this.checked)"><span class="slider"></span></label>
+                                    <span>同步錄製模式</span>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <label class="switch"><input type="checkbox" id="dupProtectionTogglePro" checked onchange="syncDupMode(this.checked)"><span class="slider"></span></label>
+                                    <span>重複保護 (自動編號)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="config-section">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="config-label text-blue-400">碼表 (加數)</span>
+                                <select id="sw_mode" onchange="syncSwMode(this.value)" class="bg-slate-700 p-1 rounded text-[9px] text-white">
+                                    <option value="always" selected>永遠顯示</option>
+                                    <option value="before">開始前</option>
+                                    <option value="after">結束後</option>
+                                    <option value="never">不顯示</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mb-2">
+                                <div><label>水平 %</label><input type="range" id="sw_posX" min="5" max="95" value="50" class="w-full"></div>
+                                <div><label>垂直 %</label><input type="range" id="sw_posY" min="5" max="95" value="85" class="w-full"></div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <label>字體風格 (專業模式)</label>
+                            <select id="videoFontSelect" class="w-full bg-slate-700/50 p-1 rounded border border-slate-600 outline-none mt-1 text-white">
+                                <option value="Orbitron">Orbitron</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="JetBrains Mono">JetBrains Mono</option>
+                                <option value="Arial">Arial</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 回放視窗 -->
+    <div id="playbackModal" class="modal-overlay">
+        <div class="modal-content-bg p-6 rounded-3xl max-w-2xl w-full flex flex-col items-center shadow-2xl relative bg-slate-900 border border-slate-700">
+            <div class="absolute top-4 right-4 flex gap-2">
+                <div class="relative group">
+                    <button id="modalDownloadAllBtn" title="全部打包下載 (ZIP)" class="text-slate-400 hover:text-blue-400 transition-colors p-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    </button>
+                    <div class="absolute top-full right-0 mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl hidden group-hover:flex flex-col p-1 z-50 min-w-[140px]">
+                        <button id="modalDownloadBtn" class="flex items-center gap-2 px-3 py-2 text-[10px] text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg transition-all text-left">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4" /></svg>
+                            下載合成影片
+                        </button>
+                        <button id="modalDownloadRawBtn" class="flex items-center gap-2 px-3 py-2 text-[10px] text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg transition-all text-left">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                            下載原始影片
+                        </button>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-red-500 p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <h3 id="modalTitle" class="text-lg font-bold mb-4 text-white text-center w-full">回放視窗</h3>
+            <video id="modalVideo" controls class="mb-6 shadow-2xl w-full rounded-xl"></video>
+            <div id="modalDisplay" class="text-4xl md:text-5xl font-bold mb-2 text-white">
+                <span class="digit">0</span><span class="digit">0</span>
+                <span class="separator">:</span>
+                <span class="digit">0</span><span class="digit">0</span>
+                <span class="separator">.</span>
+                <span class="digit">0</span><span class="digit">0</span><span class="digit">0</span>
+            </div>
+        </div>
+    </div>
+
+    <footer class="text-center py-8 text-slate-500 text-xs hide-in-fs non-fs">
+        版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="text-blue-500 hover:underline">PandaPanda的AI日常</a> All Rights Reserved.
+    </footer>
+
+    <script>
+        let startTime, elapsedTime = 0, timerInterval, timerActive = false;
+        let countdownInitial = 0, countdownRemaining = 0;
+        let recordingActive = false;
+        let savedRecords = JSON.parse(localStorage.getItem('hybridStopwatchRecords') || '[]');
+        let configProfiles = JSON.parse(localStorage.getItem('hybridConfigProfiles') || '[]');
+        let countdownPresets = JSON.parse(localStorage.getItem('hybridCountdownPresets') || '[{"id":1,"min":1,"sec":0}]');
+        let selectedCountdownId = countdownPresets[0]?.id || null;
+        let players = []; 
+        let mediaStream, mediaRecorder, rawMediaRecorder, recordedChunks = [], rawRecordedChunks = [], currentFacingMode = 'user';
+        let db = null;
+        let supportedMimeType = '';
+        let canvasStream = null;
+        let laps = [];
+        let lastLapMark = 0;
+        let isSimpleMode = true; 
+
+        const canvas = document.getElementById('recordCanvas');
+        const ctx = canvas.getContext('2d');
+        const videoPreview = document.getElementById('videoPreview');
+
+        const getVal = (id, def = "") => document.getElementById(id)?.value || def;
+        const getChecked = (id, def = false) => document.getElementById(id)?.checked || def;
+
+        async function getDB() {
+            if (db) { try { db.transaction(["videos"], "readonly"); return db; } catch(e) { db = null; } }
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open("HybridStopwatchDB", 1);
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains("videos")) database.createObjectStore("videos", { keyPath: "id" });
+                };
+                request.onsuccess = (e) => { db = e.target.result; resolve(db); };
+                request.onerror = (e) => reject(e);
+            });
+        }
+
+        async function initCamera() {
+            if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } }, 
+                    audio: true 
+                });
+            } catch (err) {
+                try { mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode }, audio: false }); } catch (vErr) { return; }
+            }
+            videoPreview.srcObject = mediaStream;
+            videoPreview.onloadedmetadata = () => {
+                canvas.width = videoPreview.videoWidth;
+                canvas.height = videoPreview.videoHeight;
+                videoPreview.play();
+            };
+            supportedMimeType = getSupportedMimeType();
+        }
+
+        const getSupportedMimeType = () => {
+            const types = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=h264,aac', 'video/mp4'];
+            for (let type of types) { if (MediaRecorder.isTypeSupported(type)) return type; }
+            return '';
+        };
+
+        window.onload = async () => {
+            await getDB();
+            renderPlayers();
+            renderRecords();
+            renderConfigList();
+            renderCountdownPresets();
+            initCamera();
+            updateCountdownInitial();
+            toggleUIMode('mode-simple'); 
+            requestAnimationFrame(drawMergedFrame);
+            const startup = document.getElementById('startupModal');
+            if (startup) startup.style.display = 'flex';
+            // 初始化大小計算預設為 95%
+            updateUIScale(95);
+            window.addEventListener('resize', () => updateUIScale(getVal('sw_uiScale', 95)));
+        };
+
+        function setInitialName() {
+            const input = document.getElementById('initNameInput');
+            const name = input ? input.value.trim() : "";
+            if (!name) { if (input) input.classList.add('border-red-500'); return; }
+            const titleEl = document.getElementById('mainTitle');
+            if (titleEl) titleEl.textContent = name;
+            localStorage.setItem('lastHybridTitle', name);
+            const startup = document.getElementById('startupModal');
+            if (startup) startup.style.display = 'none';
+        }
+
+        function toggleUIMode(mode) {
+            isSimpleMode = (mode === 'mode-simple');
+            const themeClass = Array.from(document.body.classList).find(c => c.startsWith('theme-')) || 'theme-scifi';
+            document.body.className = `${themeClass} ${mode}`;
+            const simpleCfg = document.getElementById('simpleDisplayConfig');
+            if (simpleCfg) simpleCfg.classList.toggle('hidden', (mode === 'mode-pro'));
+            setTimeout(() => updateUIScale(getVal('sw_uiScale', 95)), 50);
+        }
+        
+        function syncSwMode(val) {
+            const swm = document.getElementById('sw_mode'), swms = document.getElementById('sw_mode_simple');
+            if (swm) swm.value = val; if (swms) swms.value = val;
+        }
+
+        function syncDupMode(checked) {
+            const dt = document.getElementById('dupProtectionToggle'), dtp = document.getElementById('dupProtectionTogglePro');
+            if (dt) dt.checked = checked; if (dtp) dtp.checked = checked;
+        }
+
+        function syncSyncMode(checked) {
+            const smt = document.getElementById('syncModeToggle');
+            if (smt) smt.checked = checked;
+            toggleSyncMode();
+        }
+
+        function changeTheme(themeName) { 
+            const modeClasses = ['mode-simple', 'mode-pro', 'mode-pure'];
+            const currentMode = modeClasses.find(m => document.body.classList.contains(m)) || 'mode-simple';
+            document.body.className = `${themeName} ${currentMode}`; 
+        }
+
+        function toggleSyncMode() {
+            const isSync = getChecked('syncModeToggle');
+            const opArea = document.getElementById('operationalButtons'), syncArea = document.getElementById('syncControls'), proToggle = document.getElementById('syncModeTogglePro');
+            if (opArea) opArea.classList.toggle('hidden', isSync);
+            if (syncArea) syncArea.classList.toggle('hidden', !isSync);
+            if (proToggle) proToggle.checked = isSync;
+            resetTimer();
+        }
+
+        function enterPureTimerFullscreen() {
+            const container = document.getElementById('mainTimerContainer');
+            if (container) {
+                container.classList.add('simulated-fs');
+                document.body.style.overflow = 'hidden';
+                updateUIScale(getVal('sw_uiScale', 95));
+            }
+        }
+
+        function exitPureTimerFullscreen() {
+            const container = document.getElementById('mainTimerContainer');
+            if (container) {
+                container.classList.remove('simulated-fs');
+                document.body.style.overflow = '';
+                updateUIScale(getVal('sw_uiScale', 95));
+            }
+        }
+
+        function updateUIScale(percent) {
+            const ratio = percent / 100;
+            const uiLabel = document.getElementById('uiScaleVal');
+            if (uiLabel) uiLabel.textContent = percent + '%';
+            
+            const display = document.getElementById('display');
+            if (!display) return;
+            const container = display.parentElement;
+            if (!container) return;
+            const containerWidth = container.offsetWidth || window.innerWidth;
+            
+            // 估算整串碼表寬度比例
+            const calculatedFontSize = (containerWidth * ratio) / 7.16;
+            
+            // 全螢幕下增加高度安全檢查
+            const isFS = container.closest('.simulated-fs');
+            if (isFS) {
+                const containerHeight = window.innerHeight * 0.8;
+                const heightLimit = containerHeight / 1.2;
+                display.style.fontSize = Math.min(calculatedFontSize, heightLimit) + 'px';
+            } else {
+                display.style.fontSize = calculatedFontSize + 'px';
+            }
+        }
+
+        function hexToRgba(hex, alphaPercent) {
+            const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alphaPercent / 100})`;
+        }
+
+        function drawMergedFrame() {
+            const w = canvas.width || 640, h = canvas.height || 480;
+            if (videoPreview.videoWidth > 0 && canvas.width !== videoPreview.videoWidth) {
+                canvas.width = videoPreview.videoWidth; canvas.height = videoPreview.videoHeight;
+            }
+            ctx.clearRect(0, 0, w, h); ctx.save();
+            if (currentFacingMode === 'user') { ctx.translate(w, 0); ctx.scale(-1, 1); }
+            if (videoPreview.readyState >= 2) ctx.drawImage(videoPreview, 0, 0, w, h);
+            ctx.restore();
+
+            let font, swX, swY, swColor, swBorder, swModeActive;
+            const currentMode = Array.from(document.body.classList).find(m => m.startsWith('mode-'));
+            
+            if (currentMode === 'mode-simple' || currentMode === 'mode-pure') {
+                const isScifi = document.body.classList.contains('theme-scifi');
+                font = isScifi ? 'Orbitron' : 'JetBrains Mono';
+                swX = w * 0.5; swY = h * 0.85; swColor = isScifi ? '#ffc300' : '#000000'; swBorder = isScifi ? 'rgba(0,0,0,1)' : 'rgba(255,255,255,1)';
+                swModeActive = checkVisibility(getVal('sw_mode_simple', 'always'));
+            } else {
+                font = getVal('videoFontSelect', 'Orbitron');
+                swX = w * (getVal('sw_posX', 50) / 100); swY = h * (getVal('sw_posY', 85) / 100);
+                swColor = hexToRgba(getVal('sw_color', '#ffc300'), 100);
+                swBorder = hexToRgba(getVal('sw_borderColor', '#000000'), 100);
+                swModeActive = checkVisibility(getVal('sw_mode', 'always'));
+            }
+
+            if (swModeActive) {
+                drawMonospacedText({ text: formatTime(elapsedTime).str, x: swX, y: swY, size: h * 0.12, color: swColor, borderColor: swBorder, font: font, digitRatio: 0.86, sepRatio: 0.57 });
+            }
+            requestAnimationFrame(drawMergedFrame);
+        }
+
+        function drawMonospacedText({text, x, y, size, color, borderColor, font, digitRatio, sepRatio}) {
+            ctx.font = `bold ${size}px ${font}, monospace`; ctx.textBaseline = "middle"; ctx.textAlign = "center";
+            const digitW = size * digitRatio, sepW = size * sepRatio;
+            let totalW = 0;
+            for (let char of text) { totalW += (/[0-9]/.test(char) ? digitW : sepW); }
+            let startX = x - (totalW / 2);
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i], charW = (/[0-9]/.test(char) ? digitW : sepW), drawX = startX + (charW / 2);
+                ctx.strokeStyle = borderColor; ctx.lineWidth = Math.max(2, size / 10);
+                ctx.strokeText(char, drawX, y); ctx.fillStyle = color; ctx.fillText(char, drawX, y);
+                startX += charW;
+            }
+        }
+
+        function checkVisibility(mode) {
+            if (mode === 'always') return true; if (mode === 'never') return false;
+            if (mode === 'before' && elapsedTime === 0 && !timerActive) return true;
+            if (mode === 'after' && elapsedTime > 0 && !timerActive) return true;
+            return timerActive; 
+        }
+
+        function renderPlayers() {
+            const sb = document.getElementById('scoreboard'); if (!sb) return;
+            sb.innerHTML = players.map(p => `<div class="flex items-center gap-2 bg-slate-800/60 p-2 rounded-xl border border-slate-700/50 text-white"><input type="text" value="${p.name}" onchange="updatePlayerName(${p.id}, this.value)" class="score-input flex-grow p-1 rounded outline-none text-[10px] w-16 text-white bg-transparent"><div class="flex items-center gap-1"><button onclick="updateScore(${p.id}, -1)" class="w-6 h-6 flex items-center justify-center bg-slate-700 rounded hover:bg-red-900 text-white">-</button><span class="w-8 text-center font-bold text-blue-400 font-mono text-xs">${p.score}</span><button onclick="updateScore(${p.id}, 1)" class="w-6 h-6 flex items-center justify-center bg-slate-700 rounded hover:bg-green-900 text-white">+</button></div><button onclick="removePlayer(${p.id})" class="text-slate-500 hover:text-red-500"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg></button></div>`).join('');
+        }
+
+        function addPlayer() { players.push({ id: Date.now(), name: "選手", score: 0 }); renderPlayers(); }
+        function removePlayer(id) { players = players.filter(p => p.id !== id); renderPlayers(); }
+        function updatePlayerName(id, name) { const p = players.find(p => p.id === id); if (p) p.name = name; }
+        function updateScore(id, delta) { const p = players.find(p => p.id === id); if (p) { p.score += delta; renderPlayers(); } }
+
+        function formatTime(time) {
+            const isNeg = time < 0; const absTime = Math.abs(time);
+            let ms = Math.floor(absTime % 1000), ss = Math.floor((absTime / 1000) % 60), mm = Math.floor((absTime / 60000) % 60);
+            const res = { mm: mm.toString().padStart(2,"0"), ss: ss.toString().padStart(2,"0"), ms: ms.toString().padStart(3,"0") };
+            res.str = `${isNeg ? '-' : ''}${res.mm}:${res.ss}.${res.ms}`;
+            return res;
+        }
+
+        function toggleTimer() { timerActive ? stopTimer() : startTimer(); }
+
+        function startTimer() {
+            if (timerActive) return;
+            timerActive = true; 
+            const isSync = getChecked('syncModeToggle');
+            if (isSync) { if (!recordingActive) startRecording(); }
+            else { const rs = document.getElementById('recStartBtn'); if (rs && !recordingActive) rs.disabled = true; }
+            startTime = Date.now() - elapsedTime;
+            const disp = document.getElementById('display'); if (disp) disp.classList.remove('finished');
+            const startBtn = document.getElementById('timerStartBtn'); if (startBtn && !isSync) startBtn.textContent = "暫停";
+            timerInterval = setInterval(() => { 
+                const now = Date.now(); elapsedTime = now - startTime; 
+                countdownRemaining = countdownInitial - elapsedTime; updateDisplayElement(disp, elapsedTime); 
+                if (getChecked('autoStopAtZero') && countdownRemaining <= 0) {
+                    const behavior = getVal('stopBehavior', 'everything');
+                    if (behavior === 'everything') { if (getChecked('syncModeToggle')) syncStop(); else stopTimer(); } 
+                    else { timerActive = false; clearInterval(timerInterval); if (disp) disp.classList.add('finished'); }
+                }
+            }, 10);
+        }
+
+        function stopTimer() {
+            if (!timerActive) return;
+            timerActive = false; clearInterval(timerInterval);
+            const disp = document.getElementById('display'); if (disp) disp.classList.add('finished');
+            const startBtn = document.getElementById('timerStartBtn'); if (startBtn && !getChecked('syncModeToggle')) startBtn.textContent = "開始";
+            if (getChecked('syncModeToggle')) { if (recordingActive) stopRecording(); }
+            else { if (!recordingActive) saveRecord(null); }
+        }
+
+        function resetTimer() {
+            if (timerActive) stopTimer();
+            elapsedTime = 0; lastLapMark = 0; laps = []; updateCountdownInitial();
+            const disp = document.getElementById('display'); updateDisplayElement(disp, 0); if (disp) disp.classList.remove('finished');
+            const lb = document.getElementById('lapTableBody'); if (lb) lb.innerHTML = ''; 
+            const lc = document.getElementById('lapListContainer'); if (lc) lc.classList.add('hidden');
+            const sb = document.getElementById('timerStartBtn'), rs = document.getElementById('recStartBtn');
+            if (sb) sb.textContent = "開始"; if (rs) rs.disabled = false;
+        }
+
+        function recordLap() {
+            const currentMode = Array.from(document.body.classList).find(m => m.startsWith('mode-'));
+            if (!timerActive || currentMode === 'mode-simple' || currentMode === 'mode-pure') return;
+            const now = elapsedTime; laps.push({ time: now - lastLapMark, total: now }); lastLapMark = now; 
+            const lc = document.getElementById('lapListContainer'); if (lc) lc.classList.remove('hidden');
+            const lb = document.getElementById('lapTableBody');
+            if (lb) lb.innerHTML = laps.map((l, i) => `<tr><td class="py-1 opacity-40">${i+1}</td><td class="text-blue-400">${formatTime(l.time).str}</td><td>${formatTime(l.total).str}</td></tr>`).reverse().join('');
+        }
+
+        function startRecording() {
+            if (recordingActive || !mediaStream) return;
+            if (timerActive && !getChecked('syncModeToggle')) return; 
+            recordingActive = true; 
+            const rs = document.getElementById('recordingStatus'), rsb = document.getElementById('recStartBtn'), rstb = document.getElementById('recStopBtn');
+            if (rs) rs.classList.remove('hidden'); if (rsb) rsb.disabled = true; if (rstb) rstb.disabled = false;
+            canvasStream = canvas.captureStream(30); 
+            const audioTracks = mediaStream.getAudioTracks();
+            const combinedStream = new MediaStream([...canvasStream.getVideoTracks()]);
+            if (audioTracks.length > 0) combinedStream.addTrack(audioTracks[0]);
+            recordedChunks = []; mediaRecorder = new MediaRecorder(combinedStream, { videoBitsPerSecond: 2500000, mimeType: supportedMimeType });
+            mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            rawRecordedChunks = []; rawMediaRecorder = new MediaRecorder(mediaStream, { videoBitsPerSecond: 2500000, mimeType: supportedMimeType });
+            rawMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) rawRecordedChunks.push(e.data); };
+            let recordersDone = 0;
+            const checkDone = async () => {
+                recordersDone++;
+                if (recordersDone === 2) {
+                    const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || supportedMimeType }), rawBlob = new Blob(rawRecordedChunks, { type: rawMediaRecorder.mimeType || supportedMimeType });
+                    const id = Date.now(), database = await getDB(), transaction = database.transaction(["videos"], "readwrite");
+                    transaction.objectStore("videos").add({ id, data: blob, rawData: rawBlob, mimeType: mediaRecorder.mimeType }); saveRecord(id);
+                }
+            };
+            mediaRecorder.onstop = checkDone; rawMediaRecorder.onstop = checkDone;
+            mediaRecorder.start(1000); rawMediaRecorder.start(1000);
+        }
+
+        function stopRecording() {
+            if (!recordingActive) return;
+            recordingActive = false; 
+            const rs = document.getElementById('recordingStatus'), rsb = document.getElementById('recStartBtn'), rstb = document.getElementById('recStopBtn');
+            if (rs) rs.classList.add('hidden'); if (rsb && !timerActive) rsb.disabled = false; if (rstb) rstb.disabled = true;
+            if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
+            if (rawMediaRecorder && rawMediaRecorder.state !== "inactive") rawMediaRecorder.stop();
+        }
+
+        function syncStart() { resetTimer(); startTimer(); const b1 = document.getElementById('syncStartBtn'), b2 = document.getElementById('syncStopBtn'); if (b1) b1.disabled = true; if (b2) b2.disabled = false; }
+        function syncStop() { const b1 = document.getElementById('syncStartBtn'), b2 = document.getElementById('syncStopBtn'); if (b1) b1.disabled = false; if (b2) b2.disabled = true; stopTimer(); }
+        function switchCamera() { if (recordingActive) return; currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user'; initCamera(); }
+
+        function updateDisplayElement(el, time) { 
+            if (!el) return; const t = formatTime(time); 
+            el.innerHTML = `<span class="digit">${t.mm[0]}</span><span class="digit">${t.mm[1]}</span><span class="separator">:</span><span class="digit">${t.ss[0]}</span><span class="digit">${t.ss[1]}</span><span class="separator">.</span><span class="digit">${t.ms[0]}</span><span class="digit">${t.ms[1]}</span><span class="digit">${t.ms[2]}</span>`; 
+        }
+
+        function saveRecord(id) {
+            const titleEl = document.getElementById('mainTitle'), isProt = getChecked('dupProtectionToggle');
+            const baseName = titleEl ? titleEl.textContent.trim() : "紀錄";
+            const finalName = getUniqueName(baseName || "紀錄", isProt);
+            const t = formatTime(elapsedTime); 
+            const record = { id: id || Date.now(), name: finalName, timeStr: t.str, timestamp: new Date().toLocaleString(), hasVideo: !!id, players: JSON.parse(JSON.stringify(players)) };
+            savedRecords.unshift(record); localStorage.setItem('hybridStopwatchRecords', JSON.stringify(savedRecords)); renderRecords();
+            if (titleEl) {
+                const nextName = getUniqueName(baseName || "紀錄", isProt);
+                titleEl.textContent = nextName; localStorage.setItem('lastHybridTitle', nextName);
+            }
+        }
+
+        function getUniqueName(originalName, isProtected) {
+            let name = originalName.trim(); if (!isProtected) return name;
+            if (!savedRecords.some(r => r.name === name)) return name;
+            let match = name.match(/^(.*?)(\d+)$/), base, num;
+            if (match) { base = match[1]; num = parseInt(match[2]); } else { base = name; num = 1; }
+            let counter = num + 1, finalName = base + counter;
+            while (savedRecords.some(r => r.name === finalName)) { counter++; finalName = base + counter; }
+            return finalName;
+        }
+
+        function renderRecords() {
+            const rList = document.getElementById('recordList'); if (!rList) return;
+            if (savedRecords.length === 0) { rList.innerHTML = '<div class="text-center py-4 opacity-30 italic text-[10px] text-white">尚無紀錄</div>'; return; }
+            rList.innerHTML = savedRecords.map(r => `<div onclick="playRecord(${r.id})" class="p-3 rounded-xl border border-slate-700/50 bg-slate-800/40 group hover:border-blue-500 transition-all cursor-pointer text-white"><div class="flex justify-between items-start"><div class="overflow-hidden"><div class="font-bold text-xs text-blue-400 truncate">${r.name}</div><div class="text-[8px] opacity-40">${r.timestamp}</div></div><button onclick="event.stopPropagation(); deleteRecord(${r.id})" class="text-slate-500 hover:text-red-400 p-1"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div><div class="text-lg font-mono mt-1 font-black text-white">${r.timeStr} ${r.hasVideo ? '' : '(無影片)'}</div></div>`).join('');
+        }
+
+        async function playRecord(id) {
+            const record = savedRecords.find(r => r.id === id); if (!record || !record.id) return;
+            const database = await getDB();
+            if (!record.hasVideo) {
+                const mt = document.getElementById('modalTitle'), pb = document.getElementById('playbackModal');
+                if (mt) mt.textContent = record.name + " (文字紀錄)";
+                document.getElementById('modalVideo').style.display = 'none';
+                if (pb) pb.style.display = 'flex';
+                updateDisplayElement(document.getElementById('modalDisplay'), elapsedTime);
+                return;
+            }
+            const mv = document.getElementById('modalVideo'); if (mv) mv.style.display = 'block';
+            const request = database.transaction(["videos"], "readonly").objectStore("videos").get(id);
+            request.onsuccess = () => {
+                if (request.result) {
+                    const blob = request.result.data, rawBlob = request.result.rawData, url = URL.createObjectURL(blob), rawUrl = rawBlob ? URL.createObjectURL(rawBlob) : null;
+                    const mt = document.getElementById('modalTitle'), pb = document.getElementById('playbackModal'); 
+                    if (mv) mv.src = url; if (mt) mt.textContent = record.name; if (pb) pb.style.display = 'flex';
+                    if (mv) {
+                        mv.ontimeupdate = () => updateDisplayElement(document.getElementById('modalDisplay'), mv.currentTime * 1000);
+                        const ext = supportedMimeType.includes('mp4') ? '.mp4' : '.webm';
+                        const triggerDown = (u, suf) => { const a = document.createElement('a'); a.href = u; a.download = `${record.name}${suf}${ext}`; a.click(); };
+                        const mdA = document.getElementById('modalDownloadAllBtn');
+                        if (mdA) mdA.onclick = async () => {
+                            const zip = new JSZip(); zip.file(`${record.name}_合成${ext}`, blob); if (rawBlob) zip.file(`${record.name}_原始${ext}`, rawBlob);
+                            zip.generateAsync({type:"blob"}).then(c => { const a = document.createElement('a'); a.href = URL.createObjectURL(c); a.download = `${record.name}_影片包.zip`; a.click(); });
+                        };
+                        const mdC = document.getElementById('modalDownloadBtn'); if (mdC) mdC.onclick = (e) => { e.stopPropagation(); triggerDown(url, "_合成"); };
+                        const mdR = document.getElementById('modalDownloadRawBtn'); if (mdR) { if (rawUrl) { mdR.style.display = 'flex'; mdR.onclick = (e) => { e.stopPropagation(); triggerDown(rawUrl, "_原始"); }; } else mdR.style.display = 'none'; }
+                        mv.play();
+                    }
+                }
+            };
+        }
+
+        function closeModal() { const mv = document.getElementById('modalVideo'); if (mv) mv.pause(); const pb = document.getElementById('playbackModal'); if (pb) pb.style.display = 'none'; }
+        async function deleteRecord(id) { savedRecords = savedRecords.filter(r => r.id !== id); localStorage.setItem('hybridStopwatchRecords', JSON.stringify(savedRecords)); const database = await getDB(); database.transaction(["videos"], "readwrite").objectStore("videos").delete(id); renderRecords(); }
+        function renderCountdownPresets() { const list = document.getElementById('countdownPresetsList'); if (list) list.innerHTML = countdownPresets.map(p => `<div onclick="selectCountdownPreset(${p.id})" class="countdown-item flex justify-between items-center bg-slate-800/40 p-2 rounded-xl border border-slate-700 hover:border-red-500 cursor-pointer transition-all ${selectedCountdownId === p.id ? 'active' : ''}"><span class="text-xs font-mono font-bold text-white">${p.min.toString().padStart(2,'0')}:${p.sec.toString().padStart(2,'0')}</span><button onclick="event.stopPropagation(); removeCountdownPreset(${p.id})" class="text-slate-500 hover:text-red-400 p-1"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg></button></div>`).join(''); }
+        function selectCountdownPreset(id) { selectedCountdownId = id; renderCountdownPresets(); updateCountdownInitial(); resetTimer(); }
+        function addCountdownPreset() { const m = parseInt(getVal('inputMinutes','0')), s = parseInt(getVal('inputSeconds','0')); if(m===0 && s===0) return; countdownPresets.push({id:Date.now(),min:m,sec:s}); localStorage.setItem('hybridCountdownPresets',JSON.stringify(countdownPresets)); renderCountdownPresets(); }
+        function removeCountdownPreset(id) { countdownPresets=countdownPresets.filter(p=>p.id!==id); localStorage.setItem('hybridCountdownPresets',JSON.stringify(countdownPresets)); if(selectedCountdownId===id) selectedCountdownId=countdownPresets[0]?.id||null; renderCountdownPresets(); updateCountdownInitial(); }
+        function updateCountdownInitial() { const p=countdownPresets.find(p=>p.id===selectedCountdownId); countdownInitial=p?(p.min*60+p.sec)*1000:0; if(!timerActive) countdownRemaining=countdownInitial; }
+        function saveCurrentConfig() { configProfiles.push({ name: getVal('newConfigName') || "未命名配置", sw: { mode: getVal('sw_mode'), px: getVal('sw_posX'), py: getVal('sw_posY'), uiScale: getVal('sw_uiScale') } }); localStorage.setItem('hybridConfigProfiles', JSON.stringify(configProfiles)); renderConfigList(); }
+        function loadConfig(i) { const c = configProfiles[i]; if (!c) return; const m = document.getElementById('sw_mode'), px = document.getElementById('sw_posX', 50), py = document.getElementById('sw_posY', 85), sc = document.getElementById('sw_uiScale'); if (m) m.value = c.sw.mode; if (px) px.value = c.sw.px; if (py) py.value = c.sw.py; if (sc && c.sw.uiScale) { sc.value = c.sw.uiScale; updateUIScale(c.sw.uiScale); } }
+        function renderConfigList() { const list = document.getElementById('configList'); if (list) list.innerHTML = configProfiles.map((c, i) => `<div onclick="loadConfig(${i})" class="flex justify-between items-center bg-slate-800/40 p-2 rounded border border-slate-700 hover:border-blue-500 cursor-pointer text-white"><span class="text-[10px] truncate text-white">${c.name}</span><button onclick="event.stopPropagation(); configProfiles.splice(${i},1); localStorage.setItem('hybridConfigProfiles', JSON.stringify(configProfiles)); renderConfigList();" class="text-slate-500 hover:text-red-400"><svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M6 18L18 6M6 6l12 12" /></svg></button></div>`).join(''); }
+
+        document.addEventListener('keydown', (e) => {
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.id === 'mainTitle') return;
+            if (e.code === 'Space') { e.preventDefault(); getChecked('syncModeToggle') ? (recordingActive ? syncStop() : syncStart()) : toggleTimer(); }
+            if (e.key.toLowerCase() === 'r') resetTimer();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目錄索引</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 深藍色背景與黃色/白色文字 */
+        body {
+            background-color: #001f3f;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .text-yellow-custom {
+            color: #fbbf24;
+        }
+        .card-hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-color: #fbbf24;
+        }
+        .img-container {
+            background: #1a2a44;
+            position: relative;
+            overflow: hidden;
+        }
+        .img-fallback-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            font-weight: bold;
+            font-size: 0.7rem;
+            text-align: center;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <header class="border-b border-blue-900 py-12 px-6 bg-[#00162d]">
+        <div class="max-w-6xl mx-auto text-center">
+            <h1 id="main-title" class="text-4xl md:text-5xl font-extrabold tracking-tight text-yellow-custom">
+                <!-- 載入中文字將由 JS 替換 -->
+            </h1>
+            <p id="main-subtitle" class="mt-4 text-gray-300 text-lg opacity-80"></p>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl mx-auto w-full p-6 md:p-12">
+        <div id="folder-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- 資料夾卡片將在此生成 -->
+        </div>
+        
+        <div id="loading-indicator" class="text-center py-20">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-yellow-400 mb-4"></div>
+            <p id="loading-text" class="text-gray-400"></p>
+        </div>
+    </main>
+
+    <footer class="border-t border-blue-900 py-8 px-6 mt-12 bg-[#00162d]">
+        <div class="max-w-6xl mx-auto text-center text-gray-400">
+            <p id="copyright-text">
+                版權所有 © 2026 
+                <a href="https://pandapanda6666.github.io" class="text-yellow-custom hover:underline">PandaPanda的AI日常</a> 
+                All Rights Reserved.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        const isZH = navigator.language.startsWith('zh');
+        
+        // 普通靜態字典翻譯 (i18n)
+        const i18n = {
+            zh: {
+                loading: "載入中...",
+                reading: "正在自動辨識目錄結構...",
+                noContent: "目前沒有可顯示的項目",
+                apiLimit: "GitHub API 達到上限，請稍候",
+                defaultSubtitle: "自動掃描的專案清單",
+                noDescription: "無說明文字",
+                noIcon: "載入預覽中",
+                scanError: "讀取目錄失敗",
+                localError: "請於 GitHub Pages 運行"
+            },
+            en: {
+                loading: "Loading...",
+                reading: "Scanning folders automatically...",
+                noContent: "No items found",
+                apiLimit: "API rate limit reached",
+                defaultSubtitle: "Automated Project List",
+                noDescription: "No description",
+                noIcon: "Loading Preview",
+                scanError: "Failed to scan",
+                localError: "Run on GitHub Pages"
+            }
+        };
+
+        const t = isZH ? i18n.zh : i18n.en;
+
+        function getAbsoluteUrl(relativePath) {
+            try {
+                let base = window.location.href;
+                if (!base.endsWith('/') && !base.includes('.html')) base += '/';
+                return new URL(relativePath, base).href;
+            } catch (e) {
+                return relativePath;
+            }
+        }
+
+        // 當圖片找不到時，改用 index.html 的截圖作為預覽
+        function handleImageError(img, projectUrl) {
+            const previewUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(projectUrl)}?w=400`;
+            if (img.src !== previewUrl) {
+                img.src = previewUrl;
+            } else {
+                img.parentElement.innerHTML = `<div class="img-fallback-text">${t.noIcon}</div>`;
+            }
+        }
+
+        async function getRepoInfo() {
+            const hostname = window.location.hostname;
+            const pathname = window.location.pathname;
+            
+            if (!hostname.includes('github.io')) return null;
+
+            const user = hostname.split('.')[0];
+            const cleanPath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+            const pathParts = cleanPath.split('/').filter(p => p !== '');
+
+            if (pathParts.length === 0) {
+                return { user, repo: `${user}.github.io`, subPath: '' };
+            }
+
+            const testRepo = pathParts[0];
+            try {
+                const res = await fetch(`https://api.github.com/repos/${user}/${testRepo}`);
+                if (res.ok) {
+                    return { user, repo: testRepo, subPath: pathParts.slice(1).join('/') };
+                }
+            } catch (e) {}
+            
+            return { user, repo: `${user}.github.io`, subPath: pathParts.join('/') };
+        }
+
+        async function init() {
+            document.getElementById('loading-text').textContent = t.reading;
+            document.getElementById('main-title').textContent = t.loading;
+            
+            await updateTitleFromReadme();
+            
+            if (window.location.protocol === 'file:') {
+                document.getElementById('loading-indicator').innerHTML = `<p class="text-gray-400 italic">${t.localError}</p>`;
+                return;
+            }
+            
+            await scanAndLoadFolders();
+        }
+
+        async function updateTitleFromReadme() {
+            const titleElement = document.getElementById('main-title');
+            const subtitleElement = document.getElementById('main-subtitle');
+            
+            try {
+                const response = await fetch(getAbsoluteUrl('./README.md'));
+                if (response.ok) {
+                    const text = await response.text();
+                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                    if (lines.length > 0) {
+                        const extractedTitle = lines[0].replace(/^#\s*/, '').trim();
+                        titleElement.textContent = extractedTitle;
+                        document.title = extractedTitle;
+                        subtitleElement.textContent = lines.length > 1 ? lines[1] : t.defaultSubtitle;
+                        return;
+                    }
+                }
+            } catch (e) {}
+            
+            fallbackTitle();
+        }
+
+        function fallbackTitle() {
+            const url = window.location.href;
+            // 規則：去掉 https://pandapanda6666.github.io/ 和所有的 /
+            let title = url.replace('https://pandapanda6666.github.io/', '').replace(/\//g, '');
+            if (!title || title.includes('index.html')) {
+                title = isZH ? "專案目錄" : "Project Directory";
+            }
+            document.getElementById('main-title').textContent = title;
+            document.title = title;
+            document.getElementById('main-subtitle').textContent = t.defaultSubtitle;
+        }
+
+        async function scanAndLoadFolders() {
+            const container = document.getElementById('folder-list');
+            const loading = document.getElementById('loading-indicator');
+            const repoInfo = await getRepoInfo();
+            
+            if (!repoInfo) {
+                loading.innerHTML = `<p class="text-gray-400 italic">${t.scanError}</p>`;
+                return;
+            }
+
+            try {
+                const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(response.status === 403 ? t.apiLimit : t.scanError);
+
+                const contents = await response.json();
+                const directories = contents.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
+
+                let hasContent = false;
+
+                for (const item of directories) {
+                    try {
+                        const folder = item.name;
+                        const projectUrl = getAbsoluteUrl(`./${folder}/`);
+                        const readmeUrl = getAbsoluteUrl(`./${folder}/README.md`);
+                        const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
+                        
+                        const readmeRes = await fetch(readmeUrl);
+                        if (!readmeRes.ok) continue;
+
+                        const text = await readmeRes.text();
+                        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                        if (lines.length === 0) continue;
+
+                        hasContent = true;
+                        const name = lines[0].replace(/^#\s*/, '').trim();
+                        const desc = lines.length > 1 ? lines[1].trim() : t.noDescription;
+
+                        const card = document.createElement('div');
+                        card.innerHTML = `
+                            <a href="${projectUrl}" class="card-hover block rounded-2xl overflow-hidden transition-all duration-300">
+                                <div class="p-6 flex items-center space-x-4">
+                                    <div class="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden img-container border border-blue-800">
+                                        <img src="${iconUrl}" alt="${name}" class="w-full h-full object-cover" 
+                                             onerror="handleImageError(this, '${projectUrl}')">
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h2 class="text-xl font-bold text-yellow-custom truncate">${name}</h2>
+                                        <p class="text-gray-300 text-sm line-clamp-2 mt-1">${desc}</p>
+                                    </div>
+                                    <div class="text-blue-700">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </a>
+                        `;
+                        container.appendChild(card.firstElementChild);
+                    } catch (e) {}
+                }
+
+                loading.style.display = 'none';
+                if (!hasContent) container.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500 italic">${t.noContent}</div>`;
+            } catch (error) {
+                loading.innerHTML = `<p class="text-red-400 italic">${error.message}</p>`;
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
+
