@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧濁度計 - 完整操作流程與互動導覽手冊</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --lcd-bg: #1e40af;
+            --lcd-text: #93c5fd;
+            --panel-bg: #1e293b;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0f172a;
+            color: #f1f5f9;
+            scroll-behavior: smooth;
+        }
+
+        /* 模擬器精美樣式 */
+        .lcd-display {
+            background-color: var(--lcd-bg);
+            color: var(--lcd-text);
+            font-family: 'JetBrains Mono', monospace;
+            padding: 20px;
+            height: 120px;
+            border-radius: 8px;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 4px solid #334155;
+            position: relative;
+            transition: background-color 0.3s;
+        }
+
+        .lcd-glow {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.05) 100%);
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .led-indicator {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 4px solid #334155;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .led-red.on { background-color: #ef4444; box-shadow: 0 0 20px #ef4444; }
+        .led-red.off { background-color: #450a0a; }
+        .led-yellow.on { background-color: #eab308; box-shadow: 0 0 20px #eab308; }
+        .led-yellow.off { background-color: #422006; }
+        .led-green.on { background-color: #22c55e; box-shadow: 0 0 20px #22c55e; }
+        .led-green.off { background-color: #064e3b; }
+
+        .hardware-btn {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border-bottom: 8px solid rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.05s;
+        }
+
+        .hardware-btn:active {
+            transform: translateY(6px);
+            border-bottom-width: 2px;
+        }
+
+        .view-tab.active {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .manual-card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 20px;
+            transition: transform 0.3s;
+        }
+
+        .nav-link:hover {
+            color: #3b82f6;
+            padding-left: 8px;
+        }
+
+        .translation-panel {
+            background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+            border-left: 6px solid #10b981;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #10b981;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        
+        .code-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .code-table th, .code-table td {
+            border: 1px solid #334155;
+            padding: 12px;
+            text-align: left;
+        }
+        .code-table th {
+            background-color: #0f172a;
+            color: #94a3b8;
+        }
+
+        /* 電源鍵專屬呼吸燈特效 */
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .pwr-hint {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- 標題與導覽 -->
+        <header class="flex flex-col xl:flex-row justify-between items-end mb-10 gap-6">
+            <div class="text-left">
+                <h1 class="text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-emerald-400 to-blue-500">
+                    SMART TURBIDITY SYSTEM
+                </h1>
+                <p class="text-slate-500 font-bold mt-2 tracking-widest uppercase">智慧濁度計技術手冊與數位模擬系統 v25.0</p>
+            </div>
+            <nav class="flex bg-slate-800 p-1.5 rounded-2xl border border-slate-700 shadow-2xl">
+                <button onclick="changeView('manual')" id="tab-manual" class="view-tab px-10 py-3 rounded-xl font-black transition-all active">完整手冊</button>
+                <button onclick="changeView('sim')" id="tab-sim" class="view-tab px-10 py-3 rounded-xl font-black transition-all text-slate-500 hover:text-white">互動模擬</button>
+            </nav>
+        </header>
+
+        <!-- 視圖1：完整圖文說明書 -->
+        <div id="view-manual" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- 左側目錄 -->
+            <aside class="lg:col-span-3 space-y-6">
+                <div class="manual-card p-6 sticky top-8">
+                    <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">章節目錄</h3>
+                    <ul class="space-y-3 font-bold text-slate-400 text-sm">
+                        <li><a href="#sec-hardware" class="nav-link transition-all flex items-center gap-2"><span>01</span> 硬體架構與接線</a></li>
+                        <li><a href="#sec-boot" class="nav-link transition-all flex items-center gap-2"><span>02</span> 開機與初始化流程</a></li>
+                        <li><a href="#sec-calib" class="nav-link transition-all flex items-center gap-2"><span>03</span> 四點校準操作規範</a></li>
+                        <li><a href="#sec-sync" class="nav-link transition-all flex items-center gap-2"><span>04</span> 電腦同步與傳輸</a></li>
+                        <li><a href="#sec-measure" class="nav-link transition-all flex items-center gap-2"><span>05</span> 測量模式與單位</a></li>
+                        <li><a href="#sec-diag" class="nav-link transition-all flex items-center gap-2"><span>06</span> 遠端測試模式</a></li>
+                        <li><a href="#sec-errors" class="nav-link transition-all flex items-center gap-2"><span>07</span> 錯誤代碼檢索表</a></li>
+                    </ul>
+                </div>
+            </aside>
+
+            <!-- 右側內容區 -->
+            <main class="lg:col-span-9 space-y-12 pb-20">
+                <!-- 01 硬體架構 -->
+                <section id="sec-hardware" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-blue-400">
+                        <span class="bg-blue-400/10 p-2 rounded-lg text-sm">01</span> 硬體架構與接線
+                    </h2>
+                    <p class="text-slate-400 mb-8 leading-relaxed">
+                        本儀器基於 Arduino Uno 開發，整合了高精度濁度感測器與三鍵互動介面。請嚴格遵守 A0 腳位的電壓範圍，以免燒毀晶片。
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div class="bg-slate-900/50 p-6 rounded-xl border border-slate-700">
+                            <h4 class="font-black text-emerald-400 mb-4 text-sm uppercase">控制與顯示腳位</h4>
+                            <ul class="space-y-2 text-sm text-slate-300">
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>電源按鈕 (PWR)</span><span class="text-white">硬體開關 / 模擬器專屬</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>確定按鈕 (綠)</span><span class="text-white">D2 (內部上拉)</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>取消按鈕 (紅)</span><span class="text-white">D3 (內部上拉)</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>校準按鈕 (黃)</span><span class="text-white">D4 (內部上拉)</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>LCD 1602 (I2C)</span><span class="text-white">SDA:A4 / SCL:A5</span></li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-900/50 p-6 rounded-xl border border-slate-700">
+                            <h4 class="font-black text-blue-400 mb-4 text-sm uppercase">輸出與感測腳位</h4>
+                            <ul class="space-y-2 text-sm text-slate-300">
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>狀態 LED (綠/黃/紅)</span><span class="text-white">D5 / D6 / D7</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>蜂鳴器 (Passive)</span><span class="text-white">D8</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>濁度計 (Analog)</span><span class="text-white">A0 (斷線偵測)</span></li>
+                                <li class="flex justify-between border-b border-slate-800 pb-2"><span>電腦通訊頻率</span><span class="text-white">9600 Baud Rate</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 02 開機與初始化流程 -->
+                <section id="sec-boot" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-emerald-400">
+                        <span class="bg-emerald-400/10 p-2 rounded-lg text-sm">02</span> 開機與初始化流程
+                    </h2>
+                    <div class="space-y-6 text-slate-300 leading-relaxed">
+                        <p>按下電源鍵通電後，系統會播放 1 秒小小世界旋律，LCD 顯示 M00 歡迎畫面。隨後自動進入 M24 資料選擇頁面，詢問使用者如何載入校準參數。</p>
+                        <div class="bg-slate-900 p-6 rounded-xl border border-slate-700 space-y-4">
+                            <div class="flex gap-4 items-start">
+                                <div class="bg-emerald-600 text-white font-bold px-3 py-1 rounded text-sm mt-1">綠色按鈕</div>
+                                <div>讀取 ROM 內部記憶。系統將載入上一次儲存的成功數值，並直接跳轉至測量模式。</div>
+                            </div>
+                            <div class="flex gap-4 items-start">
+                                <div class="bg-yellow-500 text-white font-bold px-3 py-1 rounded text-sm mt-1">黃色按鈕</div>
+                                <div>等待電腦端同步。進入 M25 狀態，等待 Python 軟體透過序列埠發送 SYNC 指令。</div>
+                            </div>
+                            <div class="flex gap-4 items-start">
+                                <div class="bg-red-600 text-white font-bold px-3 py-1 rounded text-sm mt-1">紅色按鈕</div>
+                                <div>清除舊有記憶，強制進入四點手動校準流程，從 0 NTU 開始測量。</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 03 四點校準操作規範 -->
+                <section id="sec-calib" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-orange-400">
+                        <span class="bg-orange-400/10 p-2 rounded-lg text-sm">03</span> 四點校準操作規範
+                    </h2>
+                    <p class="text-slate-400 mb-6">依序對 0, 20, 100, 800 NTU 水樣進行測量。LCD 第二行會即時顯示感測器原始 ADC 值，請等待數值穩定後再操作。</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-slate-900 p-6 rounded-xl border border-emerald-500/30">
+                            <h4 class="text-emerald-400 font-bold mb-2">綠色 (確定)</h4>
+                            <p class="text-sm text-slate-400">執行 50 次自動採樣並取平均值儲存，成功後自動進入下一個 NTU 測量點。</p>
+                        </div>
+                        <div class="bg-slate-900 p-6 rounded-xl border border-yellow-500/30">
+                            <h4 class="text-yellow-400 font-bold mb-2">黃色 (校準)</h4>
+                            <p class="text-sm text-slate-400">短按可退回上一個 NTU 點位重測。長按超過 1 秒可直接套用上一次的歷史紀錄值。</p>
+                        </div>
+                        <div class="bg-slate-900 p-6 rounded-xl border border-red-500/30">
+                            <h4 class="text-red-400 font-bold mb-2">紅色 (取消)</h4>
+                            <p class="text-sm text-slate-400">短按直接跳過當前點位，該點記錄為 0。後續計算動態模型時將自動忽略無效點。</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-900/20 p-5 rounded-xl border border-blue-500/30 text-sm text-blue-200">
+                        <span class="font-bold text-blue-400">完成後確認：</span>四點皆完成後，系統會顯示 M26 詢問是否重新校準。按綠色重新來過，按紅色則進入下一步的傳輸詢問。
+                    </div>
+                </section>
+
+                <!-- 04 電腦同步與傳輸 -->
+                <section id="sec-sync" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-purple-400">
+                        <span class="bg-purple-400/10 p-2 rounded-lg text-sm">04</span> 電腦同步與傳輸
+                    </h2>
+                    <p class="text-slate-400 mb-6">本系統支援與 Python 電腦軟體進行雙向標定表格同步。無論何時，電腦端都能即時接收 Arduino 發送的 DATA|Val 封包。</p>
+                    
+                    <div class="space-y-4">
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-700">
+                            <h4 class="font-bold text-white mb-2">接收電腦參數 (Wait PC Sync)</h4>
+                            <p class="text-sm text-slate-400">在 M25 狀態下，Arduino 會每秒發送 REQ_SYNC 請求。當收到 Python 傳來的 SYNC:val1,val2,val3,val4 字串時，系統會自動解析並覆蓋本地表格，隨即進入測量模式。</p>
+                        </div>
+                        <div class="bg-slate-900 p-5 rounded-xl border border-slate-700">
+                            <h4 class="font-bold text-white mb-2">上傳儀器參數 (Transfer to PC)</h4>
+                            <p class="text-sm text-slate-400">在校準完成後的 M27 狀態，若您按下綠色按鈕，Arduino 會向電腦發送 SAVE:val1,val2,val3,val4。Python 軟體收到後會自動更新介面圖表與回歸模型。</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 05 測量模式與單位 -->
+                <section id="sec-measure" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-cyan-400">
+                        <span class="bg-cyan-400/10 p-2 rounded-lg text-sm">05</span> 測量模式與單位
+                    </h2>
+                    <p class="text-slate-400 mb-6">M09 狀態為儀器的常態運作模式。系統會亮起綠燈，並將即時讀取的數值套入動態演算模型，轉換為 NTU 濁度值。</p>
+                    <ul class="list-disc pl-5 space-y-3 text-slate-300">
+                        <li><span class="font-bold text-emerald-400">綠色按鈕：</span>短按可切換 LCD 顯示單位，於 NTU 預測值與原始 ADC/電壓值 之間循環切換。</li>
+                        <li><span class="font-bold text-yellow-400">黃色按鈕：</span>中斷測量，重新進入校準流程。</li>
+                        <li><span class="font-bold text-red-400">自動回報：</span>每隔 500 毫秒，系統會自動向序列埠輸出格式化的數據流供電腦繪圖。</li>
+                    </ul>
+                </section>
+
+                <!-- 06 遠端測試模式 -->
+                <section id="sec-diag" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-pink-400">
+                        <span class="bg-pink-400/10 p-2 rounded-lg text-sm">06</span> 遠端測試模式
+                    </h2>
+                    <p class="text-slate-400 mb-6">為了方便硬體維修與偵錯，系統內建了強大的遠端控制協議。進入方式包含：測量模式下長按任意鍵 3 秒、閒置 5 分鐘自動進入，或由電腦下達「測試模式:開啟」指令。</p>
+                    
+                    <div class="bg-slate-900 p-6 rounded-xl border border-slate-700">
+                        <h4 class="font-bold text-white mb-4">中文控制指令集</h4>
+                        <div class="overflow-x-auto">
+                            <table class="code-table text-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Python 發送指令</th>
+                                        <th>Arduino 儀器反應</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-slate-300">
+                                    <tr>
+                                        <td class="font-mono text-pink-400">燈:紅:亮 / 燈:紅:滅</td>
+                                        <td>強制點亮或熄滅實體紅色 LED。黃、綠燈亦同。</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono text-pink-400">螢幕:[任意文字]</td>
+                                        <td>將儀器的 LCD 清空，並在第二行顯示指定的文字內容。</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono text-pink-400">讀取:按鈕</td>
+                                        <td>Arduino 回傳 BTN|綠:1|紅:0|黃:0，讓電腦得知實體按鈕是否卡死。</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="font-mono text-pink-400">讀取:濁度計</td>
+                                        <td>Arduino 單次獨立回傳當前的原始感測器讀值。</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 07 錯誤代碼檢索表 -->
+                <section id="sec-errors" class="manual-card p-10">
+                    <h2 class="text-3xl font-black mb-6 flex items-center gap-4 text-red-400">
+                        <span class="bg-red-400/10 p-2 rounded-lg text-sm">07</span> 錯誤代碼檢索表
+                    </h2>
+                    <p class="text-slate-400 mb-6">當儀器亮起紅燈並發出異常音效時，請對照 LCD 上的 E-Code 進行故障排除。</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="code-table text-sm">
+                            <thead>
+                                <tr>
+                                    <th>代碼</th>
+                                    <th>顯示文字</th>
+                                    <th>異常原因與處置方案</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-slate-300">
+                                <tr>
+                                    <td class="font-bold text-red-500">E404</td>
+                                    <td class="font-mono">Val Error!</td>
+                                    <td><span class="font-bold text-white">標定邏輯錯誤：</span>當前測量的數值比上一個 NTU 點還要高（水越濁電壓應越低）。請重新採樣，或按紅色按鈕退回上一階。</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-red-500">E405</td>
+                                    <td class="font-mono">Btn Missed</td>
+                                    <td><span class="font-bold text-white">按鍵漏按錯誤：</span>在硬體測試階段，未於 5 秒內成功偵測到按鍵訊號。請檢查線路是否斷開（持續維持高電位）。</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-red-500">E406</td>
+                                    <td class="font-mono">Btn Stuck</td>
+                                    <td><span class="font-bold text-white">按鍵卡死錯誤：</span>系統發現某顆按鈕被持續按壓超過 1 分鐘。請檢查實體按鈕是否卡住，或電路是否發生對地短路。</td>
+                                </tr>
+                                <tr>
+                                    <td class="font-bold text-red-500">E503</td>
+                                    <td class="font-mono">Snsr Error!</td>
+                                    <td><span class="font-bold text-white">感測器異常斷線：</span>A0 腳位讀值大於 1020。由於系統啟用了 INPUT_PULLUP，代表感測器線路已拔除或斷裂。請重新插緊訊號線。</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+
+        <!-- 視圖2：互動模擬器 -->
+        <div id="view-sim" class="hidden">
+            <div class="flex flex-col xl:flex-row gap-10">
+                <!-- 左側：感測器與電腦模擬面板 -->
+                <div class="w-full xl:w-96 space-y-8">
+                    <div class="manual-card p-8 border-l-4 border-emerald-500">
+                        <h3 class="text-xl font-black mb-6 text-emerald-400 flex items-center gap-2"><span>📡</span> 模擬濁度計輸入</h3>
+                        <div class="space-y-8">
+                            <div>
+                                <div class="flex justify-between items-end mb-4">
+                                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest">感測器電壓 (ADC: 0-1023)</label>
+                                    <span class="text-3xl font-mono text-white leading-none" id="sim-adc-disp">717</span>
+                                </div>
+                                <input type="range" id="sim-adc-input" min="0" max="1023" value="717" class="w-full h-3 bg-slate-700 rounded-full appearance-none cursor-pointer" oninput="handleSimADC()">
+                                <div class="flex justify-between mt-2 text-[10px] font-bold text-slate-600">
+                                    <span>極濁 (0)</span>
+                                    <span>極清 (1023)</span>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-700 text-[11px] text-slate-500 italic">
+                                提醒：您可以手動拉動此桿。模擬器會根據您當前的校準進度，即時計算出 NTU 數值並顯示在虛擬 LCD 螢幕上。若拉大於 1020 會觸發 E503 錯誤。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="manual-card p-8 h-64 flex flex-col">
+                        <h3 class="text-xs font-black text-slate-500 uppercase tracking-widest mb-4">電腦端 (Python) 通訊紀錄</h3>
+                        <div id="sim-serial-log" class="flex-grow overflow-y-auto text-[10px] font-mono text-blue-400 space-y-1">
+                            <div>> System Initialized...</div>
+                            <div>> Serial Port Ready (9600 bps)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 中央：核心硬體模擬 -->
+                <div class="flex-grow">
+                    <div class="bg-slate-800 p-10 md:p-16 rounded-[4rem] border-b-[16px] border-slate-950 shadow-[0_40px_100px_rgba(0,0,0,0.6)] relative">
+                        
+                        <!-- 開關機按鈕 (PWR) -->
+                        <div class="absolute top-8 right-8 flex flex-col items-center gap-2">
+                            <div onclick="togglePower()" id="btn-pwr" class="w-12 h-12 rounded-full bg-slate-700 border-b-4 border-slate-900 shadow-md flex items-center justify-center text-red-500 font-black text-[10px] cursor-pointer active:translate-y-1 active:border-b-0 transition-all pwr-hint">PWR</div>
+                            <span class="text-[10px] font-bold text-slate-500 uppercase">Power</span>
+                        </div>
+
+                        <!-- LED 指示燈 -->
+                        <div class="flex justify-around items-center mb-16 px-10 mt-6 md:mt-0">
+                            <div class="flex flex-col items-center gap-4">
+                                <div id="sim-led-r" class="led-indicator led-red off"></div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Alarm</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-4">
+                                <div id="sim-led-y" class="led-indicator led-yellow off"></div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Calibration</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-4">
+                                <div id="sim-led-g" class="led-indicator led-green off"></div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase tracking-tighter">Normal</span>
+                            </div>
+                        </div>
+
+                        <!-- LCD 模組 -->
+                        <div class="mb-12">
+                            <div id="lcd-main" class="lcd-display" style="background-color: #0f172a;">
+                                <div id="sim-lcd-1" class="text-3xl font-black tracking-widest opacity-0 transition-opacity"></div>
+                                <div id="sim-lcd-2" class="text-xl opacity-0 mt-2 transition-opacity"></div>
+                                <div id="lcd-glow-overlay" class="lcd-glow opacity-0"></div>
+                            </div>
+                        </div>
+
+                        <!-- 中文翻譯區 -->
+                        <div class="translation-panel p-6 rounded-2xl mb-16 shadow-inner">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span id="sim-trans-code" class="bg-emerald-400/20 text-emerald-400 text-xs font-black px-2 py-1 rounded">---</span>
+                                <h4 id="sim-trans-title" class="font-black text-lg text-emerald-400">系統已關機</h4>
+                            </div>
+                            <p id="sim-trans-desc" class="text-sm text-slate-200 leading-relaxed">
+                                請按下設備右上角的 PWR 電源按鈕啟動系統。
+                            </p>
+                        </div>
+
+                        <!-- 物理按鈕區 (加入動態功能提示) -->
+                        <div class="flex justify-center gap-6 md:gap-12">
+                            <div class="flex flex-col items-center gap-2">
+                                <div onmousedown="handleBtnDown('red')" onmouseup="handleBtnUp('red')" class="hardware-btn bg-red-600 shadow-[0_10px_0_#7f1d1d] text-white text-xl">RED</div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase mt-2">Cancel</span>
+                                <span id="hint-red" class="text-[11px] font-bold text-red-400 mt-1 text-center h-8 flex items-center justify-center">無作用(關機)</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <div onmousedown="handleBtnDown('yellow')" onmouseup="handleBtnUp('yellow')" class="hardware-btn bg-yellow-500 shadow-[0_10px_0_#713f12] text-white text-xl">YEL</div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase mt-2">Calib</span>
+                                <span id="hint-yellow" class="text-[11px] font-bold text-yellow-400 mt-1 text-center h-8 flex items-center justify-center">無作用(關機)</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <div onmousedown="handleBtnDown('green')" onmouseup="handleBtnUp('green')" class="hardware-btn bg-emerald-500 shadow-[0_10px_0_#064e3b] text-white text-xl">OK</div>
+                                <span class="text-[10px] font-black text-slate-600 uppercase mt-2">Confirm</span>
+                                <span id="hint-green" class="text-[11px] font-bold text-emerald-400 mt-1 text-center h-8 flex items-center justify-center">無作用(關機)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 版權頁腳 -->
+    <footer class="mt-20 border-t border-slate-800 py-12 text-center bg-slate-900/50">
+        <p class="text-slate-500 font-bold text-sm">
+            版權所有 © 2026 
+            <a href="https://pandapanda6666.github.io" class="text-blue-400 hover:text-emerald-400 transition-colors underline decoration-2 underline-offset-4">
+                PandaPanda的AI日常
+            </a> 
+            All Rights Reserved.
+        </p>
+    </footer>
+
+    <script>
+        // --- 視圖切換邏輯 ---
+        function changeView(view) {
+            const manual = document.getElementById('view-manual');
+            const sim = document.getElementById('view-sim');
+            const tabM = document.getElementById('tab-manual');
+            const tabS = document.getElementById('tab-sim');
+
+            if (view === 'manual') {
+                manual.classList.remove('hidden');
+                sim.classList.add('hidden');
+                tabM.classList.add('active');
+                tabS.classList.remove('active');
+                tabS.classList.add('text-slate-500');
+            } else {
+                manual.classList.add('hidden');
+                sim.classList.remove('hidden');
+                tabS.classList.add('active');
+                tabM.classList.remove('active');
+                tabM.classList.add('text-slate-500');
+            }
+        }
+
+        // --- 模擬器邏輯核心 ---
+        let isPoweredOn = false;
+        let simState = -1; // -1: Off, 0: Welcome, 1: Source Choice...
+        let btnStartTime = 0;
+        let adcValue = 717;
+
+        function togglePower() {
+            const pwrBtn = document.getElementById('btn-pwr');
+            if (isPoweredOn) {
+                isPoweredOn = false;
+                simState = -1;
+                pwrBtn.classList.add('pwr-hint');
+                pwrBtn.classList.replace('text-white', 'text-red-500');
+                pwrBtn.classList.replace('bg-red-600', 'bg-slate-700');
+                serialLog("系統已斷電關機。");
+                renderSim();
+            } else {
+                isPoweredOn = true;
+                pwrBtn.classList.remove('pwr-hint');
+                pwrBtn.classList.replace('text-red-500', 'text-white');
+                pwrBtn.classList.replace('bg-slate-700', 'bg-red-600');
+                serialLog("系統通電，開始載入引導程序...");
+                startBootSequence();
+            }
+        }
+
+        function startBootSequence() {
+            simState = 0;
+            renderSim();
+            setTimeout(() => {
+                if (isPoweredOn && simState === 0) {
+                    simState = 1;
+                    renderSim();
+                    serialLog("初始化完成，等待選擇資料來源");
+                }
+            }, 1000);
+        }
+
+        function handleSimADC() {
+            adcValue = parseInt(document.getElementById('sim-adc-input').value);
+            document.getElementById('sim-adc-disp').innerText = adcValue;
+            renderSim();
+        }
+
+        function handleBtnDown(color) {
+            if (!isPoweredOn) return;
+            btnStartTime = Date.now();
+        }
+
+        function handleBtnUp(color) {
+            if (!isPoweredOn) return;
+            const duration = Date.now() - btnStartTime;
+            const isLong = duration > 1000;
+            serialLog(`放開按鈕: ${color.toUpperCase()} (${isLong ? '長按' : '短按'})`);
+            processSimLogic(color, isLong);
+        }
+
+        function updateHints(rHint, yHint, gHint) {
+            document.getElementById('hint-red').innerText = rHint;
+            document.getElementById('hint-yellow').innerText = yHint;
+            document.getElementById('hint-green').innerText = gHint;
+        }
+
+        function processSimLogic(btn, isLong) {
+            if (simState === 0) { 
+                return; // 開機畫面中按鈕無效
+            } else if (simState === 1) { // 選擇來源
+                if (btn === 'green') simState = 9;
+                if (btn === 'yellow') simState = 2;
+                if (btn === 'red') simState = 3;
+            } else if (simState === 2) { // PC 同步中
+                if (btn === 'red') simState = 1;
+            } else if (simState >= 3 && simState <= 6) { // 校準中
+                if (btn === 'green') {
+                    if (simState === 6) simState = 7; else simState++;
+                } else if (btn === 'red') {
+                    if (simState === 6) simState = 7; else simState++;
+                } else if (btn === 'yellow') {
+                    if (!isLong && simState > 3) simState--;
+                }
+            } else if (simState === 7) { // 詢問重測
+                if (btn === 'green') simState = 3; else simState = 8;
+            } else if (simState === 8) { // 詢問傳輸
+                simState = 9;
+            } else if (simState === 9) { // 測量模式
+                if (btn === 'yellow') simState = 1;
+            }
+            renderSim();
+        }
+
+        function renderSim() {
+            const l1 = document.getElementById('sim-lcd-1');
+            const l2 = document.getElementById('sim-lcd-2');
+            const lcdMain = document.getElementById('lcd-main');
+            const lcdGlow = document.getElementById('lcd-glow-overlay');
+            
+            const code = document.getElementById('sim-trans-code');
+            const title = document.getElementById('sim-trans-title');
+            const desc = document.getElementById('sim-trans-desc');
+            
+            const ledR = document.getElementById('sim-led-r');
+            const ledY = document.getElementById('sim-led-y');
+            const ledG = document.getElementById('sim-led-g');
+
+            // 關機狀態處理
+            if (!isPoweredOn) {
+                ledR.className = "led-indicator led-red off";
+                ledY.className = "led-indicator led-yellow off";
+                ledG.className = "led-indicator led-green off";
+                
+                lcdMain.style.backgroundColor = "#0f172a";
+                l1.classList.replace('opacity-100', 'opacity-0');
+                l2.classList.replace('opacity-70', 'opacity-0');
+                lcdGlow.classList.replace('opacity-100', 'opacity-0');
+                
+                updateUI("---", "系統已關機", "請按下設備右上角的 PWR 電源按鈕啟動系統。", "", "");
+                updateHints("無作用(關機)", "無作用(關機)", "無作用(關機)");
+                return;
+            }
+
+            // 開機狀態：恢復 LCD 顯示
+            lcdMain.style.backgroundColor = "var(--lcd-bg)";
+            l1.classList.replace('opacity-0', 'opacity-100');
+            l2.classList.replace('opacity-0', 'opacity-70');
+            lcdGlow.classList.replace('opacity-0', 'opacity-100');
+
+            // 預設 LED 關閉
+            ledR.className = "led-indicator led-red off";
+            ledY.className = "led-indicator led-yellow off";
+            ledG.className = "led-indicator led-green off";
+
+            // 斷線偵測模擬 (E503)
+            if (adcValue > 1020) {
+                ledR.className = "led-indicator led-red on";
+                updateUI("E503", "感測器斷線警報", "讀取到的 ADC 數值過大，系統判定 A0 腳位處於懸空狀態。請檢查濁度計接線。", "E503:Snsr Error!", "Check Wiring");
+                updateHints("系統鎖定", "系統鎖定", "系統鎖定");
+                return;
+            }
+
+            // 各狀態畫面與邏輯
+            switch(simState) {
+                case 0:
+                    updateUI("M00", "開機歡迎畫面", "系統通電後顯示 1 秒，隨後將自動進入資料來源選擇。", "M00:PandaPanda", "welcome!");
+                    updateHints("請稍候...", "請稍候...", "請稍候...");
+                    break;
+                case 1:
+                    updateUI("M24", "資料來源選擇", "決定如何載入標定參數。綠:內部記憶, 黃:PC同步, 紅:重新校準。", "M24:Read Local?", "G:Rom Y:PC R:New");
+                    updateHints("手動校準", "等待PC同步", "載入舊檔");
+                    break;
+                case 2:
+                    ledY.className = "led-indicator led-yellow on";
+                    updateUI("M25", "等待電腦同步", "正在等待 Python 軟體透過序列埠傳送標定表格。", "M25:Wait PC Sync", "R:Cancel");
+                    updateHints("取消等待", "無作用", "無作用");
+                    break;
+                case 3: case 4: case 5: case 6:
+                    ledY.className = "led-indicator led-yellow on";
+                    const targets = [0, 20, 100, 800];
+                    const t = targets[simState - 3];
+                    updateUI("M02", `校準階段：${t} NTU`, `請將感測器放入 ${t} NTU 水樣中。綠色紀錄，黃長套用上次，紅短跳過。`, `M02:Step ${t} NTU`, `Live ADC: ${adcValue}`);
+                    updateHints("跳過此點", "短:退回 / 長:套用", "紀錄並前進");
+                    break;
+                case 7:
+                    ledY.className = "led-indicator led-yellow on";
+                    updateUI("M26", "重新校準確認", "詢問是否放棄剛才的結果並重新開始手動流程。綠:是, 紅:否。", "M26:Recalibrate?", "G:Yes R:No");
+                    updateHints("否 (不重測)", "無作用", "是 (重新校準)");
+                    break;
+                case 8:
+                    ledY.className = "led-indicator led-yellow on";
+                    updateUI("M27", "數據傳輸確認", "詢問是否將校準資料回傳給 Python 進行科研分析。綠:是, 紅:跳過。", "M27:Transfer PC?", "G:Yes R:Skip");
+                    updateHints("跳過傳輸", "無作用", "傳送至PC");
+                    break;
+                case 9:
+                    ledG.className = "led-indicator led-green on";
+                    let n = (717 - adcValue) / 0.165;
+                    if (n < 0) n = 0;
+                    updateUI("M09", "即時測量模式", "儀器正在正常測量。綠鈕可切換單位。數據每 500ms 傳送至電腦。", "M09:Measure Mode", `NTU: ${n.toFixed(1)}`);
+                    updateHints("遠端偵錯", "重新校準", "切換顯示單位");
+                    break;
+            }
+
+            function updateUI(mCode, mTitle, mDesc, text1, text2) {
+                code.innerText = mCode;
+                title.innerText = mTitle;
+                desc.innerText = mDesc;
+                l1.innerText = text1;
+                l2.innerText = text2;
+            }
+        }
+
+        function serialLog(msg) {
+            const box = document.getElementById('sim-serial-log');
+            const div = document.createElement('div');
+            div.innerText = `> [${new Date().toLocaleTimeString()}] ${msg}`;
+            box.prepend(div);
+        }
+
+        // 初始化為關機狀態
+        renderSim();
+    </script>
+</body>
+</html>
