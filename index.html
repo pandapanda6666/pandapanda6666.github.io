@@ -40,6 +40,29 @@
             padding: 20px;
         }
 
+        /* 【新增】使用者登入狀態徽章 */
+        .user-auth-badge {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10005;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .user-auth-badge strong {
+            color: var(--yellow-custom);
+            margin-left: 4px;
+        }
+
         /* 左下角即時資訊面板 */
         #system-monitor {
             position: fixed;
@@ -492,6 +515,53 @@
     
     <!-- JavaScript 程式碼 -->
     <script>
+        // --- 【新增】統一登入系統驗證 ---
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let isAuth = urlParams.get('auth') === 'true';
+            let user = urlParams.get('user');
+            let server = urlParams.get('server');
+
+            // 檢查 SessionStorage 是否已經登入過 (處理使用者重新整理頁面的情況)
+            if (!isAuth && sessionStorage.getItem('isAuth') === 'true') {
+                isAuth = true;
+                user = sessionStorage.getItem('authUser');
+                server = sessionStorage.getItem('authServer');
+            }
+            
+            if (!isAuth) {
+                // 尚未登入，導向登入中心 (傳遞當前網址作為 from 參數)
+                const targetUrl = window.location.origin + window.location.pathname;
+                window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(targetUrl)}`;
+                throw new Error("需先登入，正在導向登入中心..."); // 終止後續腳本執行
+            }
+            
+            // 儲存狀態至 SessionStorage
+            sessionStorage.setItem('isAuth', 'true');
+            if (user) sessionStorage.setItem('authUser', user);
+            if (server) sessionStorage.setItem('authServer', server);
+
+            // 建立全域物件，供網頁中的 Socket 連線或其他功能呼叫
+            window.authInfo = { 
+                user: sessionStorage.getItem('authUser') || '未知使用者', 
+                server: sessionStorage.getItem('authServer') || ''
+            };
+            
+            // 將網址上的參數隱藏起來，讓畫面與分享連結保持乾淨
+            if (window.location.search.includes('auth=')) {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+            
+            // 等待 DOM 載入後顯示「已登入」UI 面板在右上角
+            window.addEventListener('DOMContentLoaded', () => {
+                const badge = document.createElement('div');
+                badge.className = 'user-auth-badge';
+                badge.innerHTML = `已登入：<strong>${window.authInfo.user}</strong>`;
+                document.body.appendChild(badge);
+            });
+        })();
+
         // --- 核心安全邏輯與監控 (保留) ---
         (async function() {
             if (localStorage.getItem('isPermanentlyBlocked')) {
