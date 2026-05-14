@@ -11,6 +11,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
     
+    <!-- 【新增】引入 Socket.IO CDN -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
     <!-- CSS 樣式 -->
     <style>
         :root {
@@ -40,27 +43,77 @@
             padding: 20px;
         }
 
-        /* 【新增】使用者登入狀態徽章 */
-        .user-auth-badge {
+        /* 【修改】使用者面板 (取代原本的 user-auth-badge) */
+        .user-profile-panel {
             position: fixed;
             top: 20px;
             right: 20px;
+            background-color: var(--card-bg-color);
+            padding: 10px 15px;
+            border-radius: 12px;
+            z-index: 10005;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+        .user-profile-panel:hover {
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+        .user-profile-panel .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-profile-panel .avatar {
+            width: 36px;
+            height: 36px;
             background-color: var(--primary-color);
             color: white;
-            padding: 8px 16px;
-            border-radius: 30px;
-            font-size: 14px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+        }
+        .user-profile-panel .details {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        .user-profile-panel .status {
+            font-size: 0.7em;
+            color: #666;
             font-weight: 600;
-            z-index: 10005;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            border: 2px solid var(--border-color);
+        }
+        .user-profile-panel .name {
+            font-size: 1em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-top: 2px;
+        }
+        .user-profile-panel .settings-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #555;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background-color: #f0f0f0;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
             gap: 5px;
+            font-family: inherit;
+            font-weight: 600;
         }
-        .user-auth-badge strong {
-            color: var(--yellow-custom);
-            margin-left: 4px;
+        .user-profile-panel .settings-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
         }
 
         /* 左下角即時資訊面板 */
@@ -515,50 +568,97 @@
     
     <!-- JavaScript 程式碼 -->
     <script>
-        // --- 【新增】統一登入系統驗證 ---
+        // --- 【修改】統一登入系統 (SSO) 驗證與 Socket 連線 ---
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             let isAuth = urlParams.get('auth') === 'true';
-            let user = urlParams.get('user');
-            let server = urlParams.get('server');
-
-            // 檢查 SessionStorage 是否已經登入過 (處理使用者重新整理頁面的情況)
+            
+            // 檢查 SessionStorage，防止重新整理頁面時遺失登入狀態
             if (!isAuth && sessionStorage.getItem('isAuth') === 'true') {
                 isAuth = true;
-                user = sessionStorage.getItem('authUser');
-                server = sessionStorage.getItem('authServer');
             }
             
+            const currentUrl = window.location.origin + window.location.pathname;
+
+            // 1. 登入攔截與強制導向
             if (!isAuth) {
-                // 尚未登入，導向登入中心 (傳遞當前網址作為 from 參數)
-                const targetUrl = window.location.origin + window.location.pathname;
-                window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(targetUrl)}`;
-                throw new Error("需先登入，正在導向登入中心..."); // 終止後續腳本執行
+                // 導向登入中心，帶入 require=1 參數強制顯示登入畫面
+                window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(currentUrl)}&require=1`;
+                throw new Error("需先登入，正在導向登入中心..."); 
             }
-            
+
+            // 2. 接收並儲存使用者資料 (優先從 URL 拿，沒有則讀取 SessionStorage)
+            let user = urlParams.get('user') || sessionStorage.getItem('authUser') || 'Unknown';
+            let nickname = urlParams.get('nickname') || sessionStorage.getItem('authNickname') || '';
+            let email = urlParams.get('email') || sessionStorage.getItem('authEmail') || '';
+            let phone = urlParams.get('phone') || sessionStorage.getItem('authPhone') || '';
+            let server = urlParams.get('server') || sessionStorage.getItem('authServer') || '';
+
+            // 若公開暱稱為空，則退回顯示登入帳號
+            if (!nickname) nickname = user;
+
             // 儲存狀態至 SessionStorage
             sessionStorage.setItem('isAuth', 'true');
-            if (user) sessionStorage.setItem('authUser', user);
-            if (server) sessionStorage.setItem('authServer', server);
+            sessionStorage.setItem('authUser', user);
+            sessionStorage.setItem('authNickname', nickname);
+            sessionStorage.setItem('authEmail', email);
+            sessionStorage.setItem('authPhone', phone);
+            sessionStorage.setItem('authServer', server);
 
-            // 建立全域物件，供網頁中的 Socket 連線或其他功能呼叫
-            window.authInfo = { 
-                user: sessionStorage.getItem('authUser') || '未知使用者', 
-                server: sessionStorage.getItem('authServer') || ''
-            };
-            
-            // 將網址上的參數隱藏起來，讓畫面與分享連結保持乾淨
+            // 建立全域物件，供網頁後續呼叫
+            window.authInfo = { user, nickname, email, phone, server };
+
+            // 清理網址列，隱藏參數
             if (window.location.search.includes('auth=')) {
-                const cleanUrl = window.location.origin + window.location.pathname;
-                window.history.replaceState({}, document.title, cleanUrl);
+                window.history.replaceState({}, document.title, currentUrl);
             }
-            
-            // 等待 DOM 載入後顯示「已登入」UI 面板在右上角
+
+            // 3. 與後端伺服器建立 Socket 連線
+            if (server && typeof io !== 'undefined') {
+                try {
+                    window.socket = io(server);
+                    
+                    window.socket.on('connect', () => {
+                        console.log(`%c✅ 成功連線至 Socket 伺服器: ${server}`, "color: green; font-weight: bold;");
+                        console.log(`%c👋 歡迎登入, ${nickname}!`, "color: blue; font-weight: bold;");
+                    });
+
+                    window.socket.on('connect_error', (err) => {
+                        console.error('❌ Socket 連線錯誤:', err);
+                    });
+                } catch (e) {
+                    console.error('Socket 初始化失敗:', e);
+                }
+            } else if (!server) {
+                console.warn('⚠️ 未提供 Socket Server 網址，跳過連線。');
+            }
+
+            // 4. 建立 UI 帳號連動面板
             window.addEventListener('DOMContentLoaded', () => {
-                const badge = document.createElement('div');
-                badge.className = 'user-auth-badge';
-                badge.innerHTML = `已登入：<strong>${window.authInfo.user}</strong>`;
-                document.body.appendChild(badge);
+                // 移除舊的徽章 (若有)
+                const oldBadge = document.querySelector('.user-auth-badge');
+                if (oldBadge) oldBadge.remove();
+
+                const panel = document.createElement('div');
+                panel.className = 'user-profile-panel';
+                panel.innerHTML = `
+                    <div class="user-info">
+                        <div class="avatar">👤</div>
+                        <div class="details">
+                            <span class="status">已登入</span>
+                            <span class="name">${nickname}</span>
+                        </div>
+                    </div>
+                    <button id="account-settings-btn" class="settings-btn" title="設定與切換帳號">
+                        ⚙️ 帳號設定
+                    </button>
+                `;
+                document.body.appendChild(panel);
+
+                // 帳號設定按鈕點擊事件 (不帶 require=1)
+                document.getElementById('account-settings-btn').addEventListener('click', () => {
+                    window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(currentUrl)}`;
+                });
             });
         })();
 
