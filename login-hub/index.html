@@ -62,7 +62,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-        // Firebase 金鑰 (與 server.js 相同)
+        // Firebase 金鑰
         const firebaseConfig = {
             apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
             authDomain: "brawl-survival-27c30.firebaseapp.com",
@@ -76,24 +76,19 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // --- GitHub 設定區 ---
-        const GITHUB_CONFIG = {
-            repo: "YOUR_USERNAME/YOUR_REPO", // 替換為你的 Python 上傳路徑所在的儲存庫 (對應 server_manager.py 的設定)
-            path: "server_url.txt"
-        };
-
         let socket;
         let serverUrl = "";
         const redirectUrl = new URLSearchParams(window.location.search).get('from') || "";
 
+        // 改為直接讀取同目錄下的 server_url.txt
         async function fetchServerUrl() {
             try {
-                const response = await fetch(`https://raw.githubusercontent.com/${GITHUB_CONFIG.repo}/main/${GITHUB_CONFIG.path}?t=${Date.now()}`);
+                const response = await fetch(`server_url.txt?t=${Date.now()}`);
                 if (!response.ok) throw new Error("無法獲取伺服器網址");
                 serverUrl = (await response.text()).trim();
                 initSocket();
             } catch (err) {
-                showMsg("伺服器資訊獲取失敗，請確認 GitHub 設定。", "error");
+                showMsg("伺服器資訊獲取失敗，請確認 server_url.txt 是否與此網頁放在同一個資料夾。", "error");
             }
         }
 
@@ -122,10 +117,9 @@
                     if (redirectUrl) {
                         const target = new URL(redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`);
                         target.searchParams.set('user', res.username);
-                        // 針對伺服器附加的遊戲屬性一併傳遞
                         if (res.level !== undefined) target.searchParams.set('level', res.level);
                         if (res.hero !== undefined) target.searchParams.set('hero', res.hero);
-                        target.searchParams.set('server', serverUrl); // 順便把取得的伺服器網址傳給目標網頁
+                        target.searchParams.set('server', serverUrl);
                         target.searchParams.set('auth', 'true');
                         window.location.href = target.href;
                     } else {
@@ -181,7 +175,6 @@
             box.classList.remove('hidden');
         }
 
-        // 啟動時執行
         fetchServerUrl();
     </script>
 </body>
