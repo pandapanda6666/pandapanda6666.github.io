@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
     
-    <!-- 【新增】引入 Socket.IO CDN -->
+    <!-- 引入 Socket.IO CDN -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 
     <!-- CSS 樣式 -->
@@ -43,63 +43,92 @@
             padding: 20px;
         }
 
-        /* 【修改】使用者面板 (取代原本的 user-auth-badge) */
+        /* 使用者面板與登入按鈕 */
+        #auth-container {
+            margin-left: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .login-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-family: inherit;
+        }
+
+        .login-btn:hover {
+            background-color: #1a3a1d;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
         .user-profile-panel {
-            position: fixed;
-            top: 20px;
-            right: 20px;
             background-color: var(--card-bg-color);
-            padding: 10px 15px;
+            padding: 6px 12px;
             border-radius: 12px;
-            z-index: 10005;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             border: 1px solid var(--border-color);
             display: flex;
             align-items: center;
             gap: 15px;
             transition: all 0.3s ease;
         }
+        
         .user-profile-panel:hover {
-            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             transform: translateY(-2px);
         }
+
         .user-profile-panel .user-info {
             display: flex;
             align-items: center;
             gap: 10px;
         }
+
         .user-profile-panel .avatar {
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             background-color: var(--primary-color);
             color: white;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 1.2em;
+            font-size: 1.1em;
         }
+
         .user-profile-panel .details {
             display: flex;
             flex-direction: column;
             line-height: 1.2;
         }
+
         .user-profile-panel .status {
             font-size: 0.7em;
             color: #666;
             font-weight: 600;
         }
+
         .user-profile-panel .name {
-            font-size: 1em;
+            font-size: 0.95em;
             font-weight: 700;
             color: var(--primary-color);
             margin-top: 2px;
         }
+
         .user-profile-panel .settings-btn {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #555;
             padding: 6px 10px;
             border-radius: 6px;
@@ -111,6 +140,7 @@
             font-family: inherit;
             font-weight: 600;
         }
+
         .user-profile-panel .settings-btn:hover {
             background-color: var(--primary-color);
             color: white;
@@ -164,6 +194,7 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
+            align-items: center;
         }
 
         nav a {
@@ -462,6 +493,12 @@
                 flex-direction: column;
                 gap: 20px;
             }
+            #auth-container {
+                margin-left: 0;
+                margin-top: 15px;
+                justify-content: center;
+                width: 100%;
+            }
         }
 
         @media (max-width: 768px) {
@@ -520,6 +557,9 @@
                 <a href="#" class="nav-link" data-page="tools">自製</a>
                 <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
                 <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook</a>
+                
+                <!-- 驗證狀態面板容器 -->
+                <div id="auth-container"></div>
             </nav>
         </header>
 
@@ -568,101 +608,95 @@
     
     <!-- JavaScript 程式碼 -->
     <script>
-        // --- 【修改】統一登入系統 (SSO) 驗證與 Socket 連線 ---
+        // --- 統一登入系統 (SSO) 驗證與 Socket 連線 ---
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             let isAuth = urlParams.get('auth') === 'true';
             
-            // 檢查 SessionStorage，防止重新整理頁面時遺失登入狀態
+            // 防重新整理：從 Session 恢復登入狀態
             if (!isAuth && sessionStorage.getItem('isAuth') === 'true') {
                 isAuth = true;
             }
             
             const currentUrl = window.location.origin + window.location.pathname;
 
-            // 1. 登入攔截與強制導向
-            if (!isAuth) {
-                // 導向登入中心，帶入 require=1 參數強制顯示登入畫面
-                window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(currentUrl)}&require=1`;
-                throw new Error("需先登入，正在導向登入中心..."); 
-            }
+            // 處理已登入狀態的變數與儲存
+            if (isAuth) {
+                let user = urlParams.get('user') || sessionStorage.getItem('authUser') || 'Unknown';
+                let nickname = urlParams.get('nickname') || sessionStorage.getItem('authNickname') || user;
+                let email = urlParams.get('email') || sessionStorage.getItem('authEmail') || '';
+                let phone = urlParams.get('phone') || sessionStorage.getItem('authPhone') || '';
+                let server = urlParams.get('server') || sessionStorage.getItem('authServer') || '';
 
-            // 2. 接收並儲存使用者資料 (優先從 URL 拿，沒有則讀取 SessionStorage)
-            let user = urlParams.get('user') || sessionStorage.getItem('authUser') || 'Unknown';
-            let nickname = urlParams.get('nickname') || sessionStorage.getItem('authNickname') || '';
-            let email = urlParams.get('email') || sessionStorage.getItem('authEmail') || '';
-            let phone = urlParams.get('phone') || sessionStorage.getItem('authPhone') || '';
-            let server = urlParams.get('server') || sessionStorage.getItem('authServer') || '';
+                if (!nickname) nickname = user;
 
-            // 若公開暱稱為空，則退回顯示登入帳號
-            if (!nickname) nickname = user;
+                sessionStorage.setItem('isAuth', 'true');
+                sessionStorage.setItem('authUser', user);
+                sessionStorage.setItem('authNickname', nickname);
+                sessionStorage.setItem('authEmail', email);
+                sessionStorage.setItem('authPhone', phone);
+                sessionStorage.setItem('authServer', server);
 
-            // 儲存狀態至 SessionStorage
-            sessionStorage.setItem('isAuth', 'true');
-            sessionStorage.setItem('authUser', user);
-            sessionStorage.setItem('authNickname', nickname);
-            sessionStorage.setItem('authEmail', email);
-            sessionStorage.setItem('authPhone', phone);
-            sessionStorage.setItem('authServer', server);
+                window.authInfo = { user, nickname, email, phone, server };
 
-            // 建立全域物件，供網頁後續呼叫
-            window.authInfo = { user, nickname, email, phone, server };
-
-            // 清理網址列，隱藏參數
-            if (window.location.search.includes('auth=')) {
-                window.history.replaceState({}, document.title, currentUrl);
-            }
-
-            // 3. 與後端伺服器建立 Socket 連線
-            if (server && typeof io !== 'undefined') {
-                try {
-                    window.socket = io(server);
-                    
-                    window.socket.on('connect', () => {
-                        console.log(`%c✅ 成功連線至 Socket 伺服器: ${server}`, "color: green; font-weight: bold;");
-                        console.log(`%c👋 歡迎登入, ${nickname}!`, "color: blue; font-weight: bold;");
-                    });
-
-                    window.socket.on('connect_error', (err) => {
-                        console.error('❌ Socket 連線錯誤:', err);
-                    });
-                } catch (e) {
-                    console.error('Socket 初始化失敗:', e);
+                // 清理網址列參數
+                if (window.location.search.includes('auth=')) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
                 }
-            } else if (!server) {
-                console.warn('⚠️ 未提供 Socket Server 網址，跳過連線。');
+
+                // 建立 Socket 連線
+                if (server && typeof io !== 'undefined') {
+                    try {
+                        window.socket = io(server);
+                        window.socket.on('connect', () => {
+                            console.log(`✅ 成功連線至 Socket 伺服器: ${server}`);
+                            console.log(`👋 歡迎登入, ${nickname}!`);
+                        });
+                        window.socket.on('connect_error', (err) => {
+                            console.error('❌ Socket 連線錯誤:', err);
+                        });
+                    } catch (e) {
+                        console.error('Socket 初始化失敗:', e);
+                    }
+                }
             }
 
-            // 4. 建立 UI 帳號連動面板
+            // 渲染 UI (根據登入狀態替換按鈕/面板)
             window.addEventListener('DOMContentLoaded', () => {
-                // 移除舊的徽章 (若有)
-                const oldBadge = document.querySelector('.user-auth-badge');
-                if (oldBadge) oldBadge.remove();
-
-                const panel = document.createElement('div');
-                panel.className = 'user-profile-panel';
-                panel.innerHTML = `
-                    <div class="user-info">
-                        <div class="avatar">👤</div>
-                        <div class="details">
-                            <span class="status">已登入</span>
-                            <span class="name">${nickname}</span>
+                const authContainer = document.getElementById('auth-container');
+                
+                if (isAuth) {
+                    // 已登入：顯示使用者面板
+                    authContainer.innerHTML = `
+                        <div class="user-profile-panel">
+                            <div class="user-info">
+                                <div class="avatar">👤</div>
+                                <div class="details">
+                                    <span class="status">已登入</span>
+                                    <span class="name">${window.authInfo.nickname}</span>
+                                </div>
+                            </div>
+                            <button id="account-settings-btn" class="settings-btn" title="設定與切換帳號">
+                                ⚙️ 帳號設定
+                            </button>
                         </div>
-                    </div>
-                    <button id="account-settings-btn" class="settings-btn" title="設定與切換帳號">
-                        ⚙️ 帳號設定
-                    </button>
-                `;
-                document.body.appendChild(panel);
-
-                // 帳號設定按鈕點擊事件 (不帶 require=1)
-                document.getElementById('account-settings-btn').addEventListener('click', () => {
-                    window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(currentUrl)}`;
-                });
+                    `;
+                    document.getElementById('account-settings-btn').addEventListener('click', () => {
+                        window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(currentUrl)}`;
+                    });
+                } else {
+                    // 未登入：顯示登入按鈕
+                    authContainer.innerHTML = `
+                        <button id="login-btn" class="login-btn">登入 / 註冊</button>
+                    `;
+                    document.getElementById('login-btn').addEventListener('click', () => {
+                        window.location.href = `https://pandapanda6666.github.io/login-hub/?from=${encodeURIComponent(currentUrl)}&require=1`;
+                    });
+                }
             });
         })();
 
-        // --- 核心安全邏輯與監控 (保留) ---
+        // --- 核心安全邏輯與監控 ---
         (async function() {
             if (localStorage.getItem('isPermanentlyBlocked')) {
                 redirectToGoogle();
@@ -734,7 +768,7 @@
             // --- 自動更新版權年份 ---
             document.getElementById('copyright-year').textContent = new Date().getFullYear();
 
-            // --- 安全功能 (警告、鎖定) (保留) ---
+            // --- 安全功能 (警告、鎖定) ---
             const securityModal = document.getElementById('security-modal');
             const closeSecurityModalBtn = document.getElementById('close-security-modal');
             const finalWarningOverlay = document.getElementById('final-warning-overlay');
@@ -832,7 +866,6 @@
                 }
             }
 
-            // 更新：指定目標儲存庫
             async function getRepoInfo() {
                 return { user: 'pandapanda6666', repo: 'pandapanda6666.github.io', subPath: '' };
             }
