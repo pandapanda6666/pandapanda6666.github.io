@@ -96,7 +96,7 @@
                         <input type="text" id="editNickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">真實姓名 <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">真實姓名</label>
                         <input type="text" id="editRealName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
                     </div>
                 </div>
@@ -114,7 +114,7 @@
 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">性別 <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">性別</label>
                         <select id="editGender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner bg-white">
                             <option value="男">男</option>
                             <option value="女">女</option>
@@ -122,7 +122,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">生日 <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">生日</label>
                         <input type="date" id="editBirthday" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
                     </div>
                 </div>
@@ -212,7 +212,7 @@
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span class="text-xs text-slate-400 font-normal">(與電話擇一必填)</span> <span class="text-red-500">*</span></label>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span id="email_req_indicator" class="text-xs text-slate-400 font-normal">(與電話擇一必填) <span class="text-red-500">*</span></span></label>
                             <input type="email" id="reg_email" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入電子郵件">
                         </div>
                     </div>
@@ -248,7 +248,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 <span class="text-xs text-slate-400 font-normal">(與信箱擇一必填)</span> <span class="text-red-500">*</span></label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 <span id="phone_req_indicator" class="text-xs text-slate-400 font-normal">(與信箱擇一必填) <span class="text-red-500">*</span></span></label>
                         <input type="tel" id="reg_phone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入聯絡電話">
                     </div>
                 </div>
@@ -296,6 +296,33 @@
         const urlParams = new URLSearchParams(window.location.search);
         const redirectUrl = urlParams.get('from') || "";
         const requireLogin = urlParams.get('require') === '1' || urlParams.get('require') === 'true';
+
+        // 設定電子郵件與電話的動態必填 UI
+        const regEmailInput = document.getElementById('reg_email');
+        const regPhoneInput = document.getElementById('reg_phone');
+        const emailReqIndicator = document.getElementById('email_req_indicator');
+        const phoneReqIndicator = document.getElementById('phone_req_indicator');
+
+        function updateContactRequirements() {
+            if (regEmailInput && regPhoneInput) {
+                if (regEmailInput.value.trim() !== '') {
+                    phoneReqIndicator.style.display = 'none';
+                } else {
+                    phoneReqIndicator.style.display = 'inline';
+                }
+
+                if (regPhoneInput.value.trim() !== '') {
+                    emailReqIndicator.style.display = 'none';
+                } else {
+                    emailReqIndicator.style.display = 'inline';
+                }
+            }
+        }
+
+        if (regEmailInput && regPhoneInput) {
+            regEmailInput.addEventListener('input', updateContactRequirements);
+            regPhoneInput.addEventListener('input', updateContactRequirements);
+        }
 
         async function fetchServerUrl() {
             try {
@@ -516,6 +543,13 @@
                 document.getElementById('googleNotLinked').classList.add('hidden');
                 document.getElementById('googleLinked').classList.remove('hidden');
                 document.getElementById('linkedGoogleEmail').innerText = window.tempRegEmail;
+                
+                // 自動填入信箱並更新UI狀態
+                if(document.getElementById('reg_email')) {
+                    document.getElementById('reg_email').value = window.tempRegEmail;
+                    updateContactRequirements();
+                }
+                
                 showMsg("已成功連結 Google 帳號，請繼續填寫下方資料", "success");
             } catch (error) {
                 showMsg("連結 Google 失敗: " + error.message, "error");
@@ -526,6 +560,10 @@
             window.tempRegEmail = null;
             document.getElementById('googleLinked').classList.add('hidden');
             document.getElementById('googleNotLinked').classList.remove('hidden');
+            if(document.getElementById('reg_email')) {
+                document.getElementById('reg_email').value = "";
+                updateContactRequirements();
+            }
         };
 
         function updateProfileDashboard() {
@@ -580,6 +618,11 @@
             const phone = document.getElementById('reg_phone').value.trim();
             const email = document.getElementById('reg_email') ? document.getElementById('reg_email').value.trim() : '';
 
+            // 格式驗證：Email 需要包含 @ 與 .
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            // 格式驗證：電話需為 8 到 20 碼，可包含數字、+號、減號或空白
+            const phoneRegex = /^[\d\+\-\s]{8,20}$/;
+
             let payload = {
                 nickname: nk,
                 realName: ln + fn,
@@ -607,19 +650,11 @@
                 payload.password = p;
             }
 
+            if (email && !emailRegex.test(email)) return showMsg("電子郵件格式不正確", "error");
+            if (phone && !phoneRegex.test(phone)) return showMsg("聯絡電話格式不正確，請輸入有效的號碼", "error");
+
             showMsg("正在送出註冊資料...", "info");
             socket.emit('register', payload);
-        };
-
-        window.handleGoogleLogin = async function() {
-            try {
-                showMsg("正在開啟 Google 驗證...", "info");
-                const result = await signInWithPopup(auth, provider);
-                showMsg("驗證成功，正在登入伺服器...", "info");
-                socket.emit('googleLogin', { email: result.user.email, name: result.user.displayName });
-            } catch (error) {
-                showMsg("Google 登入失敗: " + error.message, "error");
-            }
         };
 
         window.saveProfile = function() {
@@ -637,12 +672,15 @@
                 payload.password = document.getElementById('editPassword').value;
             }
 
-            if (!payload.nickname || !payload.realName || !payload.gender || !payload.birthday) {
-                return showMsg("必填欄位不可為空", "error");
+            if (!payload.nickname) {
+                return showMsg("公開暱稱不可為空", "error");
             }
-            if (!payload.email && !payload.phone && currentUserData.password !== 'GOOGLE_AUTH') {
-                return showMsg("信箱與電話請至少填寫一項", "error");
-            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            const phoneRegex = /^[\d\+\-\s]{8,20}$/;
+
+            if (payload.email && !emailRegex.test(payload.email)) return showMsg("電子郵件格式不正確", "error");
+            if (payload.phone && !phoneRegex.test(payload.phone)) return showMsg("聯絡電話格式不正確，請輸入有效的號碼", "error");
 
             showMsg("正在儲存...", "info");
             socket.emit('updateProfile', payload);
