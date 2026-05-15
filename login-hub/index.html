@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PandaPanda的AI日常 - 統一登入中心</title>
+    <link rel="icon" href="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no">
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -14,6 +15,9 @@
         input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
         .avatar-preview { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
         .bg-custom { background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop'); background-size: cover; background-position: center; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-slate-900 min-h-screen flex items-center justify-center p-4 bg-custom">
@@ -59,7 +63,7 @@
                     進入系統應用
                 </button>
                 <button onclick="toggleView('editProfile')" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 rounded-xl transition-all">
-                    修改個人資料
+                    修改所有個人資料
                 </button>
                 <div class="flex gap-3">
                     <button onclick="switchAccount()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-all">
@@ -73,22 +77,63 @@
         </div>
 
         <div id="editProfileView" class="hidden space-y-4">
-            <div class="text-center mb-4">
-                <div class="relative inline-block">
-                    <img id="editAvatarPreview" src="" alt="Preview" class="avatar-preview bg-slate-100">
+            <div class="max-h-[60vh] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                <div class="text-center mb-4">
+                    <div class="relative inline-block">
+                        <img id="editAvatarPreview" src="" alt="Preview" class="avatar-preview bg-slate-100">
+                    </div>
+                    <div class="mt-3">
+                        <label class="cursor-pointer text-sm font-bold text-indigo-600 hover:text-indigo-800 transition">
+                            更換大頭貼
+                            <input type="file" id="editAvatarInput" accept="image/*" class="hidden" onchange="previewImage(this, 'editAvatarPreview')">
+                        </label>
+                    </div>
                 </div>
-                <div class="mt-3">
-                    <label class="cursor-pointer text-sm font-bold text-indigo-600 hover:text-indigo-800 transition">
-                        更換大頭貼
-                        <input type="file" id="editAvatarInput" accept="image/*" class="hidden" onchange="previewImage(this, 'editAvatarPreview')">
-                    </label>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">公開暱稱 <span class="text-red-500">*</span></label>
+                        <input type="text" id="editNickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">真實姓名 <span class="text-red-500">*</span></label>
+                        <input type="text" id="editRealName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">登入密碼</label>
+                        <input type="password" id="editPassword" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件</label>
+                        <input type="email" id="editEmail" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">性別 <span class="text-red-500">*</span></label>
+                        <select id="editGender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner bg-white">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">生日 <span class="text-red-500">*</span></label>
+                        <input type="date" id="editBirthday" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話</label>
+                    <input type="tel" id="editPhone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
                 </div>
             </div>
-            <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">修改暱稱</label>
-                <input type="text" id="editNickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner">
-            </div>
-            <div class="flex gap-3 pt-4">
+
+            <div class="flex gap-3 pt-4 border-t border-slate-200">
                 <button onclick="toggleView('profile')" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition-all">取消</button>
                 <button onclick="saveProfile()" class="w-1/2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all">儲存變更</button>
             </div>
@@ -129,81 +174,83 @@
             </div>
 
             <div id="registerForm" class="space-y-3">
-                <div class="text-center mb-4">
-                    <div class="relative inline-block">
-                        <img id="regAvatarPreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" class="avatar-preview bg-slate-100 mx-auto cursor-pointer" onclick="document.getElementById('reg_avatar').click()">
-                    </div>
-                    <div class="mt-1">
-                        <label class="cursor-pointer text-xs font-bold text-slate-500 hover:text-emerald-600 transition">
-                            點擊上傳大頭貼
-                            <input type="file" id="reg_avatar" accept="image/*" class="hidden" onchange="previewImage(this, 'regAvatarPreview')">
-                        </label>
-                    </div>
-                </div>
-
-                <div id="regGoogleFields" class="hidden mb-4">
-                    <div id="googleNotLinked">
-                        <button onclick="handleRegGoogleAuth()" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl flex items-center justify-center transition shadow-sm">
-                            <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5 mr-3">
-                            連結 Google 帳號 <span class="text-red-500 ml-1">*</span>
-                        </button>
-                    </div>
-                    <div id="googleLinked" class="hidden text-center bg-green-50 border border-green-200 rounded-xl py-3 px-4 flex justify-between items-center">
-                        <span class="text-sm font-bold text-green-700">已連結：<span id="linkedGoogleEmail"></span></span>
-                        <button onclick="clearRegGoogle()" class="text-xs text-slate-500 hover:text-red-500">清除</button>
-                    </div>
-                </div>
-
-                <div id="regAccountFields" class="space-y-3 mb-3">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">設定帳號 <span class="text-red-500">*</span></label>
-                            <input type="text" id="reg_username" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入帳號">
+                <div class="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                    <div class="text-center mb-4">
+                        <div class="relative inline-block">
+                            <img id="regAvatarPreview" src="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no" class="avatar-preview bg-slate-100 mx-auto cursor-pointer" onclick="document.getElementById('reg_avatar').click()">
                         </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">設定密碼 <span class="text-red-500">*</span></label>
-                            <input type="password" id="reg_password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入密碼">
+                        <div class="mt-1">
+                            <label class="cursor-pointer text-xs font-bold text-slate-500 hover:text-emerald-600 transition">
+                                點擊上傳大頭貼
+                                <input type="file" id="reg_avatar" accept="image/*" class="hidden" onchange="previewImage(this, 'regAvatarPreview')">
+                            </label>
                         </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span class="text-xs text-slate-400 font-normal">(與電話擇一必填)</span> <span class="text-red-500">*</span></label>
-                        <input type="email" id="reg_email" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入電子郵件">
-                    </div>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">公開暱稱 <span class="text-red-500">*</span></label>
-                    <input type="text" id="reg_nickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="在系統中顯示的名稱">
-                </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">姓氏 <span class="text-red-500">*</span></label>
-                        <input type="text" id="reg_lastName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="例: 王">
+                    <div id="regGoogleFields" class="hidden mb-4">
+                        <div id="googleNotLinked">
+                            <button onclick="handleRegGoogleAuth()" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl flex items-center justify-center transition shadow-sm">
+                                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5 mr-3">
+                                連結 Google 帳號 <span class="text-red-500 ml-1">*</span>
+                            </button>
+                        </div>
+                        <div id="googleLinked" class="hidden text-center bg-green-50 border border-green-200 rounded-xl py-3 px-4 flex justify-between items-center">
+                            <span class="text-sm font-bold text-green-700">已連結：<span id="linkedGoogleEmail"></span></span>
+                            <button onclick="clearRegGoogle()" class="text-xs text-slate-500 hover:text-red-500">清除</button>
+                        </div>
+                    </div>
+
+                    <div id="regAccountFields" class="space-y-3 mb-3">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">設定帳號 <span class="text-red-500">*</span></label>
+                                <input type="text" id="reg_username" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入帳號">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-700 mb-1">設定密碼 <span class="text-red-500">*</span></label>
+                                <input type="password" id="reg_password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入密碼">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span class="text-xs text-slate-400 font-normal">(與電話擇一必填)</span> <span class="text-red-500">*</span></label>
+                            <input type="email" id="reg_email" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入電子郵件">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">公開暱稱 <span class="text-red-500">*</span></label>
+                        <input type="text" id="reg_nickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="在系統中顯示的名稱">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">姓氏 <span class="text-red-500">*</span></label>
+                            <input type="text" id="reg_lastName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="例: 王">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">名字 <span class="text-red-500">*</span></label>
+                            <input type="text" id="reg_firstName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="例: 小明">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">性別 <span class="text-red-500">*</span></label>
+                            <select id="reg_gender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner bg-white">
+                                <option value="">請選擇</option>
+                                <option value="男">男</option>
+                                <option value="女">女</option>
+                                <option value="其他">其他</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-slate-700 mb-1">生日 <span class="text-red-500">*</span></label>
+                            <input type="date" id="reg_birthday" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner">
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">名字 <span class="text-red-500">*</span></label>
-                        <input type="text" id="reg_firstName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="例: 小明">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 <span class="text-xs text-slate-400 font-normal">(與信箱擇一必填)</span> <span class="text-red-500">*</span></label>
+                        <input type="tel" id="reg_phone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入聯絡電話">
                     </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">性別 <span class="text-red-500">*</span></label>
-                        <select id="reg_gender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner bg-white">
-                            <option value="">請選擇</option>
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                            <option value="其他">其他</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">生日 <span class="text-red-500">*</span></label>
-                        <input type="date" id="reg_birthday" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner">
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 <span class="text-xs text-slate-400 font-normal">(與信箱擇一必填)</span> <span class="text-red-500">*</span></label>
-                    <input type="tel" id="reg_phone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="請輸入聯絡電話">
                 </div>
                 
                 <button onclick="handleRegister()" id="registerBtn" disabled class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed mt-2">
@@ -262,7 +309,7 @@
         }
 
         function initSocket() {
-            socket = io(serverUrl);
+            socket = io(serverUrl, { transports: ['websocket'] });
             
             socket.on('connect', () => {
                 document.getElementById('serverStatus').innerText = "伺服器已連線";
@@ -323,6 +370,12 @@
                     showMsg("個人資料已更新！", "success");
                     currentUserData.nickname = res.nickname;
                     currentUserData.avatar = res.avatar;
+                    currentUserData.password = res.password;
+                    currentUserData.realName = res.realName;
+                    currentUserData.gender = res.gender;
+                    currentUserData.birthday = res.birthday;
+                    currentUserData.email = res.email;
+                    currentUserData.phone = res.phone;
                     updateProfileDashboard();
                     toggleView('profile');
                 } else {
@@ -341,7 +394,6 @@
             });
         }
 
-        // 完美修復 Google 使用者無法自動登入被彈回設定頁面的問題
         function checkAutoLogin() {
             const savedU = localStorage.getItem('panda_auto_user');
             const savedP = localStorage.getItem('panda_auto_pass');
@@ -411,7 +463,25 @@
             } else if (view === 'editProfile') {
                 document.getElementById('editProfileView').classList.remove('hidden');
                 document.getElementById('headerSection').classList.add('hidden');
+                
                 document.getElementById('editNickname').value = currentUserData.nickname || currentUserData.username;
+                document.getElementById('editRealName').value = currentUserData.realName || '';
+                document.getElementById('editGender').value = currentUserData.gender || '';
+                document.getElementById('editBirthday').value = currentUserData.birthday || '';
+                document.getElementById('editPhone').value = currentUserData.phone || '';
+                document.getElementById('editEmail').value = currentUserData.email || '';
+                
+                const pwdInput = document.getElementById('editPassword');
+                if(currentUserData.password === 'GOOGLE_AUTH') {
+                    pwdInput.value = '已綁定Google';
+                    pwdInput.disabled = true;
+                    pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-500 outline-none";
+                } else {
+                    pwdInput.value = currentUserData.password || '';
+                    pwdInput.disabled = false;
+                    pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition shadow-inner";
+                }
+
                 document.getElementById('editAvatarPreview').src = currentUserData.avatar || getDefaultAvatar();
                 window.currentEditAvatarBase64 = currentUserData.avatar || '';
             }
@@ -466,7 +536,7 @@
         }
 
         function getDefaultAvatar() {
-            return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
+            return "https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no";
         }
 
         window.previewImage = function(input, previewId) {
@@ -553,23 +623,39 @@
         };
 
         window.saveProfile = function() {
-            const nk = document.getElementById('editNickname').value.trim();
-            if (!nk) return showMsg("暱稱不能為空", "error");
+            let payload = {
+                nickname: document.getElementById('editNickname').value.trim(),
+                realName: document.getElementById('editRealName').value.trim(),
+                gender: document.getElementById('editGender').value,
+                birthday: document.getElementById('editBirthday').value,
+                phone: document.getElementById('editPhone').value.trim(),
+                email: document.getElementById('editEmail').value.trim(),
+                avatar: window.currentEditAvatarBase64 || ''
+            };
+            
+            if (currentUserData.password !== 'GOOGLE_AUTH') {
+                payload.password = document.getElementById('editPassword').value;
+            }
+
+            if (!payload.nickname || !payload.realName || !payload.gender || !payload.birthday) {
+                return showMsg("必填欄位不可為空", "error");
+            }
+            if (!payload.email && !payload.phone && currentUserData.password !== 'GOOGLE_AUTH') {
+                return showMsg("信箱與電話請至少填寫一項", "error");
+            }
+
             showMsg("正在儲存...", "info");
-            socket.emit('updateProfile', { nickname: nk, avatar: window.currentEditAvatarBase64 });
+            socket.emit('updateProfile', payload);
         };
 
         window.switchAccount = function() {
             if (socket) socket.emit('logout');
-            // 不要在切換帳號時直接清除快取，否則 Google Auth 會因為抓不到紀錄被卡死。改由 logoutSuccess 處理。
         };
 
         window.handleLogout = function() {
             switchAccount();
         };
 
-        // 完美解決頭像字串太長導致網址損毀的問題！
-        // 我們不再把 avatar 塞進 URL，只傳遞基本的 user 和 server。
         window.returnToApp = function() {
             if (!currentUserData || !redirectUrl) return;
             const target = new URL(redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`);
