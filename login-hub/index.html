@@ -39,7 +39,7 @@
                 <p class="text-slate-500 text-sm mt-2">部分應用程式功能需要登入後才能使用</p>
             </div>
             <button onclick="toggleView('login')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95">
-                點此登入 / 切換帳戶
+                點此登入 / 註冊帳號
             </button>
         </div>
 
@@ -104,7 +104,7 @@
                     <label class="block text-sm font-bold text-slate-700 mb-1">登入密碼</label>
                     <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition shadow-inner" placeholder="請輸入您的密碼">
                 </div>
-                <button onclick="handleLogin()" id="loginBtn" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed disabled:transform-none mt-2">
+                <button onclick="handleLogin()" id="loginBtn" disabled class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed mt-2">
                     一般登入系統
                 </button>
                 <div class="flex items-center my-4">
@@ -123,7 +123,6 @@
         </div>
 
         <div id="registerView" class="hidden">
-            <!-- 註冊模式切換標籤 -->
             <div class="flex bg-slate-100 rounded-xl p-1 mb-5">
                 <button id="regTabNormal" onclick="setRegMode('normal')" class="w-1/2 py-2 rounded-lg font-bold bg-white text-emerald-600 shadow-sm transition">帳號密碼註冊</button>
                 <button id="regTabGoogle" onclick="setRegMode('google')" class="w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition">Google 註冊</button>
@@ -142,7 +141,6 @@
                     </div>
                 </div>
 
-                <!-- Google 綁定區塊 (僅 Google 模式顯示) -->
                 <div id="regGoogleFields" class="hidden mb-4">
                     <div id="googleNotLinked">
                         <button onclick="handleRegGoogleAuth()" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl flex items-center justify-center transition shadow-sm">
@@ -156,7 +154,6 @@
                     </div>
                 </div>
 
-                <!-- 帳號密碼區塊 (僅普通模式顯示) -->
                 <div id="regAccountFields" class="space-y-3 mb-3">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -221,13 +218,13 @@
         <div id="messageBox" class="mt-6 text-center text-sm hidden p-3 rounded-lg border"></div>
         
         <div class="mt-8 pt-6 border-t border-slate-200 text-center">
-            <p class="text-xs text-slate-500 font-bold">版權所有 © 2026 <a href="https://pandapanda6666.github.io" class="hover:text-indigo-600 transition">PandaPanda的AI日常</a> All Rights Reserved.</p>
+            <p class="text-xs text-slate-500 font-bold cursor-pointer hover:text-indigo-600 transition" onclick="window.location.href='https://pandapanda6666.github.io'">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</p>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
@@ -284,8 +281,10 @@
                 if (res.success) {
                     showMsg("登入成功！", "success");
                     currentUserData = res;
-                    localStorage.setItem('panda_auto_user', document.getElementById('username').value || res.username);
-                    localStorage.setItem('panda_auto_pass', document.getElementById('password').value || 'GOOGLE_AUTH');
+                    localStorage.setItem('panda_auto_user', res.username);
+                    if (res.password !== 'GOOGLE_AUTH') {
+                        localStorage.setItem('panda_auto_pass', document.getElementById('password').value || 'GOOGLE_AUTH');
+                    }
                     
                     updateProfileDashboard();
                     
@@ -342,11 +341,22 @@
             });
         }
 
+        // 完美修復 Google 使用者無法自動登入被彈回設定頁面的問題
         function checkAutoLogin() {
             const savedU = localStorage.getItem('panda_auto_user');
             const savedP = localStorage.getItem('panda_auto_pass');
             
-            if (savedU && savedP && savedP !== 'GOOGLE_AUTH') {
+            if (savedP === 'GOOGLE_AUTH') {
+                showMsg("正在驗證 Google 登入狀態...", "info");
+                const unsubscribe = onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                    } else {
+                        if (requireLogin) toggleView('login'); else toggleView('guest');
+                    }
+                    unsubscribe();
+                });
+            } else if (savedU && savedP) {
                 showMsg("正在自動登入...", "info");
                 document.getElementById('username').value = savedU;
                 document.getElementById('password').value = savedP;
@@ -550,26 +560,21 @@
         };
 
         window.switchAccount = function() {
-            localStorage.removeItem('panda_auto_user');
-            localStorage.removeItem('panda_auto_pass');
             if (socket) socket.emit('logout');
-            currentUserData = null;
-            toggleView('login');
+            // 不要在切換帳號時直接清除快取，否則 Google Auth 會因為抓不到紀錄被卡死。改由 logoutSuccess 處理。
         };
 
         window.handleLogout = function() {
             switchAccount();
         };
 
-        // 這裡會將伺服器網址 (serverUrl) 打包進 URL 一起回傳給應用端
+        // 完美解決頭像字串太長導致網址損毀的問題！
+        // 我們不再把 avatar 塞進 URL，只傳遞基本的 user 和 server。
         window.returnToApp = function() {
             if (!currentUserData || !redirectUrl) return;
             const target = new URL(redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`);
             target.searchParams.set('user', currentUserData.username);
-            if (currentUserData.nickname) target.searchParams.set('nickname', currentUserData.nickname);
-            if (currentUserData.email) target.searchParams.set('email', currentUserData.email);
-            if (currentUserData.phone) target.searchParams.set('phone', currentUserData.phone);
-            target.searchParams.set('server', serverUrl);  // ★ 關鍵：傳遞最新獲取的伺服器位置
+            target.searchParams.set('server', serverUrl);
             target.searchParams.set('auth', 'true');
             window.location.href = target.href;
         };
