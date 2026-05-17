@@ -1,277 +1,643 @@
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>目錄索引</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>即時多人互動聊天室</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* 深藍色背景與黃色/白色文字 */
-        body {
-            background-color: #001f3f;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; overflow: hidden; background-color: #f3f4f6; }
+        
+        /* 遊戲區域背景與網格 */
+        #game-map {
+            background-image: 
+                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
+                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-color: #f9fafb;
         }
-        .text-yellow-custom {
-            color: #fbbf24;
-        }
-        .card-hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-        .card-hover:hover {
-            transform: translateY(-5px);
-            background-color: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-            border-color: #fbbf24;
-        }
-        .img-container {
-            background: #1a2a44;
-            position: relative;
-            overflow: hidden;
-        }
-        .img-fallback-text {
+
+        /* 玩家實體樣式 */
+        .player-entity {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: left 0.1s linear, top 0.1s linear;
             display: flex;
+            flex-direction: column;
             align-items: center;
-            justify-content: center;
-            color: #9ca3af;
-            font-weight: bold;
-            font-size: 0.7rem;
-            text-align: center;
-            height: 100%;
-            width: 100%;
+            pointer-events: none;
+            z-index: 10;
         }
+
+        /* 玩家頭像 */
+        .player-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            background-color: #cbd5e1;
+            object-fit: cover;
+        }
+
+        /* 玩家名稱標籤 */
+        .player-name {
+            margin-top: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            white-space: nowrap;
+            backdrop-filter: blur(4px);
+        }
+
+        /* 聊天氣泡 */
+        .chat-bubble {
+            position: absolute;
+            bottom: 100%;
+            margin-bottom: 8px;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            font-size: 14px;
+            color: #1f2937;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            white-space: nowrap;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 20;
+        }
+        .chat-bubble.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 跑馬燈動畫 */
+        @keyframes marquee {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .animate-marquee { display: inline-block; animation: marquee 15s linear infinite; white-space: nowrap; }
+        
+        /* 隱藏捲軸 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="h-screen w-screen flex flex-col">
 
-    <header class="border-b border-blue-900 py-12 px-6 bg-[#00162d]">
-        <div class="max-w-6xl mx-auto text-center">
-            <h1 id="main-title" class="text-4xl md:text-5xl font-extrabold tracking-tight text-yellow-custom">
-                <!-- 載入中文字將由 JS 替換 -->
-            </h1>
-            <p id="main-subtitle" class="mt-4 text-gray-300 text-lg opacity-80"></p>
+    <header class="bg-white shadow-sm border-b border-gray-200 flex-none z-30 relative">
+        <div class="max-w-full mx-auto px-4 h-16 flex items-center justify-between">
+            <!-- Logo & Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <i class="fa-solid fa-earth-americas text-xl"></i>
+                </div>
+                <h1 class="text-xl font-bold text-gray-800 hidden sm:block">互動聊天樞紐</h1>
+            </div>
+
+            <!-- System Message Marquee -->
+            <div class="flex-1 mx-4 sm:mx-8 overflow-hidden bg-indigo-50 rounded-full h-10 flex items-center px-4 border border-indigo-100">
+                <i class="fa-solid fa-bullhorn text-indigo-500 mr-3"></i>
+                <div class="overflow-hidden flex-1 relative">
+                    <span id="system-marquee" class="animate-marquee text-indigo-700 font-medium text-sm">
+                        歡迎來到即時互動聊天室！請隨意走動並與大家聊天～
+                    </span>
+                </div>
+            </div>
+
+            <!-- Auth/Profile Button (Dynamic) -->
+            <div id="auth-container">
+                <!-- 預設顯示載入中 -->
+                <div class="animate-pulse bg-gray-200 h-10 w-24 rounded-full"></div>
+            </div>
         </div>
     </header>
 
-    <main class="flex-grow max-w-6xl mx-auto w-full p-6 md:p-12">
-        <div id="folder-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <!-- 資料夾卡片將在此生成 -->
+    <main class="flex-1 flex overflow-hidden">
+        <!-- 虛擬空間 (地圖) -->
+        <div id="game-map" class="flex-1 relative overflow-hidden cursor-pointer" onclick="handleMapClick(event)">
+            <div class="absolute top-4 left-4 bg-white/80 backdrop-blur text-gray-600 text-xs px-3 py-2 rounded-lg shadow-sm border border-gray-200 z-20 pointer-events-none">
+                <i class="fa-solid fa-keyboard mr-1"></i> 使用 <b>WASD</b> 或 <b>滑鼠點擊</b> 移動
+            </div>
+            <!-- 玩家實體會透過 JS 動態注入這裡 -->
         </div>
-        
-        <div id="loading-indicator" class="text-center py-20">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-yellow-400 mb-4"></div>
-            <p id="loading-text" class="text-gray-400"></p>
+
+        <!-- 聊天面板 -->
+        <div class="w-full sm:w-80 md:w-96 bg-white border-l border-gray-200 flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.03)] z-20 transition-transform duration-300 transform sm:translate-x-0 absolute sm:relative h-full right-0 translate-x-full" id="chat-panel">
+            
+            <!-- 手機版展開按鈕 (隱藏在側邊) -->
+            <button onclick="toggleChat()" class="sm:hidden absolute -left-12 top-20 bg-white p-3 rounded-l-xl shadow-[-4px_0_10px_rgba(0,0,0,0.1)] border border-r-0 border-gray-200 text-indigo-600">
+                <i class="fa-solid fa-comments text-xl"></i>
+            </button>
+
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h2 class="font-bold text-gray-700"><i class="fa-solid fa-message mr-2 text-indigo-500"></i>區域頻道</h2>
+                <span id="online-count" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">連線中...</span>
+            </div>
+
+            <!-- 聊天訊息列表 -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- 訊息範例 -->
+                <div class="text-center text-xs text-gray-400 my-2">-- 已加入 global_map 頻道 --</div>
+            </div>
+
+            <!-- 訊息輸入區 -->
+            <div class="p-4 border-t border-gray-100 bg-white">
+                <form id="chat-form" class="flex gap-2" onsubmit="handleSendChat(event)">
+                    <input type="text" id="chat-input" placeholder="說點什麼..." autocomplete="off" 
+                        class="flex-1 bg-gray-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl px-4 py-2.5 text-sm transition-all duration-200 outline-none">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
         </div>
     </main>
 
-    <footer class="border-t border-blue-900 py-8 px-6 mt-12 bg-[#00162d]">
-        <div class="max-w-6xl mx-auto text-center text-gray-400">
-            <p id="copyright-text">
-                版權所有 © 2026 
-                <a href="https://pandapanda6666.github.io" class="text-yellow-custom hover:underline">PandaPanda的AI日常</a> 
-                All Rights Reserved.
-            </p>
-        </div>
-    </footer>
-
     <script>
-        const isZH = navigator.language.startsWith('zh');
+        // 狀態管理
+        let socket;
+        let myId = null;
+        let myProfile = {
+            username: 'guest_' + Math.floor(Math.random() * 10000),
+            nickname: '訪客',
+            avatar: 'https://placehold.co/100x100/cbd5e1/ffffff?text=Guest',
+            isLoggedIn: false
+        };
+        const players = {}; // 存放所有玩家資料與 DOM 元素
         
-        // 普通靜態字典翻譯 (i18n)
-        const i18n = {
-            zh: {
-                loading: "載入中...",
-                reading: "正在自動辨識目錄結構...",
-                noContent: "目前沒有可顯示的項目",
-                apiLimit: "GitHub API 達到上限，請稍候",
-                defaultSubtitle: "自動掃描的專案清單",
-                noDescription: "無說明文字",
-                noIcon: "載入預覽中",
-                scanError: "讀取目錄失敗",
-                localError: "請於 GitHub Pages 運行"
-            },
-            en: {
-                loading: "Loading...",
-                reading: "Scanning folders automatically...",
-                noContent: "No items found",
-                apiLimit: "API rate limit reached",
-                defaultSubtitle: "Automated Project List",
-                noDescription: "No description",
-                noIcon: "Loading Preview",
-                scanError: "Failed to scan",
-                localError: "Run on GitHub Pages"
+        // 我的位置狀態
+        let myState = {
+            x: Math.floor(Math.random() * 300) + 100, 
+            y: Math.floor(Math.random() * 300) + 100,
+            action: 'idle'
+        };
+
+        const loginHubUrl = 'https://pandapanda6666.github.io/login-hub/';
+
+        // 【規範 1】全域錯誤捕捉：只要發生異常就回傳伺服器
+        window.onerror = function(msg, url, line) { 
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
             }
         };
 
-        const t = isZH ? i18n.zh : i18n.en;
+        function initAuth() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAuth = urlParams.get('auth') === 'true';
+            const user = urlParams.get('user');
+            const authContainer = document.getElementById('auth-container');
+            const currentUrlEncoded = encodeURIComponent(window.location.href.split('?')[0]); // 移除參數當作回調
 
-        function getAbsoluteUrl(relativePath) {
-            try {
-                let base = window.location.href;
-                if (!base.endsWith('/') && !base.includes('.html')) base += '/';
-                return new URL(relativePath, base).href;
-            } catch (e) {
-                return relativePath;
-            }
-        }
-
-        // 當圖片找不到時，改用 index.html 的截圖作為預覽
-        function handleImageError(img, projectUrl) {
-            const previewUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(projectUrl)}?w=400`;
-            if (img.src !== previewUrl) {
-                img.src = previewUrl;
+            if (isAuth && user) {
+                // 已登入狀態
+                myProfile.isLoggedIn = true;
+                myProfile.username = user;
+                
+                // 網址列清除參數 (history.replaceState)
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // 介面改為個人資料按鈕
+                authContainer.innerHTML = `
+                    <button onclick="window.location.href='${loginHubUrl}?from=${currentUrlEncoded}'" 
+                            class="flex items-center gap-2 hover:bg-gray-100 p-1.5 pr-4 rounded-full transition-colors border border-transparent hover:border-gray-200">
+                        <img id="my-top-avatar" src="${myProfile.avatar}" class="w-8 h-8 rounded-full border border-gray-200 object-cover">
+                        <span id="my-top-nickname" class="text-sm font-medium text-gray-700 hidden sm:block">載入中...</span>
+                    </button>
+                `;
             } else {
-                img.parentElement.innerHTML = `<div class="img-fallback-text">${t.noIcon}</div>`;
+                // 訪客模式 (維持訪客身分進行多人連線)
+                authContainer.innerHTML = `
+                    <button onclick="window.location.href='${loginHubUrl}?from=${currentUrlEncoded}&require=1'" 
+                            class="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-user text-xs"></i> 登入 / 註冊
+                    </button>
+                `;
             }
         }
 
-        async function getRepoInfo() {
-            const hostname = window.location.hostname;
-            const pathname = window.location.pathname;
+        async function initApp() {
+            initAuth(); // 先處理介面與參數
+
+            // 【規範 1】獲取伺服器網址邏輯
+            const urlParams = new URLSearchParams(window.location.search);
+            let serverUrl = urlParams.get('server');
             
-            if (!hostname.includes('github.io')) return null;
-
-            const user = hostname.split('.')[0];
-            const cleanPath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
-            const pathParts = cleanPath.split('/').filter(p => p !== '');
-
-            if (pathParts.length === 0) {
-                return { user, repo: `${user}.github.io`, subPath: '' };
-            }
-
-            const testRepo = pathParts[0];
-            try {
-                const res = await fetch(`https://api.github.com/repos/${user}/${testRepo}`);
-                if (res.ok) {
-                    return { user, repo: testRepo, subPath: pathParts.slice(1).join('/') };
+            if (!serverUrl) {
+                try {
+                    const res = await fetch('server_url.txt');
+                    if (res.ok) {
+                        serverUrl = (await res.text()).trim();
+                    }
+                } catch (e) {
+                    console.warn('無法讀取 server_url.txt，嘗試使用預設本地端網址');
                 }
-            } catch (e) {}
+            }
             
-            return { user, repo: `${user}.github.io`, subPath: pathParts.join('/') };
-        }
+            // 防呆預設網址 (若都抓不到)
+            if (!serverUrl) serverUrl = 'http://localhost:3000';
 
-        async function init() {
-            document.getElementById('loading-text').textContent = t.reading;
-            document.getElementById('main-title').textContent = t.loading;
-            
-            await updateTitleFromReadme();
-            
-            if (window.location.protocol === 'file:') {
-                document.getElementById('loading-indicator').innerHTML = `<p class="text-gray-400 italic">${t.localError}</p>`;
+            // 【規範 1】建立連線
+            try {
+                socket = io(serverUrl, { transports: ['websocket'] });
+            } catch (e) {
+                console.error("Socket.io 初始化失敗", e);
                 return;
             }
-            
-            await scanAndLoadFolders();
+
+            setupSocketListeners();
         }
 
-        async function updateTitleFromReadme() {
-            const titleElement = document.getElementById('main-title');
-            const subtitleElement = document.getElementById('main-subtitle');
-            
-            try {
-                const response = await fetch(getAbsoluteUrl('./README.md'));
-                if (response.ok) {
-                    const text = await response.text();
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                    if (lines.length > 0) {
-                        const extractedTitle = lines[0].replace(/^#\s*/, '').trim();
-                        titleElement.textContent = extractedTitle;
-                        document.title = extractedTitle;
-                        subtitleElement.textContent = lines.length > 1 ? lines[1] : t.defaultSubtitle;
-                        return;
+        function setupSocketListeners() {
+            socket.on('connect', () => {
+                myId = socket.id;
+                document.getElementById('online-count').textContent = '已連線';
+                document.getElementById('online-count').className = 'text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium';
+                
+                // 【規範 1】連線成功後發送裝置資訊
+                socket.emit('initClientInfo', { 
+                    location: '未知地點', 
+                    device: navigator.userAgent 
+                });
+
+                // 【規範 2】如果是登入狀態，請求個人資料
+                if (myProfile.isLoggedIn) {
+                    socket.emit('requestProfile', { username: myProfile.username });
+                }
+
+                // 【規範 3】加入房間與預設狀態
+                socket.emit('joinGameRoom', { 
+                    room: 'global_map', 
+                    characterData: { 
+                        x: myState.x, 
+                        y: myState.y, 
+                        state: myState.action 
+                    } 
+                });
+            });
+
+            socket.on('disconnect', () => {
+                document.getElementById('online-count').textContent = '斷線重連中';
+                document.getElementById('online-count').className = 'text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium';
+            });
+
+            // 【規範 2】接收個人資料並更新畫面
+            socket.on('profileData', (data) => {
+                if(data.nickname) myProfile.nickname = data.nickname;
+                if(data.avatar) myProfile.avatar = data.avatar;
+                
+                // 更新右上角 UI
+                const topAvatar = document.getElementById('my-top-avatar');
+                const topName = document.getElementById('my-top-nickname');
+                if(topAvatar) topAvatar.src = myProfile.avatar;
+                if(topName) topName.textContent = myProfile.nickname;
+
+                // 更新自己在畫面的實體 (如果已經生成)
+                if(players[myId]) {
+                    players[myId].nickname = myProfile.nickname;
+                    players[myId].avatar = myProfile.avatar;
+                    updatePlayerDOM(myId);
+                }
+            });
+
+            // 【規範 3】生成其他玩家
+            socket.on('playerJoined', (data) => {
+                if (!data || !data.allPlayers) return;
+                
+                // data.allPlayers 包含房間內所有人的資訊
+                const allPlayers = data.allPlayers;
+                
+                // 更新線上人數
+                const count = Object.keys(allPlayers).length;
+                document.getElementById('online-count').textContent = `${count} 人在線`;
+
+                // 處理每一個玩家資料
+                for (const pid in allPlayers) {
+                    if (!players[pid]) {
+                        createPlayerDOM(pid, allPlayers[pid]);
+                    } else {
+                        // 若已存在則更新狀態
+                        updatePlayerState(pid, allPlayers[pid]);
                     }
                 }
-            } catch (e) {}
-            
-            fallbackTitle();
-        }
+            });
 
-        function fallbackTitle() {
-            const url = window.location.href;
-            // 規則：去掉 https://pandapanda6666.github.io/ 和所有的 /
-            let title = url.replace('https://pandapanda6666.github.io/', '').replace(/\//g, '');
-            if (!title || title.includes('index.html')) {
-                title = isZH ? "專案目錄" : "Project Directory";
-            }
-            document.getElementById('main-title').textContent = title;
-            document.title = title;
-            document.getElementById('main-subtitle').textContent = t.defaultSubtitle;
-        }
-
-        async function scanAndLoadFolders() {
-            const container = document.getElementById('folder-list');
-            const loading = document.getElementById('loading-indicator');
-            const repoInfo = await getRepoInfo();
-            
-            if (!repoInfo) {
-                loading.innerHTML = `<p class="text-gray-400 italic">${t.scanError}</p>`;
-                return;
-            }
-
-            try {
-                const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(response.status === 403 ? t.apiLimit : t.scanError);
-
-                const contents = await response.json();
-                const directories = contents.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
-
-                let hasContent = false;
-
-                for (const item of directories) {
-                    try {
-                        const folder = item.name;
-                        const projectUrl = getAbsoluteUrl(`./${folder}/`);
-                        const readmeUrl = getAbsoluteUrl(`./${folder}/README.md`);
-                        const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
-                        
-                        const readmeRes = await fetch(readmeUrl);
-                        if (!readmeRes.ok) continue;
-
-                        const text = await readmeRes.text();
-                        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                        if (lines.length === 0) continue;
-
-                        hasContent = true;
-                        const name = lines[0].replace(/^#\s*/, '').trim();
-                        const desc = lines.length > 1 ? lines[1].trim() : t.noDescription;
-
-                        const card = document.createElement('div');
-                        card.innerHTML = `
-                            <a href="${projectUrl}" class="card-hover block rounded-2xl overflow-hidden transition-all duration-300">
-                                <div class="p-6 flex items-center space-x-4">
-                                    <div class="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden img-container border border-blue-800">
-                                        <img src="${iconUrl}" alt="${name}" class="w-full h-full object-cover" 
-                                             onerror="handleImageError(this, '${projectUrl}')">
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <h2 class="text-xl font-bold text-yellow-custom truncate">${name}</h2>
-                                        <p class="text-gray-300 text-sm line-clamp-2 mt-1">${desc}</p>
-                                    </div>
-                                    <div class="text-blue-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </a>
-                        `;
-                        container.appendChild(card.firstElementChild);
-                    } catch (e) {}
+            // 【規範 3】更新其他玩家
+            socket.on('playerStateUpdated', (data) => {
+                // data 假設包含 id, x, y, action, (可能還有 nickname, avatar 等更新)
+                const pid = data.id || data.socketId; 
+                if (pid && players[pid]) {
+                    updatePlayerState(pid, data);
+                } else if (pid && pid !== myId) {
+                    // 若尚未存在的玩家狀態更新，嘗試建立
+                    createPlayerDOM(pid, data);
                 }
+            });
 
-                loading.style.display = 'none';
-                if (!hasContent) container.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500 italic">${t.noContent}</div>`;
-            } catch (error) {
-                loading.innerHTML = `<p class="text-red-400 italic">${error.message}</p>`;
+            // 【規範 3】玩家離開
+            socket.on('playerLeft', (data) => {
+                const pid = data.id || data.socketId || data;
+                if (players[pid]) {
+                    removePlayerDOM(pid);
+                }
+            });
+
+            // 【規範 4】接收聊天訊息
+            socket.on('roomChatMessage', (data) => {
+                // data 結構假設包含 id/senderId, nickname, msg/message
+                const senderId = data.id || data.senderId;
+                const msg = data.message || data.msg || data;
+                const nickname = data.nickname || (players[senderId] ? players[senderId].nickname : '未知');
+                
+                appendChatMessage(nickname, msg, senderId === myId);
+                
+                // 顯示聊天氣泡
+                if (senderId && players[senderId]) {
+                    showChatBubble(senderId, msg);
+                }
+            });
+
+            // 【規範 4】系統公告
+            socket.on('systemMessage', (msg) => {
+                const marqueeStr = typeof msg === 'string' ? msg : (msg.message || msg.text || '系統公告');
+                document.getElementById('system-marquee').textContent = marqueeStr;
+                
+                // 同時顯示在聊天框中
+                appendSystemMessage(marqueeStr);
+            });
+        }
+
+        const gameMap = document.getElementById('game-map');
+
+        function createPlayerDOM(id, data) {
+            // 初始化資料結構
+            players[id] = {
+                x: data.x || 100,
+                y: data.y || 100,
+                action: data.state || data.action || 'idle',
+                nickname: data.nickname || `訪客_${id.substring(0,4)}`,
+                avatar: data.avatar || `https://placehold.co/100x100/cbd5e1/ffffff?text=${id.substring(0,2)}`,
+                element: null,
+                bubbleElement: null,
+                bubbleTimeout: null
+            };
+
+            // 建立 DOM 元素
+            const el = document.createElement('div');
+            el.className = 'player-entity';
+            el.id = `player-${id}`;
+            
+            el.innerHTML = `
+                <div class="chat-bubble" id="bubble-${id}"></div>
+                <img class="player-avatar" src="${players[id].avatar}" alt="Avatar">
+                <div class="player-name">${players[id].nickname}</div>
+            `;
+            
+            gameMap.appendChild(el);
+            players[id].element = el;
+            players[id].bubbleElement = el.querySelector(`#bubble-${id}`);
+            
+            // 如果是自己，確保有特殊標示
+            if (id === myId) {
+                el.querySelector('.player-name').style.backgroundColor = 'rgba(79, 70, 229, 0.8)'; // Indigo color
+                el.style.zIndex = 15;
+            }
+
+            // 套用位置
+            updatePlayerDOM(id);
+        }
+
+        function updatePlayerState(id, data) {
+            if (!players[id]) return;
+            
+            if (data.x !== undefined) players[id].x = data.x;
+            if (data.y !== undefined) players[id].y = data.y;
+            if (data.state || data.action) players[id].action = data.state || data.action;
+            if (data.nickname) players[id].nickname = data.nickname;
+            if (data.avatar) players[id].avatar = data.avatar;
+
+            updatePlayerDOM(id);
+        }
+
+        function updatePlayerDOM(id) {
+            const p = players[id];
+            if (!p || !p.element) return;
+
+            // 更新座標
+            p.element.style.left = `${p.x}px`;
+            p.element.style.top = `${p.y}px`;
+            
+            // 更新圖片與名稱 (處理 profile 更新的情況)
+            p.element.querySelector('.player-avatar').src = p.avatar;
+            p.element.querySelector('.player-name').textContent = p.nickname;
+            
+            // 簡易的狀態動畫效果
+            if (p.action === 'walking') {
+                p.element.style.transform = `translate(-50%, -50%) scale(1.05)`;
+            } else {
+                p.element.style.transform = `translate(-50%, -50%) scale(1)`;
             }
         }
 
-        window.onload = init;
+        function removePlayerDOM(id) {
+            if (players[id] && players[id].element) {
+                players[id].element.remove();
+                delete players[id];
+            }
+        }
+
+        function showChatBubble(id, text) {
+            const p = players[id];
+            if (!p || !p.bubbleElement) return;
+
+            p.bubbleElement.textContent = text;
+            p.bubbleElement.classList.add('show');
+            
+            if (p.bubbleTimeout) clearTimeout(p.bubbleTimeout);
+            p.bubbleTimeout = setTimeout(() => {
+                if (p.bubbleElement) p.bubbleElement.classList.remove('show');
+            }, 4000);
+        }
+
+        let keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        const speed = 4;
+        let isMoving = false;
+
+        window.addEventListener('keydown', (e) => { 
+            // 避免在輸入框打字時移動
+            if(document.activeElement.tagName === 'INPUT') return;
+            if(keys.hasOwnProperty(e.key)) { keys[e.key] = true; updateMyMovement(); }
+        });
+        window.addEventListener('keyup', (e) => { 
+            if(document.activeElement.tagName === 'INPUT') return;
+            if(keys.hasOwnProperty(e.key)) { keys[e.key] = false; updateMyMovement(); }
+        });
+
+        // 點擊地圖移動
+        function handleMapClick(event) {
+            if (event.target.id !== 'game-map') return; // 避免點擊到玩家觸發
+            const rect = gameMap.getBoundingClientRect();
+            const targetX = event.clientX - rect.left;
+            const targetY = event.clientY - rect.top;
+            
+            myState.x = targetX;
+            myState.y = targetY;
+            myState.action = 'walking';
+            
+            if (myId && players[myId]) {
+                players[myId].x = myState.x;
+                players[myId].y = myState.y;
+                updatePlayerDOM(myId);
+            }
+            syncMyState();
+            
+            // 點擊後短暫變回 idle
+            setTimeout(() => {
+                myState.action = 'idle';
+                syncMyState();
+            }, 200);
+        }
+
+        let movementInterval = null;
+        function updateMyMovement() {
+            const moving = Object.values(keys).some(v => v);
+            
+            if (moving && !movementInterval) {
+                myState.action = 'walking';
+                movementInterval = setInterval(gameLoop, 1000/60); // 60 FPS
+                syncMyState();
+            } else if (!moving && movementInterval) {
+                clearInterval(movementInterval);
+                movementInterval = null;
+                myState.action = 'idle';
+                syncMyState();
+            }
+        }
+
+        function gameLoop() {
+            let dx = 0; let dy = 0;
+            if (keys.w || keys.ArrowUp) dy -= speed;
+            if (keys.s || keys.ArrowDown) dy += speed;
+            if (keys.a || keys.ArrowLeft) dx -= speed;
+            if (keys.d || keys.ArrowRight) dx += speed;
+
+            if (dx !== 0 || dy !== 0) {
+                const rect = gameMap.getBoundingClientRect();
+                // 邊界檢查
+                myState.x = Math.max(20, Math.min(rect.width - 20, myState.x + dx));
+                myState.y = Math.max(20, Math.min(rect.height - 20, myState.y + dy));
+                
+                if (myId && players[myId]) {
+                    players[myId].x = myState.x;
+                    players[myId].y = myState.y;
+                    updatePlayerDOM(myId);
+                }
+            }
+        }
+
+        // 節流發送狀態，避免過度頻繁請求伺服器
+        let syncTimeout = null;
+        function syncMyState() {
+            if (!socket || !socket.connected) return;
+            
+            // 【規範 3】同步我的動作
+            // 使用 throttle，每 100ms 最多發送一次，避免塞爆 Socket
+            if (!syncTimeout) {
+                syncTimeout = setTimeout(() => {
+                    socket.emit('syncPlayerState', { 
+                        x: myState.x, 
+                        y: myState.y, 
+                        action: myState.action 
+                    });
+                    syncTimeout = null;
+                }, 100);
+            }
+        }
+
+        function handleSendChat(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if (!msg || !socket || !socket.connected) return;
+
+            // 【規範 4】發送聊天訊息 (假設伺服器接受字串)
+            socket.emit('sendRoomChat', msg);
+            
+            input.value = '';
+            
+            // 若伺服器不會將訊息轉發給自己，在此手動補上 (此處為了體驗先註解，依賴伺服器轉發)
+            // appendChatMessage(myProfile.nickname, msg, true);
+            // showChatBubble(myId, msg);
+        }
+
+        const chatMessages = document.getElementById('chat-messages');
+        
+        function appendChatMessage(sender, text, isMe) {
+            const div = document.createElement('div');
+            div.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`;
+            
+            const alignClass = isMe ? 'items-end' : 'items-start';
+            const bgClass = isMe ? 'bg-indigo-600 text-white rounded-tl-xl rounded-tr-xl rounded-bl-xl' : 'bg-gray-100 text-gray-800 rounded-tl-xl rounded-tr-xl rounded-br-xl';
+            const nameColor = isMe ? 'text-indigo-600' : 'text-gray-500';
+
+            div.innerHTML = `
+                <div class="flex flex-col ${alignClass} max-w-[80%]">
+                    <span class="text-xs ${nameColor} mb-1 font-medium px-1">${sender}</span>
+                    <div class="${bgClass} px-4 py-2 text-sm shadow-sm break-all">
+                        ${escapeHTML(text)}
+                    </div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function appendSystemMessage(text) {
+            const div = document.createElement('div');
+            div.className = `text-center text-xs text-indigo-500 my-3 font-medium bg-indigo-50 py-1 rounded-full mx-8`;
+            div.innerHTML = `<i class="fa-solid fa-circle-info mr-1"></i> ${escapeHTML(text)}`;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function escapeHTML(str) {
+            const p = document.createElement("p");
+            p.appendChild(document.createTextNode(str));
+            return p.innerHTML;
+        }
+
+        // 手機版側邊欄切換
+        function toggleChat() {
+            const panel = document.getElementById('chat-panel');
+            panel.classList.toggle('translate-x-full');
+        }
+
+        // 啟動應用
+        window.onload = initApp;
+
+        // 視窗縮放時，確保玩家不要超出新邊界
+        window.addEventListener('resize', () => {
+            const rect = gameMap.getBoundingClientRect();
+            if (myState.x > rect.width) myState.x = rect.width - 20;
+            if (myState.y > rect.height) myState.y = rect.height - 20;
+            syncMyState();
+        });
+
     </script>
 </body>
 </html>
-
-
