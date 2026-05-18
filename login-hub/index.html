@@ -360,7 +360,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
@@ -479,9 +479,7 @@
                     showMsg("登入成功！", "success");
                     currentUserData = res;
                     localStorage.setItem('panda_auto_user', res.username);
-                    if (res.password !== 'GOOGLE_AUTH') {
-                        localStorage.setItem('panda_auto_pass', document.getElementById('password').value || 'GOOGLE_AUTH');
-                    }
+                    localStorage.setItem('panda_auto_pass', res.password); // 直接儲存伺服器回傳的真實密碼
                     
                     updateProfileDashboard();
                     
@@ -500,7 +498,8 @@
                         document.getElementById('googleLinked').classList.remove('hidden');
                         document.getElementById('linkedGoogleEmail').innerText = res.email;
                     } else {
-                        if (res.msg === 'user_not_found' || res.msg.includes('不存在')) {
+                        // 密碼錯誤或帳號不存在時，清除可能殘留的無效快取
+                        if (res.msg === 'user_not_found' || res.msg.includes('不存在') || res.msg.includes('密碼錯誤')) {
                             localStorage.removeItem('panda_auto_user');
                             localStorage.removeItem('panda_auto_pass');
                             
@@ -510,9 +509,14 @@
                             document.getElementById('reg_username').value = typedUser;
                             document.getElementById('reg_password').value = typedPass;
                             
-                            showMsg("該帳號不存在，已自動帶入資料請完成註冊", "info");
-                            toggleView('register');
-                            setRegMode('normal');
+                            if (res.msg === 'user_not_found' || res.msg.includes('不存在')) {
+                                showMsg("該帳號不存在，已自動帶入資料請完成註冊", "info");
+                                toggleView('register');
+                                setRegMode('normal');
+                            } else {
+                                showMsg("登入狀態已過期，請重新登入", "error");
+                                toggleView('login');
+                            }
                         } else {
                             showMsg("登入失敗: " + res.msg, "error");
                             toggleView('login');
@@ -563,20 +567,11 @@
             const savedU = localStorage.getItem('panda_auto_user');
             const savedP = localStorage.getItem('panda_auto_pass');
             
-            if (savedP === 'GOOGLE_AUTH') {
-                const unsubscribe = onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        socket.emit('googleLogin', { email: user.email, name: user.displayName });
-                    } else {
-                        if (requireLogin) toggleView('login'); else toggleView('guest');
-                    }
-                    unsubscribe();
-                });
-            } else if (savedU && savedP) {
-                document.getElementById('username').value = savedU;
-                document.getElementById('password').value = savedP;
+            // 已優化：因為現在一定有真實密碼，所以直接用 socket.emit 進行極速自動登入，不再依賴 Firebase Auth 快取
+            if (savedU && savedP && savedP !== 'GOOGLE_AUTH') {
                 socket.emit('login', { username: savedU, password: savedP });
             } else {
+                document.getElementById('loadingText').innerText = "系統連線中，請稍候...";
                 if (requireLogin) {
                     toggleView('login');
                 } else {
