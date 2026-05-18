@@ -4,84 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>即時多人互動聊天室</title>
+    <title>純粹交流聊天室</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; overflow: hidden; background-color: #f3f4f6; }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
         
-        /* 遊戲區域背景與網格 */
-        #game-map {
-            background-image: 
-                linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                linear-gradient(to bottom, #e5e7eb 1px, transparent 1px);
-            background-size: 40px 40px;
-            background-color: #f9fafb;
-        }
-
-        /* 玩家實體樣式 */
-        .player-entity {
-            position: absolute;
-            transform: translate(-50%, -50%);
-            transition: left 0.1s linear, top 0.1s linear;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            pointer-events: none;
-            z-index: 10;
-        }
-
-        /* 玩家頭像 */
-        .player-avatar {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            border: 3px solid #fff;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            background-color: #cbd5e1;
-            object-fit: cover;
-        }
-
-        /* 玩家名稱標籤 */
-        .player-name {
-            margin-top: 4px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            white-space: nowrap;
-            backdrop-filter: blur(4px);
-        }
-
-        /* 聊天氣泡 */
-        .chat-bubble {
-            position: absolute;
-            bottom: 100%;
-            margin-bottom: 8px;
-            background: white;
-            padding: 6px 12px;
-            border-radius: 16px;
-            border-bottom-left-radius: 4px;
-            font-size: 14px;
-            color: #1f2937;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            white-space: nowrap;
-            max-width: 200px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            opacity: 0;
-            transform: translateY(10px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 20;
-        }
-        .chat-bubble.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        /* 隱藏捲軸但保留滾動功能 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         /* 跑馬燈動畫 */
         @keyframes marquee {
@@ -89,86 +26,92 @@
             100% { transform: translateX(-100%); }
         }
         .animate-marquee { display: inline-block; animation: marquee 15s linear infinite; white-space: nowrap; }
-        
-        /* 隱藏捲軸 */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col">
+<body class="h-screen w-screen flex flex-col overflow-hidden">
 
     <header class="bg-white shadow-sm border-b border-gray-200 flex-none z-30 relative">
-        <div class="max-w-full mx-auto px-4 h-16 flex items-center justify-between">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <!-- Logo & Title -->
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                    <i class="fa-solid fa-earth-americas text-xl"></i>
+                    <i class="fa-solid fa-comments text-xl"></i>
                 </div>
-                <h1 class="text-xl font-bold text-gray-800 hidden sm:block">互動聊天樞紐</h1>
+                <h1 class="text-xl font-bold text-gray-800 hidden sm:block">即時聊天大廳</h1>
             </div>
 
             <!-- System Message Marquee -->
-            <div class="flex-1 mx-4 sm:mx-8 overflow-hidden bg-indigo-50 rounded-full h-10 flex items-center px-4 border border-indigo-100">
+            <div class="flex-1 mx-4 sm:mx-8 overflow-hidden bg-indigo-50 rounded-full h-10 flex items-center px-4 border border-indigo-100 hidden md:flex">
                 <i class="fa-solid fa-bullhorn text-indigo-500 mr-3"></i>
                 <div class="overflow-hidden flex-1 relative">
                     <span id="system-marquee" class="animate-marquee text-indigo-700 font-medium text-sm">
-                        歡迎來到即時互動聊天室！請隨意走動並與大家聊天～
+                        歡迎來到純粹交流聊天室！隨時分享您的想法～
                     </span>
                 </div>
             </div>
 
             <!-- Auth/Profile Button (Dynamic) -->
-            <div id="auth-container">
+            <div id="auth-container" class="flex-shrink-0">
                 <!-- 預設顯示載入中 -->
                 <div class="animate-pulse bg-gray-200 h-10 w-24 rounded-full"></div>
             </div>
         </div>
     </header>
 
-    <main class="flex-1 flex overflow-hidden">
-        <!-- 虛擬空間 (地圖) -->
-        <div id="game-map" class="flex-1 relative overflow-hidden cursor-pointer" onclick="handleMapClick(event)">
-            <div class="absolute top-4 left-4 bg-white/80 backdrop-blur text-gray-600 text-xs px-3 py-2 rounded-lg shadow-sm border border-gray-200 z-20 pointer-events-none">
-                <i class="fa-solid fa-keyboard mr-1"></i> 使用 <b>WASD</b> 或 <b>滑鼠點擊</b> 移動
-            </div>
-            <!-- 玩家實體會透過 JS 動態注入這裡 -->
-        </div>
-
-        <!-- 聊天面板 -->
-        <div class="w-full sm:w-80 md:w-96 bg-white border-l border-gray-200 flex flex-col shadow-[-4px_0_15px_rgba(0,0,0,0.03)] z-20 transition-transform duration-300 transform sm:translate-x-0 absolute sm:relative h-full right-0 translate-x-full" id="chat-panel">
+    <main class="flex-1 flex max-w-6xl mx-auto w-full overflow-hidden bg-white shadow-lg sm:my-4 sm:rounded-2xl border border-gray-100">
+        
+        <!-- 左側：聊天面板 -->
+        <div class="flex-1 flex flex-col h-full relative">
             
-            <!-- 手機版展開按鈕 (隱藏在側邊) -->
-            <button onclick="toggleChat()" class="sm:hidden absolute -left-12 top-20 bg-white p-3 rounded-l-xl shadow-[-4px_0_10px_rgba(0,0,0,0.1)] border border-r-0 border-gray-200 text-indigo-600">
-                <i class="fa-solid fa-comments text-xl"></i>
-            </button>
-
-            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                <h2 class="font-bold text-gray-700"><i class="fa-solid fa-message mr-2 text-indigo-500"></i>區域頻道</h2>
-                <span id="online-count" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">連線中...</span>
+            <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 md:hidden">
+                <span id="mobile-system-marquee" class="text-xs text-indigo-600 font-medium truncate flex-1 mr-2">歡迎來到大廳！</span>
+                <span id="online-count-mobile" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium whitespace-nowrap">連線中...</span>
             </div>
 
             <!-- 聊天訊息列表 -->
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
-                <!-- 訊息範例 -->
-                <div class="text-center text-xs text-gray-400 my-2">-- 已加入 global_map 頻道 --</div>
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50">
+                <div class="text-center text-xs text-gray-400 my-2">-- 已加入 default_room 頻道 --</div>
             </div>
 
             <!-- 訊息輸入區 -->
             <div class="p-4 border-t border-gray-100 bg-white">
                 <form id="chat-form" class="flex gap-2" onsubmit="handleSendChat(event)">
+                    <!-- 萬用通道測試按鈕：發送愛心 -->
+                    <button type="button" onclick="sendHeartAction()" class="bg-pink-100 hover:bg-pink-200 text-pink-500 w-12 h-12 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="發送愛心">
+                        <i class="fa-solid fa-heart"></i>
+                    </button>
+                    
                     <input type="text" id="chat-input" placeholder="說點什麼..." autocomplete="off" 
-                        class="flex-1 bg-gray-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl px-4 py-2.5 text-sm transition-all duration-200 outline-none">
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-colors shadow-sm">
+                        class="flex-1 bg-gray-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-xl px-4 py-3 text-sm transition-all duration-200 outline-none">
+                    
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white w-12 h-12 rounded-xl flex items-center justify-center transition-colors shadow-sm">
                         <i class="fa-solid fa-paper-plane"></i>
                     </button>
                 </form>
             </div>
         </div>
+
+        <!-- 右側：在線玩家列表 (桌面版顯示) -->
+        <div class="w-64 bg-white border-l border-gray-100 flex-col hidden md:flex">
+            <div class="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                <h2 class="font-bold text-gray-700 text-sm"><i class="fa-solid fa-users mr-2 text-indigo-500"></i>線上成員</h2>
+                <span id="online-count" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">連線中</span>
+            </div>
+            <div id="online-users-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- 在線玩家項目將會動態插入 -->
+            </div>
+        </div>
+
     </main>
 
     <script>
+        // 【規範 1】全域錯誤捕捉：只要發生異常就回傳伺服器
+        window.onerror = function(msg, url, line) { 
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+            }
+        };
+
         // 狀態管理
         let socket;
         let myId = null;
@@ -178,25 +121,12 @@
             avatar: 'https://placehold.co/100x100/cbd5e1/ffffff?text=Guest',
             isLoggedIn: false
         };
-        const players = {}; // 存放所有玩家資料與 DOM 元素
+        const players = {}; // 存放所有玩家資料
         
-        // 我的位置狀態
-        let myState = {
-            x: Math.floor(Math.random() * 300) + 100, 
-            y: Math.floor(Math.random() * 300) + 100,
-            action: 'idle'
-        };
-
         const loginHubUrl = 'https://pandapanda6666.github.io/login-hub/';
 
-        // 【規範 1】全域錯誤捕捉：只要發生異常就回傳伺服器
-        window.onerror = function(msg, url, line) { 
-            if (typeof socket !== 'undefined' && socket.connected) {
-                socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
-            }
-        };
-
         function initAuth() {
+            // 【規範 2】登入狀態檢查與介面修改
             const urlParams = new URLSearchParams(window.location.search);
             const isAuth = urlParams.get('auth') === 'true';
             const user = urlParams.get('user');
@@ -208,7 +138,7 @@
                 myProfile.isLoggedIn = true;
                 myProfile.username = user;
                 
-                // 網址列清除參數 (history.replaceState)
+                // 網址列清除參數
                 window.history.replaceState({}, document.title, window.location.pathname);
                 
                 // 介面改為個人資料按鈕
@@ -220,7 +150,7 @@
                     </button>
                 `;
             } else {
-                // 訪客模式 (維持訪客身分進行多人連線)
+                // 訪客模式
                 authContainer.innerHTML = `
                     <button onclick="window.location.href='${loginHubUrl}?from=${currentUrlEncoded}&require=1'" 
                             class="bg-gray-900 hover:bg-gray-800 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
@@ -230,32 +160,57 @@
             }
         }
 
-        async function initApp() {
-            initAuth(); // 先處理介面與參數
+        function showServerError() {
+            updateOnlineCountUI('連線失敗', false);
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-gray-500 gap-4 mt-10">
+                    <i class="fa-solid fa-triangle-exclamation text-4xl text-red-400"></i>
+                    <p class="text-lg font-medium text-red-500">伺服器連線失敗，請稍後再試</p>
+                    <p class="text-sm">無法取得連線網址或伺服器未回應。</p>
+                </div>
+            `;
+            // Disable input
+            document.getElementById('chat-input').disabled = true;
+            document.querySelector('button[type="submit"]').disabled = true;
+            document.querySelector('button[title="發送愛心"]').disabled = true;
+        }
 
-            // 【規範 1】獲取伺服器網址邏輯
+        async function initApp() {
+            initAuth(); 
+
+            // 【規範 1】獲取伺服器網址邏輯 (嚴格模式)
             const urlParams = new URLSearchParams(window.location.search);
             let serverUrl = urlParams.get('server');
             
             if (!serverUrl) {
                 try {
-                    const res = await fetch('server_url.txt');
+                    // 強制讀取登入中心的絕對路徑檔案
+                    const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
                     if (res.ok) {
                         serverUrl = (await res.text()).trim();
+                    } else {
+                         throw new Error("Network response was not ok");
                     }
                 } catch (e) {
-                    console.warn('無法讀取 server_url.txt，嘗試使用預設本地端網址');
+                    console.error('無法取得伺服器網址', e);
+                    // 【規範 1】嚴格禁止自動 Fallback 去連線 localhost，直接顯示錯誤
+                    showServerError();
+                    return; 
                 }
             }
             
-            // 防呆預設網址 (若都抓不到)
-            if (!serverUrl) serverUrl = 'http://localhost:3000';
+            if (!serverUrl || serverUrl === "") {
+                showServerError();
+                return;
+            }
 
             // 【規範 1】建立連線
             try {
                 socket = io(serverUrl, { transports: ['websocket'] });
             } catch (e) {
                 console.error("Socket.io 初始化失敗", e);
+                showServerError();
                 return;
             }
 
@@ -265,10 +220,9 @@
         function setupSocketListeners() {
             socket.on('connect', () => {
                 myId = socket.id;
-                document.getElementById('online-count').textContent = '已連線';
-                document.getElementById('online-count').className = 'text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium';
+                updateOnlineCountUI('已連線', true);
                 
-                // 【規範 1】連線成功後發送裝置資訊
+                // 【規範 1】發送裝置資訊
                 socket.emit('initClientInfo', { 
                     location: '未知地點', 
                     device: navigator.userAgent 
@@ -279,72 +233,42 @@
                     socket.emit('requestProfile', { username: myProfile.username });
                 }
 
-                // 【規範 3】加入房間與預設狀態
+                // 【規範 3】加入房間 (純聊天室不傳送額外座標)
                 socket.emit('joinGameRoom', { 
-                    room: 'global_map', 
-                    characterData: { 
-                        x: myState.x, 
-                        y: myState.y, 
-                        state: myState.action 
-                    } 
+                    room: 'default_room', 
+                    characterData: {} // 若無特別狀態可留空
                 });
             });
 
             socket.on('disconnect', () => {
-                document.getElementById('online-count').textContent = '斷線重連中';
-                document.getElementById('online-count').className = 'text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium';
+                updateOnlineCountUI('斷線重連中', false);
             });
 
-            // 【規範 2】接收個人資料並更新畫面
+            // 接收個人資料並更新畫面
             socket.on('profileData', (data) => {
                 if(data.nickname) myProfile.nickname = data.nickname;
                 if(data.avatar) myProfile.avatar = data.avatar;
                 
-                // 更新右上角 UI
                 const topAvatar = document.getElementById('my-top-avatar');
                 const topName = document.getElementById('my-top-nickname');
                 if(topAvatar) topAvatar.src = myProfile.avatar;
                 if(topName) topName.textContent = myProfile.nickname;
-
-                // 更新自己在畫面的實體 (如果已經生成)
-                if(players[myId]) {
-                    players[myId].nickname = myProfile.nickname;
-                    players[myId].avatar = myProfile.avatar;
-                    updatePlayerDOM(myId);
-                }
             });
 
             // 【規範 3】生成其他玩家
             socket.on('playerJoined', (data) => {
                 if (!data || !data.allPlayers) return;
                 
-                // data.allPlayers 包含房間內所有人的資訊
+                // 更新名單列表
                 const allPlayers = data.allPlayers;
+                updateOnlineCountUI(`${Object.keys(allPlayers).length} 人`, true);
                 
-                // 更新線上人數
-                const count = Object.keys(allPlayers).length;
-                document.getElementById('online-count').textContent = `${count} 人在線`;
+                const listContainer = document.getElementById('online-users-list');
+                listContainer.innerHTML = ''; // 清空重建
 
-                // 處理每一個玩家資料
                 for (const pid in allPlayers) {
-                    if (!players[pid]) {
-                        createPlayerDOM(pid, allPlayers[pid]);
-                    } else {
-                        // 若已存在則更新狀態
-                        updatePlayerState(pid, allPlayers[pid]);
-                    }
-                }
-            });
-
-            // 【規範 3】更新其他玩家
-            socket.on('playerStateUpdated', (data) => {
-                // data 假設包含 id, x, y, action, (可能還有 nickname, avatar 等更新)
-                const pid = data.id || data.socketId; 
-                if (pid && players[pid]) {
-                    updatePlayerState(pid, data);
-                } else if (pid && pid !== myId) {
-                    // 若尚未存在的玩家狀態更新，嘗試建立
-                    createPlayerDOM(pid, data);
+                    players[pid] = allPlayers[pid];
+                    renderOnlineUser(pid, allPlayers[pid]);
                 }
             });
 
@@ -352,219 +276,72 @@
             socket.on('playerLeft', (data) => {
                 const pid = data.id || data.socketId || data;
                 if (players[pid]) {
-                    removePlayerDOM(pid);
+                    delete players[pid];
+                    const userElement = document.getElementById(`user-item-${pid}`);
+                    if(userElement) userElement.remove();
+                    updateOnlineCountUI(`${Object.keys(players).length} 人`, true);
                 }
             });
 
             // 【規範 4】接收聊天訊息
             socket.on('roomChatMessage', (data) => {
-                // data 結構假設包含 id/senderId, nickname, msg/message
                 const senderId = data.id || data.senderId;
                 const msg = data.message || data.msg || data;
                 const nickname = data.nickname || (players[senderId] ? players[senderId].nickname : '未知');
+                const avatar = data.avatar || (players[senderId] ? players[senderId].avatar : 'https://placehold.co/100x100/cbd5e1/ffffff?text=?');
                 
-                appendChatMessage(nickname, msg, senderId === myId);
-                
-                // 顯示聊天氣泡
-                if (senderId && players[senderId]) {
-                    showChatBubble(senderId, msg);
-                }
+                appendChatMessage(nickname, avatar, msg, senderId === myId);
             });
 
             // 【規範 4】系統公告
             socket.on('systemMessage', (msg) => {
                 const marqueeStr = typeof msg === 'string' ? msg : (msg.message || msg.text || '系統公告');
                 document.getElementById('system-marquee').textContent = marqueeStr;
+                document.getElementById('mobile-system-marquee').textContent = marqueeStr;
                 
-                // 同時顯示在聊天框中
                 appendSystemMessage(marqueeStr);
+            });
+
+            // 【規範 3】萬用通道處理
+            socket.on('appData', (data) => {
+                if(data.action === 'send_like') {
+                    showFlyingHeart(data.senderName || '某人');
+                }
+                // 可以在這裡擴充其他自訂 action
             });
         }
 
-        const gameMap = document.getElementById('game-map');
-
-        function createPlayerDOM(id, data) {
-            // 初始化資料結構
-            players[id] = {
-                x: data.x || 100,
-                y: data.y || 100,
-                action: data.state || data.action || 'idle',
-                nickname: data.nickname || `訪客_${id.substring(0,4)}`,
-                avatar: data.avatar || `https://placehold.co/100x100/cbd5e1/ffffff?text=${id.substring(0,2)}`,
-                element: null,
-                bubbleElement: null,
-                bubbleTimeout: null
-            };
-
-            // 建立 DOM 元素
-            const el = document.createElement('div');
-            el.className = 'player-entity';
-            el.id = `player-${id}`;
+        function updateOnlineCountUI(text, isOnline) {
+            const cls = isOnline ? 'text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium' : 'text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium';
             
-            el.innerHTML = `
-                <div class="chat-bubble" id="bubble-${id}"></div>
-                <img class="player-avatar" src="${players[id].avatar}" alt="Avatar">
-                <div class="player-name">${players[id].nickname}</div>
+            const deskCount = document.getElementById('online-count');
+            const mobCount = document.getElementById('online-count-mobile');
+            
+            if(deskCount) { deskCount.textContent = text; deskCount.className = cls; }
+            if(mobCount) { mobCount.textContent = text; mobCount.className = cls; }
+        }
+
+        function renderOnlineUser(id, data) {
+            const listContainer = document.getElementById('online-users-list');
+            const isMe = id === myId;
+            
+            const div = document.createElement('div');
+            div.id = `user-item-${id}`;
+            div.className = `flex items-center gap-3 p-2 rounded-lg ${isMe ? 'bg-indigo-50 border border-indigo-100' : 'hover:bg-gray-100'} transition-colors`;
+            
+            div.innerHTML = `
+                <div class="relative">
+                    <img src="${data.avatar || 'https://placehold.co/100x100/cbd5e1/ffffff?text=' + id.substring(0,2)}" class="w-8 h-8 rounded-full border border-gray-200 object-cover">
+                    <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
+                <span class="text-sm font-medium text-gray-700 truncate ${isMe ? 'text-indigo-700' : ''}">${data.nickname || '訪客'}</span>
+                ${isMe ? '<span class="ml-auto text-[10px] text-indigo-400 font-bold bg-indigo-100 px-1.5 py-0.5 rounded">我</span>' : ''}
             `;
             
-            gameMap.appendChild(el);
-            players[id].element = el;
-            players[id].bubbleElement = el.querySelector(`#bubble-${id}`);
-            
-            // 如果是自己，確保有特殊標示
-            if (id === myId) {
-                el.querySelector('.player-name').style.backgroundColor = 'rgba(79, 70, 229, 0.8)'; // Indigo color
-                el.style.zIndex = 15;
-            }
-
-            // 套用位置
-            updatePlayerDOM(id);
-        }
-
-        function updatePlayerState(id, data) {
-            if (!players[id]) return;
-            
-            if (data.x !== undefined) players[id].x = data.x;
-            if (data.y !== undefined) players[id].y = data.y;
-            if (data.state || data.action) players[id].action = data.state || data.action;
-            if (data.nickname) players[id].nickname = data.nickname;
-            if (data.avatar) players[id].avatar = data.avatar;
-
-            updatePlayerDOM(id);
-        }
-
-        function updatePlayerDOM(id) {
-            const p = players[id];
-            if (!p || !p.element) return;
-
-            // 更新座標
-            p.element.style.left = `${p.x}px`;
-            p.element.style.top = `${p.y}px`;
-            
-            // 更新圖片與名稱 (處理 profile 更新的情況)
-            p.element.querySelector('.player-avatar').src = p.avatar;
-            p.element.querySelector('.player-name').textContent = p.nickname;
-            
-            // 簡易的狀態動畫效果
-            if (p.action === 'walking') {
-                p.element.style.transform = `translate(-50%, -50%) scale(1.05)`;
+            if (isMe) {
+                listContainer.prepend(div); // 自己放最上面
             } else {
-                p.element.style.transform = `translate(-50%, -50%) scale(1)`;
-            }
-        }
-
-        function removePlayerDOM(id) {
-            if (players[id] && players[id].element) {
-                players[id].element.remove();
-                delete players[id];
-            }
-        }
-
-        function showChatBubble(id, text) {
-            const p = players[id];
-            if (!p || !p.bubbleElement) return;
-
-            p.bubbleElement.textContent = text;
-            p.bubbleElement.classList.add('show');
-            
-            if (p.bubbleTimeout) clearTimeout(p.bubbleTimeout);
-            p.bubbleTimeout = setTimeout(() => {
-                if (p.bubbleElement) p.bubbleElement.classList.remove('show');
-            }, 4000);
-        }
-
-        let keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        const speed = 4;
-        let isMoving = false;
-
-        window.addEventListener('keydown', (e) => { 
-            // 避免在輸入框打字時移動
-            if(document.activeElement.tagName === 'INPUT') return;
-            if(keys.hasOwnProperty(e.key)) { keys[e.key] = true; updateMyMovement(); }
-        });
-        window.addEventListener('keyup', (e) => { 
-            if(document.activeElement.tagName === 'INPUT') return;
-            if(keys.hasOwnProperty(e.key)) { keys[e.key] = false; updateMyMovement(); }
-        });
-
-        // 點擊地圖移動
-        function handleMapClick(event) {
-            if (event.target.id !== 'game-map') return; // 避免點擊到玩家觸發
-            const rect = gameMap.getBoundingClientRect();
-            const targetX = event.clientX - rect.left;
-            const targetY = event.clientY - rect.top;
-            
-            myState.x = targetX;
-            myState.y = targetY;
-            myState.action = 'walking';
-            
-            if (myId && players[myId]) {
-                players[myId].x = myState.x;
-                players[myId].y = myState.y;
-                updatePlayerDOM(myId);
-            }
-            syncMyState();
-            
-            // 點擊後短暫變回 idle
-            setTimeout(() => {
-                myState.action = 'idle';
-                syncMyState();
-            }, 200);
-        }
-
-        let movementInterval = null;
-        function updateMyMovement() {
-            const moving = Object.values(keys).some(v => v);
-            
-            if (moving && !movementInterval) {
-                myState.action = 'walking';
-                movementInterval = setInterval(gameLoop, 1000/60); // 60 FPS
-                syncMyState();
-            } else if (!moving && movementInterval) {
-                clearInterval(movementInterval);
-                movementInterval = null;
-                myState.action = 'idle';
-                syncMyState();
-            }
-        }
-
-        function gameLoop() {
-            let dx = 0; let dy = 0;
-            if (keys.w || keys.ArrowUp) dy -= speed;
-            if (keys.s || keys.ArrowDown) dy += speed;
-            if (keys.a || keys.ArrowLeft) dx -= speed;
-            if (keys.d || keys.ArrowRight) dx += speed;
-
-            if (dx !== 0 || dy !== 0) {
-                const rect = gameMap.getBoundingClientRect();
-                // 邊界檢查
-                myState.x = Math.max(20, Math.min(rect.width - 20, myState.x + dx));
-                myState.y = Math.max(20, Math.min(rect.height - 20, myState.y + dy));
-                
-                if (myId && players[myId]) {
-                    players[myId].x = myState.x;
-                    players[myId].y = myState.y;
-                    updatePlayerDOM(myId);
-                }
-            }
-        }
-
-        // 節流發送狀態，避免過度頻繁請求伺服器
-        let syncTimeout = null;
-        function syncMyState() {
-            if (!socket || !socket.connected) return;
-            
-            // 【規範 3】同步我的動作
-            // 使用 throttle，每 100ms 最多發送一次，避免塞爆 Socket
-            if (!syncTimeout) {
-                syncTimeout = setTimeout(() => {
-                    socket.emit('syncPlayerState', { 
-                        x: myState.x, 
-                        y: myState.y, 
-                        action: myState.action 
-                    });
-                    syncTimeout = null;
-                }, 100);
+                listContainer.appendChild(div);
             }
         }
 
@@ -574,30 +351,26 @@
             const msg = input.value.trim();
             if (!msg || !socket || !socket.connected) return;
 
-            // 【規範 4】發送聊天訊息 (假設伺服器接受字串)
+            // 【規範 4】發送聊天訊息
             socket.emit('sendRoomChat', msg);
-            
             input.value = '';
-            
-            // 若伺服器不會將訊息轉發給自己，在此手動補上 (此處為了體驗先註解，依賴伺服器轉發)
-            // appendChatMessage(myProfile.nickname, msg, true);
-            // showChatBubble(myId, msg);
         }
 
         const chatMessages = document.getElementById('chat-messages');
         
-        function appendChatMessage(sender, text, isMe) {
+        function appendChatMessage(senderName, senderAvatar, text, isMe) {
             const div = document.createElement('div');
             div.className = `flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`;
             
             const alignClass = isMe ? 'items-end' : 'items-start';
-            const bgClass = isMe ? 'bg-indigo-600 text-white rounded-tl-xl rounded-tr-xl rounded-bl-xl' : 'bg-gray-100 text-gray-800 rounded-tl-xl rounded-tr-xl rounded-br-xl';
+            const bgClass = isMe ? 'bg-indigo-600 text-white rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl' : 'bg-white border border-gray-100 text-gray-800 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl';
             const nameColor = isMe ? 'text-indigo-600' : 'text-gray-500';
 
             div.innerHTML = `
-                <div class="flex flex-col ${alignClass} max-w-[80%]">
-                    <span class="text-xs ${nameColor} mb-1 font-medium px-1">${sender}</span>
-                    <div class="${bgClass} px-4 py-2 text-sm shadow-sm break-all">
+                <img src="${senderAvatar}" class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-1 shadow-sm border border-gray-100">
+                <div class="flex flex-col ${alignClass} max-w-[75%]">
+                    <span class="text-xs ${nameColor} mb-1 font-medium px-1">${senderName}</span>
+                    <div class="${bgClass} px-4 py-2.5 text-sm shadow-sm break-words relative group">
                         ${escapeHTML(text)}
                     </div>
                 </div>
@@ -609,7 +382,7 @@
 
         function appendSystemMessage(text) {
             const div = document.createElement('div');
-            div.className = `text-center text-xs text-indigo-500 my-3 font-medium bg-indigo-50 py-1 rounded-full mx-8`;
+            div.className = `text-center text-xs text-indigo-500 my-4 font-medium bg-indigo-50 py-1.5 px-4 rounded-full max-w-fit mx-auto border border-indigo-100 shadow-sm`;
             div.innerHTML = `<i class="fa-solid fa-circle-info mr-1"></i> ${escapeHTML(text)}`;
             chatMessages.appendChild(div);
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -621,22 +394,47 @@
             return p.innerHTML;
         }
 
-        // 手機版側邊欄切換
-        function toggleChat() {
-            const panel = document.getElementById('chat-panel');
-            panel.classList.toggle('translate-x-full');
+        function sendHeartAction() {
+            if(!socket || !socket.connected) return;
+            // 【規範 3】發送端：萬用通道
+            socket.emit('appData', {
+                room: 'default_room',
+                action: 'send_like',
+                senderName: myProfile.nickname
+            });
+        }
+
+        function showFlyingHeart(senderName) {
+            const heart = document.createElement('div');
+            heart.innerHTML = '<i class="fa-solid fa-heart text-pink-500 text-2xl drop-shadow-md"></i>';
+            heart.className = 'absolute z-50 pointer-events-none transition-all duration-1000 ease-out';
+            
+            // 隨機從底部冒出
+            const startX = Math.random() * window.innerWidth;
+            heart.style.left = `${startX}px`;
+            heart.style.bottom = '10%';
+            heart.style.opacity = '1';
+            heart.style.transform = 'translateY(0) scale(0.5)';
+            
+            document.body.appendChild(heart);
+
+            // 附帶發送者名稱提示 (可選)
+            const label = document.createElement('div');
+            label.textContent = `${senderName} 送出愛心`;
+            label.className = 'text-xs text-pink-500 font-bold mt-1 text-center whitespace-nowrap drop-shadow-sm';
+            heart.appendChild(label);
+
+            // 動畫過程
+            requestAnimationFrame(() => {
+                heart.style.transform = `translateY(-150px) scale(1.5)`;
+                heart.style.opacity = '0';
+            });
+
+            setTimeout(() => { heart.remove(); }, 1000);
         }
 
         // 啟動應用
         window.onload = initApp;
-
-        // 視窗縮放時，確保玩家不要超出新邊界
-        window.addEventListener('resize', () => {
-            const rect = gameMap.getBoundingClientRect();
-            if (myState.x > rect.width) myState.x = rect.width - 20;
-            if (myState.y > rect.height) myState.y = rect.height - 20;
-            syncMyState();
-        });
 
     </script>
 </body>
