@@ -415,7 +415,6 @@
                 `;
                 statusEl.className = "inline-flex mt-4 items-center justify-center h-6";
                 
-                enableButtons(true);
                 checkAutoLogin();
 
                 locationPromise.then(loc => {
@@ -428,7 +427,6 @@
                 const statusEl = document.getElementById('serverStatus');
                 statusEl.innerHTML = "連線異常";
                 statusEl.className = "inline-flex mt-4 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 shadow-sm";
-                enableButtons(false);
             });
 
             socket.on('loginResult', (res) => {
@@ -461,7 +459,6 @@
                             localStorage.removeItem('panda_auto_user');
                             localStorage.removeItem('panda_auto_pass');
                             
-                            // 找不到帳號，自動填入剛剛輸入的資料並導向註冊畫面
                             const typedUser = document.getElementById('username').value;
                             const typedPass = document.getElementById('password').value;
                             
@@ -543,20 +540,6 @@
                     toggleView('guest');
                 }
             }
-        }
-
-        function enableButtons(enable) {
-            ['loginBtn', 'googleBtn', 'registerBtn'].forEach(id => {
-                const btn = document.getElementById(id);
-                if (btn) {
-                    if (enable) {
-                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    } else {
-                        // 徹底移除反灰機制，讓按鈕永遠保持亮起且可點擊
-                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    }
-                }
-            });
         }
 
         window.toggleView = function(view) {
@@ -641,10 +624,9 @@
 
         window.handleRegGoogleAuth = async function() {
             try {
-                showMsg("正在連結 Google 帳號...", "info");
+                // 優先觸發視窗，防止瀏覽器阻擋
                 const result = await signInWithPopup(auth, provider);
                 window.tempRegEmail = result.user.email;
-                
                 document.getElementById('googleNotLinked').classList.add('hidden');
                 document.getElementById('googleLinked').classList.remove('hidden');
                 document.getElementById('linkedGoogleEmail').innerText = window.tempRegEmail;
@@ -718,6 +700,22 @@
             if (!u || !p) return showMsg("請輸入帳號與密碼", "error");
             showMsg("驗證中...", "info");
             socket.emit('login', { username: u, password: p });
+        };
+
+        window.handleGoogleLogin = async function() {
+            try {
+                // 優先觸發視窗，防止瀏覽器阻擋
+                const result = await signInWithPopup(auth, provider);
+                showMsg("驗證成功，正在登入伺服器...", "info");
+
+                if (!socket || !socket.connected) {
+                    return showMsg("伺服器連線異常，請確認伺服器已啟動", "error");
+                }
+
+                socket.emit('googleLogin', { email: result.user.email, name: result.user.displayName });
+            } catch (error) {
+                showMsg("Google 登入失敗: " + error.message, "error");
+            }
         };
 
         window.handleRegister = function() {
