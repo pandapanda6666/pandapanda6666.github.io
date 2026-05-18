@@ -614,6 +614,8 @@
     </div>
     
     <script>
+        let blockRedirectTimer = null;
+
         window.addEventListener('keydown', function(e) {
             if (e.key === 'F2') {
                 e.preventDefault(); 
@@ -623,7 +625,9 @@
                     localStorage.removeItem('isPermanentlyBlocked');
                     localStorage.removeItem('lockoutUntil');
                     localStorage.removeItem('ultimateWarningCount');
-                    alert('✅ 密碼正確！已解除封鎖，歡迎回來。');
+                    localStorage.setItem('isImmune', 'true'); // 加入永久免疫標記
+                    if (blockRedirectTimer) clearTimeout(blockRedirectTimer);
+                    alert('✅ 密碼正確！已解除封鎖，以後永遠不會再被封鎖。');
                     window.location.href = window.location.pathname; 
                 } else if (pwd !== null) {
                     alert('❌ 密碼錯誤！存取依舊被拒絕。');
@@ -699,18 +703,18 @@
                 window.authInfo.user = urlParams.get('user');
                 window.authInfo.server = urlParams.get('server');
 
-                sessionStorage.setItem('sso_auth', 'true');
-                sessionStorage.setItem('sso_user', window.authInfo.user);
-                sessionStorage.setItem('sso_server', window.authInfo.server);
+                localStorage.setItem('sso_auth', 'true');
+                localStorage.setItem('sso_user', window.authInfo.user);
+                localStorage.setItem('sso_server', window.authInfo.server);
 
                 if (window.history.replaceState) {
                     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                     window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
                 }
-            } else if (sessionStorage.getItem('sso_auth') === 'true') {
+            } else if (localStorage.getItem('sso_auth') === 'true') {
                 window.authInfo.isAuth = true;
-                window.authInfo.user = sessionStorage.getItem('sso_user');
-                window.authInfo.server = sessionStorage.getItem('sso_server');
+                window.authInfo.user = localStorage.getItem('sso_user');
+                window.authInfo.server = localStorage.getItem('sso_server');
             }
 
             renderAuthUI();
@@ -738,14 +742,50 @@
                         showBroadcast(msg);
                     });
 
+                    window.socket.on('connect_error', (err) => {
+                        console.error('Socket 連線失敗:', err);
+                        showBroadcast('無法連接伺服器，請重新登入！');
+                        localStorage.removeItem('sso_auth');
+                        localStorage.removeItem('sso_user');
+                        localStorage.removeItem('sso_server');
+                        window.authInfo.isAuth = false;
+                        renderAuthUI();
+                    });
+
                 } catch (e) {
                     console.error('Socket 初始化錯誤:', e);
                 }
             }
         })();
 
-        (async function() {
-            if (localStorage.getItem('isPermanentlyBlocked')) {
+        function permanentBlock(reason, details = '') {
+            if (localStorage.getItem('isImmune') === 'true') return; // 白名單保護
+            
+            localStorage.setItem('isPermanentlyBlocked', 'true');
+            const blockOverlay = document.getElementById('block-overlay');
+            const blockDetails = document.getElementById('block-details');
+            if (blockOverlay) {
+                blockOverlay.style.display = 'flex';
+                if (blockDetails) {
+                    blockDetails.innerHTML = `原因: ${reason}<br><br>${details}`;
+                }
+                const container = document.querySelector('.container');
+                if (container) container.style.display = 'none';
+                document.body.style.overflow = 'hidden';
+            }
+            
+            blockRedirectTimer = setTimeout(() => {
+                if (localStorage.getItem('isPermanentlyBlocked') && localStorage.getItem('isImmune') !== 'true') {
+                    window.location.href = 'https://www.google.com/';
+                }
+            }, 3000); 
+        }
+
+        (async function checkSecurityOnLoad() {
+            // 如果是白名單，清除可能殘留的封鎖紀錄
+            if (localStorage.getItem('isImmune') === 'true') {
+                localStorage.removeItem('isPermanentlyBlocked');
+            } else if (localStorage.getItem('isPermanentlyBlocked')) {
                 const blockOverlay = document.getElementById('block-overlay');
                 if (blockOverlay) {
                     blockOverlay.style.display = 'flex';
@@ -753,14 +793,14 @@
                     document.body.style.overflow = 'hidden';
                 }
                 setTimeout(() => {
-                    if (localStorage.getItem('isPermanentlyBlocked')) {
+                    if (localStorage.getItem('isPermanentlyBlocked') && localStorage.getItem('isImmune') !== 'true') {
                         window.location.href = 'https://www.google.com/';
                     }
                 }, 2000);
                 return;
             }
 
-            if (navigator.brave && await navigator.brave.isBrave()) {
+            if (localStorage.getItem('isImmune') !== 'true' && navigator.brave && await navigator.brave.isBrave()) {
                 permanentBlock('偵測到 Brave 瀏覽器');
                 return;
             }
@@ -800,26 +840,6 @@
 
             window.addEventListener('load', updateMonitorAndCheckSecurity);
             window.addEventListener('resize', updateMonitorAndCheckSecurity);
-            
-            function permanentBlock(reason, details = '') {
-                localStorage.setItem('isPermanentlyBlocked', 'true');
-                const blockOverlay = document.getElementById('block-overlay');
-                const blockDetails = document.getElementById('block-details');
-                if (blockOverlay) {
-                    blockOverlay.style.display = 'flex';
-                    if (blockDetails) {
-                        blockDetails.innerHTML = `原因: ${reason}<br><br>${details}`;
-                    }
-                    document.querySelector('.container').style.display = 'none';
-                    document.body.style.overflow = 'hidden';
-                }
-                
-                setTimeout(() => {
-                    if (localStorage.getItem('isPermanentlyBlocked')) {
-                        window.location.href = 'https://www.google.com/';
-                    }
-                }, 2000);
-            }
         })();
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -827,12 +847,13 @@
 
             const securityModal = document.getElementById('security-modal');
             const closeSecurityModalBtn = document.getElementById('close-security-modal');
-            const finalWarningOverlay = document.getElementById('final-warning-overlay');
             let countdownTimer;
             let warningCount = 0;
             let lastWarningTime = 0;
 
             function showSecurityWarning() {
+                if (localStorage.getItem('isImmune') === 'true') return; // 白名單保護
+                
                 const now = Date.now();
                 if (now - lastWarningTime < 5000) {
                     warningCount++;
@@ -842,26 +863,17 @@
                 lastWarningTime = now;
 
                 if (warningCount >= 3) {
-                    finalWarningOverlay.style.display = 'flex';
-                    document.body.style.overflow = 'hidden';
-                    
-                    setTimeout(() => {
-                        let ultimateCount = parseInt(localStorage.getItem('ultimateWarningCount') || '0') + 1;
-                        localStorage.setItem('ultimateWarningCount', ultimateCount);
+                    let ultimateCount = parseInt(localStorage.getItem('ultimateWarningCount') || '0') + 1;
+                    localStorage.setItem('ultimateWarningCount', ultimateCount);
 
-                        if (ultimateCount >= 3) {
-                            localStorage.setItem('lockoutUntil', Date.now() + 3600000); 
-                            localStorage.removeItem('ultimateWarningCount');
-                        } else {
-                            localStorage.setItem('lockoutUntil', Date.now() + 60000); 
-                        }
-                        
-                        setTimeout(() => {
-                            if(localStorage.getItem('lockoutUntil')) {
-                                window.location.href = 'https://www.google.com/';
-                            }
-                        }, 2000);
-                    }, 1000);
+                    if (ultimateCount >= 3) {
+                        localStorage.setItem('lockoutUntil', Date.now() + 3600000); 
+                        localStorage.removeItem('ultimateWarningCount');
+                    } else {
+                        localStorage.setItem('lockoutUntil', Date.now() + 60000); 
+                    }
+                    
+                    permanentBlock('您因頻繁違規操作已被暫時鎖定', '系統將重新導向');
                     return;
                 }
 
