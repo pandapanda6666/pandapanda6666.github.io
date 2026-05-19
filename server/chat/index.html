@@ -10,523 +10,229 @@
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     :root {
-      --bg: #f0f2f5;
-      --panel: #ffffff;
+      --surface: #ffffff;
+      --page: #f0f2f5;
       --line: #e4e6eb;
       --text: #050505;
       --muted: #65676b;
+      --soft: #f0f2f5;
+      --soft-hover: #e7f3ff;
       --blue: #0084ff;
-      --blue-dark: #006bd6;
+      --blue-dark: #0064d1;
+      --teal: #aef0eb;
+      --teal-dark: #008c89;
+      --danger: #e53935;
       --green: #31a24c;
-      --danger: #ef4444;
-      --bubble: #e4e6eb;
-      --shadow: 0 8px 28px rgba(0, 0, 0, .08);
       font-family: "Segoe UI", "Microsoft JhengHei", Arial, sans-serif;
     }
-
     * { box-sizing: border-box; }
     html, body { height: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      overflow: hidden;
+    body { margin: 0; background: var(--page); color: var(--text); overflow: hidden; }
+    button, input, textarea { font: inherit; }
+    button { border: 0; cursor: pointer; background: none; color: inherit; }
+    .topbar {
+      height: 56px; display: grid; grid-template-columns: 360px 1fr 360px; align-items: center;
+      border-bottom: 1px solid var(--line); background: var(--surface); padding: 0 16px; gap: 12px;
     }
-
-    button, input, textarea {
-      font: inherit;
+    .top-left, .top-center, .top-right { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .top-center { justify-content: center; }
+    .top-right { justify-content: flex-end; }
+    .appmark { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; flex: 0 0 auto; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+    .appmark img, .avatar img, .mini-avatar img, .profile-avatar { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .top-search { width: min(240px, 100%); height: 40px; border: 0; border-radius: 20px; background: var(--soft); padding: 0 16px; outline: 0; }
+    .nav-dot, .round-btn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); color: #1c1e21; font-weight: 800; }
+    .nav-dot { background: transparent; color: var(--muted); font-size: 22px; }
+    .nav-dot.active { color: var(--blue); position: relative; }
+    .nav-dot.active:after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -8px; height: 3px; background: var(--blue); border-radius: 4px; }
+    .layout { height: calc(100vh - 56px); display: grid; grid-template-columns: 360px minmax(420px, 1fr) 360px; }
+    .sidebar, .details { background: var(--surface); min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .sidebar { border-right: 1px solid var(--line); }
+    .details { border-left: 1px solid var(--line); }
+    .side-head { padding: 16px 16px 8px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .side-title { font-size: 26px; line-height: 1; font-weight: 800; letter-spacing: 0; }
+    .head-actions { display: flex; gap: 8px; }
+    .search-wrap { padding: 4px 16px 8px; }
+    .search-box { position: relative; }
+    .search-box:before { content: "⌕"; position: absolute; left: 14px; top: 7px; color: var(--muted); font-size: 18px; }
+    .search-wrap input { width: 100%; height: 40px; border-radius: 20px; border: 0; background: var(--soft); padding: 0 16px 0 38px; outline: 0; color: var(--text); }
+    .filters { padding: 6px 16px 8px; display: flex; gap: 8px; overflow-x: auto; }
+    .filter-chip { height: 36px; padding: 0 14px; border-radius: 18px; font-weight: 700; white-space: nowrap; background: transparent; }
+    .filter-chip.active { background: var(--soft-hover); color: var(--blue-dark); }
+    .thread-list { flex: 1; overflow: auto; padding: 0 8px 14px; }
+    .thread-row {
+      min-height: 72px; display: grid; grid-template-columns: 56px minmax(0,1fr) 32px; gap: 10px;
+      align-items: center; width: 100%; border-radius: 8px; padding: 8px; text-align: left; position: relative;
     }
-
-    button {
-      border: 0;
-      cursor: pointer;
+    .thread-row:hover, .thread-row.active { background: #f2f7ff; }
+    .avatar { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; overflow: hidden; color: #fff; background: linear-gradient(135deg, #0084ff, #00b894); font-weight: 800; font-size: 22px; }
+    .mini-avatar { position: relative; width: 42px; height: 42px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: linear-gradient(135deg, #0084ff, #00b894); color: #fff; font-weight: 800; flex: 0 0 auto; }
+    .thread-main { min-width: 0; text-align: left; }
+    .thread-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .thread-preview { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .thread-more { width: 30px; height: 30px; border-radius: 50%; opacity: 0; color: var(--muted); }
+    .thread-row:hover .thread-more { opacity: 1; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    .chat { min-width: 0; background: #bdeeed; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .chat:before {
+      content: ""; position: absolute; inset: 116px 0 58px; opacity: .38; pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.55) 0 18%, transparent 18% 100%),
+        radial-gradient(circle at 30% 28%, rgba(255,255,255,.9) 0 8%, transparent 8.5%),
+        radial-gradient(circle at 70% 65%, rgba(0,132,255,.18) 0 14%, transparent 14.5%);
+      background-color: #a9e8e9;
     }
-
-    .app {
-      height: 100vh;
-      display: grid;
-      grid-template-columns: 360px minmax(0, 1fr) 280px;
-      background: var(--panel);
-    }
-
-    .sidebar,
-    .details {
-      min-width: 0;
-      background: var(--panel);
-      border-right: 1px solid var(--line);
-      display: flex;
-      flex-direction: column;
-    }
-
-    .details {
-      border-right: 0;
-      border-left: 1px solid var(--line);
-    }
-
-    .side-header,
-    .chat-header,
-    .details-header {
-      min-height: 64px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--line);
-      background: rgba(255, 255, 255, .96);
-    }
-
-    .side-header {
-      justify-content: space-between;
-    }
-
-    .brand {
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: 0;
-    }
-
-    .icon-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #f0f2f5;
-      color: #1c1e21;
-      display: inline-grid;
-      place-items: center;
-      font-weight: 700;
-    }
-
-    .icon-btn:hover,
-    .login-btn:hover,
-    .send-btn:hover { filter: brightness(.97); }
-
-    .search {
-      padding: 12px 16px;
-    }
-
-    .search input {
-      width: 100%;
-      height: 40px;
-      border: 0;
-      border-radius: 20px;
-      background: #f0f2f5;
-      padding: 0 16px;
-      outline: none;
-      color: var(--text);
-    }
-
-    .thread-list {
-      overflow: auto;
-      padding: 0 8px 12px;
-    }
-
-    .thread {
-      width: 100%;
-      display: grid;
-      grid-template-columns: 56px minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 8px;
-      border-radius: 10px;
-      background: transparent;
-      text-align: left;
-      color: var(--text);
-    }
-
-    .thread.active,
-    .thread:hover { background: #f0f2f5; }
-
-    .avatar,
-    .small-avatar {
-      border-radius: 50%;
-      background: linear-gradient(135deg, #0084ff, #31a24c);
-      color: #fff;
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      flex: 0 0 auto;
-      overflow: hidden;
-    }
-
-    .avatar { width: 56px; height: 56px; font-size: 22px; }
-    .small-avatar { width: 40px; height: 40px; font-size: 16px; }
-    .avatar img,
-    .small-avatar img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .thread-name,
-    .chat-name {
-      font-weight: 700;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .thread-preview,
-    .status-line {
-      color: var(--muted);
-      font-size: 13px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      margin-top: 3px;
-    }
-
-    .thread-time {
-      color: var(--muted);
-      font-size: 12px;
-      align-self: start;
-      padding-top: 4px;
-    }
-
-    .chat {
-      min-width: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: #fff;
-    }
-
-    .chat-header {
-      justify-content: space-between;
-    }
-
-    .chat-person {
-      min-width: 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .chat-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .login-btn {
-      min-height: 42px;
-      border-radius: 22px;
-      padding: 4px 14px 4px 6px;
-      background: #e7f3ff;
-      color: var(--blue-dark);
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      white-space: nowrap;
-      box-shadow: 0 8px 18px rgba(0, 132, 255, .14);
-    }
-
-    .login-btn .profile-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: #fff;
-      border: 2px solid rgba(255,255,255,.9);
-    }
-
-    .login-btn .profile-copy {
-      display: grid;
-      gap: 1px;
-      text-align: left;
-      line-height: 1.05;
-    }
-
-    .login-btn .profile-name {
-      max-width: 120px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .login-btn .profile-coin {
-      color: #946200;
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .connection {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--muted);
-      font-size: 13px;
-      white-space: nowrap;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #bcc0c4;
-    }
-
-    .dot.online { background: var(--green); }
-    .dot.error { background: var(--danger); }
-
-    .messages {
-      flex: 1;
-      min-height: 0;
-      overflow: auto;
-      padding: 18px 18px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .day {
-      align-self: center;
-      color: var(--muted);
-      font-size: 12px;
-      margin: 10px 0;
-    }
-
-    .message-row {
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      margin: 2px 0;
-    }
-
-    .message-row.mine {
-      justify-content: flex-end;
-    }
-
-    .bubble {
-      max-width: min(560px, 72%);
-      padding: 9px 12px;
-      border-radius: 18px;
-      background: var(--bubble);
-      color: var(--text);
-      line-height: 1.45;
-      word-break: break-word;
-      white-space: pre-wrap;
-    }
-
-    .mine .bubble {
-      background: var(--blue);
-      color: #fff;
-    }
-
-    .sender {
-      color: var(--muted);
-      font-size: 12px;
-      margin: 8px 0 2px 48px;
-    }
-
-    .mine + .message-row:not(.mine),
-    .message-row:not(.mine) + .mine {
-      margin-top: 8px;
-    }
-
-    .composer {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto;
-      align-items: end;
-      gap: 8px;
-      padding: 12px 14px 14px;
-      border-top: 1px solid var(--line);
-      background: #fff;
-    }
-
-    .composer textarea {
-      min-height: 40px;
-      max-height: 120px;
-      resize: none;
-      border: 0;
-      outline: none;
-      border-radius: 20px;
-      background: #f0f2f5;
-      padding: 10px 14px;
-      line-height: 1.35;
-      overflow: auto;
-    }
-
-    .send-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: var(--blue);
-      color: #fff;
-      display: grid;
-      place-items: center;
-      font-size: 18px;
-      font-weight: 800;
-    }
-
-    .details-body {
-      overflow: auto;
-      padding: 20px 18px;
-      text-align: center;
-    }
-
-    .details .avatar {
-      width: 86px;
-      height: 86px;
-      margin: 4px auto 12px;
-      font-size: 32px;
-    }
-
-    .section-title {
-      margin: 28px 0 10px;
-      color: var(--muted);
-      font-size: 13px;
-      text-align: left;
-      font-weight: 700;
-    }
-
-    .people {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      text-align: left;
-    }
-
-    .person {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px;
-      border-radius: 10px;
-      background: #f7f8fa;
-    }
-
-    .system-bar {
-      min-height: 34px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 7px 12px;
-      background: #fff4d6;
-      color: #7c4a03;
-      border-bottom: 1px solid #ffe4a3;
-      font-size: 13px;
-      text-align: center;
-    }
-
-    .system-bar.show { display: flex; }
-
-    .copyright {
-      margin-top: 28px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
-    .copyright a {
-      color: var(--blue-dark);
-      text-decoration: none;
-      font-weight: 700;
-    }
-
-    .hidden-code {
-      display: none;
-    }
-
-    @media (max-width: 980px) {
-      .app {
-        grid-template-columns: 300px minmax(0, 1fr);
-      }
+    .chat-head { min-height: 64px; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: rgba(174,240,235,.96); border-bottom: 1px solid rgba(0,0,0,.08); z-index: 1; }
+    .chat-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .chat-title { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-subtitle { color: #466; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-actions { display: flex; gap: 8px; color: var(--teal-dark); }
+    .chat-actions .round-btn { background: transparent; color: var(--teal-dark); }
+    .pinned { min-height: 50px; padding: 8px 22px; background: rgba(174,240,235,.92); border-bottom: 1px solid rgba(0,0,0,.08); z-index: 1; display: flex; gap: 12px; align-items: center; }
+    .pin-icon { font-size: 20px; transform: rotate(-20deg); }
+    .pin-title { font-size: 13px; font-weight: 700; color: #304b4b; }
+    .pin-text { font-size: 13px; color: #3f6666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .messages { flex: 1; min-height: 0; overflow: auto; padding: 24px 24px 18px; z-index: 1; }
+    .day { text-align: center; font-size: 12px; color: #233; margin: 8px 0 22px; }
+    .sender { margin: 14px 0 4px 54px; font-size: 12px; color: #2f4d4d; font-weight: 600; }
+    .message-row { display: flex; gap: 8px; align-items: flex-end; margin: 2px 0; }
+    .message-row.mine { justify-content: flex-end; }
+    .bubble { max-width: min(560px, 72%); padding: 8px 12px; border-radius: 18px; background: rgba(255,255,255,.86); box-shadow: 0 1px 1px rgba(0,0,0,.04); line-height: 1.35; overflow-wrap: anywhere; }
+    .message-row.mine .bubble { background: var(--blue); color: #fff; border-bottom-right-radius: 5px; }
+    .message-row:not(.mine) .bubble { border-bottom-left-radius: 5px; }
+    .bubble.system { margin: 8px auto; background: rgba(255,255,255,.62); color: #385; font-size: 13px; text-align: center; }
+    .composer { min-height: 58px; padding: 8px 12px; display: grid; grid-template-columns: auto auto auto 1fr auto auto; gap: 8px; align-items: end; background: rgba(174,240,235,.96); z-index: 1; }
+    .tool-btn { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--teal-dark); font-weight: 900; font-size: 18px; }
+    .tool-btn:hover, .round-btn:hover, .thread-more:hover { background: rgba(0,0,0,.06); }
+    .input-shell { min-height: 38px; display: flex; align-items: center; border-radius: 20px; background: #fff; padding: 0 6px 0 14px; }
+    .input-shell textarea { width: 100%; max-height: 120px; resize: none; border: 0; outline: 0; background: transparent; padding: 9px 0; line-height: 1.25; }
+    .send { color: var(--teal-dark); font-size: 24px; }
+    .details { padding: 18px 16px 20px; overflow: auto; }
+    .detail-profile { text-align: center; padding: 0 0 22px; border-bottom: 1px solid var(--line); }
+    .detail-profile .avatar { width: 74px; height: 74px; margin: 0 auto 12px; font-size: 28px; }
+    .detail-profile h2 { font-size: 18px; margin: 0 0 12px; }
+    .detail-buttons { display: flex; justify-content: center; gap: 18px; }
+    .detail-buttons button { display: grid; gap: 6px; justify-items: center; color: var(--text); font-size: 12px; font-weight: 600; }
+    .accordion { padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .accordion summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; font-weight: 800; }
+    .accordion summary:after { content: "⌄"; }
+    .people { display: grid; gap: 10px; margin-top: 12px; }
+    .person { display: flex; align-items: center; gap: 10px; min-width: 0; text-align: left; }
+    .person strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .status-line { color: var(--muted); font-size: 13px; }
+    .danger { color: var(--danger); font-weight: 800; }
+    .profile-pill { min-height: 42px; border-radius: 22px; background: #e7f3ff; color: var(--blue-dark); display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 5px; font-weight: 800; }
+    .profile-avatar { width: 34px; height: 34px; border-radius: 50%; }
+    .profile-copy { display: grid; text-align: left; line-height: 1.05; min-width: 0; }
+    .profile-name { max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .profile-coin { color: #946200; font-size: 12px; }
+    .connection { color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+    .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #bcc0c4; }
+    .conn-dot.online { background: var(--green); }
+    .conn-dot.error { background: var(--danger); }
+    .system-bar { position: fixed; left: 50%; top: 68px; transform: translateX(-50%) translateY(-12px); opacity: 0; pointer-events: none; background: rgba(0,0,0,.78); color: #fff; padding: 10px 14px; border-radius: 18px; z-index: 20; transition: .18s ease; }
+    .system-bar.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .empty { color: var(--muted); text-align: center; padding: 32px 16px; }
+    .copyright { color: var(--muted); font-size: 12px; line-height: 1.45; margin: 18px 0 0; }
+    .copyright a { color: var(--blue-dark); font-weight: 800; text-decoration: none; }
+    @media (max-width: 1100px) {
+      .topbar { grid-template-columns: 300px 1fr auto; }
+      .layout { grid-template-columns: 320px minmax(0, 1fr); }
       .details { display: none; }
     }
-
-    @media (max-width: 720px) {
+    @media (max-width: 760px) {
       body { overflow: auto; }
-      .app {
-        height: 100dvh;
-        grid-template-columns: 1fr;
-      }
-      .sidebar {
-        display: none;
-      }
-      .chat {
-        height: 100dvh;
-      }
-      .chat-header {
-        min-height: 58px;
-        padding: 8px 10px;
-      }
-      .chat-actions {
-        gap: 4px;
-      }
-      .connection span:last-child {
-        display: none;
-      }
-      .login-btn {
-        max-width: 128px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .messages {
-        padding: 14px 10px 10px;
-      }
-      .bubble {
-        max-width: 82%;
-      }
+      .topbar { grid-template-columns: 1fr auto; }
+      .top-center { display: none; }
+      .layout { height: calc(100vh - 56px); grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .chat { min-width: 0; }
+      .bubble { max-width: 82%; }
+      .composer { grid-template-columns: auto auto 1fr auto; }
+      .composer .optional { display: none; }
     }
   </style>
 </head>
 <body>
   <div id="systemBar" class="system-bar"></div>
-  <main class="app" aria-label="pandachat">
+  <header class="topbar" aria-label="pandachat navigation">
+    <div class="top-left">
+      <div class="appmark"><img src="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no" alt="pandachat"></div>
+      <input class="top-search" id="globalSearch" type="search" placeholder="搜尋 pandachat">
+    </div>
+    <nav class="top-center" aria-label="主要導覽">
+      <button class="nav-dot active" title="首頁">⌂</button>
+      <button class="nav-dot" title="影片">▣</button>
+      <button class="nav-dot" title="社群">♙</button>
+      <button class="nav-dot" title="遊戲">⊕</button>
+    </nav>
+    <div class="top-right">
+      <span class="connection"><span class="conn-dot" id="connDot"></span><span id="connText">連線中</span></span>
+      <button class="profile-pill" id="loginBtn">登入 / 註冊帳號</button>
+    </div>
+  </header>
+  <main class="layout" aria-label="pandachat">
     <aside class="sidebar">
-      <header class="side-header">
-        <div class="brand">pandachat</div>
-        <button class="icon-btn" id="newChatBtn" title="新增對話">+</button>
-      </header>
-      <div class="search">
-        <input id="searchInput" type="search" placeholder="搜尋 Messenger">
+      <div class="side-head">
+        <div class="side-title">聊天室</div>
+        <div class="head-actions">
+          <button class="round-btn" id="settingsBtn" title="設定">•••</button>
+          <button class="round-btn" id="newChatBtn" title="新訊息">✎</button>
+        </div>
       </div>
-      <nav class="thread-list" id="threadList" aria-label="對話列表"></nav>
+      <div class="search-wrap"><div class="search-box"><input id="searchInput" type="search" placeholder="搜尋 Messenger"></div></div>
+      <div class="filters" role="tablist">
+        <button class="filter-chip active" data-filter="all">全部</button>
+        <button class="filter-chip" data-filter="unread">未讀</button>
+        <button class="filter-chip" data-filter="group">群組</button>
+        <button class="filter-chip" data-filter="community">社群</button>
+      </div>
+      <nav class="thread-list" id="threadList" aria-label="聊天室列表"></nav>
     </aside>
-
     <section class="chat">
-      <header class="chat-header">
+      <header class="chat-head">
         <div class="chat-person">
-          <div class="small-avatar" id="roomAvatar">M</div>
-          <div class="chat-copy">
-            <div class="chat-name" id="roomTitle">pandachat</div>
-            <div class="status-line" id="roomStatus">已整合 PandaPanda SSO 的即時聊天</div>
+          <div class="mini-avatar" id="roomAvatar">P</div>
+          <div style="min-width:0">
+            <div class="chat-title" id="roomTitle">pandachat</div>
+            <div class="chat-subtitle" id="roomStatus">已整合 PandaPanda SSO 的即時聊天</div>
           </div>
         </div>
         <div class="chat-actions">
-          <div class="connection" title="連線狀態"><span class="dot" id="connDot"></span><span id="connText">連線中</span></div>
-          <button class="login-btn" id="loginBtn">登入 / 註冊</button>
+          <button class="round-btn" title="開始語音通話">☎</button>
+          <button class="round-btn" title="開始視訊通話">▣</button>
+          <button class="round-btn" id="infoBtn" title="對話資料">i</button>
         </div>
       </header>
-
+      <div class="pinned" id="pinnedBar">
+        <div class="pin-icon">⌖</div>
+        <div class="pin-copy"><div class="pin-title">釘選訊息</div><div class="pin-text" id="pinText">建立聊天室後可立即多人同步聊天</div></div>
+      </div>
       <div class="messages" id="messages" aria-live="polite"></div>
-
       <form class="composer" id="composer">
-        <button class="icon-btn" type="button" id="clearBtn" title="清除本機畫面">⌫</button>
-        <textarea id="messageInput" rows="1" placeholder="Aa" autocomplete="off"></textarea>
-        <button class="send-btn" type="submit" title="送出">›</button>
+        <button class="tool-btn" type="button" id="plusBtn" title="更多">＋</button>
+        <button class="tool-btn optional" type="button" title="圖片">▧</button>
+        <button class="tool-btn optional" type="button" title="GIF">GIF</button>
+        <div class="input-shell"><textarea id="messageInput" rows="1" placeholder="Aa" autocomplete="off"></textarea></div>
+        <button class="tool-btn optional" type="button" title="表情">☺</button>
+        <button class="tool-btn send" type="submit" title="送出">👍</button>
       </form>
     </section>
-
     <aside class="details">
-      <header class="details-header">
-        <strong>聊天室資訊</strong>
-      </header>
-      <div class="details-body">
-        <div class="avatar" id="detailsAvatar">M</div>
+      <div class="detail-profile">
+        <div class="avatar" id="detailsAvatar">P</div>
         <h2 id="detailsTitle">pandachat</h2>
-        <p class="status-line" id="detailsSubtitle">雲端同步聊天室</p>
-        <div class="section-title">目前在線</div>
-        <div class="people" id="peopleList"></div>
-        <div class="section-title">雲端資料</div>
-        <div class="people">
-          <div class="person"><div class="small-avatar">S</div><div><strong id="saveState">等待同步</strong><div class="status-line">訊息會儲存在伺服器</div></div></div>
+        <div class="detail-buttons">
+          <button id="muteBtn"><span class="round-btn">⌁</span><span>開啟通知</span></button>
+          <button id="searchRoomBtn"><span class="round-btn">⌕</span><span>搜尋</span></button>
         </div>
-        <p class="copyright">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" rel="noopener">PandaPanda的AI日常</a> All Rights Reserved.</p>
       </div>
+      <details class="accordion" open><summary>聊天室資訊</summary><div class="people"><div class="person"><div class="mini-avatar">S</div><div><strong id="saveState">等待同步</strong><div class="status-line">資料儲存在伺服器</div></div></div></div></details>
+      <details class="accordion" open><summary>自訂聊天室</summary><div class="people"><button class="person" id="renameRoomBtn"><div class="mini-avatar">✎</div><div><strong>重新命名聊天室</strong><div class="status-line">更新名稱與列表</div></div></button><button class="person danger" id="deleteRoomBtn"><div class="mini-avatar">×</div><div><strong>刪除聊天室</strong><div class="status-line">同步移除這個對話</div></div></button></div></details>
+      <details class="accordion" open><summary>聊天室成員</summary><div class="people" id="peopleList"></div></details>
+      <details class="accordion"><summary>影音內容、檔案和連結</summary><div class="empty">目前沒有共享檔案</div></details>
+      <details class="accordion"><summary>隱私設定和支援</summary><div class="status-line" style="margin-top:12px">白名單、錯誤日誌與 SSO 狀態由伺服器管理。</div></details>
+      <p class="copyright">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" rel="noopener">PandaPanda的AI日常</a> All Rights Reserved.</p>
     </aside>
   </main>
-
   <script>
     const originalWarn = console.warn;
     console.warn = function(...args) {
@@ -539,113 +245,61 @@
     window.addEventListener('unhandledrejection', function(event) {
         if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
     });
-
     const APP_ID = 'pandachat_Id';
     const ROOM_ID = 'pandachat_Id';
+    const LOGIN_HUB_URL = 'https://pandapanda6666.github.io/login-hub/';
+    const DEFAULT_AVATAR = 'https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no';
     let socket;
-    let currentUser = {
-      username: 'guest-' + Math.random().toString(36).slice(2, 8),
-      nickname: '訪客',
-      avatar: '',
-      level: 0,
-      pCoin: 0
-    };
-    let messages = [];
+    let currentUser = { username: 'guest-' + Math.random().toString(36).slice(2, 8), nickname: '訪客', avatar: DEFAULT_AVATAR, level: 0, pCoin: 0, isLoggedIn: false };
+    let rooms = [];
+    let messagesByRoom = {};
     let allPlayers = {};
-    let activeThreadId = 'main';
-
-    const demoThreads = [
-      { id: 'main', name: 'pandachat', preview: '即時多人連線聊天室', time: '現在', initial: 'M' },
-      { id: 'cloud', name: '雲端存檔', preview: '訊息會同步到伺服器', time: '同步', initial: 'S' },
-      { id: 'sso', name: 'PandaPanda SSO', preview: '必須登入 PandaPanda SSO', time: 'SSO', initial: 'P' }
-    ];
-
+    let activeRoomId = 'main';
+    let currentFilter = 'all';
     const els = {
-      systemBar: document.getElementById('systemBar'),
-      threadList: document.getElementById('threadList'),
-      searchInput: document.getElementById('searchInput'),
-      roomAvatar: document.getElementById('roomAvatar'),
-      roomTitle: document.getElementById('roomTitle'),
-      roomStatus: document.getElementById('roomStatus'),
-      messages: document.getElementById('messages'),
-      composer: document.getElementById('composer'),
-      messageInput: document.getElementById('messageInput'),
-      clearBtn: document.getElementById('clearBtn'),
-      newChatBtn: document.getElementById('newChatBtn'),
-      loginBtn: document.getElementById('loginBtn'),
-      connDot: document.getElementById('connDot'),
-      connText: document.getElementById('connText'),
-      peopleList: document.getElementById('peopleList'),
-      saveState: document.getElementById('saveState'),
-      detailsAvatar: document.getElementById('detailsAvatar'),
-      detailsTitle: document.getElementById('detailsTitle'),
-      detailsSubtitle: document.getElementById('detailsSubtitle')
+      systemBar: document.getElementById('systemBar'), globalSearch: document.getElementById('globalSearch'), searchInput: document.getElementById('searchInput'), threadList: document.getElementById('threadList'),
+      newChatBtn: document.getElementById('newChatBtn'), settingsBtn: document.getElementById('settingsBtn'), loginBtn: document.getElementById('loginBtn'), connDot: document.getElementById('connDot'), connText: document.getElementById('connText'),
+      roomAvatar: document.getElementById('roomAvatar'), roomTitle: document.getElementById('roomTitle'), roomStatus: document.getElementById('roomStatus'), pinText: document.getElementById('pinText'),
+      messages: document.getElementById('messages'), composer: document.getElementById('composer'), messageInput: document.getElementById('messageInput'), plusBtn: document.getElementById('plusBtn'),
+      detailsAvatar: document.getElementById('detailsAvatar'), detailsTitle: document.getElementById('detailsTitle'), peopleList: document.getElementById('peopleList'), saveState: document.getElementById('saveState'),
+      deleteRoomBtn: document.getElementById('deleteRoomBtn'), renameRoomBtn: document.getElementById('renameRoomBtn'), searchRoomBtn: document.getElementById('searchRoomBtn')
     };
-
     boot();
-
     async function boot() {
-      renderThreads(demoThreads);
       bindUI();
+      ensureDefaultData();
+      renderAll();
       if (!applyLoginFromUrl()) return;
-      updateLoginButton();
-      seedEmptyState();
+      updateProfileUI();
       await connectServer();
     }
-
     function bindUI() {
       els.composer.addEventListener('submit', sendMessage);
       els.messageInput.addEventListener('input', autoResizeInput);
-      els.messageInput.addEventListener('keydown', event => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault();
-          els.composer.requestSubmit();
-        }
-      });
-      els.clearBtn.addEventListener('click', () => {
-        renderpandachat([]);
-        showNotice('已清除目前畫面，雲端資料未刪除');
-      });
-      els.newChatBtn.addEventListener('click', () => {
-        els.messageInput.focus();
-        logApp('使用者建立新對話');
-      });
-      els.searchInput.addEventListener('input', () => {
-        const term = els.searchInput.value.trim().toLowerCase();
-        renderThreads(demoThreads.filter(t => !term || t.name.toLowerCase().includes(term) || t.preview.toLowerCase().includes(term)));
-      });
-      els.loginBtn.addEventListener('click', () => {
-        const suffix = currentUser.isLoggedIn ? '' : '&require=1';
-        window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + suffix;
-      });
+      els.messageInput.addEventListener('keydown', function(event) { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); els.composer.requestSubmit(); } });
+      els.newChatBtn.addEventListener('click', createRoomPrompt);
+      els.plusBtn.addEventListener('click', createRoomPrompt);
+      els.deleteRoomBtn.addEventListener('click', function() { deleteRoom(activeRoomId); });
+      els.renameRoomBtn.addEventListener('click', renameActiveRoom);
+      els.searchRoomBtn.addEventListener('click', function() { els.searchInput.focus(); });
+      els.settingsBtn.addEventListener('click', function() { showNotice('pandachat 設定已由右側資料區管理'); });
+      els.loginBtn.addEventListener('click', function() { window.location.href = LOGIN_HUB_URL + '?from=' + encodeURIComponent(window.location.href); });
+      els.searchInput.addEventListener('input', renderThreads);
+      els.globalSearch.addEventListener('input', function() { els.searchInput.value = els.globalSearch.value; renderThreads(); });
+      document.querySelectorAll('.filter-chip').forEach(function(btn) { btn.addEventListener('click', function() { currentFilter = btn.dataset.filter; document.querySelectorAll('.filter-chip').forEach(function(x) { x.classList.toggle('active', x === btn); }); renderThreads(); }); });
     }
-
     function applyLoginFromUrl() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('auth') === 'true') {
-        const user = params.get('user') || currentUser.username;
-        currentUser.username = user;
-        currentUser.nickname = user;
+        currentUser.username = params.get('user') || currentUser.username;
+        currentUser.nickname = currentUser.username;
         currentUser.isLoggedIn = true;
         history.replaceState({}, document.title, window.location.pathname + window.location.hash);
         return true;
       }
-      els.loginBtn.textContent = '登入 / 註冊帳號';
-      window.location.replace('https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1');
+      window.location.replace(LOGIN_HUB_URL + '?from=' + encodeURIComponent(window.location.href) + '&require=1');
       return false;
     }
-
-    function updateLoginButton() {
-      if (currentUser.isLoggedIn) {
-        const avatar = currentUser.avatar || 'https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no';
-        els.loginBtn.innerHTML = '<img class="profile-avatar" src="' + escapeAttr(avatar) + '" alt=""><span class="profile-copy"><span class="profile-name">' + escapeHtml(currentUser.nickname) + '</span><span class="profile-coin">🪙 ' + escapeHtml(currentUser.pCoin || 0) + ' P幣</span></span>';
-        els.loginBtn.title = '查看或修改個人資料';
-      } else {
-        els.loginBtn.textContent = '登入 / 註冊帳號';
-        els.loginBtn.title = '登入或註冊';
-      }
-    }
-
     async function resolveServerUrl() {
       const params = new URLSearchParams(window.location.search);
       const fromUrl = params.get('server');
@@ -656,7 +310,6 @@
       if (!serverUrl || /localhost|127\.0\.0\.1|:3000\b/i.test(serverUrl)) throw new Error('伺服器網址不合法');
       return serverUrl;
     }
-
     async function connectServer() {
       try {
         const serverUrl = await resolveServerUrl();
@@ -667,320 +320,315 @@
         document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; min-height:100vh; padding:24px; background-color:#1e293b; color:#f8fafc; font-family:sans-serif; font-size:24px; font-weight:bold; text-align:center;">伺服器連線失敗，請稍後再試</div>';
       }
     }
-
     function registerSocketEvents() {
-      socket.on('connect', () => {
+      socket.on('connect', function() {
         setConnection('online', '已連線');
         socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
-        if (currentUser.isLoggedIn) socket.emit('requestProfile', { username: currentUser.username });
-        socket.emit('joinGameRoom', {
-          room: ROOM_ID,
-          characterData: {
-            appType: 'chat',
-            nickname: currentUser.nickname,
-            avatar: currentUser.avatar,
-            level: currentUser.level || 0,
-            pCoin: currentUser.pCoin || 0,
-            lastActive: Date.now()
-          }
-        });
-        socket.emit('getAppData', { appId: APP_ID }, (res) => {
+        socket.emit('requestProfile', { username: currentUser.username });
+        socket.emit('joinGameRoom', { room: ROOM_ID, characterData: profileState() });
+        socket.emit('getAppData', { appId: APP_ID }, function(res) {
           const data = res && (res.data || res);
-          if (data && Array.isArray(data.messages)) {
-            messages = data.messages.slice(-200);
-            renderpandachat(messages);
-            updateThreadPreview();
-            els.saveState.textContent = '已載入雲端資料';
-          } else {
-            els.saveState.textContent = '雲端目前沒有資料';
-          }
+          if (data) restoreCloud(data);
+          els.saveState.textContent = '已載入雲端資料';
+          renderAll();
         });
-        logApp(currentUser.nickname + ' 進入聊天室');
+        logApp(currentUser.nickname + ' 進入 pandachat');
       });
-
-      socket.on('disconnect', () => {
-        setConnection('', '已離線');
-      });
-
-      socket.on('connect_error', () => {
-        setConnection('error', '連線錯誤');
-      });
-
-      socket.on('illegalWebpage', () => {
-        document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#1e293b; color:#ef4444; font-family:sans-serif; font-size:24px; font-weight:bold;">此為違法網頁 已封鎖</div>';
-      });
-
-      socket.on('profileData', (data) => {
+      socket.on('disconnect', function() { setConnection('', '已離線'); });
+      socket.on('connect_error', function() { setConnection('error', '連線錯誤'); });
+      socket.on('illegalWebpage', function() { document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#1e293b; color:#ef4444; font-family:sans-serif; font-size:24px; font-weight:bold;">此為違法網頁 已封鎖</div>'; });
+      socket.on('profileData', function(data) {
         if (!data) return;
-        currentUser.avatar = data.avatar || currentUser.avatar;
+        currentUser.avatar = data.avatar || currentUser.avatar || DEFAULT_AVATAR;
         currentUser.nickname = data.nickname || currentUser.nickname;
         currentUser.level = data.level || currentUser.level || 0;
         currentUser.pCoin = data.pCoin || currentUser.pCoin || 0;
         currentUser.isLoggedIn = true;
-        updateLoginButton();
+        updateProfileUI();
         refreshSelfInRoom();
       });
-
-      socket.on('playerJoined', (data) => {
-        allPlayers = data && data.allPlayers ? data.allPlayers : allPlayers;
-        renderPeople(allPlayers);
-      });
-
-      socket.on('playerLeft', (data) => {
-        if (data && data.id && allPlayers[data.id]) delete allPlayers[data.id];
-        renderPeople(allPlayers);
-      });
-
-      socket.on('playerStateUpdated', (data) => {
-        if (data && data.id) {
-          allPlayers[data.id] = Object.assign({}, allPlayers[data.id] || {}, data);
-          renderPeople(allPlayers);
-        }
-      });
-
-      socket.on('appData', (data) => {
+      socket.on('playerJoined', function(data) { allPlayers = data && data.allPlayers ? data.allPlayers : allPlayers; renderPeople(); });
+      socket.on('playerLeft', function(data) { if (data && data.id && allPlayers[data.id]) delete allPlayers[data.id]; renderPeople(); });
+      socket.on('playerStateUpdated', function(data) { if (data && data.id) { allPlayers[data.id] = Object.assign({}, allPlayers[data.id] || {}, data); renderPeople(); } });
+      socket.on('appData', function(data) {
         if (!data || data.room !== ROOM_ID) return;
-        if (data.action === 'chatMessage' && data.message && !messages.some(msg => msg.id === data.message.id)) {
-          messages.push(data.message);
-          messages = messages.slice(-200);
-          renderpandachat(messages);
-          updateThreadPreview();
-          saveCloud();
-        }
-        if (data.action === 'forceReplacepandachat' && Array.isArray(data.messages)) {
-          messages = data.messages.slice(-200);
-          renderpandachat(messages);
-          updateThreadPreview();
-        }
+        if (data.action === 'chatMessage') receiveRemoteMessage(data.message, data.targetRoomId);
+        if (data.action === 'roomCreated') receiveRemoteRoom(data.roomData);
+        if (data.action === 'roomDeleted') receiveRemoteDelete(data.roomId);
+        if (data.action === 'roomRenamed') receiveRemoteRename(data.roomId, data.name);
+        if (data.action === 'cloudReplace') { restoreCloud(data.state || {}); renderAll(); }
       });
     }
-
+    function profileState() { return { appType: 'chat', nickname: currentUser.nickname, avatar: currentUser.avatar, level: currentUser.level || 0, pCoin: currentUser.pCoin || 0, activeRoomId: activeRoomId, lastActive: Date.now() }; }
+    function ensureDefaultData() {
+      rooms = [{ id: 'main', name: 'pandachat', type: 'group', avatar: DEFAULT_AVATAR, pinned: '建立聊天室後可立即多人同步聊天', unread: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
+      messagesByRoom = { main: [{ id: 'welcome', username: 'system', nickname: 'pandachat', avatar: DEFAULT_AVATAR, text: '歡迎來到 pandachat。這裡可以建立、切換、刪除聊天室，並即時同步到雲端。', createdAt: new Date().toISOString(), system: true }] };
+      activeRoomId = 'main';
+    }
+    function restoreCloud(data) {
+      if (Array.isArray(data.rooms) && data.rooms.length) rooms = data.rooms;
+      if (data.messagesByRoom && typeof data.messagesByRoom === 'object') messagesByRoom = data.messagesByRoom;
+      else if (Array.isArray(data.messages)) messagesByRoom = { main: data.messages };
+      if (data.activeRoomId && rooms.some(function(r) { return r.id === data.activeRoomId; })) activeRoomId = data.activeRoomId;
+      if (!rooms.length) ensureDefaultData();
+      rooms.forEach(function(room) { if (!messagesByRoom[room.id]) messagesByRoom[room.id] = []; });
+      if (!rooms.some(function(r) { return r.id === activeRoomId; })) activeRoomId = rooms[0].id;
+    }
+    function createRoomPrompt() {
+      const name = prompt('輸入新的聊天室名稱');
+      if (!name || !name.trim()) return;
+      const room = { id: 'room-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), name: name.trim(), type: 'group', avatar: DEFAULT_AVATAR, pinned: '新的 pandachat 聊天室', unread: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      rooms.unshift(room);
+      messagesByRoom[room.id] = [{ id: 'created-' + Date.now(), username: 'system', nickname: 'pandachat', avatar: DEFAULT_AVATAR, text: currentUser.nickname + ' 建立了聊天室「' + room.name + '」', createdAt: new Date().toISOString(), system: true }];
+      activeRoomId = room.id;
+      renderAll();
+      saveCloud();
+      emitAppData({ action: 'roomCreated', roomData: room });
+      logApp(currentUser.nickname + ' 建立聊天室：' + room.name);
+    }
+    function deleteRoom(roomId) {
+      if (rooms.length <= 1) { showNotice('至少需要保留一個聊天室'); return; }
+      const room = getRoom(roomId);
+      if (!room) return;
+      if (!confirm('確定刪除「' + room.name + '」嗎？')) return;
+      rooms = rooms.filter(function(r) { return r.id !== roomId; });
+      delete messagesByRoom[roomId];
+      if (activeRoomId === roomId) activeRoomId = rooms[0].id;
+      renderAll();
+      saveCloud();
+      emitAppData({ action: 'roomDeleted', roomId: roomId });
+      logApp(currentUser.nickname + ' 刪除聊天室：' + room.name, 'warning');
+    }
+    function renameActiveRoom() {
+      const room = getRoom(activeRoomId);
+      if (!room) return;
+      const name = prompt('重新命名聊天室', room.name);
+      if (!name || !name.trim()) return;
+      room.name = name.trim();
+      room.updatedAt = new Date().toISOString();
+      renderAll();
+      saveCloud();
+      emitAppData({ action: 'roomRenamed', roomId: room.id, name: room.name });
+      logApp(currentUser.nickname + ' 重新命名聊天室：' + room.name);
+    }
+    function receiveRemoteRoom(room) {
+      if (!room || rooms.some(function(r) { return r.id === room.id; })) return;
+      rooms.unshift(room);
+      messagesByRoom[room.id] = messagesByRoom[room.id] || [];
+      renderAll();
+      saveCloud();
+    }
+    function receiveRemoteDelete(roomId) {
+      if (!roomId || !rooms.some(function(r) { return r.id === roomId; })) return;
+      rooms = rooms.filter(function(r) { return r.id !== roomId; });
+      delete messagesByRoom[roomId];
+      if (!rooms.length) ensureDefaultData();
+      if (activeRoomId === roomId) activeRoomId = rooms[0].id;
+      renderAll();
+      saveCloud();
+    }
+    function receiveRemoteRename(roomId, name) {
+      const room = getRoom(roomId);
+      if (!room) return;
+      room.name = name || room.name;
+      renderAll();
+      saveCloud();
+    }
     function sendMessage(event) {
       event.preventDefault();
       const text = els.messageInput.value.trim();
       if (!text) return;
-      const message = {
-        id: Date.now() + '-' + Math.random().toString(36).slice(2),
-        username: currentUser.username,
-        nickname: currentUser.nickname,
-        avatar: currentUser.avatar,
-        text,
-        createdAt: new Date().toISOString()
-      };
-      messages.push(message);
-      messages = messages.slice(-200);
-      renderpandachat(messages);
-      updateThreadPreview();
+      const message = { id: Date.now() + '-' + Math.random().toString(36).slice(2), username: currentUser.username, nickname: currentUser.nickname, avatar: currentUser.avatar || DEFAULT_AVATAR, text: text, createdAt: new Date().toISOString() };
+      addMessage(activeRoomId, message);
       els.messageInput.value = '';
       autoResizeInput();
-      if (socket && socket.connected) {
-        socket.emit('appData', { room: ROOM_ID, action: 'chatMessage', message });
-        socket.emit('syncPlayerState', { typing: false, lastMessageAt: message.createdAt, nickname: currentUser.nickname, avatar: currentUser.avatar });
-        saveCloud();
-        logApp(currentUser.nickname + ' 發送了一則訊息');
-      } else {
-        showNotice('目前離線，訊息暫時只顯示在本機畫面');
-      }
+      renderAll();
+      emitAppData({ action: 'chatMessage', targetRoomId: activeRoomId, message: message });
+      if (socket && socket.connected) socket.emit('syncPlayerState', Object.assign(profileState(), { lastMessageAt: message.createdAt }));
+      saveCloud();
+      logApp(currentUser.nickname + ' 在「' + getRoom(activeRoomId).name + '」發送訊息');
     }
-
-    function saveCloud() {
-      if (!socket || !socket.connected) return;
-      socket.emit('saveAppData', {
-        appId: APP_ID,
-        data: {
-          messages: messages.slice(-200),
-          updatedAt: new Date().toISOString()
-        }
-      });
-      els.saveState.textContent = '已同步雲端';
+    function receiveRemoteMessage(message, roomId) {
+      if (!message || !roomId) return;
+      const exists = (messagesByRoom[roomId] || []).some(function(m) { return m.id === message.id; });
+      if (exists) return;
+      addMessage(roomId, message);
+      if (roomId !== activeRoomId) { const room = getRoom(roomId); if (room) room.unread = true; }
+      renderAll();
+      saveCloud();
     }
-
-    function logApp(message, type = 'info') {
-      if (socket && socket.connected) socket.emit('logAppMessage', { appId: APP_ID, message, type });
+    function addMessage(roomId, message) {
+      if (!messagesByRoom[roomId]) messagesByRoom[roomId] = [];
+      messagesByRoom[roomId].push(message);
+      messagesByRoom[roomId] = messagesByRoom[roomId].slice(-300);
+      const room = getRoom(roomId);
+      if (room) { room.preview = (message.nickname || '使用者') + ': ' + message.text; room.updatedAt = message.createdAt; }
     }
-
-    function refreshSelfInRoom() {
-      if (!socket || !socket.connected) return;
-      socket.emit('syncPlayerState', {
-        nickname: currentUser.nickname,
-        avatar: currentUser.avatar,
-        level: currentUser.level || 0,
-        pCoin: currentUser.pCoin || 0,
-        lastActive: Date.now()
-      });
+    function renderAll() { renderThreads(); renderRoom(); renderMessages(); renderPeople(); }
+    function renderThreads() {
+      const term = els.searchInput.value.trim().toLowerCase();
+      let list = rooms.slice().sort(function(a, b) { return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt); });
+      if (currentFilter === 'unread') list = list.filter(function(r) { return r.unread; });
+      if (currentFilter === 'group') list = list.filter(function(r) { return r.type === 'group'; });
+      if (currentFilter === 'community') list = list.filter(function(r) { return r.type === 'community'; });
+      if (term) list = list.filter(function(r) { return (r.name + ' ' + (r.preview || '')).toLowerCase().includes(term); });
+      if (!list.length) { els.threadList.innerHTML = '<div class="empty">找不到聊天室</div>'; return; }
+      els.threadList.innerHTML = list.map(function(room) {
+        const last = lastMessage(room.id);
+        const preview = room.preview || (last ? ((last.nickname || '使用者') + ': ' + last.text) : '開始新的對話');
+        return '<div class="thread-row ' + (room.id === activeRoomId ? 'active' : '') + '" data-id="' + escapeAttr(room.id) + '">' +
+          avatarMarkup(room.avatar, room.name, 'avatar') +
+          '<button class="thread-main" data-open="' + escapeAttr(room.id) + '"><div class="thread-name">' + escapeHtml(room.name) + '</div><div class="thread-preview">' + escapeHtml(preview) + ' · ' + formatRelative(room.updatedAt || room.createdAt) + '</div></button>' +
+          '<button class="thread-more" title="刪除聊天室" data-delete="' + escapeAttr(room.id) + '">⋯</button>' +
+        '</div>';
+      }).join('');
+      els.threadList.querySelectorAll('[data-open]').forEach(function(btn) { btn.addEventListener('click', function() { openRoom(btn.dataset.open); }); });
+      els.threadList.querySelectorAll('[data-delete]').forEach(function(btn) { btn.addEventListener('click', function(event) { event.stopPropagation(); deleteRoom(btn.dataset.delete); }); });
     }
-
-    function renderThreads(threads) {
-      els.threadList.innerHTML = threads.map(thread => `
-        <button class="thread ${thread.id === activeThreadId ? 'active' : ''}" data-id="${thread.id}">
-          <div class="avatar">${thread.initial}</div>
-          <div>
-            <div class="thread-name">${escapeHtml(thread.name)}</div>
-            <div class="thread-preview" data-preview="${thread.id}">${escapeHtml(thread.preview)}</div>
-          </div>
-          <div class="thread-time">${escapeHtml(thread.time)}</div>
-        </button>
-      `).join('');
-      els.threadList.querySelectorAll('.thread').forEach(btn => {
-        btn.addEventListener('click', () => {
-          activeThreadId = btn.dataset.id;
-          renderThreads(threads);
-          els.messageInput.focus();
-        });
-      });
+    function openRoom(roomId) {
+      if (!getRoom(roomId)) return;
+      activeRoomId = roomId;
+      getRoom(roomId).unread = false;
+      renderAll();
+      saveCloud();
+      refreshSelfInRoom();
     }
-
-    function seedEmptyState() {
-      if (messages.length) return;
-      messages = [{
-        id: 'welcome',
-        username: 'system',
-        nickname: 'pandachat',
-        avatar: '',
-        text: '歡迎來到即時聊天室。登入後會套用 PandaPanda SSO 個人資料，並以雲端資料同步聊天。',
-        createdAt: new Date().toISOString()
-      }];
-      renderpandachat(messages);
+    function renderRoom() {
+      const room = getRoom(activeRoomId) || rooms[0];
+      if (!room) return;
+      els.roomAvatar.innerHTML = avatarInner(room.avatar, room.name);
+      els.detailsAvatar.innerHTML = avatarInner(room.avatar, room.name);
+      els.roomTitle.textContent = room.name;
+      els.detailsTitle.textContent = room.name;
+      els.roomStatus.textContent = '目前在線上 · ' + Math.max(1, Object.keys(allPlayers || {}).length) + ' 人';
+      els.pinText.textContent = room.pinned || '建立聊天室後可立即多人同步聊天';
     }
-
-    function renderpandachat(list) {
-      els.messages.innerHTML = '<div class="day">今天</div>' + list.map((msg, index) => {
+    function renderMessages() {
+      const list = messagesByRoom[activeRoomId] || [];
+      if (!list.length) { els.messages.innerHTML = '<div class="day">今天</div><div class="empty">傳送第一則訊息吧</div>'; return; }
+      els.messages.innerHTML = '<div class="day">今天</div>' + list.map(function(msg, index) {
+        if (msg.system) return '<div class="bubble system">' + escapeHtml(msg.text) + '</div>';
         const mine = msg.username === currentUser.username;
         const prev = list[index - 1];
         const showSender = !mine && (!prev || prev.username !== msg.username);
-        const avatar = avatarMarkup(msg.avatar, msg.nickname || 'U', 'small-avatar');
-        return `
-          ${showSender ? `<div class="sender">${escapeHtml(msg.nickname || '訪客')}</div>` : ''}
-          <div class="message-row ${mine ? 'mine' : ''}">
-            ${mine ? '' : avatar}
-            <div class="bubble" title="${formatTime(msg.createdAt)}">${escapeHtml(msg.text)}</div>
-          </div>
-        `;
+        return (showSender ? '<div class="sender">' + escapeHtml(msg.nickname || '使用者') + '</div>' : '') +
+          '<div class="message-row ' + (mine ? 'mine' : '') + '">' + (mine ? '' : avatarMarkup(msg.avatar, msg.nickname || 'U', 'mini-avatar')) + '<div class="bubble" title="' + escapeAttr(formatTime(msg.createdAt)) + '">' + linkify(escapeHtml(msg.text)) + '</div></div>';
       }).join('');
       els.messages.scrollTop = els.messages.scrollHeight;
     }
-
-    function renderPeople(players) {
-      const entries = Object.entries(players || {});
-      if (!entries.length) {
-        els.peopleList.innerHTML = '<div class="status-line">等待其他使用者加入</div>';
-        return;
-      }
-      els.peopleList.innerHTML = entries.map(([id, player]) => {
+    function renderPeople() {
+      const entries = Object.entries(allPlayers || {});
+      if (!entries.length) { els.peopleList.innerHTML = '<div class="person">' + avatarMarkup(currentUser.avatar, currentUser.nickname, 'mini-avatar') + '<div><strong>' + escapeHtml(currentUser.nickname) + '</strong><div class="status-line">在線</div></div></div>'; return; }
+      els.peopleList.innerHTML = entries.map(function(pair) {
+        const player = pair[1];
         const data = player.characterData || player;
         const name = data.nickname || player.nickname || '線上使用者';
-        const avatar = data.avatar || player.avatar || '';
-        return `<div class="person">${avatarMarkup(avatar, name, 'small-avatar')}<div><strong>${escapeHtml(name)}</strong><div class="status-line">在線</div></div></div>`;
+        const avatar = data.avatar || player.avatar || DEFAULT_AVATAR;
+        return '<div class="person">' + avatarMarkup(avatar, name, 'mini-avatar') + '<div><strong>' + escapeHtml(name) + '</strong><div class="status-line">在線</div></div></div>';
       }).join('');
     }
-
-    function updateThreadPreview() {
-      const last = messages[messages.length - 1];
-      const preview = document.querySelector('[data-preview="main"]');
-      if (preview && last) preview.textContent = (last.nickname || '使用者') + ': ' + last.text;
+    function updateProfileUI() {
+      const avatar = currentUser.avatar || DEFAULT_AVATAR;
+      els.loginBtn.innerHTML = '<img class="profile-avatar" src="' + escapeAttr(avatar) + '" alt=""><span class="profile-copy"><span class="profile-name">' + escapeHtml(currentUser.nickname) + '</span><span class="profile-coin">🪙 ' + escapeHtml(currentUser.pCoin || 0) + ' P幣</span></span>';
+      els.loginBtn.title = '查看或修改個人資料';
     }
-
-    function setConnection(status, text) {
-      els.connDot.className = 'dot ' + status;
-      els.connText.textContent = text;
+    function saveCloud() {
+      if (!socket || !socket.connected) return;
+      const state = { rooms: rooms, messagesByRoom: messagesByRoom, activeRoomId: activeRoomId, updatedAt: new Date().toISOString() };
+      socket.emit('saveAppData', { appId: APP_ID, data: state });
+      els.saveState.textContent = '已同步雲端';
     }
-
-    function showNotice(text) {
-      els.systemBar.textContent = text;
-      els.systemBar.classList.add('show');
-      window.clearTimeout(showNotice.timer);
-      showNotice.timer = window.setTimeout(() => els.systemBar.classList.remove('show'), 2600);
-    }
-
-    function autoResizeInput() {
-      els.messageInput.style.height = '40px';
-      els.messageInput.style.height = Math.min(120, els.messageInput.scrollHeight) + 'px';
-    }
-
-    function avatarMarkup(src, name, className) {
-      const initial = (name || 'U').trim().slice(0, 1).toUpperCase();
-      if (src) return `<div class="${className}"><img src="${escapeAttr(src)}" alt=""></div>`;
-      return `<div class="${className}">${escapeHtml(initial)}</div>`;
-    }
-
-    function formatTime(value) {
-      try {
-        return new Intl.DateTimeFormat('zh-Hant', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
-      } catch (err) {
-        return '';
-      }
-    }
-
-    function escapeHtml(value) {
-      return String(value || '').replace(/[&<>"']/g, char => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-      }[char]));
-    }
-
-    function escapeAttr(value) {
-      return escapeHtml(value).replace(/`/g, '&#096;');
-    }
+    function emitAppData(payload) { if (socket && socket.connected) socket.emit('appData', Object.assign({ room: ROOM_ID }, payload)); }
+    function logApp(message, type) { if (socket && socket.connected) socket.emit('logAppMessage', { appId: APP_ID, message: message, type: type || 'info' }); }
+    function refreshSelfInRoom() { if (socket && socket.connected) socket.emit('syncPlayerState', profileState()); }
+    function setConnection(status, text) { els.connDot.className = 'conn-dot ' + status; els.connText.textContent = text; }
+    function showNotice(text) { els.systemBar.textContent = text; els.systemBar.classList.add('show'); clearTimeout(showNotice.timer); showNotice.timer = setTimeout(function() { els.systemBar.classList.remove('show'); }, 2600); }
+    function autoResizeInput() { els.messageInput.style.height = '38px'; els.messageInput.style.height = Math.min(120, els.messageInput.scrollHeight) + 'px'; }
+    function getRoom(id) { return rooms.find(function(r) { return r.id === id; }); }
+    function lastMessage(roomId) { const list = messagesByRoom[roomId] || []; return list[list.length - 1]; }
+    function avatarInner(src, name) { return src ? '<img src="' + escapeAttr(src) + '" alt="">' : escapeHtml((name || 'P').trim().slice(0, 1).toUpperCase()); }
+    function avatarMarkup(src, name, className) { return '<div class="' + className + '">' + avatarInner(src, name) + '</div>'; }
+    function formatTime(value) { try { return new Intl.DateTimeFormat('zh-Hant', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); } catch (err) { return ''; } }
+    function formatRelative(value) { if (!value) return '現在'; const diff = Date.now() - new Date(value).getTime(); if (diff < 60000) return '現在'; if (diff < 3600000) return Math.floor(diff / 60000) + '分鐘'; if (diff < 86400000) return Math.floor(diff / 3600000) + '小時'; return Math.floor(diff / 86400000) + '天'; }
+    function linkify(text) { return text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">$1</a>'); }
+    function escapeHtml(value) { return String(value || '').replace(/[&<>"']/g, function(char) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char]; }); }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, '&#096;'); }
   </script>
-
   <script type="text/plain" id="python-dashboard-code">
-# PandaPanda pandachat Chat 管理面板
+# pandachat 管理面板
 def init_dashboard(parent_frame, app_id, api_url):
     import tkinter as tk
     from tkinter import ttk, messagebox
     import requests
-
     root = ttk.Frame(parent_frame, padding=12)
     root.pack(fill="both", expand=True)
-
     title = ttk.Label(root, text="pandachat 聊天室管理", font=("Microsoft JhengHei UI", 14, "bold"))
     title.pack(anchor="w")
-
     status_var = tk.StringVar(value="尚未讀取資料")
-    count_var = tk.StringVar(value="訊息數：0")
+    room_count_var = tk.StringVar(value="聊天室數：0")
+    message_count_var = tk.StringVar(value="訊息數：0")
     ttk.Label(root, textvariable=status_var).pack(anchor="w", pady=(8, 0))
-    ttk.Label(root, textvariable=count_var).pack(anchor="w")
-
+    ttk.Label(root, textvariable=room_count_var).pack(anchor="w")
+    ttk.Label(root, textvariable=message_count_var).pack(anchor="w")
+    room_list = tk.Listbox(root, height=8)
+    room_list.pack(fill="x", pady=8)
     box = tk.Text(root, height=12, wrap="word")
-    box.pack(fill="both", expand=True, pady=10)
-
+    box.pack(fill="both", expand=True, pady=(0, 10))
+    state = {"data": {}}
+    def current_room_id():
+        selection = room_list.curselection()
+        if not selection:
+            return None
+        rooms = state.get("data", {}).get("rooms", [])
+        return rooms[selection[0]].get("id") if selection[0] < len(rooms) else None
+    def refresh_messages(event=None):
+        box.delete("1.0", "end")
+        room_id = current_room_id()
+        messages = state.get("data", {}).get("messagesByRoom", {}).get(room_id, []) if room_id else []
+        for item in messages[-80:]:
+            box.insert("end", f"{item.get('nickname', '使用者')}: {item.get('text', '')}\n")
     def load_data():
         try:
             res = requests.get(f"{api_url}/apps", timeout=8)
             res.raise_for_status()
             data = res.json().get("apps", {}).get(app_id, {}).get("data", {})
-            messages = data.get("messages", [])
-            box.delete("1.0", "end")
-            for item in messages[-50:]:
-                box.insert("end", f"{item.get('nickname', '使用者')}: {item.get('text', '')}\n")
-            count_var.set(f"訊息數：{len(messages)}")
+            state["data"] = data
+            rooms = data.get("rooms", [])
+            messages_by_room = data.get("messagesByRoom", {})
+            room_list.delete(0, "end")
+            for room in rooms:
+                room_list.insert("end", room.get("name", "未命名聊天室"))
+            total_messages = sum(len(items) for items in messages_by_room.values())
+            room_count_var.set(f"聊天室數：{len(rooms)}")
+            message_count_var.set(f"訊息數：{total_messages}")
             status_var.set("已讀取雲端資料")
+            if rooms:
+                room_list.selection_set(0)
+            refresh_messages()
         except Exception as exc:
             messagebox.showerror("讀取失敗", str(exc))
             status_var.set("讀取失敗")
-
-    def clear_messages():
+    def clear_selected_room():
+        room_id = current_room_id()
+        if not room_id:
+            return
         if not messagebox.askyesno("確認", "要清空這個聊天室的雲端訊息嗎？"):
             return
         try:
-            payload = {"appId": app_id, "data": {"messages": [], "updatedAt": ""}}
-            res = requests.post(f"{api_url}/apps/update", json=payload, timeout=8)
+            data = state.get("data", {})
+            data.setdefault("messagesByRoom", {})[room_id] = []
+            res = requests.post(f"{api_url}/apps/update", json={"appId": app_id, "data": data}, timeout=8)
             res.raise_for_status()
-            box.delete("1.0", "end")
-            count_var.set("訊息數：0")
             status_var.set("已清空並同步")
+            load_data()
         except Exception as exc:
             messagebox.showerror("更新失敗", str(exc))
             status_var.set("更新失敗")
-
+    room_list.bind("<<ListboxSelect>>", refresh_messages)
     buttons = ttk.Frame(root)
     buttons.pack(fill="x")
     ttk.Button(buttons, text="重新讀取", command=load_data).pack(side="left")
-    ttk.Button(buttons, text="清空雲端訊息", command=clear_messages).pack(side="left", padx=8)
-
+    ttk.Button(buttons, text="清空選取聊天室", command=clear_selected_room).pack(side="left", padx=8)
     load_data()
   </script>
 </body>
