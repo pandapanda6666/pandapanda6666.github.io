@@ -1,0 +1,332 @@
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生日禮物採購申請表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: "Microsoft JhengHei", sans-serif;
+        }
+        .form-container {
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-w-3xl;
+            margin: 2rem auto;
+            padding: 2.5rem;
+            color: #111827;
+        }
+        .input-line {
+            border: none;
+            border-bottom: 1px solid #111827;
+            outline: none;
+            background: transparent;
+            padding: 0 4px;
+        }
+        .login-header {
+            background-color: #1e293b;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 登入與玩家個人資料區塊 -->
+    <div class="login-header" id="auth-container">
+        <!-- 狀態會由 JavaScript 動態生成 -->
+        <span class="text-gray-400">正在連線至伺服器...</span>
+    </div>
+
+    <!-- 申請表本體 -->
+    <div class="form-container max-w-3xl">
+        <h1 class="text-xl font-bold mb-6">【生日禮物採購申請表】</h1>
+        
+        <div class="space-y-4 mb-6">
+            <p>申請人：您的孫子</p>
+            <p>審核人：奶奶</p>
+            <p>申請日期：2026年5月19日</p>
+            <p class="leading-relaxed">申請事由：申請購買電子與積木零件，作為遲來的生日禮物（申請人今年生日為5月6日，特此申請補發！）</p>
+        </div>
+
+        <p class="mb-2">--- 採購明細清單 ---</p>
+
+        <table class="w-full border-collapse border border-gray-800 text-sm mb-6">
+            <thead>
+                <tr>
+                    <th class="border border-gray-800 p-2 text-left font-normal">項目</th>
+                    <th class="border border-gray-800 p-2 text-left font-normal">單價</th>
+                    <th class="border border-gray-800 p-2 text-left font-normal">數量</th>
+                    <th class="border border-gray-800 p-2 text-left font-normal">參考網址</th>
+                    <th class="border border-gray-800 p-2 text-left font-normal">小計</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="border border-gray-800 p-2">三號四節電池盒</td>
+                    <td class="border border-gray-800 p-2">約NT$10</td>
+                    <td class="border border-gray-800 p-2">1</td>
+                    <td class="border border-gray-800 p-2"><a href="https://reurl.cc/M2gZDL" target="_blank" class="text-blue-600 underline">https://reurl.cc/M2gZDL</a></td>
+                    <td class="border border-gray-800 p-2">約NT$10</td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-800 p-2">Geekservo<br>3~5V 270度<br>Lego</td>
+                    <td class="border border-gray-800 p-2">約NT$300</td>
+                    <td class="border border-gray-800 p-2">1</td>
+                    <td class="border border-gray-800 p-2"><a href="https://reurl.cc/qp2mqN" target="_blank" class="text-blue-600 underline">https://reurl.cc/qp2mqN</a></td>
+                    <td class="border border-gray-800 p-2">約NT$300</td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-800 p-2">Geekservo 2kg<br>360° Lego</td>
+                    <td class="border border-gray-800 p-2">約NT$400</td>
+                    <td class="border border-gray-800 p-2">2</td>
+                    <td class="border border-gray-800 p-2"><a href="https://reurl.cc/yO0n4M" target="_blank" class="text-blue-600 underline">https://reurl.cc/yO0n4M</a></td>
+                    <td class="border border-gray-800 p-2">約NT$800</td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-800 p-2">總計</td>
+                    <td class="border border-gray-800 p-2" colspan="4">約NT$1,110</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 class="text-lg font-bold mb-6">申請總金額：約新台幣壹仟壹佰壹拾圓整</h2>
+
+        <div class="mb-4 text-gray-600">奶奶專用審核區：</div>
+        <div class="mb-2">審核結果（請勾選）：</div>
+
+        <div class="space-y-2 ml-4 mb-6">
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" id="checkApprove" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Approve')">
+                <span>准奏，同意撥款全額 NT$1,110</span>
+            </label>
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" id="checkReject" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Reject')">
+                <span>駁回，理由：</span>
+                <input type="text" id="rejectReason" class="input-line ml-1 flex-1 max-w-xs">
+            </label>
+            <label class="flex items-center cursor-pointer">
+                <input type="checkbox" id="checkConditional" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Conditional')">
+                <span>條件核准，核發金額：NT$</span>
+                <input type="text" id="conditionalAmount" class="input-line ml-1 w-24">
+            </label>
+        </div>
+
+        <div class="mt-8 mb-6">
+            <span>奶奶簽章：</span>
+            <input type="text" id="signature" class="input-line w-48">
+        </div>
+
+        <div class="mt-10 pt-4 border-t border-gray-200 flex justify-end items-center">
+            <span id="submitMsg" class="mr-4"></span>
+            <button onclick="submitFormData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow cursor-pointer">
+                提交審核結果
+            </button>
+        </div>
+    </div>
+
+    <!-- 版權宣告 -->
+    <div class="text-center py-4 text-gray-500 text-sm">
+        版權所有 © 2026 <a href="https://pandapanda6666.github.io" class="text-blue-500 hover:underline">PandaPanda的AI日常</a> All Rights Reserved.
+    </div>
+
+    <script>
+        // --- 核心防護與錯誤捕捉 ---
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, args);
+        };
+        window.onerror = function(msg, url, line) { 
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+        });
+
+        // --- 連線設定 ---
+        let socket;
+        const appId = 'GiftAppForm_Id';
+        const loginHubUrl = 'https://pandapanda6666.github.io/login-hub/';
+
+        async function initConnection() {
+            try {
+                let serverUrl = new URLSearchParams(window.location.search).get('server');
+                if (!serverUrl) {
+                    const response = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                    if (!response.ok) throw new Error('無法取得伺服器網址');
+                    serverUrl = (await response.text()).trim();
+                }
+
+                if (!serverUrl) throw new Error('伺服器網址空白');
+
+                socket = io(serverUrl, { transports: ['websocket'] });
+
+                socket.on('connect', () => {
+                    socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                    handleAuthAndRoom();
+                });
+
+                socket.on('connect_error', () => {
+                    document.getElementById('auth-container').innerHTML = '<span class="text-red-400">伺服器連線失敗，請稍後再試</span>';
+                });
+
+                // 網域白名單阻擋機制
+                socket.on('illegalWebpage', () => {
+                    document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#1e293b; color:#ef4444; font-family:sans-serif; font-size:24px; font-weight:bold;">此為違法網頁 已封鎖</div>';
+                });
+
+                // 其他玩家連線邏輯 (依照規定實作，但此表單無明顯的多人游標需求，作為背景運作)
+                socket.on('playerJoined', (data) => {
+                    console.log('房間內玩家更新:', data.allPlayers);
+                });
+                socket.on('playerLeft', (data) => {
+                    console.log('玩家離開:', data.socketId);
+                });
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('auth-container').innerHTML = '<span class="text-red-400">伺服器連線失敗，請稍後再試</span>';
+            }
+        }
+
+        // --- SSO 與登入處理 ---
+        function handleAuthAndRoom() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAuth = urlParams.get('auth') === 'true';
+            const username = urlParams.get('user');
+
+            if (isAuth && username) {
+                // 已登入
+                socket.emit('requestProfile', { username: username });
+                
+                socket.on('profileData', (data) => {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                    
+                    renderProfileUI(data);
+                    joinRoomAndLoadData();
+                });
+            } else {
+                // 訪客模式
+                renderGuestUI();
+                joinRoomAndLoadData();
+            }
+        }
+
+        function renderProfileUI(data) {
+            const container = document.getElementById('auth-container');
+            container.innerHTML = `
+                <div onclick="redirectToLogin()" class="flex items-center cursor-pointer hover:bg-slate-700 p-2 rounded transition-colors duration-200">
+                    <img src="${data.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full mr-3 object-cover border-2 border-slate-500">
+                    <div class="flex flex-col text-sm">
+                        <span class="font-bold text-white">${data.nickname || '玩家'} <span class="text-xs text-gray-400 ml-1">Lv.${data.level || 1}</span></span>
+                        <span class="text-yellow-400">🪙 ${data.pCoin || 0}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderGuestUI() {
+            const container = document.getElementById('auth-container');
+            container.innerHTML = `
+                <button onclick="redirectToLogin(true)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
+                    登入 / 註冊帳號
+                </button>
+            `;
+        }
+
+        function redirectToLogin(requireLogin = false) {
+            let url = loginHubUrl + '?from=' + encodeURIComponent(window.location.href);
+            if (requireLogin) url += '&require=1';
+            window.location.href = url;
+        }
+
+        // --- 房間與雲端存取 ---
+        function joinRoomAndLoadData() {
+            socket.emit('joinGameRoom', { room: appId, characterData: {} });
+
+            // 讀取雲端表單進度
+            socket.emit('getAppData', { appId: appId }, (res) => {
+                if (res && res.data) {
+                    fillFormWithData(res.data);
+                }
+            });
+        }
+
+        // --- 表單邏輯 ---
+        function handleCheckboxChange(clickedCheckbox, type) {
+            // 實作勾選框的互斥行為 (單選)
+            const checkboxes = [
+                document.getElementById('checkApprove'),
+                document.getElementById('checkReject'),
+                document.getElementById('checkConditional')
+            ];
+            
+            if (clickedCheckbox.checked) {
+                checkboxes.forEach(cb => {
+                    if (cb !== clickedCheckbox) cb.checked = false;
+                });
+            }
+        }
+
+        function fillFormWithData(data) {
+            if (data.result === 'Approve') document.getElementById('checkApprove').checked = true;
+            if (data.result === 'Reject') document.getElementById('checkReject').checked = true;
+            if (data.result === 'Conditional') document.getElementById('checkConditional').checked = true;
+
+            if (data.rejectReason) document.getElementById('rejectReason').value = data.rejectReason;
+            if (data.conditionalAmount) document.getElementById('conditionalAmount').value = data.conditionalAmount;
+            if (data.signature) document.getElementById('signature').value = data.signature;
+        }
+
+        function submitFormData() {
+            if (!socket || !socket.connected) {
+                alert("目前無法連線到伺服器，請稍後再試。");
+                return;
+            }
+
+            let selectedResult = '';
+            if (document.getElementById('checkApprove').checked) selectedResult = 'Approve';
+            else if (document.getElementById('checkReject').checked) selectedResult = 'Reject';
+            else if (document.getElementById('checkConditional').checked) selectedResult = 'Conditional';
+
+            const formData = {
+                result: selectedResult,
+                rejectReason: document.getElementById('rejectReason').value,
+                conditionalAmount: document.getElementById('conditionalAmount').value,
+                signature: document.getElementById('signature').value
+            };
+
+            // 傳送資料到雲端
+            socket.emit('saveAppData', { appId: appId, data: formData });
+
+            // 發送日誌
+            socket.emit('logAppMessage', { 
+                appId: appId, 
+                message: `奶奶 提交了審核結果: ${selectedResult ? selectedResult : '未勾選'}，簽名: ${formData.signature}`, 
+                type: 'info' 
+            });
+
+            // 顯示成功訊息
+            const msgEl = document.getElementById('submitMsg');
+            msgEl.textContent = "資料已成功傳回伺服器！";
+            msgEl.className = "mr-4 text-green-600 font-bold";
+            
+            setTimeout(() => {
+                msgEl.textContent = "";
+            }, 3000);
+        }
+
+        // 啟動連線
+        initConnection();
+    </script>
+</body>
+</html>
