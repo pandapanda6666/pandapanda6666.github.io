@@ -567,6 +567,7 @@
             <nav>
                 <a href="#" class="nav-link active" data-page="about">關於本站</a>
                 <a href="#" class="nav-link" data-page="tools">自製</a>
+                <a href="https://pandapanda6666.github.io/shop/" target="_blank" rel="noopener noreferrer">商城</a>
                 <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
                 <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook</a>
                 
@@ -616,12 +617,19 @@
     <script>
         let blockRedirectTimer = null;
 
+        // 加密金鑰驗證 (替代原文明碼)
+        const _secret = [112, 97, 110, 100, 97, 49, 50, 51, 52];
+        const verifySec = (input) => {
+            if (!input || input.length !== _secret.length) return false;
+            return input.split('').every((c, idx) => c.charCodeAt(0) === _secret[idx]);
+        };
+
         window.addEventListener('keydown', function(e) {
             if (e.key === 'F2') {
                 e.preventDefault(); 
                 e.stopPropagation();
                 const pwd = prompt('請輸入解除封鎖密碼：');
-                if (pwd === 'panda1234') {
+                if (verifySec(pwd)) {
                     localStorage.setItem('isImmune', 'true'); 
                     localStorage.removeItem('isPermanentlyBlocked');
                     localStorage.removeItem('lockoutUntil');
@@ -783,7 +791,7 @@
 
         (async function checkSecurityOnLoad() {
             const urlParamsForGodMode = new URLSearchParams(window.location.search);
-            if (urlParamsForGodMode.get('godmode') === 'panda1234') {
+            if (verifySec(urlParamsForGodMode.get('godmode'))) {
                 localStorage.setItem('isImmune', 'true');
                 localStorage.removeItem('isPermanentlyBlocked');
                 localStorage.removeItem('lockoutUntil');
@@ -800,7 +808,10 @@
                 localStorage.removeItem('isPermanentlyBlocked');
                 localStorage.removeItem('lockoutUntil');
                 localStorage.removeItem('ultimateWarningCount');
-            } else if (localStorage.getItem('isPermanentlyBlocked')) {
+                return; // 直接略過後續的任何安全檢查機制
+            }
+
+            if (localStorage.getItem('isPermanentlyBlocked')) {
                 const blockOverlay = document.getElementById('block-overlay');
                 if (blockOverlay) {
                     blockOverlay.style.display = 'flex';
@@ -856,7 +867,7 @@
                     const widthDiff = windowW - innerW;
                     const heightDiff = windowH - innerH;
 
-                    if (widthDiff > threshold || heightDiff > threshold) {
+                    if ((widthDiff > threshold || heightDiff > threshold) && localStorage.getItem('isImmune') !== 'true') {
                          const details = `偵測到內容空間異常\n(外寬: ${windowW} - 內寬: ${innerW} = ${widthDiff})`;
                         permanentBlock('偵測到開發者工具 (面板佔用空間)', details);
                     }
@@ -928,6 +939,7 @@
             closeSecurityModalBtn.addEventListener('click', hideSecurityWarning);
             
             document.addEventListener('keydown', function(event) {
+                if (localStorage.getItem('isImmune') === 'true') return;
                 if (event.key === 'F2') return;
                 
                 if (event.keyCode === 123 || (event.ctrlKey && event.shiftKey && event.keyCode === 73) || (event.metaKey && event.altKey && event.keyCode === 73)) {
@@ -935,7 +947,9 @@
                     showSecurityWarning();
                 }
             });
-            document.addEventListener('contextmenu', event => event.preventDefault());
+            document.addEventListener('contextmenu', event => {
+                if (localStorage.getItem('isImmune') !== 'true') event.preventDefault();
+            });
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function showLoader() { loadingOverlay.style.display = 'flex'; }
