@@ -12,6 +12,16 @@
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
             originalWarn.apply(console, args);
         };
+        window.onerror = function(msg, url, line) {
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('logError', { errorMsg: msg, url: url, line: line });
+            }
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+            }
+        });
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -75,6 +85,9 @@
             <div>
                 <h2 id="displayNickname" class="text-2xl font-bold text-slate-800">使用者暱稱</h2>
                 <p id="displayUsername" class="text-slate-500 text-sm mt-1">@username</p>
+                <div class="mt-2 inline-flex items-center bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm border border-yellow-200">
+                    🪙 P幣: <span id="displayPCoin" class="ml-1">0</span>
+                </div>
             </div>
             <div class="space-y-3 pt-4 border-t border-slate-200">
                 <button id="returnAppBtn" onclick="returnToApp()" type="button" class="hidden w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md transition-all">
@@ -333,7 +346,6 @@
     </div>
 
     <script>
-        // 為了防止模組載入失敗導致 ReferenceError，在全域預先定義空函式保護
         window.handleGoogleLogin = function() { console.log('系統載入中...'); };
         window.handleRegGoogleAuth = function() { console.log('系統載入中...'); };
         window.handleLogin = function() { console.log('系統載入中...'); };
@@ -360,7 +372,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
@@ -378,12 +390,6 @@
         let socket;
         let serverUrl = "";
         let currentUserData = null;
-
-        window.onerror = function(msg, url, line) {
-            if (socket && socket.connected) {
-                socket.emit('logError', { errorMsg: msg, url: url, line: line });
-            }
-        };
 
         const urlParams = new URLSearchParams(window.location.search);
         const redirectUrl = urlParams.get('from') || "";
@@ -479,7 +485,7 @@
                     showMsg("登入成功！", "success");
                     currentUserData = res;
                     localStorage.setItem('panda_auto_user', res.username);
-                    localStorage.setItem('panda_auto_pass', res.password); // 直接儲存伺服器回傳的真實密碼
+                    localStorage.setItem('panda_auto_pass', res.password);
                     
                     updateProfileDashboard();
                     
@@ -498,7 +504,6 @@
                         document.getElementById('googleLinked').classList.remove('hidden');
                         document.getElementById('linkedGoogleEmail').innerText = res.email;
                     } else {
-                        // 密碼錯誤或帳號不存在時，清除可能殘留的無效快取
                         if (res.msg === 'user_not_found' || res.msg.includes('不存在') || res.msg.includes('密碼錯誤')) {
                             localStorage.removeItem('panda_auto_user');
                             localStorage.removeItem('panda_auto_pass');
@@ -567,8 +572,18 @@
             const savedU = localStorage.getItem('panda_auto_user');
             const savedP = localStorage.getItem('panda_auto_pass');
             
-            // 已優化：因為現在一定有真實密碼，所以直接用 socket.emit 進行極速自動登入，不再依賴 Firebase Auth 快取
-            if (savedU && savedP && savedP !== 'GOOGLE_AUTH') {
+            // 加入修復機制：若存留的是舊版 Google 驗證，直接啟動 Firebase Auth 確認
+            if (savedP === 'GOOGLE_AUTH') {
+                document.getElementById('loadingText').innerText = "驗證 Google 登入狀態中...";
+                const unsubscribe = onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                    } else {
+                        if (requireLogin) toggleView('login'); else toggleView('guest');
+                    }
+                    unsubscribe();
+                });
+            } else if (savedU && savedP) {
                 socket.emit('login', { username: savedU, password: savedP });
             } else {
                 document.getElementById('loadingText').innerText = "系統連線中，請稍候...";
@@ -696,6 +711,12 @@
             document.getElementById('displayNickname').innerText = currentUserData.nickname || currentUserData.username;
             document.getElementById('displayUsername').innerText = "@" + currentUserData.username;
             document.getElementById('displayAvatar').src = currentUserData.avatar || getDefaultAvatar();
+            
+            // 顯示 P幣
+            const pCoinDisplay = document.getElementById('displayPCoin');
+            if (pCoinDisplay) {
+                pCoinDisplay.innerText = currentUserData.pCoin || 0;
+            }
         }
 
         function getDefaultAvatar() {
@@ -892,7 +913,6 @@
             box.classList.remove('hidden');
         }
 
-        // 開始流程：一開啟網頁就只顯示載入圈圈
         fetchServerUrl();
     </script>
 </body>
