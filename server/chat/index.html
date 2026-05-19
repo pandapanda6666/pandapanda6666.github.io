@@ -4,7 +4,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Messages</title>
+  <title>pandachat</title>
+  <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no">
+  <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no">
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     :root {
@@ -206,9 +208,9 @@
     }
 
     .login-btn {
-      min-height: 38px;
-      border-radius: 20px;
-      padding: 0 14px;
+      min-height: 42px;
+      border-radius: 22px;
+      padding: 4px 14px 4px 6px;
       background: #e7f3ff;
       color: var(--blue-dark);
       font-weight: 700;
@@ -216,6 +218,35 @@
       align-items: center;
       gap: 8px;
       white-space: nowrap;
+      box-shadow: 0 8px 18px rgba(0, 132, 255, .14);
+    }
+
+    .login-btn .profile-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #fff;
+      border: 2px solid rgba(255,255,255,.9);
+    }
+
+    .login-btn .profile-copy {
+      display: grid;
+      gap: 1px;
+      text-align: left;
+      line-height: 1.05;
+    }
+
+    .login-btn .profile-name {
+      max-width: 120px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .login-btn .profile-coin {
+      color: #946200;
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .connection {
@@ -441,10 +472,10 @@
 </head>
 <body>
   <div id="systemBar" class="system-bar"></div>
-  <main class="app" aria-label="Messages">
+  <main class="app" aria-label="pandachat">
     <aside class="sidebar">
       <header class="side-header">
-        <div class="brand">Messages</div>
+        <div class="brand">pandachat</div>
         <button class="icon-btn" id="newChatBtn" title="新增對話">+</button>
       </header>
       <div class="search">
@@ -458,8 +489,8 @@
         <div class="chat-person">
           <div class="small-avatar" id="roomAvatar">M</div>
           <div class="chat-copy">
-            <div class="chat-name" id="roomTitle">Messages</div>
-            <div class="status-line" id="roomStatus">訪客與登入使用者皆可即時聊天</div>
+            <div class="chat-name" id="roomTitle">pandachat</div>
+            <div class="status-line" id="roomStatus">已整合 PandaPanda SSO 的即時聊天</div>
           </div>
         </div>
         <div class="chat-actions">
@@ -483,7 +514,7 @@
       </header>
       <div class="details-body">
         <div class="avatar" id="detailsAvatar">M</div>
-        <h2 id="detailsTitle">Messages</h2>
+        <h2 id="detailsTitle">pandachat</h2>
         <p class="status-line" id="detailsSubtitle">雲端同步聊天室</p>
         <div class="section-title">目前在線</div>
         <div class="people" id="peopleList"></div>
@@ -509,22 +540,24 @@
         if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
     });
 
-    const APP_ID = 'pandapanda_messages_chat';
-    const ROOM_ID = 'pandapanda_messages_chat_room';
+    const APP_ID = 'pandachat_Id';
+    const ROOM_ID = 'pandachat_Id';
     let socket;
     let currentUser = {
       username: 'guest-' + Math.random().toString(36).slice(2, 8),
       nickname: '訪客',
-      avatar: ''
+      avatar: '',
+      level: 0,
+      pCoin: 0
     };
     let messages = [];
     let allPlayers = {};
     let activeThreadId = 'main';
 
     const demoThreads = [
-      { id: 'main', name: 'Messages', preview: '即時多人連線聊天室', time: '現在', initial: 'M' },
+      { id: 'main', name: 'pandachat', preview: '即時多人連線聊天室', time: '現在', initial: 'M' },
       { id: 'cloud', name: '雲端存檔', preview: '訊息會同步到伺服器', time: '同步', initial: 'S' },
-      { id: 'sso', name: 'PandaPanda SSO', preview: '可登入也可訪客使用', time: 'SSO', initial: 'P' }
+      { id: 'sso', name: 'PandaPanda SSO', preview: '必須登入 PandaPanda SSO', time: 'SSO', initial: 'P' }
     ];
 
     const els = {
@@ -554,7 +587,7 @@
     async function boot() {
       renderThreads(demoThreads);
       bindUI();
-      applyLoginFromUrl();
+      if (!applyLoginFromUrl()) return;
       updateLoginButton();
       seedEmptyState();
       await connectServer();
@@ -570,7 +603,7 @@
         }
       });
       els.clearBtn.addEventListener('click', () => {
-        renderMessages([]);
+        renderpandachat([]);
         showNotice('已清除目前畫面，雲端資料未刪除');
       });
       els.newChatBtn.addEventListener('click', () => {
@@ -590,36 +623,34 @@
     function applyLoginFromUrl() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('auth') === 'true') {
-        const user = params.get('user');
-        if (user) {
-          currentUser.username = user;
-          currentUser.nickname = user;
-          currentUser.isLoggedIn = true;
-        }
+        const user = params.get('user') || currentUser.username;
+        currentUser.username = user;
+        currentUser.nickname = user;
+        currentUser.isLoggedIn = true;
         history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+        return true;
       }
+      els.loginBtn.textContent = '登入 / 註冊帳號';
+      window.location.replace('https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1');
+      return false;
     }
 
     function updateLoginButton() {
-      els.loginBtn.textContent = currentUser.isLoggedIn ? currentUser.nickname : '登入 / 註冊';
-      els.loginBtn.title = currentUser.isLoggedIn ? '查看個人資料' : '登入或註冊';
+      if (currentUser.isLoggedIn) {
+        const avatar = currentUser.avatar || 'https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no';
+        els.loginBtn.innerHTML = '<img class="profile-avatar" src="' + escapeAttr(avatar) + '" alt=""><span class="profile-copy"><span class="profile-name">' + escapeHtml(currentUser.nickname) + '</span><span class="profile-coin">🪙 ' + escapeHtml(currentUser.pCoin || 0) + ' P幣</span></span>';
+        els.loginBtn.title = '查看或修改個人資料';
+      } else {
+        els.loginBtn.textContent = '登入 / 註冊帳號';
+        els.loginBtn.title = '登入或註冊';
+      }
     }
 
     async function resolveServerUrl() {
       const params = new URLSearchParams(window.location.search);
       const fromUrl = params.get('server');
       if (fromUrl) return fromUrl;
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 6000);
-      let response;
-      try {
-        response = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt', {
-          cache: 'no-store',
-          signal: controller.signal
-        });
-      } finally {
-        window.clearTimeout(timeoutId);
-      }
+      const response = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt', { cache: 'no-store' });
       if (!response.ok) throw new Error('server_url.txt 讀取失敗');
       const serverUrl = (await response.text()).trim();
       if (!serverUrl || /localhost|127\.0\.0\.1|:3000\b/i.test(serverUrl)) throw new Error('伺服器網址不合法');
@@ -648,6 +679,8 @@
             appType: 'chat',
             nickname: currentUser.nickname,
             avatar: currentUser.avatar,
+            level: currentUser.level || 0,
+            pCoin: currentUser.pCoin || 0,
             lastActive: Date.now()
           }
         });
@@ -655,7 +688,7 @@
           const data = res && (res.data || res);
           if (data && Array.isArray(data.messages)) {
             messages = data.messages.slice(-200);
-            renderMessages(messages);
+            renderpandachat(messages);
             updateThreadPreview();
             els.saveState.textContent = '已載入雲端資料';
           } else {
@@ -681,6 +714,8 @@
         if (!data) return;
         currentUser.avatar = data.avatar || currentUser.avatar;
         currentUser.nickname = data.nickname || currentUser.nickname;
+        currentUser.level = data.level || currentUser.level || 0;
+        currentUser.pCoin = data.pCoin || currentUser.pCoin || 0;
         currentUser.isLoggedIn = true;
         updateLoginButton();
         refreshSelfInRoom();
@@ -708,13 +743,13 @@
         if (data.action === 'chatMessage' && data.message && !messages.some(msg => msg.id === data.message.id)) {
           messages.push(data.message);
           messages = messages.slice(-200);
-          renderMessages(messages);
+          renderpandachat(messages);
           updateThreadPreview();
           saveCloud();
         }
-        if (data.action === 'forceReplaceMessages' && Array.isArray(data.messages)) {
+        if (data.action === 'forceReplacepandachat' && Array.isArray(data.messages)) {
           messages = data.messages.slice(-200);
-          renderMessages(messages);
+          renderpandachat(messages);
           updateThreadPreview();
         }
       });
@@ -734,7 +769,7 @@
       };
       messages.push(message);
       messages = messages.slice(-200);
-      renderMessages(messages);
+      renderpandachat(messages);
       updateThreadPreview();
       els.messageInput.value = '';
       autoResizeInput();
@@ -769,6 +804,8 @@
       socket.emit('syncPlayerState', {
         nickname: currentUser.nickname,
         avatar: currentUser.avatar,
+        level: currentUser.level || 0,
+        pCoin: currentUser.pCoin || 0,
         lastActive: Date.now()
       });
     }
@@ -798,15 +835,15 @@
       messages = [{
         id: 'welcome',
         username: 'system',
-        nickname: 'Messages',
+        nickname: 'pandachat',
         avatar: '',
-        text: '歡迎來到即時聊天室。登入後會套用 PandaPanda SSO 個人資料，訪客也可以直接連線聊天。',
+        text: '歡迎來到即時聊天室。登入後會套用 PandaPanda SSO 個人資料，並以雲端資料同步聊天。',
         createdAt: new Date().toISOString()
       }];
-      renderMessages(messages);
+      renderpandachat(messages);
     }
 
-    function renderMessages(list) {
+    function renderpandachat(list) {
       els.messages.innerHTML = '<div class="day">今天</div>' + list.map((msg, index) => {
         const mine = msg.username === currentUser.username;
         const prev = list[index - 1];
@@ -890,7 +927,7 @@
   </script>
 
   <script type="text/plain" id="python-dashboard-code">
-# PandaPanda Messages Chat 管理面板
+# PandaPanda pandachat Chat 管理面板
 def init_dashboard(parent_frame, app_id, api_url):
     import tkinter as tk
     from tkinter import ttk, messagebox
@@ -899,7 +936,7 @@ def init_dashboard(parent_frame, app_id, api_url):
     root = ttk.Frame(parent_frame, padding=12)
     root.pack(fill="both", expand=True)
 
-    title = ttk.Label(root, text="Messages 聊天室管理", font=("Microsoft JhengHei UI", 14, "bold"))
+    title = ttk.Label(root, text="pandachat 聊天室管理", font=("Microsoft JhengHei UI", 14, "bold"))
     title.pack(anchor="w")
 
     status_var = tk.StringVar(value="尚未讀取資料")
