@@ -127,6 +127,16 @@
                 </div>
             </div>
 
+            <!-- 強制登入覆蓋層 -->
+            <div id="login-required-overlay" class="absolute inset-0 z-30 bg-gray-900/95 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300">
+                <i class="fas fa-lock text-6xl text-gray-600 mb-6"></i>
+                <h2 class="text-2xl font-bold text-gray-200 mb-2">請先登入系統</h2>
+                <p class="text-gray-400 mb-6">您必須登入後才能檢視聊天紀錄與發送訊息</p>
+                <button onclick="document.getElementById('login-btn').click()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-full font-bold shadow-lg transition transform hover:scale-105">
+                    前往登入
+                </button>
+            </div>
+
             <!-- 聊天紀錄區 -->
             <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                 <div class="text-center text-gray-500 text-xs py-4">-- 歡迎來到聊天室，請保持禮貌 --</div>
@@ -152,7 +162,6 @@
     </footer>
 
     <script>
-        // 核心設定
         const LOGIN_HUB_URL = 'https://pandapanda6666.github.io/login-hub/';
         const SERVER_TXT_URL = 'https://pandapanda6666.github.io/login-hub/server_url.txt';
         
@@ -161,9 +170,10 @@
         let isAuth = false;
         let onlinePlayers = {};
         
-        // 房間管理
+        // 房間與訊息管理 (全雲端化)
         let currentRoom = 'Lobby';
-        let knownRooms = ['Lobby', '遊戲交流', '閒聊區'];
+        let knownRooms = ['Lobby'];
+        let roomMessages = [];
 
         // DOM 元素快取
         const dom = {
@@ -189,17 +199,16 @@
             closeSidebarBtn: document.getElementById('close-sidebar-btn'),
             roomList: document.getElementById('room-list'),
             newRoomInput: document.getElementById('new-room-input'),
-            joinRoomBtn: document.getElementById('join-room-btn')
+            joinRoomBtn: document.getElementById('join-room-btn'),
+            loginOverlay: document.getElementById('login-required-overlay')
         };
 
-        // 規則 1：全域錯誤捕捉，回傳伺服器
         window.onerror = function(msg, url, line) { 
             if (typeof socket !== 'undefined' && socket.connected) {
                 socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
             }
         };
 
-        // 顯示嚴重錯誤
         function showFatalError(msg) {
             dom.errorOverlay.classList.remove('hidden');
             dom.errorText.innerText = msg;
@@ -207,14 +216,11 @@
             dom.connStatus.className = "ml-2 px-2 py-0.5 text-xs rounded-full bg-red-500 text-red-100 font-semibold";
         }
 
-        // 初始化網路連線
         async function initNetwork() {
             try {
-                // 優先讀取 URL 參數
                 const urlParams = new URLSearchParams(window.location.search);
                 let targetServerUrl = urlParams.get('server');
 
-                // 規則 1：如果無參數，則用 fetch 讀取絕對路徑，嚴格禁止 localhost fallback
                 if (!targetServerUrl) {
                     const res = await fetch(SERVER_TXT_URL);
                     if (!res.ok) throw new Error('無法取得伺服器網址文件');
@@ -225,20 +231,17 @@
                     throw new Error('伺服器網址無效或禁止連線至本機');
                 }
 
-                // 建立 Socket.IO 連線
                 socket = io(targetServerUrl, { transports: ['websocket'] });
 
                 socket.on('connect', () => {
                     dom.connStatus.innerText = "已連線";
                     dom.connStatus.className = "ml-2 px-2 py-0.5 text-xs rounded-full bg-green-500 text-green-900 font-semibold";
                     
-                    // 規則 1：發送裝置資訊
                     socket.emit('initClientInfo', { 
                         location: '未知地點', 
                         device: navigator.userAgent 
                     });
 
-                    // 處理登入或訪客邏輯
                     checkAuthAndJoinRoom();
                 });
 
@@ -261,58 +264,58 @@
         function checkAuthAndJoinRoom() {
             const urlParams = new URLSearchParams(window.location.search);
             
-            // 規則 2：登入狀態檢查
+            // 將登入狀態存入 sessionStorage，解決重整後遺失問題
             if (urlParams.get('auth') === 'true') {
-                isAuth = true;
-                const userParam = urlParams.get('user');
-                
-                // 請求玩家資料
-                socket.emit('requestProfile', { username: userParam });
-                
-                // 清除網址列參數
+                sessionStorage.setItem('chat_auth', 'true');
+                sessionStorage.setItem('chat_user', urlParams.get('user'));
                 window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            if (sessionStorage.getItem('chat_auth') === 'true') {
+                isAuth = true;
+                const userParam = sessionStorage.getItem('chat_user');
+                socket.emit('requestProfile', { username: userParam });
+                dom.loginOverlay.classList.add('hidden'); // 解除鎖定畫面
+                dom.chatInput.disabled = false;
+                dom.newRoomInput.disabled = false;
             } else {
-                // 訪客模式：直接加入房間
+                // 強制登入模式
+                isAuth = false;
                 setupUIForAuth(false);
-                joinRoom();
+                dom.loginOverlay.classList.remove('hidden'); // 顯示鎖定畫面
+                dom.chatInput.disabled = true;
+                dom.newRoomInput.disabled = true;
+                dom.chatInput.placeholder = "請先登入系統...";
+                
+                // 即使未登入也載入全域房間列表供預覽，但不允許加入房間
+                loadGlobalData();
             }
         }
 
-        // 規則 2：介面修改
         function setupUIForAuth(authenticated, profileData = null) {
             const returnUrl = encodeURIComponent(window.location.href);
             
             if (authenticated && profileData) {
                 dom.loginBtn.classList.add('hidden');
                 dom.profileBtn.classList.remove('hidden');
-                
                 dom.profileName.innerText = profileData.nickname || profileData.username;
                 if(profileData.avatar) dom.profileAvatar.src = profileData.avatar;
                 
-                // 點擊前往登入中心 (無 require 參數)
-                dom.profileBtn.onclick = () => {
-                    window.location.href = `${LOGIN_HUB_URL}?from=${returnUrl}`;
-                };
+                dom.profileBtn.onclick = () => window.location.href = `${LOGIN_HUB_URL}?from=${returnUrl}`;
             } else {
                 dom.profileBtn.classList.add('hidden');
                 dom.loginBtn.classList.remove('hidden');
-                
-                // 點擊前往登入中心註冊/登入 (含 require=1)
-                dom.loginBtn.onclick = () => {
-                    window.location.href = `${LOGIN_HUB_URL}?from=${returnUrl}&require=1`;
-                };
+                dom.loginBtn.onclick = () => window.location.href = `${LOGIN_HUB_URL}?from=${returnUrl}&require=1`;
             }
         }
 
         function setupSocketListeners() {
-            // 接收 Profile
             socket.on('profileData', (data) => {
                 currentUser = data;
                 setupUIForAuth(true, data);
-                joinRoom(); // 取得資料後再加入房間
+                loadGlobalData(() => joinRoom()); // 取得全域頻道後再加入房間
             });
 
-            // 規則 3：加入房間與同步狀態
             socket.on('playerJoined', (data) => {
                 onlinePlayers = data.allPlayers || {};
                 renderUserList();
@@ -325,64 +328,85 @@
                 }
             });
 
-            // 規則 4：聊天與系統公告
             socket.on('roomChatMessage', (data) => {
-                appendChatMessage(data);
-            });
-
-            socket.on('systemMessage', (msg) => {
-                showSystemAnnouncement(msg);
-            });
-
-            // 規則 3：萬用資料通道 (處理自訂邏輯，例如面板強制更新進度)
-            socket.on('appData', (data) => {
-                if(data.action === 'forceUpdateUI') {
-                    // 接收到管理面板的強制更新
-                    loadCloudData();
+                // 防止重複渲染自己發的訊息
+                if (!roomMessages.some(m => m.id === data.id)) {
+                    roomMessages.push(data);
+                    appendChatMessage(data);
                 }
             });
+
+            socket.on('systemMessage', (msg) => showSystemAnnouncement(msg));
+
+            socket.on('appData', (data) => {
+                if(data.action === 'forceUpdateUI') loadRoomData();
+            });
+        }
+
+        function loadGlobalData(callback) {
+            socket.emit('getAppData', { appId: 'ChatApp_Global' }, (res) => {
+                if (res && res.rooms && Array.isArray(res.rooms)) {
+                    knownRooms = res.rooms;
+                    if(!knownRooms.includes('Lobby')) knownRooms.unshift('Lobby');
+                }
+                renderRoomList();
+                if(callback) callback();
+            });
+        }
+
+        function saveGlobalData() {
+            socket.emit('saveAppData', { appId: 'ChatApp_Global', data: { rooms: knownRooms } });
         }
 
         function joinRoom() {
-            // 清空當前聊天與玩家列表
+            if(!isAuth) return; // 未登入不可加入
+
             dom.chatMessages.innerHTML = `<div class="text-center text-gray-500 text-xs py-4">-- 歡迎來到 ${escapeHTML(currentRoom)}，請保持禮貌 --</div>`;
             onlinePlayers = {};
+            roomMessages = [];
             renderUserList();
             dom.headerTitle.innerText = currentRoom;
 
-            // 規則 3：加入房間 (切換頻道)
             socket.emit('joinGameRoom', { 
                 room: currentRoom, 
-                characterData: {
-                    nickname: currentUser.nickname,
-                    avatar: currentUser.avatar,
-                    isAuth: isAuth
-                } 
+                characterData: { nickname: currentUser.nickname, avatar: currentUser.avatar, isAuth: isAuth } 
             });
             
-            // 規則 4：紀錄日誌
-            socket.emit('logAppMessage', { 
-                appId: currentRoom, 
-                message: `${currentUser.nickname} 進入了 ${currentRoom}`, 
-                type: 'info' 
-            });
+            socket.emit('logAppMessage', { appId: currentRoom, message: `${currentUser.nickname} 進入了 ${currentRoom}`, type: 'info' });
 
-            // 規則 4：雲端讀取 (載入該房間專屬的置頂訊息)
-            loadCloudData();
+            loadRoomData();
         }
 
-        function loadCloudData() {
-            socket.emit('getAppData', { appId: currentRoom }, (res) => {
-                if (res && res.pinnedMessage) {
-                    dom.pinnedContainer.classList.remove('hidden');
-                    dom.pinnedText.innerText = res.pinnedMessage;
-                } else {
-                    dom.pinnedContainer.classList.add('hidden');
+        function loadRoomData() {
+            socket.emit('getAppData', { appId: 'ChatRoom_' + currentRoom }, (res) => {
+                if (res) {
+                    if (res.pinnedMessage) {
+                        dom.pinnedContainer.classList.remove('hidden');
+                        dom.pinnedText.innerText = res.pinnedMessage;
+                    } else {
+                        dom.pinnedContainer.classList.add('hidden');
+                    }
+                    
+                    // 載入歷史訊息
+                    if (res.messages && Array.isArray(res.messages)) {
+                        roomMessages = res.messages;
+                        roomMessages.forEach(msg => appendChatMessage(msg));
+                    }
                 }
             });
         }
 
-        // 渲染房間清單
+        function saveRoomData(newMsg) {
+            // 保留最後 100 筆訊息避免檔案過大
+            const messagesToSave = roomMessages.slice(-100);
+            const currentPinned = dom.pinnedContainer.classList.contains('hidden') ? '' : dom.pinnedText.innerText;
+            
+            socket.emit('saveAppData', { 
+                appId: 'ChatRoom_' + currentRoom, 
+                data: { messages: messagesToSave, pinnedMessage: currentPinned } 
+            });
+        }
+
         function renderRoomList() {
             dom.roomList.innerHTML = '';
             knownRooms.forEach(room => {
@@ -391,11 +415,11 @@
                 li.className = `cursor-pointer text-sm px-2 py-1.5 rounded flex items-center group transition ${isActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'}`;
                 li.innerHTML = `<i class="fas ${isActive ? 'fa-door-open' : 'fa-hashtag'} mr-2 text-xs w-4 text-center"></i><span class="truncate">${escapeHTML(room)}</span>`;
                 li.onclick = () => {
-                    if (room !== currentRoom) {
+                    if (room !== currentRoom && isAuth) {
                         currentRoom = room;
                         renderRoomList();
                         joinRoom();
-                        if(window.innerWidth < 768) dom.sidebar.classList.add('-translate-x-full'); // 手機版切換後自動收起側欄
+                        if(window.innerWidth < 768) dom.sidebar.classList.add('-translate-x-full');
                     }
                 };
                 dom.roomList.appendChild(li);
@@ -410,22 +434,17 @@
             playerIds.forEach(id => {
                 const p = onlinePlayers[id];
                 const charData = p.characterData || {};
-                
                 const li = document.createElement('li');
                 li.className = "flex items-center space-x-2 p-2 hover:bg-gray-700 rounded-lg transition";
-                
-                // 判斷是否為訪客，給予不同邊框色
                 const avatarBorder = charData.isAuth ? 'border-indigo-400' : 'border-gray-500';
-                const displayName = charData.nickname || '未知名稱';
-                const avatarSrc = charData.avatar || 'https://placehold.co/100x100/4b5563/ffffff?text=?';
-
+                
                 li.innerHTML = `
                     <div class="relative flex-shrink-0">
-                        <img src="${avatarSrc}" class="w-8 h-8 rounded-full border-2 ${avatarBorder}">
+                        <img src="${charData.avatar || 'https://placehold.co/100x100/4b5563/ffffff?text=?'}" class="w-8 h-8 rounded-full border-2 ${avatarBorder}">
                         <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border border-gray-800 rounded-full"></div>
                     </div>
                     <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-200 truncate">${displayName}</p>
+                        <p class="text-sm font-medium text-gray-200 truncate">${charData.nickname || '未知名稱'}</p>
                         ${charData.isAuth ? '<p class="text-[10px] text-indigo-400">已驗證玩家</p>' : '<p class="text-[10px] text-gray-500">訪客</p>'}
                     </div>
                 `;
@@ -434,15 +453,12 @@
         }
 
         function appendChatMessage(data) {
+            if (!data || !data.message) return; // 防呆
             const isMe = data.sender === (currentUser.nickname || currentUser.username);
             const msgDiv = document.createElement('div');
-            
-            // 時間格式化
-            const now = new Date();
-            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            const timeStr = data.time || `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
 
             if (isMe) {
-                // 自己發的訊息 (靠右)
                 msgDiv.className = "flex justify-end";
                 msgDiv.innerHTML = `
                     <div class="flex items-end space-x-2 max-w-[80%]">
@@ -453,7 +469,6 @@
                     </div>
                 `;
             } else {
-                // 別人發的訊息 (靠左)
                 msgDiv.className = "flex justify-start space-x-2";
                 msgDiv.innerHTML = `
                     <img src="${data.avatar || 'https://placehold.co/100x100/4b5563/ffffff?text=U'}" class="w-8 h-8 rounded-full flex-shrink-0 mt-1">
@@ -470,62 +485,61 @@
             }
 
             dom.chatMessages.appendChild(msgDiv);
-            dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight; // 自動捲動到底部
+            dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
         }
 
         function showSystemAnnouncement(msg) {
             dom.sysAnnouncement.classList.remove('hidden');
             dom.announcementText.innerText = msg;
-            // 重新觸發動畫
             dom.announcementText.style.animation = 'none';
-            dom.announcementText.offsetHeight; /* trigger reflow */
+            dom.announcementText.offsetHeight; 
             dom.announcementText.style.animation = null; 
         }
 
-        // 安全字串處理 (已修復 undefined 崩潰問題)
         function escapeHTML(str) {
             if (str === null || str === undefined) return '';
             return String(str).replace(/[&<>'"]/g, 
-                tag => ({
-                    '&': '&amp;',
-                    '<': '&lt;',
-                    '>': '&gt;',
-                    "'": '&#39;',
-                    '"': '&quot;'
-                }[tag])
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
             );
         }
 
-        // 綁定發送事件
         dom.chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const text = dom.chatInput.value.trim();
-            if (!text || !socket || !socket.connected) return;
+            if (!text || !socket || !socket.connected || !isAuth) return;
 
-            // 規則 4：發送聊天訊息 (這裡的封包結構可依照您的伺服器，通常只需要傳字串或物件)
-            // 假設伺服器接受字串並自動補上發送者，或者允許傳物件
-            socket.emit('sendRoomChat', {
+            const timeStr = `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
+            const msgData = {
+                id: Math.random().toString(36).substr(2, 9), // 唯一識別碼防重複
                 message: text,
-                sender: currentUser.nickname || '訪客',
-                avatar: currentUser.avatar
-            });
+                sender: currentUser.nickname || currentUser.username,
+                avatar: currentUser.avatar,
+                time: timeStr
+            };
 
-            // 規則 4：紀錄發言日誌
-            socket.emit('logAppMessage', { 
-                appId: currentRoom, 
-                message: `${currentUser.nickname} 說: ${text.substring(0, 10)}${text.length > 10 ? '...' : ''}`, 
-                type: 'info' 
-            });
+            // 1. 本地顯示
+            roomMessages.push(msgData);
+            appendChatMessage(msgData);
+            
+            // 2. 廣播給房間其他人
+            socket.emit('sendRoomChat', msgData);
+
+            // 3. 儲存至雲端歷史紀錄
+            saveRoomData();
+
+            // 4. 紀錄伺服器日誌
+            socket.emit('logAppMessage', { appId: 'ChatRoom_' + currentRoom, message: `${msgData.sender} 說: ${text.substring(0, 15)}...`, type: 'info' });
 
             dom.chatInput.value = '';
         });
 
-        // 綁定加入/創建房間事件
         dom.joinRoomBtn.addEventListener('click', () => {
+            if(!isAuth) return;
             const newRoom = dom.newRoomInput.value.trim();
             if (newRoom && newRoom !== currentRoom) {
                 if (!knownRooms.includes(newRoom)) {
                     knownRooms.push(newRoom);
+                    saveGlobalData(); // 新增房間同步至雲端
                 }
                 currentRoom = newRoom;
                 dom.newRoomInput.value = '';
@@ -542,17 +556,11 @@
             }
         });
 
-        // 手機版側邊欄開關
-        dom.toggleSidebarBtn.addEventListener('click', () => {
-            dom.sidebar.classList.remove('-translate-x-full');
-        });
-        dom.closeSidebarBtn.addEventListener('click', () => {
-            dom.sidebar.classList.add('-translate-x-full');
-        });
+        dom.toggleSidebarBtn.addEventListener('click', () => dom.sidebar.classList.remove('-translate-x-full'));
+        dom.closeSidebarBtn.addEventListener('click', () => dom.sidebar.classList.add('-translate-x-full'));
 
-        // 啟動應用
         window.onload = () => {
-            renderRoomList();
+            // 初始化不需要呼叫 renderRoomList()，因為會透過 initNetwork() -> loadGlobalData() 自動載入
             initNetwork();
         };
 
