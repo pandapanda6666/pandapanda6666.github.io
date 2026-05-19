@@ -59,7 +59,7 @@
             <div class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-xl font-bold shadow-lg">
                 <i class="fas fa-comments"></i>
             </div>
-            <h1 class="text-xl font-bold tracking-wider">即時聊天大廳</h1>
+            <h1 id="header-title" class="text-xl font-bold tracking-wider">大廳 (Lobby)</h1>
             <span id="connection-status" class="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-500 text-yellow-900 font-semibold">
                 連線中...
             </span>
@@ -88,6 +88,18 @@
 
         <!-- 左側：線上名單 -->
         <aside id="sidebar" class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col transition-transform duration-300 absolute md:relative z-10 h-full transform -translate-x-full md:translate-x-0">
+            <!-- 新增：聊天頻道區塊 -->
+            <div class="p-3 border-b border-gray-700 bg-gray-800">
+                <h2 class="text-sm font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-hashtag mr-2"></i>聊天頻道</h2>
+                <div class="flex space-x-1 mb-2">
+                    <input type="text" id="new-room-input" class="flex-1 bg-gray-700 text-xs text-white px-2 py-1.5 rounded border border-gray-600 outline-none focus:border-indigo-500" placeholder="輸入房名創建或加入...">
+                    <button id="join-room-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs transition shadow-sm">進入</button>
+                </div>
+                <ul id="room-list" class="space-y-1 max-h-40 overflow-y-auto no-scrollbar">
+                    <!-- 頻道清單由 JS 動態生成 -->
+                </ul>
+            </div>
+
             <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
                 <h2 class="font-semibold text-gray-300 flex items-center space-x-2">
                     <i class="fas fa-user-friends text-indigo-400"></i>
@@ -141,7 +153,6 @@
 
     <script>
         // 核心設定
-        const APP_ID = 'messages_Id';
         const LOGIN_HUB_URL = 'https://pandapanda6666.github.io/login-hub/';
         const SERVER_TXT_URL = 'https://pandapanda6666.github.io/login-hub/server_url.txt';
         
@@ -149,12 +160,17 @@
         let currentUser = { username: 'Guest_' + Math.floor(Math.random()*1000), nickname: '訪客', avatar: 'https://placehold.co/100x100/4b5563/ffffff?text=?' };
         let isAuth = false;
         let onlinePlayers = {};
+        
+        // 房間管理
+        let currentRoom = 'Lobby';
+        let knownRooms = ['Lobby', '遊戲交流', '閒聊區'];
 
         // DOM 元素快取
         const dom = {
             errorOverlay: document.getElementById('error-overlay'),
             errorText: document.getElementById('error-text'),
             connStatus: document.getElementById('connection-status'),
+            headerTitle: document.getElementById('header-title'),
             loginBtn: document.getElementById('login-btn'),
             profileBtn: document.getElementById('profile-btn'),
             profileName: document.getElementById('profile-name'),
@@ -170,7 +186,10 @@
             pinnedText: document.getElementById('pinned-msg-text'),
             sidebar: document.getElementById('sidebar'),
             toggleSidebarBtn: document.getElementById('toggle-sidebar-btn'),
-            closeSidebarBtn: document.getElementById('close-sidebar-btn')
+            closeSidebarBtn: document.getElementById('close-sidebar-btn'),
+            roomList: document.getElementById('room-list'),
+            newRoomInput: document.getElementById('new-room-input'),
+            joinRoomBtn: document.getElementById('join-room-btn')
         };
 
         // 規則 1：全域錯誤捕捉，回傳伺服器
@@ -325,9 +344,15 @@
         }
 
         function joinRoom() {
-            // 規則 3：加入房間
+            // 清空當前聊天與玩家列表
+            dom.chatMessages.innerHTML = `<div class="text-center text-gray-500 text-xs py-4">-- 歡迎來到 ${escapeHTML(currentRoom)}，請保持禮貌 --</div>`;
+            onlinePlayers = {};
+            renderUserList();
+            dom.headerTitle.innerText = currentRoom;
+
+            // 規則 3：加入房間 (切換頻道)
             socket.emit('joinGameRoom', { 
-                room: APP_ID, 
+                room: currentRoom, 
                 characterData: {
                     nickname: currentUser.nickname,
                     avatar: currentUser.avatar,
@@ -337,23 +362,43 @@
             
             // 規則 4：紀錄日誌
             socket.emit('logAppMessage', { 
-                appId: APP_ID, 
-                message: `${currentUser.nickname} 進入了聊天室`, 
+                appId: currentRoom, 
+                message: `${currentUser.nickname} 進入了 ${currentRoom}`, 
                 type: 'info' 
             });
 
-            // 規則 4：雲端讀取 (載入置頂訊息)
+            // 規則 4：雲端讀取 (載入該房間專屬的置頂訊息)
             loadCloudData();
         }
 
         function loadCloudData() {
-            socket.emit('getAppData', { appId: APP_ID }, (res) => {
+            socket.emit('getAppData', { appId: currentRoom }, (res) => {
                 if (res && res.pinnedMessage) {
                     dom.pinnedContainer.classList.remove('hidden');
                     dom.pinnedText.innerText = res.pinnedMessage;
                 } else {
                     dom.pinnedContainer.classList.add('hidden');
                 }
+            });
+        }
+
+        // 渲染房間清單
+        function renderRoomList() {
+            dom.roomList.innerHTML = '';
+            knownRooms.forEach(room => {
+                const li = document.createElement('li');
+                const isActive = room === currentRoom;
+                li.className = `cursor-pointer text-sm px-2 py-1.5 rounded flex items-center group transition ${isActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'}`;
+                li.innerHTML = `<i class="fas ${isActive ? 'fa-door-open' : 'fa-hashtag'} mr-2 text-xs w-4 text-center"></i><span class="truncate">${escapeHTML(room)}</span>`;
+                li.onclick = () => {
+                    if (room !== currentRoom) {
+                        currentRoom = room;
+                        renderRoomList();
+                        joinRoom();
+                        if(window.innerWidth < 768) dom.sidebar.classList.add('-translate-x-full'); // 手機版切換後自動收起側欄
+                    }
+                };
+                dom.roomList.appendChild(li);
             });
         }
 
@@ -437,9 +482,10 @@
             dom.announcementText.style.animation = null; 
         }
 
-        // 安全字串處理
+        // 安全字串處理 (已修復 undefined 崩潰問題)
         function escapeHTML(str) {
-            return str.replace(/[&<>'"]/g, 
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[&<>'"]/g, 
                 tag => ({
                     '&': '&amp;',
                     '<': '&lt;',
@@ -466,12 +512,34 @@
 
             // 規則 4：紀錄發言日誌
             socket.emit('logAppMessage', { 
-                appId: APP_ID, 
+                appId: currentRoom, 
                 message: `${currentUser.nickname} 說: ${text.substring(0, 10)}${text.length > 10 ? '...' : ''}`, 
                 type: 'info' 
             });
 
             dom.chatInput.value = '';
+        });
+
+        // 綁定加入/創建房間事件
+        dom.joinRoomBtn.addEventListener('click', () => {
+            const newRoom = dom.newRoomInput.value.trim();
+            if (newRoom && newRoom !== currentRoom) {
+                if (!knownRooms.includes(newRoom)) {
+                    knownRooms.push(newRoom);
+                }
+                currentRoom = newRoom;
+                dom.newRoomInput.value = '';
+                renderRoomList();
+                joinRoom();
+                if(window.innerWidth < 768) dom.sidebar.classList.add('-translate-x-full');
+            }
+        });
+
+        dom.newRoomInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                dom.joinRoomBtn.click();
+            }
         });
 
         // 手機版側邊欄開關
@@ -483,7 +551,10 @@
         });
 
         // 啟動應用
-        window.onload = initNetwork;
+        window.onload = () => {
+            renderRoomList();
+            initNetwork();
+        };
 
     </script>
 </body>
