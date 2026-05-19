@@ -1,569 +1,938 @@
-<!-- 
-  【開發者提醒】
-  請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線。
--->
-<!DOCTYPE html>
-<html lang="zh-TW">
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
+<!doctype html>
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>即時聊天室</title>
-    <!-- 引入 Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Socket.IO -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <!-- 引入 Font Awesome 供圖示使用 -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        /* 隱藏捲軸但保留滾動功能 */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        
-        /* 跑馬燈動畫 */
-        @keyframes marquee {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
-        .animate-marquee {
-            animation: marquee 15s linear infinite;
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Messages</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --panel: #ffffff;
+      --line: #e4e6eb;
+      --text: #050505;
+      --muted: #65676b;
+      --blue: #0084ff;
+      --blue-dark: #006bd6;
+      --green: #31a24c;
+      --danger: #ef4444;
+      --bubble: #e4e6eb;
+      --shadow: 0 8px 28px rgba(0, 0, 0, .08);
+      font-family: "Segoe UI", "Microsoft JhengHei", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    button, input, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr) 280px;
+      background: var(--panel);
+    }
+
+    .sidebar,
+    .details {
+      min-width: 0;
+      background: var(--panel);
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .details {
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    .side-header,
+    .chat-header,
+    .details-header {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, .96);
+    }
+
+    .side-header {
+      justify-content: space-between;
+    }
+
+    .brand {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #f0f2f5;
+      color: #1c1e21;
+      display: inline-grid;
+      place-items: center;
+      font-weight: 700;
+    }
+
+    .icon-btn:hover,
+    .login-btn:hover,
+    .send-btn:hover { filter: brightness(.97); }
+
+    .search {
+      padding: 12px 16px;
+    }
+
+    .search input {
+      width: 100%;
+      height: 40px;
+      border: 0;
+      border-radius: 20px;
+      background: #f0f2f5;
+      padding: 0 16px;
+      outline: none;
+      color: var(--text);
+    }
+
+    .thread-list {
+      overflow: auto;
+      padding: 0 8px 12px;
+    }
+
+    .thread {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 56px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 8px;
+      border-radius: 10px;
+      background: transparent;
+      text-align: left;
+      color: var(--text);
+    }
+
+    .thread.active,
+    .thread:hover { background: #f0f2f5; }
+
+    .avatar,
+    .small-avatar {
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0084ff, #31a24c);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      flex: 0 0 auto;
+      overflow: hidden;
+    }
+
+    .avatar { width: 56px; height: 56px; font-size: 22px; }
+    .small-avatar { width: 40px; height: 40px; font-size: 16px; }
+    .avatar img,
+    .small-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thread-name,
+    .chat-name {
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .thread-preview,
+    .status-line {
+      color: var(--muted);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-top: 3px;
+    }
+
+    .thread-time {
+      color: var(--muted);
+      font-size: 12px;
+      align-self: start;
+      padding-top: 4px;
+    }
+
+    .chat {
+      min-width: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+    }
+
+    .chat-header {
+      justify-content: space-between;
+    }
+
+    .chat-person {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .chat-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .login-btn {
+      min-height: 38px;
+      border-radius: 20px;
+      padding: 0 14px;
+      background: #e7f3ff;
+      color: var(--blue-dark);
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .connection {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #bcc0c4;
+    }
+
+    .dot.online { background: var(--green); }
+    .dot.error { background: var(--danger); }
+
+    .messages {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 18px 18px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .day {
+      align-self: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin: 10px 0;
+    }
+
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      margin: 2px 0;
+    }
+
+    .message-row.mine {
+      justify-content: flex-end;
+    }
+
+    .bubble {
+      max-width: min(560px, 72%);
+      padding: 9px 12px;
+      border-radius: 18px;
+      background: var(--bubble);
+      color: var(--text);
+      line-height: 1.45;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .mine .bubble {
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .sender {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 8px 0 2px 48px;
+    }
+
+    .mine + .message-row:not(.mine),
+    .message-row:not(.mine) + .mine {
+      margin-top: 8px;
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 8px;
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .composer textarea {
+      min-height: 40px;
+      max-height: 120px;
+      resize: none;
+      border: 0;
+      outline: none;
+      border-radius: 20px;
+      background: #f0f2f5;
+      padding: 10px 14px;
+      line-height: 1.35;
+      overflow: auto;
+    }
+
+    .send-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--blue);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .details-body {
+      overflow: auto;
+      padding: 20px 18px;
+      text-align: center;
+    }
+
+    .details .avatar {
+      width: 86px;
+      height: 86px;
+      margin: 4px auto 12px;
+      font-size: 32px;
+    }
+
+    .section-title {
+      margin: 28px 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .people {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+
+    .person {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      border-radius: 10px;
+      background: #f7f8fa;
+    }
+
+    .system-bar {
+      min-height: 34px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      background: #fff4d6;
+      color: #7c4a03;
+      border-bottom: 1px solid #ffe4a3;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .system-bar.show { display: flex; }
+
+    .copyright {
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .copyright a {
+      color: var(--blue-dark);
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .hidden-code {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 300px minmax(0, 1fr);
+      }
+      .details { display: none; }
+    }
+
+    @media (max-width: 720px) {
+      body { overflow: auto; }
+      .app {
+        height: 100dvh;
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        display: none;
+      }
+      .chat {
+        height: 100dvh;
+      }
+      .chat-header {
+        min-height: 58px;
+        padding: 8px 10px;
+      }
+      .chat-actions {
+        gap: 4px;
+      }
+      .connection span:last-child {
+        display: none;
+      }
+      .login-btn {
+        max-width: 128px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .messages {
+        padding: 14px 10px 10px;
+      }
+      .bubble {
+        max-width: 82%;
+      }
+    }
+  </style>
 </head>
-<body class="bg-gray-900 text-white h-screen flex flex-col overflow-hidden font-sans">
+<body>
+  <div id="systemBar" class="system-bar"></div>
+  <main class="app" aria-label="Messages">
+    <aside class="sidebar">
+      <header class="side-header">
+        <div class="brand">Messages</div>
+        <button class="icon-btn" id="newChatBtn" title="新增對話">+</button>
+      </header>
+      <div class="search">
+        <input id="searchInput" type="search" placeholder="搜尋 Messenger">
+      </div>
+      <nav class="thread-list" id="threadList" aria-label="對話列表"></nav>
+    </aside>
 
-    <!-- 全域錯誤與連線覆蓋層 -->
-    <div id="error-overlay" class="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center hidden">
-        <div class="bg-red-900 border border-red-500 rounded-lg p-6 max-w-sm text-center shadow-2xl">
-            <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
-            <h2 class="text-xl font-bold mb-2">發生錯誤</h2>
-            <p id="error-text" class="text-gray-200">伺服器連線失敗，請稍後再試</p>
+    <section class="chat">
+      <header class="chat-header">
+        <div class="chat-person">
+          <div class="small-avatar" id="roomAvatar">M</div>
+          <div class="chat-copy">
+            <div class="chat-name" id="roomTitle">Messages</div>
+            <div class="status-line" id="roomStatus">訪客與登入使用者皆可即時聊天</div>
+          </div>
         </div>
-    </div>
+        <div class="chat-actions">
+          <div class="connection" title="連線狀態"><span class="dot" id="connDot"></span><span id="connText">連線中</span></div>
+          <button class="login-btn" id="loginBtn">登入 / 註冊</button>
+        </div>
+      </header>
 
-    <!-- 系統公告跑馬燈 -->
-    <div id="system-announcement" class="bg-blue-600 text-sm py-1 px-4 relative overflow-hidden hidden flex-shrink-0">
-        <div class="whitespace-nowrap inline-block animate-marquee" id="announcement-text">
-            歡迎來到即時聊天室！
-        </div>
-    </div>
+      <div class="messages" id="messages" aria-live="polite"></div>
 
-    <!-- 頂部導覽列 -->
-    <header class="bg-gray-800 border-b border-gray-700 h-16 flex items-center justify-between px-6 flex-shrink-0">
-        <div class="flex items-center space-x-3">
-            <div class="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-xl font-bold shadow-lg">
-                <i class="fas fa-comments"></i>
-            </div>
-            <h1 id="header-title" class="text-xl font-bold tracking-wider">大廳 (Lobby)</h1>
-            <span id="connection-status" class="ml-2 px-2 py-0.5 text-xs rounded-full bg-yellow-500 text-yellow-900 font-semibold">
-                連線中...
-            </span>
-        </div>
-        
-        <!-- 登入與個人資料區 -->
-        <div id="auth-container">
-            <button id="login-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition duration-200 shadow shadow-indigo-500/30 flex items-center space-x-2 hidden">
-                <i class="fas fa-sign-in-alt"></i>
-                <span>登入 / 註冊</span>
-            </button>
-            <button id="profile-btn" class="bg-gray-700 hover:bg-gray-600 border border-gray-600 px-4 py-1.5 rounded-lg font-medium transition duration-200 flex items-center space-x-3 hidden">
-                <img id="profile-avatar" src="https://placehold.co/100x100/3730a3/ffffff?text=User" alt="Avatar" class="w-7 h-7 rounded-full">
-                <span id="profile-name">載入中</span>
-            </button>
-        </div>
-    </header>
+      <form class="composer" id="composer">
+        <button class="icon-btn" type="button" id="clearBtn" title="清除本機畫面">⌫</button>
+        <textarea id="messageInput" rows="1" placeholder="Aa" autocomplete="off"></textarea>
+        <button class="send-btn" type="submit" title="送出">›</button>
+      </form>
+    </section>
 
-    <!-- 主要內容區 (左側名單 + 右側聊天) -->
-    <main class="flex-1 flex overflow-hidden relative">
-        
-        <!-- 手機版側邊欄切換按鈕 -->
-        <button id="toggle-sidebar-btn" class="md:hidden absolute top-4 right-4 z-20 bg-gray-700 p-2 rounded-full text-white shadow-lg">
-            <i class="fas fa-users"></i>
+    <aside class="details">
+      <header class="details-header">
+        <strong>聊天室資訊</strong>
+      </header>
+      <div class="details-body">
+        <div class="avatar" id="detailsAvatar">M</div>
+        <h2 id="detailsTitle">Messages</h2>
+        <p class="status-line" id="detailsSubtitle">雲端同步聊天室</p>
+        <div class="section-title">目前在線</div>
+        <div class="people" id="peopleList"></div>
+        <div class="section-title">雲端資料</div>
+        <div class="people">
+          <div class="person"><div class="small-avatar">S</div><div><strong id="saveState">等待同步</strong><div class="status-line">訊息會儲存在伺服器</div></div></div>
+        </div>
+        <p class="copyright">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" rel="noopener">PandaPanda的AI日常</a> All Rights Reserved.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const originalWarn = console.warn;
+    console.warn = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+        originalWarn.apply(console, args);
+    };
+    window.onerror = function(msg, url, line) {
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line });
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+    });
+
+    const APP_ID = 'pandapanda_messages_chat';
+    const ROOM_ID = 'pandapanda_messages_chat_room';
+    let socket;
+    let currentUser = {
+      username: 'guest-' + Math.random().toString(36).slice(2, 8),
+      nickname: '訪客',
+      avatar: ''
+    };
+    let messages = [];
+    let allPlayers = {};
+    let activeThreadId = 'main';
+
+    const demoThreads = [
+      { id: 'main', name: 'Messages', preview: '即時多人連線聊天室', time: '現在', initial: 'M' },
+      { id: 'cloud', name: '雲端存檔', preview: '訊息會同步到伺服器', time: '同步', initial: 'S' },
+      { id: 'sso', name: 'PandaPanda SSO', preview: '可登入也可訪客使用', time: 'SSO', initial: 'P' }
+    ];
+
+    const els = {
+      systemBar: document.getElementById('systemBar'),
+      threadList: document.getElementById('threadList'),
+      searchInput: document.getElementById('searchInput'),
+      roomAvatar: document.getElementById('roomAvatar'),
+      roomTitle: document.getElementById('roomTitle'),
+      roomStatus: document.getElementById('roomStatus'),
+      messages: document.getElementById('messages'),
+      composer: document.getElementById('composer'),
+      messageInput: document.getElementById('messageInput'),
+      clearBtn: document.getElementById('clearBtn'),
+      newChatBtn: document.getElementById('newChatBtn'),
+      loginBtn: document.getElementById('loginBtn'),
+      connDot: document.getElementById('connDot'),
+      connText: document.getElementById('connText'),
+      peopleList: document.getElementById('peopleList'),
+      saveState: document.getElementById('saveState'),
+      detailsAvatar: document.getElementById('detailsAvatar'),
+      detailsTitle: document.getElementById('detailsTitle'),
+      detailsSubtitle: document.getElementById('detailsSubtitle')
+    };
+
+    boot();
+
+    async function boot() {
+      renderThreads(demoThreads);
+      bindUI();
+      applyLoginFromUrl();
+      updateLoginButton();
+      seedEmptyState();
+      await connectServer();
+    }
+
+    function bindUI() {
+      els.composer.addEventListener('submit', sendMessage);
+      els.messageInput.addEventListener('input', autoResizeInput);
+      els.messageInput.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          els.composer.requestSubmit();
+        }
+      });
+      els.clearBtn.addEventListener('click', () => {
+        renderMessages([]);
+        showNotice('已清除目前畫面，雲端資料未刪除');
+      });
+      els.newChatBtn.addEventListener('click', () => {
+        els.messageInput.focus();
+        logApp('使用者建立新對話');
+      });
+      els.searchInput.addEventListener('input', () => {
+        const term = els.searchInput.value.trim().toLowerCase();
+        renderThreads(demoThreads.filter(t => !term || t.name.toLowerCase().includes(term) || t.preview.toLowerCase().includes(term)));
+      });
+      els.loginBtn.addEventListener('click', () => {
+        const suffix = currentUser.isLoggedIn ? '' : '&require=1';
+        window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + suffix;
+      });
+    }
+
+    function applyLoginFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('auth') === 'true') {
+        const user = params.get('user') || currentUser.username;
+        currentUser.username = user;
+        currentUser.nickname = user;
+        currentUser.isLoggedIn = true;
+        history.replaceState({}, document.title, window.location.pathname + window.location.hash);
+      }
+    }
+
+    function updateLoginButton() {
+      els.loginBtn.textContent = currentUser.isLoggedIn ? currentUser.nickname : '登入 / 註冊';
+      els.loginBtn.title = currentUser.isLoggedIn ? '查看個人資料' : '登入或註冊';
+    }
+
+    async function resolveServerUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const fromUrl = params.get('server');
+      if (fromUrl) return fromUrl;
+      const response = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt', { cache: 'no-store' });
+      if (!response.ok) throw new Error('server_url.txt 讀取失敗');
+      const serverUrl = (await response.text()).trim();
+      if (!serverUrl || /localhost|127\.0\.0\.1|:3000\b/i.test(serverUrl)) throw new Error('伺服器網址不合法');
+      return serverUrl;
+    }
+
+    async function connectServer() {
+      try {
+        const serverUrl = await resolveServerUrl();
+        socket = io(serverUrl, { transports: ['websocket'] });
+        registerSocketEvents();
+      } catch (err) {
+        setConnection('error', '連線失敗');
+        document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; min-height:100vh; padding:24px; background-color:#1e293b; color:#f8fafc; font-family:sans-serif; font-size:24px; font-weight:bold; text-align:center;">伺服器連線失敗，請稍後再試</div>';
+      }
+    }
+
+    function registerSocketEvents() {
+      socket.on('connect', () => {
+        setConnection('online', '已連線');
+        socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+        if (currentUser.isLoggedIn) socket.emit('requestProfile', { username: currentUser.username });
+        socket.emit('joinGameRoom', {
+          room: ROOM_ID,
+          characterData: {
+            appType: 'chat',
+            nickname: currentUser.nickname,
+            avatar: currentUser.avatar,
+            lastActive: Date.now()
+          }
+        });
+        socket.emit('getAppData', { appId: APP_ID }, (res) => {
+          const data = res && (res.data || res);
+          if (data && Array.isArray(data.messages)) {
+            messages = data.messages.slice(-200);
+            renderMessages(messages);
+            updateThreadPreview();
+            els.saveState.textContent = '已載入雲端資料';
+          } else {
+            els.saveState.textContent = '雲端目前沒有資料';
+          }
+        });
+        logApp(currentUser.nickname + ' 進入聊天室');
+      });
+
+      socket.on('disconnect', () => {
+        setConnection('', '已離線');
+      });
+
+      socket.on('connect_error', () => {
+        setConnection('error', '連線錯誤');
+      });
+
+      socket.on('illegalWebpage', () => {
+        document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#1e293b; color:#ef4444; font-family:sans-serif; font-size:24px; font-weight:bold;">此為違法網頁 已封鎖</div>';
+      });
+
+      socket.on('profileData', (data) => {
+        if (!data) return;
+        currentUser.avatar = data.avatar || currentUser.avatar;
+        currentUser.nickname = data.nickname || currentUser.nickname;
+        currentUser.isLoggedIn = true;
+        updateLoginButton();
+        refreshSelfInRoom();
+      });
+
+      socket.on('playerJoined', (data) => {
+        allPlayers = data && data.allPlayers ? data.allPlayers : allPlayers;
+        renderPeople(allPlayers);
+      });
+
+      socket.on('playerLeft', (data) => {
+        if (data && data.id && allPlayers[data.id]) delete allPlayers[data.id];
+        renderPeople(allPlayers);
+      });
+
+      socket.on('playerStateUpdated', (data) => {
+        if (data && data.id) {
+          allPlayers[data.id] = Object.assign({}, allPlayers[data.id] || {}, data);
+          renderPeople(allPlayers);
+        }
+      });
+
+      socket.on('appData', (data) => {
+        if (!data || data.room !== ROOM_ID) return;
+        if (data.action === 'chatMessage' && data.message && !messages.some(msg => msg.id === data.message.id)) {
+          messages.push(data.message);
+          messages = messages.slice(-200);
+          renderMessages(messages);
+          updateThreadPreview();
+          saveCloud();
+        }
+        if (data.action === 'forceReplaceMessages' && Array.isArray(data.messages)) {
+          messages = data.messages.slice(-200);
+          renderMessages(messages);
+          updateThreadPreview();
+        }
+      });
+    }
+
+    function sendMessage(event) {
+      event.preventDefault();
+      const text = els.messageInput.value.trim();
+      if (!text) return;
+      const message = {
+        id: Date.now() + '-' + Math.random().toString(36).slice(2),
+        username: currentUser.username,
+        nickname: currentUser.nickname,
+        avatar: currentUser.avatar,
+        text,
+        createdAt: new Date().toISOString()
+      };
+      messages.push(message);
+      messages = messages.slice(-200);
+      renderMessages(messages);
+      updateThreadPreview();
+      els.messageInput.value = '';
+      autoResizeInput();
+      if (socket && socket.connected) {
+        socket.emit('appData', { room: ROOM_ID, action: 'chatMessage', message });
+        socket.emit('syncPlayerState', { typing: false, lastMessageAt: message.createdAt, nickname: currentUser.nickname, avatar: currentUser.avatar });
+        saveCloud();
+        logApp(currentUser.nickname + ' 發送了一則訊息');
+      } else {
+        showNotice('目前離線，訊息暫時只顯示在本機畫面');
+      }
+    }
+
+    function saveCloud() {
+      if (!socket || !socket.connected) return;
+      socket.emit('saveAppData', {
+        appId: APP_ID,
+        data: {
+          messages: messages.slice(-200),
+          updatedAt: new Date().toISOString()
+        }
+      });
+      els.saveState.textContent = '已同步雲端';
+    }
+
+    function logApp(message, type = 'info') {
+      if (socket && socket.connected) socket.emit('logAppMessage', { appId: APP_ID, message, type });
+    }
+
+    function refreshSelfInRoom() {
+      if (!socket || !socket.connected) return;
+      socket.emit('syncPlayerState', {
+        nickname: currentUser.nickname,
+        avatar: currentUser.avatar,
+        lastActive: Date.now()
+      });
+    }
+
+    function renderThreads(threads) {
+      els.threadList.innerHTML = threads.map(thread => `
+        <button class="thread ${thread.id === activeThreadId ? 'active' : ''}" data-id="${thread.id}">
+          <div class="avatar">${thread.initial}</div>
+          <div>
+            <div class="thread-name">${escapeHtml(thread.name)}</div>
+            <div class="thread-preview" data-preview="${thread.id}">${escapeHtml(thread.preview)}</div>
+          </div>
+          <div class="thread-time">${escapeHtml(thread.time)}</div>
         </button>
-
-        <!-- 左側：線上名單 -->
-        <aside id="sidebar" class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col transition-transform duration-300 absolute md:relative z-10 h-full transform -translate-x-full md:translate-x-0">
-            <!-- 新增：聊天頻道區塊 -->
-            <div class="p-3 border-b border-gray-700 bg-gray-800">
-                <h2 class="text-sm font-semibold text-gray-300 mb-2 flex items-center"><i class="fas fa-hashtag mr-2"></i>聊天頻道</h2>
-                <div class="flex space-x-1 mb-2">
-                    <input type="text" id="new-room-input" class="flex-1 bg-gray-700 text-xs text-white px-2 py-1.5 rounded border border-gray-600 outline-none focus:border-indigo-500" placeholder="輸入房名創建或加入...">
-                    <button id="join-room-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs transition shadow-sm">進入</button>
-                </div>
-                <ul id="room-list" class="space-y-1 max-h-40 overflow-y-auto no-scrollbar">
-                    <!-- 頻道清單由 JS 動態生成 -->
-                </ul>
-            </div>
-
-            <div class="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-800">
-                <h2 class="font-semibold text-gray-300 flex items-center space-x-2">
-                    <i class="fas fa-user-friends text-indigo-400"></i>
-                    <span>線上成員</span>
-                    <span id="online-count" class="bg-gray-700 text-xs px-2 py-0.5 rounded-full">0</span>
-                </h2>
-                <button id="close-sidebar-btn" class="md:hidden text-gray-400 hover:text-white">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <ul id="user-list" class="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
-                <!-- 線上名單由 JS 動態生成 -->
-            </ul>
-        </aside>
-
-        <!-- 右側：聊天主畫面 -->
-        <section class="flex-1 flex flex-col bg-gray-900 relative">
-            
-            <!-- 置頂公告區 (雲端存檔資料展示用) -->
-            <div id="pinned-msg-container" class="bg-indigo-900/50 border-b border-indigo-700/50 p-3 flex items-start space-x-3 hidden">
-                <i class="fas fa-thumbtack text-indigo-400 mt-1 flex-shrink-0"></i>
-                <div class="flex-1">
-                    <h3 class="text-xs font-bold text-indigo-300 uppercase tracking-wide">置頂訊息 (雲端同步)</h3>
-                    <p id="pinned-msg-text" class="text-sm text-gray-200 mt-0.5">...</p>
-                </div>
-            </div>
-
-            <!-- 強制登入覆蓋層 -->
-            <div id="login-required-overlay" class="absolute inset-0 z-30 bg-gray-900/95 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300">
-                <i class="fas fa-lock text-6xl text-gray-600 mb-6"></i>
-                <h2 class="text-2xl font-bold text-gray-200 mb-2">請先登入系統</h2>
-                <p class="text-gray-400 mb-6">您必須登入後才能檢視聊天紀錄與發送訊息</p>
-                <button onclick="document.getElementById('login-btn').click()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-full font-bold shadow-lg transition transform hover:scale-105">
-                    前往登入
-                </button>
-            </div>
-
-            <!-- 聊天紀錄區 -->
-            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
-                <div class="text-center text-gray-500 text-xs py-4">-- 歡迎來到聊天室，請保持禮貌 --</div>
-                <!-- 訊息將動態插入此處 -->
-            </div>
-
-            <!-- 輸入區 -->
-            <div class="p-4 bg-gray-800 border-t border-gray-700 flex-shrink-0">
-                <form id="chat-form" class="flex items-center space-x-2">
-                    <input type="text" id="chat-input" class="flex-1 bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 outline-none" placeholder="輸入訊息..." autocomplete="off">
-                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm px-5 py-2.5 text-center flex items-center space-x-2 transition shadow shadow-indigo-500/30">
-                        <span>發送</span>
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
-                </form>
-            </div>
-        </section>
-    </main>
-
-    <!-- 底部版權宣告 -->
-    <footer class="bg-gray-950 py-2 text-center text-xs text-gray-500 flex-shrink-0 border-t border-gray-800">
-        版權所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="text-indigo-400 hover:text-indigo-300 transition hover:underline">PandaPanda的AI日常</a> All Rights Reserved.
-    </footer>
-
-    <script>
-        const LOGIN_HUB_URL = 'https://pandapanda6666.github.io/login-hub/';
-        const SERVER_TXT_URL = 'https://pandapanda6666.github.io/login-hub/server_url.txt';
-        
-        let socket;
-        let currentUser = { username: 'Guest_' + Math.floor(Math.random()*1000), nickname: '訪客', avatar: 'https://placehold.co/100x100/4b5563/ffffff?text=?' };
-        let isAuth = false;
-        let onlinePlayers = {};
-        
-        // 房間與訊息管理 (全雲端化)
-        let currentRoom = 'Lobby';
-        let knownRooms = ['Lobby'];
-        let roomMessages = [];
-
-        // DOM 元素快取
-        const dom = {
-            errorOverlay: document.getElementById('error-overlay'),
-            errorText: document.getElementById('error-text'),
-            connStatus: document.getElementById('connection-status'),
-            headerTitle: document.getElementById('header-title'),
-            loginBtn: document.getElementById('login-btn'),
-            profileBtn: document.getElementById('profile-btn'),
-            profileName: document.getElementById('profile-name'),
-            profileAvatar: document.getElementById('profile-avatar'),
-            chatMessages: document.getElementById('chat-messages'),
-            chatForm: document.getElementById('chat-form'),
-            chatInput: document.getElementById('chat-input'),
-            userList: document.getElementById('user-list'),
-            onlineCount: document.getElementById('online-count'),
-            sysAnnouncement: document.getElementById('system-announcement'),
-            announcementText: document.getElementById('announcement-text'),
-            pinnedContainer: document.getElementById('pinned-msg-container'),
-            pinnedText: document.getElementById('pinned-msg-text'),
-            sidebar: document.getElementById('sidebar'),
-            toggleSidebarBtn: document.getElementById('toggle-sidebar-btn'),
-            closeSidebarBtn: document.getElementById('close-sidebar-btn'),
-            roomList: document.getElementById('room-list'),
-            newRoomInput: document.getElementById('new-room-input'),
-            joinRoomBtn: document.getElementById('join-room-btn'),
-            loginOverlay: document.getElementById('login-required-overlay')
-        };
-
-        window.onerror = function(msg, url, line) { 
-            if (typeof socket !== 'undefined' && socket.connected) {
-                socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
-            }
-        };
-
-        function showFatalError(msg) {
-            dom.errorOverlay.classList.remove('hidden');
-            dom.errorText.innerText = msg;
-            dom.connStatus.innerText = "連線中斷";
-            dom.connStatus.className = "ml-2 px-2 py-0.5 text-xs rounded-full bg-red-500 text-red-100 font-semibold";
-        }
-
-        async function initNetwork() {
-            try {
-                const urlParams = new URLSearchParams(window.location.search);
-                let targetServerUrl = urlParams.get('server');
-
-                if (!targetServerUrl) {
-                    const res = await fetch(SERVER_TXT_URL);
-                    if (!res.ok) throw new Error('無法取得伺服器網址文件');
-                    targetServerUrl = (await res.text()).trim();
-                }
-
-                if (!targetServerUrl || targetServerUrl.includes('localhost') || targetServerUrl.includes('127.0.0.1')) {
-                    throw new Error('伺服器網址無效或禁止連線至本機');
-                }
-
-                socket = io(targetServerUrl, { transports: ['websocket'] });
-
-                socket.on('connect', () => {
-                    dom.connStatus.innerText = "已連線";
-                    dom.connStatus.className = "ml-2 px-2 py-0.5 text-xs rounded-full bg-green-500 text-green-900 font-semibold";
-                    
-                    socket.emit('initClientInfo', { 
-                        location: '未知地點', 
-                        device: navigator.userAgent 
-                    });
-
-                    checkAuthAndJoinRoom();
-                });
-
-                socket.on('connect_error', (err) => {
-                    showFatalError("伺服器連線失敗，請稍後再試");
-                });
-                
-                socket.on('disconnect', () => {
-                    showFatalError("伺服器已斷線");
-                });
-
-                setupSocketListeners();
-
-            } catch (err) {
-                console.error("初始化失敗:", err);
-                showFatalError("伺服器連線失敗，請稍後再試");
-            }
-        }
-
-        function checkAuthAndJoinRoom() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            // 將登入狀態存入 sessionStorage，解決重整後遺失問題
-            if (urlParams.get('auth') === 'true') {
-                sessionStorage.setItem('chat_auth', 'true');
-                sessionStorage.setItem('chat_user', urlParams.get('user'));
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-
-            if (sessionStorage.getItem('chat_auth') === 'true') {
-                isAuth = true;
-                const userParam = sessionStorage.getItem('chat_user');
-                socket.emit('requestProfile', { username: userParam });
-                dom.loginOverlay.classList.add('hidden'); // 解除鎖定畫面
-                dom.chatInput.disabled = false;
-                dom.newRoomInput.disabled = false;
-            } else {
-                // 強制登入模式
-                isAuth = false;
-                setupUIForAuth(false);
-                dom.loginOverlay.classList.remove('hidden'); // 顯示鎖定畫面
-                dom.chatInput.disabled = true;
-                dom.newRoomInput.disabled = true;
-                dom.chatInput.placeholder = "請先登入系統...";
-                
-                // 即使未登入也載入全域房間列表供預覽，但不允許加入房間
-                loadGlobalData();
-            }
-        }
-
-        function setupUIForAuth(authenticated, profileData = null) {
-            const returnUrl = encodeURIComponent(window.location.href);
-            
-            if (authenticated && profileData) {
-                dom.loginBtn.classList.add('hidden');
-                dom.profileBtn.classList.remove('hidden');
-                dom.profileName.innerText = profileData.nickname || profileData.username;
-                if(profileData.avatar) dom.profileAvatar.src = profileData.avatar;
-                
-                dom.profileBtn.onclick = () => window.location.href = `${LOGIN_HUB_URL}?from=${returnUrl}`;
-            } else {
-                dom.profileBtn.classList.add('hidden');
-                dom.loginBtn.classList.remove('hidden');
-                dom.loginBtn.onclick = () => window.location.href = `${LOGIN_HUB_URL}?from=${returnUrl}&require=1`;
-            }
-        }
-
-        function setupSocketListeners() {
-            socket.on('profileData', (data) => {
-                currentUser = data;
-                setupUIForAuth(true, data);
-                loadGlobalData(() => joinRoom()); // 取得全域頻道後再加入房間
-            });
-
-            socket.on('playerJoined', (data) => {
-                onlinePlayers = data.allPlayers || {};
-                renderUserList();
-            });
-
-            socket.on('playerLeft', (data) => {
-                if(onlinePlayers[data.userId]) {
-                    delete onlinePlayers[data.userId];
-                    renderUserList();
-                }
-            });
-
-            socket.on('roomChatMessage', (data) => {
-                // 防止重複渲染自己發的訊息
-                if (!roomMessages.some(m => m.id === data.id)) {
-                    roomMessages.push(data);
-                    appendChatMessage(data);
-                }
-            });
-
-            socket.on('systemMessage', (msg) => showSystemAnnouncement(msg));
-
-            socket.on('appData', (data) => {
-                if(data.action === 'forceUpdateUI') loadRoomData();
-            });
-        }
-
-        function loadGlobalData(callback) {
-            socket.emit('getAppData', { appId: 'ChatApp_Global' }, (res) => {
-                if (res && res.rooms && Array.isArray(res.rooms)) {
-                    knownRooms = res.rooms;
-                    if(!knownRooms.includes('Lobby')) knownRooms.unshift('Lobby');
-                }
-                renderRoomList();
-                if(callback) callback();
-            });
-        }
-
-        function saveGlobalData() {
-            socket.emit('saveAppData', { appId: 'ChatApp_Global', data: { rooms: knownRooms } });
-        }
-
-        function joinRoom() {
-            if(!isAuth) return; // 未登入不可加入
-
-            dom.chatMessages.innerHTML = `<div class="text-center text-gray-500 text-xs py-4">-- 歡迎來到 ${escapeHTML(currentRoom)}，請保持禮貌 --</div>`;
-            onlinePlayers = {};
-            roomMessages = [];
-            renderUserList();
-            dom.headerTitle.innerText = currentRoom;
-
-            socket.emit('joinGameRoom', { 
-                room: currentRoom, 
-                characterData: { nickname: currentUser.nickname, avatar: currentUser.avatar, isAuth: isAuth } 
-            });
-            
-            socket.emit('logAppMessage', { appId: currentRoom, message: `${currentUser.nickname} 進入了 ${currentRoom}`, type: 'info' });
-
-            loadRoomData();
-        }
-
-        function loadRoomData() {
-            socket.emit('getAppData', { appId: 'ChatRoom_' + currentRoom }, (res) => {
-                if (res) {
-                    if (res.pinnedMessage) {
-                        dom.pinnedContainer.classList.remove('hidden');
-                        dom.pinnedText.innerText = res.pinnedMessage;
-                    } else {
-                        dom.pinnedContainer.classList.add('hidden');
-                    }
-                    
-                    // 載入歷史訊息
-                    if (res.messages && Array.isArray(res.messages)) {
-                        roomMessages = res.messages;
-                        roomMessages.forEach(msg => appendChatMessage(msg));
-                    }
-                }
-            });
-        }
-
-        function saveRoomData(newMsg) {
-            // 保留最後 100 筆訊息避免檔案過大
-            const messagesToSave = roomMessages.slice(-100);
-            const currentPinned = dom.pinnedContainer.classList.contains('hidden') ? '' : dom.pinnedText.innerText;
-            
-            socket.emit('saveAppData', { 
-                appId: 'ChatRoom_' + currentRoom, 
-                data: { messages: messagesToSave, pinnedMessage: currentPinned } 
-            });
-        }
-
-        function renderRoomList() {
-            dom.roomList.innerHTML = '';
-            knownRooms.forEach(room => {
-                const li = document.createElement('li');
-                const isActive = room === currentRoom;
-                li.className = `cursor-pointer text-sm px-2 py-1.5 rounded flex items-center group transition ${isActive ? 'bg-indigo-600 text-white font-medium' : 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'}`;
-                li.innerHTML = `<i class="fas ${isActive ? 'fa-door-open' : 'fa-hashtag'} mr-2 text-xs w-4 text-center"></i><span class="truncate">${escapeHTML(room)}</span>`;
-                li.onclick = () => {
-                    if (room !== currentRoom && isAuth) {
-                        currentRoom = room;
-                        renderRoomList();
-                        joinRoom();
-                        if(window.innerWidth < 768) dom.sidebar.classList.add('-translate-x-full');
-                    }
-                };
-                dom.roomList.appendChild(li);
-            });
-        }
-
-        function renderUserList() {
-            dom.userList.innerHTML = '';
-            const playerIds = Object.keys(onlinePlayers);
-            dom.onlineCount.innerText = playerIds.length;
-
-            playerIds.forEach(id => {
-                const p = onlinePlayers[id];
-                const charData = p.characterData || {};
-                const li = document.createElement('li');
-                li.className = "flex items-center space-x-2 p-2 hover:bg-gray-700 rounded-lg transition";
-                const avatarBorder = charData.isAuth ? 'border-indigo-400' : 'border-gray-500';
-                
-                li.innerHTML = `
-                    <div class="relative flex-shrink-0">
-                        <img src="${charData.avatar || 'https://placehold.co/100x100/4b5563/ffffff?text=?'}" class="w-8 h-8 rounded-full border-2 ${avatarBorder}">
-                        <div class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border border-gray-800 rounded-full"></div>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium text-gray-200 truncate">${charData.nickname || '未知名稱'}</p>
-                        ${charData.isAuth ? '<p class="text-[10px] text-indigo-400">已驗證玩家</p>' : '<p class="text-[10px] text-gray-500">訪客</p>'}
-                    </div>
-                `;
-                dom.userList.appendChild(li);
-            });
-        }
-
-        function appendChatMessage(data) {
-            if (!data || !data.message) return; // 防呆
-            const isMe = data.sender === (currentUser.nickname || currentUser.username);
-            const msgDiv = document.createElement('div');
-            const timeStr = data.time || `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
-
-            if (isMe) {
-                msgDiv.className = "flex justify-end";
-                msgDiv.innerHTML = `
-                    <div class="flex items-end space-x-2 max-w-[80%]">
-                        <div class="text-xs text-gray-500 pb-1">${timeStr}</div>
-                        <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-br-sm shadow-md break-words">
-                            <p class="text-sm">${escapeHTML(data.message)}</p>
-                        </div>
-                    </div>
-                `;
-            } else {
-                msgDiv.className = "flex justify-start space-x-2";
-                msgDiv.innerHTML = `
-                    <img src="${data.avatar || 'https://placehold.co/100x100/4b5563/ffffff?text=U'}" class="w-8 h-8 rounded-full flex-shrink-0 mt-1">
-                    <div class="flex flex-col space-y-1 max-w-[80%]">
-                        <div class="flex items-baseline space-x-2">
-                            <span class="text-xs font-semibold text-gray-400">${escapeHTML(data.sender)}</span>
-                            <span class="text-[10px] text-gray-500">${timeStr}</span>
-                        </div>
-                        <div class="bg-gray-700 text-white p-3 rounded-2xl rounded-bl-sm shadow-md break-words">
-                            <p class="text-sm">${escapeHTML(data.message)}</p>
-                        </div>
-                    </div>
-                `;
-            }
-
-            dom.chatMessages.appendChild(msgDiv);
-            dom.chatMessages.scrollTop = dom.chatMessages.scrollHeight;
-        }
-
-        function showSystemAnnouncement(msg) {
-            dom.sysAnnouncement.classList.remove('hidden');
-            dom.announcementText.innerText = msg;
-            dom.announcementText.style.animation = 'none';
-            dom.announcementText.offsetHeight; 
-            dom.announcementText.style.animation = null; 
-        }
-
-        function escapeHTML(str) {
-            if (str === null || str === undefined) return '';
-            return String(str).replace(/[&<>'"]/g, 
-                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])
-            );
-        }
-
-        dom.chatForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const text = dom.chatInput.value.trim();
-            if (!text || !socket || !socket.connected || !isAuth) return;
-
-            const timeStr = `${new Date().getHours().toString().padStart(2, '0')}:${new Date().getMinutes().toString().padStart(2, '0')}`;
-            const msgData = {
-                id: Math.random().toString(36).substr(2, 9), // 唯一識別碼防重複
-                message: text,
-                sender: currentUser.nickname || currentUser.username,
-                avatar: currentUser.avatar,
-                time: timeStr
-            };
-
-            // 1. 本地顯示
-            roomMessages.push(msgData);
-            appendChatMessage(msgData);
-            
-            // 2. 廣播給房間其他人
-            socket.emit('sendRoomChat', msgData);
-
-            // 3. 儲存至雲端歷史紀錄
-            saveRoomData();
-
-            // 4. 紀錄伺服器日誌
-            socket.emit('logAppMessage', { appId: 'ChatRoom_' + currentRoom, message: `${msgData.sender} 說: ${text.substring(0, 15)}...`, type: 'info' });
-
-            dom.chatInput.value = '';
+      `).join('');
+      els.threadList.querySelectorAll('.thread').forEach(btn => {
+        btn.addEventListener('click', () => {
+          activeThreadId = btn.dataset.id;
+          renderThreads(threads);
+          els.messageInput.focus();
         });
+      });
+    }
 
-        dom.joinRoomBtn.addEventListener('click', () => {
-            if(!isAuth) return;
-            const newRoom = dom.newRoomInput.value.trim();
-            if (newRoom && newRoom !== currentRoom) {
-                if (!knownRooms.includes(newRoom)) {
-                    knownRooms.push(newRoom);
-                    saveGlobalData(); // 新增房間同步至雲端
-                }
-                currentRoom = newRoom;
-                dom.newRoomInput.value = '';
-                renderRoomList();
-                joinRoom();
-                if(window.innerWidth < 768) dom.sidebar.classList.add('-translate-x-full');
-            }
-        });
+    function seedEmptyState() {
+      if (messages.length) return;
+      messages = [{
+        id: 'welcome',
+        username: 'system',
+        nickname: 'Messages',
+        avatar: '',
+        text: '歡迎來到即時聊天室。登入後會套用 PandaPanda SSO 個人資料，訪客也可以直接連線聊天。',
+        createdAt: new Date().toISOString()
+      }];
+      renderMessages(messages);
+    }
 
-        dom.newRoomInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                dom.joinRoomBtn.click();
-            }
-        });
+    function renderMessages(list) {
+      els.messages.innerHTML = '<div class="day">今天</div>' + list.map((msg, index) => {
+        const mine = msg.username === currentUser.username;
+        const prev = list[index - 1];
+        const showSender = !mine && (!prev || prev.username !== msg.username);
+        const avatar = avatarMarkup(msg.avatar, msg.nickname || 'U', 'small-avatar');
+        return `
+          ${showSender ? `<div class="sender">${escapeHtml(msg.nickname || '訪客')}</div>` : ''}
+          <div class="message-row ${mine ? 'mine' : ''}">
+            ${mine ? '' : avatar}
+            <div class="bubble" title="${formatTime(msg.createdAt)}">${escapeHtml(msg.text)}</div>
+          </div>
+        `;
+      }).join('');
+      els.messages.scrollTop = els.messages.scrollHeight;
+    }
 
-        dom.toggleSidebarBtn.addEventListener('click', () => dom.sidebar.classList.remove('-translate-x-full'));
-        dom.closeSidebarBtn.addEventListener('click', () => dom.sidebar.classList.add('-translate-x-full'));
+    function renderPeople(players) {
+      const entries = Object.entries(players || {});
+      if (!entries.length) {
+        els.peopleList.innerHTML = '<div class="status-line">等待其他使用者加入</div>';
+        return;
+      }
+      els.peopleList.innerHTML = entries.map(([id, player]) => {
+        const data = player.characterData || player;
+        const name = data.nickname || player.nickname || '線上使用者';
+        const avatar = data.avatar || player.avatar || '';
+        return `<div class="person">${avatarMarkup(avatar, name, 'small-avatar')}<div><strong>${escapeHtml(name)}</strong><div class="status-line">在線</div></div></div>`;
+      }).join('');
+    }
 
-        window.onload = () => {
-            // 初始化不需要呼叫 renderRoomList()，因為會透過 initNetwork() -> loadGlobalData() 自動載入
-            initNetwork();
-        };
+    function updateThreadPreview() {
+      const last = messages[messages.length - 1];
+      const preview = document.querySelector('[data-preview="main"]');
+      if (preview && last) preview.textContent = (last.nickname || '使用者') + ': ' + last.text;
+    }
 
-    </script>
+    function setConnection(status, text) {
+      els.connDot.className = 'dot ' + status;
+      els.connText.textContent = text;
+    }
+
+    function showNotice(text) {
+      els.systemBar.textContent = text;
+      els.systemBar.classList.add('show');
+      window.clearTimeout(showNotice.timer);
+      showNotice.timer = window.setTimeout(() => els.systemBar.classList.remove('show'), 2600);
+    }
+
+    function autoResizeInput() {
+      els.messageInput.style.height = '40px';
+      els.messageInput.style.height = Math.min(120, els.messageInput.scrollHeight) + 'px';
+    }
+
+    function avatarMarkup(src, name, className) {
+      const initial = (name || 'U').trim().slice(0, 1).toUpperCase();
+      if (src) return `<div class="${className}"><img src="${escapeAttr(src)}" alt=""></div>`;
+      return `<div class="${className}">${escapeHtml(initial)}</div>`;
+    }
+
+    function formatTime(value) {
+      try {
+        return new Intl.DateTimeFormat('zh-Hant', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+      } catch (err) {
+        return '';
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+      }[char]));
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, '&#096;');
+    }
+  </script>
+
+  <script type="text/plain" id="python-dashboard-code">
+# PandaPanda Messages Chat 管理面板
+def init_dashboard(parent_frame, app_id, api_url):
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+    import requests
+
+    root = ttk.Frame(parent_frame, padding=12)
+    root.pack(fill="both", expand=True)
+
+    title = ttk.Label(root, text="Messages 聊天室管理", font=("Microsoft JhengHei UI", 14, "bold"))
+    title.pack(anchor="w")
+
+    status_var = tk.StringVar(value="尚未讀取資料")
+    count_var = tk.StringVar(value="訊息數：0")
+    ttk.Label(root, textvariable=status_var).pack(anchor="w", pady=(8, 0))
+    ttk.Label(root, textvariable=count_var).pack(anchor="w")
+
+    box = tk.Text(root, height=12, wrap="word")
+    box.pack(fill="both", expand=True, pady=10)
+
+    def load_data():
+        try:
+            res = requests.get(f"{api_url}/apps", timeout=8)
+            res.raise_for_status()
+            data = res.json().get("apps", {}).get(app_id, {}).get("data", {})
+            messages = data.get("messages", [])
+            box.delete("1.0", "end")
+            for item in messages[-50:]:
+                box.insert("end", f"{item.get('nickname', '使用者')}: {item.get('text', '')}\n")
+            count_var.set(f"訊息數：{len(messages)}")
+            status_var.set("已讀取雲端資料")
+        except Exception as exc:
+            messagebox.showerror("讀取失敗", str(exc))
+            status_var.set("讀取失敗")
+
+    def clear_messages():
+        if not messagebox.askyesno("確認", "要清空這個聊天室的雲端訊息嗎？"):
+            return
+        try:
+            payload = {"appId": app_id, "data": {"messages": [], "updatedAt": ""}}
+            res = requests.post(f"{api_url}/apps/update", json=payload, timeout=8)
+            res.raise_for_status()
+            box.delete("1.0", "end")
+            count_var.set("訊息數：0")
+            status_var.set("已清空並同步")
+        except Exception as exc:
+            messagebox.showerror("更新失敗", str(exc))
+            status_var.set("更新失敗")
+
+    buttons = ttk.Frame(root)
+    buttons.pack(fill="x")
+    ttk.Button(buttons, text="重新讀取", command=load_data).pack(side="left")
+    ttk.Button(buttons, text="清空雲端訊息", command=clear_messages).pack(side="left", padx=8)
+
+    load_data()
+  </script>
 </body>
 </html>
