@@ -4,9 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生日禮物申請表</title>
+    <title>生日禮物採購申請表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- 引入 html2canvas 用於將表單轉為圖片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
             background-color: #f3f4f6;
@@ -35,6 +37,9 @@
             justify-content: flex-end;
             align-items: center;
         }
+        canvas {
+            touch-action: none; /* 防止在畫布上滑動時觸發網頁捲動 */
+        }
     </style>
 </head>
 <body>
@@ -47,88 +52,116 @@
 
     <!-- 申請表本體 -->
     <div class="form-container max-w-3xl">
-        <h1 class="text-xl font-bold mb-6">【生日禮物採購申請表】</h1>
         
-        <div class="space-y-4 mb-6">
-            <p>申請人：您的孫子</p>
-            <p>審核人：奶奶</p>
-            <p>申請日期：2026年5月19日</p>
-            <p class="leading-relaxed">申請事由：申請購買電子與積木零件，作為遲來的生日禮物（申請人今年生日為5月6日，特此申請補發！）</p>
+        <!-- 將需要截圖的部分包裝起來 -->
+        <div id="form-content-to-capture" class="bg-white pb-4">
+            <h1 class="text-xl font-bold mb-6">【生日禮物採購申請表】</h1>
+            
+            <div class="space-y-4 mb-6">
+                <p>申請人：您的孫子</p>
+                <p>審核人：奶奶</p>
+                <p>申請日期：2026年5月19日</p>
+                <p class="leading-relaxed">申請事由：申請購買電子與積木零件，作為遲來的生日禮物（申請人今年生日為5月6日，特此申請補發！）</p>
+            </div>
+
+            <p class="mb-2">--- 採購明細清單 ---</p>
+
+            <table class="w-full border-collapse border border-gray-800 text-sm mb-6">
+                <thead>
+                    <tr>
+                        <th class="border border-gray-800 p-2 text-left font-normal">項目</th>
+                        <th class="border border-gray-800 p-2 text-left font-normal">單價</th>
+                        <th class="border border-gray-800 p-2 text-left font-normal">數量</th>
+                        <th class="border border-gray-800 p-2 text-left font-normal">參考網址</th>
+                        <th class="border border-gray-800 p-2 text-left font-normal">小計</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="border border-gray-800 p-2">三號四節電池盒</td>
+                        <td class="border border-gray-800 p-2">約NT$10</td>
+                        <td class="border border-gray-800 p-2">1</td>
+                        <td class="border border-gray-800 p-2"><a href="https://reurl.cc/M2gZDL" target="_blank" class="text-blue-600 underline">https://reurl.cc/M2gZDL</a></td>
+                        <td class="border border-gray-800 p-2">約NT$10</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-800 p-2">Geekservo<br>3~5V 270度<br>Lego</td>
+                        <td class="border border-gray-800 p-2">約NT$300</td>
+                        <td class="border border-gray-800 p-2">1</td>
+                        <td class="border border-gray-800 p-2"><a href="https://reurl.cc/qp2mqN" target="_blank" class="text-blue-600 underline">https://reurl.cc/qp2mqN</a></td>
+                        <td class="border border-gray-800 p-2">約NT$300</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-800 p-2">Geekservo 2kg<br>360° Lego</td>
+                        <td class="border border-gray-800 p-2">約NT$400</td>
+                        <td class="border border-gray-800 p-2">2</td>
+                        <td class="border border-gray-800 p-2"><a href="https://reurl.cc/yO0n4M" target="_blank" class="text-blue-600 underline">https://reurl.cc/yO0n4M</a></td>
+                        <td class="border border-gray-800 p-2">約NT$800</td>
+                    </tr>
+                    <tr>
+                        <td class="border border-gray-800 p-2">總計</td>
+                        <td class="border border-gray-800 p-2" colspan="4">約NT$1,110</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2 class="text-lg font-bold mb-6">申請總金額：約新台幣壹仟壹佰壹拾圓整</h2>
+
+            <div class="mb-4 text-gray-600">奶奶專用審核區：</div>
+            <div class="mb-2">審核結果（請勾選）：</div>
+
+            <div class="space-y-2 ml-4 mb-6">
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="checkApprove" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Approve')">
+                    <span>准奏，同意撥款全額 NT$1,110</span>
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="checkReject" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Reject')">
+                    <span>駁回，理由：</span>
+                    <input type="text" id="rejectReason" class="input-line ml-1 flex-1 max-w-xs">
+                </label>
+                <label class="flex items-center cursor-pointer">
+                    <input type="checkbox" id="checkConditional" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Conditional')">
+                    <span>條件核准，核發金額：NT$</span>
+                    <input type="text" id="conditionalAmount" class="input-line ml-1 w-24">
+                </label>
+            </div>
+
+            <!-- 新增手寫與輸入區塊 -->
+            <div class="mt-8 mb-6">
+                <div class="mb-3">奶奶簽章：</div>
+                <div class="flex flex-col space-y-4 ml-4">
+                    <div class="flex items-center">
+                        <span class="mr-2 text-sm text-gray-700">1. 鍵盤輸入：</span>
+                        <input type="text" id="signature" class="input-line w-48" placeholder="請輸入姓名">
+                    </div>
+                    <div>
+                        <span class="mr-2 mb-2 block text-sm text-gray-700">2. 手寫簽名：</span>
+                        <div class="border border-gray-400 rounded inline-block bg-white shadow-inner">
+                            <canvas id="signatureCanvas" width="300" height="150" class="cursor-crosshair"></canvas>
+                        </div>
+                        <div class="mt-2" id="canvas-controls">
+                            <button type="button" onclick="clearSignature()" class="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded shadow-sm text-gray-700">清除重寫</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <p class="mb-2">--- 採購明細清單 ---</p>
-
-        <table class="w-full border-collapse border border-gray-800 text-sm mb-6">
-            <thead>
-                <tr>
-                    <th class="border border-gray-800 p-2 text-left font-normal">項目</th>
-                    <th class="border border-gray-800 p-2 text-left font-normal">單價</th>
-                    <th class="border border-gray-800 p-2 text-left font-normal">數量</th>
-                    <th class="border border-gray-800 p-2 text-left font-normal">參考網址</th>
-                    <th class="border border-gray-800 p-2 text-left font-normal">小計</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td class="border border-gray-800 p-2">三號四節電池盒</td>
-                    <td class="border border-gray-800 p-2">約NT$10</td>
-                    <td class="border border-gray-800 p-2">1</td>
-                    <td class="border border-gray-800 p-2"><a href="https://reurl.cc/M2gZDL" target="_blank" class="text-blue-600 underline">https://reurl.cc/M2gZDL</a></td>
-                    <td class="border border-gray-800 p-2">約NT$10</td>
-                </tr>
-                <tr>
-                    <td class="border border-gray-800 p-2">Geekservo<br>3~5V 270度<br>Lego</td>
-                    <td class="border border-gray-800 p-2">約NT$300</td>
-                    <td class="border border-gray-800 p-2">1</td>
-                    <td class="border border-gray-800 p-2"><a href="https://reurl.cc/qp2mqN" target="_blank" class="text-blue-600 underline">https://reurl.cc/qp2mqN</a></td>
-                    <td class="border border-gray-800 p-2">約NT$300</td>
-                </tr>
-                <tr>
-                    <td class="border border-gray-800 p-2">Geekservo 2kg<br>360° Lego</td>
-                    <td class="border border-gray-800 p-2">約NT$400</td>
-                    <td class="border border-gray-800 p-2">2</td>
-                    <td class="border border-gray-800 p-2"><a href="https://reurl.cc/yO0n4M" target="_blank" class="text-blue-600 underline">https://reurl.cc/yO0n4M</a></td>
-                    <td class="border border-gray-800 p-2">約NT$800</td>
-                </tr>
-                <tr>
-                    <td class="border border-gray-800 p-2">總計</td>
-                    <td class="border border-gray-800 p-2" colspan="4">約NT$1,110</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h2 class="text-lg font-bold mb-6">申請總金額：約新台幣壹仟壹佰壹拾圓整</h2>
-
-        <div class="mb-4 text-gray-600">奶奶專用審核區：</div>
-        <div class="mb-2">審核結果（請勾選）：</div>
-
-        <div class="space-y-2 ml-4 mb-6">
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" id="checkApprove" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Approve')">
-                <span>准奏，同意撥款全額 NT$1,110</span>
-            </label>
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" id="checkReject" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Reject')">
-                <span>駁回，理由：</span>
-                <input type="text" id="rejectReason" class="input-line ml-1 flex-1 max-w-xs">
-            </label>
-            <label class="flex items-center cursor-pointer">
-                <input type="checkbox" id="checkConditional" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 rounded-none mr-2" onchange="handleCheckboxChange(this, 'Conditional')">
-                <span>條件核准，核發金額：NT$</span>
-                <input type="text" id="conditionalAmount" class="input-line ml-1 w-24">
-            </label>
-        </div>
-
-        <div class="mt-8 mb-6">
-            <span>奶奶簽章：</span>
-            <input type="text" id="signature" class="input-line w-48">
-        </div>
-
-        <div class="mt-10 pt-4 border-t border-gray-200 flex justify-end items-center">
+        <!-- 提交按鈕區塊 -->
+        <div id="action-area" class="mt-10 pt-4 border-t border-gray-200 flex justify-end items-center">
             <span id="submitMsg" class="mr-4"></span>
-            <button onclick="submitFormData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow cursor-pointer">
-                提交審核結果
+            <button id="submitBtn" onclick="submitFormData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow cursor-pointer">
+                提交審核結果 (將產生圖片)
             </button>
+        </div>
+
+        <!-- 歷史審核紀錄區塊 -->
+        <div id="history-area" class="mt-12 border-t-2 border-gray-800 pt-6">
+            <h3 class="text-lg font-bold mb-4">📜 歷史審核表單</h3>
+            <div id="submissions-list" class="space-y-6">
+                <p class="text-gray-500 text-sm">目前尚無審核紀錄。</p>
+            </div>
         </div>
     </div>
 
@@ -155,6 +188,8 @@
         let socket;
         const appId = 'GiftAppForm_Id';
         const loginHubUrl = 'https://pandapanda6666.github.io/login-hub/';
+        let currentUserProfile = null;
+        let allSubmissions = [];
 
         async function initConnection() {
             try {
@@ -178,17 +213,8 @@
                     document.getElementById('auth-container').innerHTML = '<span class="text-red-400">伺服器連線失敗，請稍後再試</span>';
                 });
 
-                // 網域白名單阻擋機制
                 socket.on('illegalWebpage', () => {
                     document.body.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; background-color:#1e293b; color:#ef4444; font-family:sans-serif; font-size:24px; font-weight:bold;">此為違法網頁 已封鎖</div>';
-                });
-
-                // 其他玩家連線邏輯 (依照規定實作，但此表單無明顯的多人游標需求，作為背景運作)
-                socket.on('playerJoined', (data) => {
-                    console.log('房間內玩家更新:', data.allPlayers);
-                });
-                socket.on('playerLeft', (data) => {
-                    console.log('玩家離開:', data.socketId);
                 });
 
             } catch (error) {
@@ -204,18 +230,18 @@
             const username = urlParams.get('user');
 
             if (isAuth && username) {
-                // 已登入
                 socket.emit('requestProfile', { username: username });
                 
                 socket.on('profileData', (data) => {
                     const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
                     window.history.replaceState({}, document.title, cleanUrl);
                     
+                    currentUserProfile = data;
+                    currentUserProfile.username = username;
                     renderProfileUI(data);
                     joinRoomAndLoadData();
                 });
             } else {
-                // 訪客模式
                 renderGuestUI();
                 joinRoomAndLoadData();
             }
@@ -253,7 +279,6 @@
         function joinRoomAndLoadData() {
             socket.emit('joinGameRoom', { room: appId, characterData: {} });
 
-            // 讀取雲端表單進度
             socket.emit('getAppData', { appId: appId }, (res) => {
                 if (res && res.data) {
                     fillFormWithData(res.data);
@@ -261,9 +286,66 @@
             });
         }
 
+        // --- 畫布簽名邏輯 ---
+        const sigCanvas = document.getElementById('signatureCanvas');
+        const sigCtx = sigCanvas.getContext('2d');
+        let isDrawing = false;
+        let hasDrawn = false;
+
+        function startDrawing(e) {
+            isDrawing = true;
+            hasDrawn = true;
+            draw(e);
+        }
+
+        function endDrawing() {
+            isDrawing = false;
+            sigCtx.beginPath();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault(); 
+            
+            const rect = sigCanvas.getBoundingClientRect();
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            sigCtx.lineWidth = 3;
+            sigCtx.lineCap = 'round';
+            sigCtx.strokeStyle = '#000';
+
+            sigCtx.lineTo(x, y);
+            sigCtx.stroke();
+            sigCtx.beginPath();
+            sigCtx.moveTo(x, y);
+        }
+
+        sigCanvas.addEventListener('mousedown', startDrawing);
+        sigCanvas.addEventListener('mousemove', draw);
+        sigCanvas.addEventListener('mouseup', endDrawing);
+        sigCanvas.addEventListener('mouseout', endDrawing);
+
+        sigCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+        sigCanvas.addEventListener('touchmove', draw, { passive: false });
+        sigCanvas.addEventListener('touchend', endDrawing);
+
+        function clearSignature() {
+            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+            hasDrawn = false;
+            sigCtx.beginPath();
+        }
+
         // --- 表單邏輯 ---
         function handleCheckboxChange(clickedCheckbox, type) {
-            // 實作勾選框的互斥行為 (單選)
             const checkboxes = [
                 document.getElementById('checkApprove'),
                 document.getElementById('checkReject'),
@@ -278,51 +360,152 @@
         }
 
         function fillFormWithData(data) {
-            if (data.result === 'Approve') document.getElementById('checkApprove').checked = true;
-            if (data.result === 'Reject') document.getElementById('checkReject').checked = true;
-            if (data.result === 'Conditional') document.getElementById('checkConditional').checked = true;
-
-            if (data.rejectReason) document.getElementById('rejectReason').value = data.rejectReason;
-            if (data.conditionalAmount) document.getElementById('conditionalAmount').value = data.conditionalAmount;
-            if (data.signature) document.getElementById('signature').value = data.signature;
+            if (data.submissions && Array.isArray(data.submissions)) {
+                allSubmissions = data.submissions;
+                renderSubmissionsList();
+            }
         }
 
-        function submitFormData() {
+        function renderSubmissionsList() {
+            const listContainer = document.getElementById('submissions-list');
+            if (allSubmissions.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 text-sm">目前尚無審核紀錄。</p>';
+                return;
+            }
+
+            listContainer.innerHTML = allSubmissions.map((sub, index) => {
+                // 如果有儲存圖片，則顯示整張表單截圖，否則顯示舊版的文字資訊
+                if (sub.formImage) {
+                    return `
+                        <div class="bg-gray-50 p-4 rounded border border-gray-200 shadow-sm mb-4">
+                            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                                <span class="font-bold text-blue-800">審核人帳號：${sub.submitterAccount} <span class="text-gray-500 font-normal text-sm">(${sub.submitterName})</span></span>
+                                <span class="text-xs text-gray-400">時間：${sub.timestamp}</span>
+                            </div>
+                            <div class="border-2 border-dashed border-gray-300 p-2 bg-white">
+                                <img src="${sub.formImage}" alt="完整表單截圖" class="w-full h-auto">
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    return `
+                        <div class="bg-gray-50 p-4 rounded border border-gray-200 shadow-sm mb-4">
+                            <div class="text-sm text-gray-500">（舊版文字紀錄，無圖片）</div>
+                            <div class="mt-2"><strong>審核結果：</strong>${sub.result}</div>
+                            <div><strong>奶奶簽章：</strong>${sub.signature}</div>
+                        </div>
+                    `;
+                }
+            }).join('');
+        }
+
+        async function submitFormData() {
             if (!socket || !socket.connected) {
                 alert("目前無法連線到伺服器，請稍後再試。");
                 return;
             }
 
             let selectedResult = '';
-            if (document.getElementById('checkApprove').checked) selectedResult = 'Approve';
-            else if (document.getElementById('checkReject').checked) selectedResult = 'Reject';
-            else if (document.getElementById('checkConditional').checked) selectedResult = 'Conditional';
+            if (document.getElementById('checkApprove').checked) selectedResult = '准奏';
+            else if (document.getElementById('checkReject').checked) selectedResult = '駁回';
+            else if (document.getElementById('checkConditional').checked) selectedResult = '條件核准';
 
-            const formData = {
-                result: selectedResult,
-                rejectReason: document.getElementById('rejectReason').value,
-                conditionalAmount: document.getElementById('conditionalAmount').value,
-                signature: document.getElementById('signature').value
-            };
+            if (!selectedResult) {
+                alert("請勾選審核結果！");
+                return;
+            }
 
-            // 傳送資料到雲端
-            socket.emit('saveAppData', { appId: appId, data: formData });
+            const rejectReason = document.getElementById('rejectReason').value.trim();
+            const conditionalAmount = document.getElementById('conditionalAmount').value.trim();
+            const signature = document.getElementById('signature').value.trim();
 
-            // 發送日誌
-            socket.emit('logAppMessage', { 
-                appId: appId, 
-                message: `奶奶 提交了審核結果: ${selectedResult ? selectedResult : '未勾選'}，簽名: ${formData.signature}`, 
-                type: 'info' 
-            });
+            if (selectedResult === '駁回' && !rejectReason) {
+                alert("請填寫駁回理由！");
+                return;
+            }
+            if (selectedResult === '條件核准' && !conditionalAmount) {
+                alert("請填寫條件核准的核發金額！");
+                return;
+            }
+            if (!signature) {
+                alert("請完成鍵盤輸入姓名！");
+                return;
+            }
+            if (!hasDrawn) {
+                alert("請在畫布上完成手寫簽名！");
+                return;
+            }
 
-            // 顯示成功訊息
-            const msgEl = document.getElementById('submitMsg');
-            msgEl.textContent = "資料已成功傳回伺服器！";
-            msgEl.className = "mr-4 text-green-600 font-bold";
-            
-            setTimeout(() => {
-                msgEl.textContent = "";
-            }, 3000);
+            const submitBtn = document.getElementById('submitBtn');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = "正在產生表單圖片...";
+            submitBtn.disabled = true;
+
+            try {
+                // 暫時隱藏不需截圖的元素 (清除按鈕)
+                document.getElementById('canvas-controls').style.display = 'none';
+
+                // 使用 html2canvas 將整個表單區塊轉為圖片
+                const formElement = document.getElementById('form-content-to-capture');
+                const canvas = await html2canvas(formElement, { 
+                    scale: 1.5, 
+                    backgroundColor: "#ffffff",
+                    useCORS: true
+                });
+                
+                const formImageData = canvas.toDataURL('image/jpeg', 0.85);
+
+                // 恢復顯示被隱藏的元素
+                document.getElementById('canvas-controls').style.display = 'block';
+
+                const newSubmission = {
+                    formImage: formImageData,
+                    submitterAccount: currentUserProfile ? currentUserProfile.username : 'Guest',
+                    submitterName: currentUserProfile ? currentUserProfile.nickname : '訪客',
+                    timestamp: new Date().toLocaleString('zh-TW')
+                };
+
+                // 將新資料加入陣列
+                allSubmissions.push(newSubmission);
+
+                // 傳送完整陣列資料到雲端
+                socket.emit('saveAppData', { appId: appId, data: { submissions: allSubmissions } });
+
+                // 發送日誌
+                socket.emit('logAppMessage', { 
+                    appId: appId, 
+                    message: `${newSubmission.submitterName} 提交了一份完整表單截圖，審核結果: ${selectedResult}`, 
+                    type: 'info' 
+                });
+
+                // 重新渲染歷史紀錄
+                renderSubmissionsList();
+
+                // 顯示成功訊息並清空表單
+                const msgEl = document.getElementById('submitMsg');
+                msgEl.textContent = "整張表單已成功上傳至伺服器！";
+                msgEl.className = "mr-4 text-green-600 font-bold";
+                
+                document.getElementById('checkApprove').checked = false;
+                document.getElementById('checkReject').checked = false;
+                document.getElementById('checkConditional').checked = false;
+                document.getElementById('rejectReason').value = '';
+                document.getElementById('conditionalAmount').value = '';
+                document.getElementById('signature').value = '';
+                clearSignature();
+
+                setTimeout(() => {
+                    msgEl.textContent = "";
+                }, 4000);
+
+            } catch (err) {
+                console.error("圖片產生失敗:", err);
+                alert("表單截圖產生失敗，請稍後再試。");
+                document.getElementById('canvas-controls').style.display = 'block';
+            } finally {
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            }
         }
 
         // 啟動連線
