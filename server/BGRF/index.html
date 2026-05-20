@@ -127,7 +127,7 @@
                 </label>
             </div>
 
-            <!-- 新增手寫與輸入區塊 -->
+            <!-- 手寫與輸入區塊 -->
             <div class="mt-8 mb-6">
                 <div class="mb-3">奶奶簽章：</div>
                 <div class="flex flex-col space-y-4 ml-4">
@@ -184,9 +184,11 @@
             if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
         });
 
+        // 極度重要：動態網址 ID (作為應用專屬識別碼)
+        const appId = window.location.hostname + window.location.pathname;
+
         // --- 連線設定 ---
         let socket;
-        const appId = 'GiftAppForm_Id';
         const loginHubUrl = 'https://pandapanda6666.github.io/login-hub/';
         let currentUserProfile = null;
         let allSubmissions = [];
@@ -374,7 +376,6 @@
             }
 
             listContainer.innerHTML = allSubmissions.map((sub, index) => {
-                // 如果有儲存圖片，則顯示整張表單截圖，否則顯示舊版的文字資訊
                 if (sub.formImage) {
                     return `
                         <div class="bg-gray-50 p-4 rounded border border-gray-200 shadow-sm mb-4">
@@ -442,10 +443,10 @@
             submitBtn.disabled = true;
 
             try {
-                // 暫時隱藏不需截圖的元素 (清除按鈕)
+                // 暫時隱藏不需截圖的元素
                 document.getElementById('canvas-controls').style.display = 'none';
 
-                // 使用 html2canvas 將整個表單區塊轉為圖片
+                // 產生截圖
                 const formElement = document.getElementById('form-content-to-capture');
                 const canvas = await html2canvas(formElement, { 
                     scale: 1.5, 
@@ -465,23 +466,18 @@
                     timestamp: new Date().toLocaleString('zh-TW')
                 };
 
-                // 將新資料加入陣列
+                // 更新陣列與上傳雲端
                 allSubmissions.push(newSubmission);
-
-                // 傳送完整陣列資料到雲端
                 socket.emit('saveAppData', { appId: appId, data: { submissions: allSubmissions } });
 
-                // 發送日誌
                 socket.emit('logAppMessage', { 
                     appId: appId, 
                     message: `${newSubmission.submitterName} 提交了一份完整表單截圖，審核結果: ${selectedResult}`, 
                     type: 'info' 
                 });
 
-                // 重新渲染歷史紀錄
                 renderSubmissionsList();
 
-                // 顯示成功訊息並清空表單
                 const msgEl = document.getElementById('submitMsg');
                 msgEl.textContent = "整張表單已成功上傳至伺服器！";
                 msgEl.className = "mr-4 text-green-600 font-bold";
