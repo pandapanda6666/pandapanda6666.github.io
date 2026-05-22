@@ -23,19 +23,29 @@
             function onYouTubeIframeAPIReady() {
                 player = new YT.Player('player', {
                     videoId: videoId,
-                    playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0 },
+                    playerVars: { 
+                        'autoplay': 1, 
+                        'controls': 1, 
+                        'rel': 0,
+                        'fs': 0,
+                        'playsinline': 1
+                    },
                     events: {
                         'onReady': onPlayerReady,
                         'onStateChange': onPlayerStateChange,
-                        'onError': onPlayerError // 加入錯誤偵測
+                        'onError': onPlayerError // 攔截無法播放的錯誤
                     }
                 });
             }
 
-            function onPlayerReady(event) { event.target.playVideo(); sendDuration(); }
+            function onPlayerReady(event) {
+                event.target.playVideo();
+                sendDuration();
+            }
 
+            // --- 核心修正：自動回報錯誤給主視窗 ---
             function onPlayerError(event) {
-                // 將錯誤代碼傳回主頁面
+                // event.data 會包含錯誤代碼 (例如 100 影片找不到, 150 不允許嵌入)
                 window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: event.data }, '*');
             }
 
@@ -44,6 +54,7 @@
                 if (event.data == YT.PlayerState.PLAYING) {
                     sendDuration();
                     clearInterval(progressTimer);
+                    // 每 0.5 秒回報一次實時進度 (自動過濾廣告時間)
                     progressTimer = setInterval(() => {
                         if (player && player.getCurrentTime) {
                             window.parent.postMessage({ 
@@ -54,6 +65,7 @@
                         }
                     }, 500);
                 } else if (event.data == YT.PlayerState.ENDED) {
+                    // 影片真正播完時，發送結束訊號
                     clearInterval(progressTimer);
                     window.parent.postMessage({ type: 'YOUTUBE_ENDED' }, '*');
                 } else {
@@ -64,9 +76,14 @@
             function sendDuration() {
                 if (player && player.getDuration) {
                     const duration = player.getDuration();
-                    if (duration > 0) window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: duration }, '*');
+                    if (duration > 0) {
+                        window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: duration }, '*');
+                    }
                 }
             }
+        } else {
+            // 如果沒有影片 ID，顯示全黑
+            document.body.style.backgroundColor = "black";
         }
     </script>
 </body>
