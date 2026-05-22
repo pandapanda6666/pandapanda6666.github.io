@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 隨機音樂點唱機 (有 API 專業版)</title>
+    <!-- 引入 Tailwind CSS 與 Font Awesome 圖示 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght=300;400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+            min-height: 100vh;
+        }
+
+        /* 霓虹發光效果 */
+        .neon-glow-pink { text-shadow: 0 0 10px rgba(244, 63, 94, 0.6), 0 0 20px rgba(244, 63, 94, 0.4); }
+        .neon-border-pink { box-shadow: 0 0 15px rgba(244, 63, 94, 0.3), inset 0 0 15px rgba(244, 63, 94, 0.2); }
+
+        /* 唱片旋轉動畫 */
+        @keyframes rotate-vinyl { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .vinyl-rotate { animation: rotate-vinyl 12s linear infinite; }
+
+        /* 律動等化器動畫 */
+        @keyframes bounce-bar { 0%, 100% { height: 4px; } 50% { height: 40px; } }
+        .eq-bar { animation: bounce-bar 1.2s ease-in-out infinite; }
+        .eq-bar:nth-child(2) { animation-delay: 0.15s; }
+        .eq-bar:nth-child(3) { animation-delay: 0.3s; }
+        .eq-bar:nth-child(4) { animation-delay: 0.45s; }
+        .eq-bar:nth-child(5) { animation-delay: 0.6s; }
+        .eq-bar:nth-child(6) { animation-delay: 0.25s; }
+        .eq-bar:nth-child(7) { animation-delay: 0.1s; }
+        .eq-bar:nth-child(8) { animation-delay: 0.5s; }
+
+        /* 滑動按鈕 */
+        .toggle-checkbox:checked + .toggle-label { background-color: #06b6d4; }
+        .toggle-checkbox:checked + .toggle-label .toggle-dot { transform: translateX(100%); }
+    </style>
+</head>
+<body class="text-slate-100 flex flex-col justify-between p-4 md:p-8">
+
+    <!-- 回首頁按鈕 -->
+    <button onclick="window.location.href='index.html'" class="absolute top-4 left-4 z-50 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-sm font-bold backdrop-blur transition-all border border-slate-700">
+        <i class="fa-solid fa-arrow-left"></i> 回首頁
+    </button>
+
+    <!-- 主容器 -->
+    <main class="max-w-xl w-full mx-auto my-auto bg-slate-900/80 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-slate-800 shadow-2xl relative overflow-hidden mt-12 md:mt-0">
+        
+        <!-- 背景裝飾光暈 -->
+        <div class="absolute -top-12 -left-12 w-48 h-48 bg-pink-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- 標題區域 -->
+        <div class="text-center mb-8 relative z-10">
+            <div class="inline-flex items-center gap-1.5 bg-cyan-500/10 text-cyan-400 text-xs px-3 py-1 rounded-full border border-cyan-500/20 mb-3 font-semibold tracking-wider">
+                <i class="fa-solid fa-link animate-pulse text-cyan-400"></i> GitHub 代理嵌入 · 全自動 API 驅動版
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black tracking-wider bg-gradient-to-r from-pink-500 to-cyan-400 bg-clip-text text-transparent flex items-center justify-center gap-3">
+                <i class="fa-solid fa-wand-magic-sparkles text-pink-500 text-2xl"></i>
+                AI 隨機音樂點唱機
+            </h1>
+            <p class="text-slate-400 text-sm mt-2 font-light">時間絕對精準！無縫過濾廣告，自動於背景預載下一首</p>
+        </div>
+
+        <!-- 輸入與操作區域 -->
+        <div class="space-y-6 relative z-30">
+            
+            <!-- 提示輸入框 -->
+            <div>
+                <label for="prompt-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 flex justify-between items-center">
+                    <span id="limit-label">輸入靈感提示</span>
+                    <span id="char-counter" class="text-cyan-400 font-bold">0/0</span>
+                </label>
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="prompt-input" 
+                        placeholder="例如：憂鬱下雨天、熱血狂飆、慵懶咖啡" 
+                        class="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl py-4 px-5 text-lg text-slate-100 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-300 placeholder-slate-600"
+                        onkeydown="if(event.key === 'Enter') generateMusic()"
+                    >
+                    <div class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                        <i class="fa-solid fa-keyboard"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 搜尋偏好設定 -->
+            <div>
+                <span class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">優先搜尋類型</span>
+                <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="search-pref" value="official" checked class="sr-only peer">
+                        <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950/50 text-slate-400 peer-checked:border-pink-500 peer-checked:text-pink-400 peer-checked:bg-pink-500/10 transition-all">
+                            官方 MV
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="search-pref" value="lyrics" class="sr-only peer">
+                        <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950/50 text-slate-400 peer-checked:border-pink-500 peer-checked:text-pink-400 peer-checked:bg-pink-500/10 transition-all">
+                            中文歌詞
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="search-pref" value="live" class="sr-only peer">
+                        <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950/50 text-slate-400 peer-checked:border-pink-500 peer-checked:text-pink-400 peer-checked:bg-pink-500/10 transition-all">
+                            現場 Live
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="search-pref" value="audio" class="sr-only peer">
+                        <div class="p-2.5 rounded-xl border border-slate-800 bg-slate-950/50 text-slate-400 peer-checked:border-pink-500 peer-checked:text-pink-400 peer-checked:bg-pink-500/10 transition-all">
+                            純音訊
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 隨機快速標籤與自動連播開關 -->
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <!-- 快捷鍵 -->
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="text-xs text-slate-500"><i class="fa-solid fa-tags"></i> 風格:</span>
+                    <button onclick="fillPrompt('中文抒情')" class="text-xs bg-slate-800/60 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full transition-all border border-slate-700/50">🎵 中文抒情</button>
+                    <button onclick="fillPrompt('英文搖滾')" class="text-xs bg-slate-800/60 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full transition-all border border-slate-700/50">🎸 英文搖滾</button>
+                    <button onclick="fillPrompt('韓國流行')" class="text-xs bg-slate-800/60 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-full transition-all border border-slate-700/50">💃 韓國流行</button>
+                </div>
+
+                <!-- 自動連播開關 -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-400">自動連播下一首</span>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="auto-next-toggle" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer right-4 focus:outline-none"/>
+                        <label for="auto-next-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-700 cursor-pointer">
+                            <span class="toggle-dot block h-6 w-6 rounded-full bg-slate-100 transform transition-transform duration-200"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 強制 API KEY 設定面板 (Y 版專屬) -->
+            <div class="bg-rose-500/10 rounded-2xl p-4 border border-rose-500/30 space-y-3">
+                <div class="w-full flex justify-between items-center text-xs text-rose-400 font-bold">
+                    <span><i class="fa-solid fa-key mr-1"></i> 必填：請輸入您的 Gemini API Key</span>
+                </div>
+                <div class="space-y-2 pt-2 border-t border-rose-500/20">
+                    <input 
+                        type="password" 
+                        id="api-key-input" 
+                        placeholder="AIzaSy..." 
+                        class="w-full bg-slate-950 border-2 border-rose-500/50 rounded-xl py-3 px-4 text-sm text-slate-100 focus:outline-none focus:border-rose-400 transition-all font-mono"
+                    >
+                    <p id="api-error" class="hidden text-[11px] text-rose-500 font-bold animate-pulse">
+                        <i class="fa-solid fa-circle-exclamation"></i> 必須填寫有效的 API Key 才能啟動智慧大腦！
+                    </p>
+                </div>
+            </div>
+
+            <!-- 點唱按鈕 -->
+            <button 
+                id="generate-btn"
+                onclick="generateMusic()"
+                class="w-full bg-gradient-to-r from-pink-500 via-purple-600 to-cyan-500 text-white font-bold text-lg py-4 rounded-2xl shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-3 group"
+            >
+                <i class="fa-solid fa-compact-disc text-xl animate-spin group-hover:scale-110"></i>
+                <span>尋找高精準連結並放歌！</span>
+            </button>
+        </div>
+
+        <!-- 生成中動畫狀態（預設隱藏） -->
+        <div id="loading-container" class="hidden mt-8 text-center space-y-4 relative z-10">
+            <div class="flex justify-center items-center h-24">
+                <div class="relative w-20 h-20 bg-black rounded-full flex items-center justify-center border-4 border-slate-700 vinyl-rotate">
+                    <div class="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center border-2 border-white">
+                        <div class="w-2 h-2 bg-black rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+            <p id="loading-text" class="text-cyan-400 animate-pulse text-sm">Gemini 正在搜尋完美的 YouTube 連結...</p>
+        </div>
+
+        <!-- 結果與播放器展示（預設隱藏） -->
+        <div id="result-container" class="hidden mt-8 p-6 bg-slate-950/90 rounded-2xl border border-pink-500/30 neon-border-pink relative z-10 text-center space-y-6">
+            
+            <!-- 視覺效果與預載狀態 -->
+            <div class="flex justify-center relative">
+                <div class="relative w-32 h-32 bg-black rounded-full flex items-center justify-center border-8 border-slate-800 vinyl-rotate shadow-xl shadow-pink-500/10">
+                    <div class="w-12 h-12 bg-pink-500 rounded-full flex items-center justify-center border-2 border-white">
+                        <div class="w-3 h-3 bg-black rounded-full"></div>
+                    </div>
+                </div>
+                <div id="prefetch-indicator" class="absolute -top-2 right-2 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-ping"></span>
+                    <span>預載守護中</span>
+                </div>
+            </div>
+
+            <!-- 嵌入式 YouTube Proxy 播放器 -->
+            <div class="w-full aspect-video bg-black rounded-xl overflow-hidden border-2 border-slate-700 shadow-lg relative">
+                <iframe id="yt-player" class="w-full h-full" src="" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+            </div>
+
+            <!-- 物理實時倒數計時進度條與狀態 -->
+            <div class="space-y-2">
+                <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+                    <span>YouTube 物理播放進度</span>
+                    <span id="countdown-text" class="text-pink-400 font-bold">00:00 / 00:00</span>
+                </div>
+                <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden border border-slate-700">
+                    <div id="progress-bar" class="bg-gradient-to-r from-pink-500 to-cyan-400 h-full w-0 transition-all duration-500 ease-linear"></div>
+                </div>
+            </div>
+
+            <!-- 歌曲詳情 -->
+            <div class="space-y-2 pt-1">
+                <div class="flex justify-center">
+                    <div id="eq-container" class="flex items-end justify-center gap-1.5 h-8 w-full max-w-[120px]">
+                        <div class="eq-bar w-1.5 bg-pink-500 rounded-full" style="height: 10px;"></div>
+                        <div class="eq-bar w-1.5 bg-purple-500 rounded-full" style="height: 25px;"></div>
+                        <div class="eq-bar w-1.5 bg-cyan-500 rounded-full" style="height: 35px;"></div>
+                        <div class="eq-bar w-1.5 bg-emerald-500 rounded-full" style="height: 20px;"></div>
+                        <div class="eq-bar w-1.5 bg-yellow-500 rounded-full" style="height: 30px;"></div>
+                        <div class="eq-bar w-1.5 bg-red-500 rounded-full" style="height: 40px;"></div>
+                    </div>
+                </div>
+                <h2 id="song-title" class="text-2xl font-extrabold text-white tracking-wide pt-2 neon-glow-pink">--</h2>
+                <p id="song-artist" class="text-cyan-400 font-medium text-base">--</p>
+                <div id="song-tag" class="text-slate-400 text-xs italic"></div>
+            </div>
+
+            <!-- 操作輔助控制與黑名單 -->
+            <div class="space-y-3 pt-2">
+                <button 
+                    id="btn-blacklist"
+                    onclick="blockCurrentSong()" 
+                    class="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+                >
+                    <i class="fa-solid fa-ban"></i> 加入黑名單 (記住喜好，不再播放)
+                </button>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button 
+                        onclick="reportBadLinkAndSkip()"
+                        class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
+                    >
+                        <i class="fa-solid fa-link-slash"></i> 連結錯誤 / 跳過
+                    </button>
+                    <button 
+                        onclick="triggerNextSongImmediately()"
+                        class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md shadow-cyan-500/10"
+                    >
+                        <i class="fa-solid fa-forward"></i> 切換下一首
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="text-center text-xs text-slate-600 mt-8">
+        <p>© 2026 AI 隨機音樂點唱機. 搭載 GitHub Proxy 代理機制與黑名單記憶系統.</p>
+    </footer>
+
+    <script>
+        const MAX_CHAR_LIMIT = 100; 
+
+        let userBlacklist = JSON.parse(localStorage.getItem('ai_music_blacklist') || '[]');
+        let playedSongIds = [];       
+        let reportedBadIds = [];      
+        let currentYoutubeId = "";    
+        let nextSongData = null;      
+        let isPrefetching = false;    
+
+        const promptInput = document.getElementById('prompt-input');
+        const charCounter = document.getElementById('char-counter');
+        const limitLabel = document.getElementById('limit-label');
+
+        function initCharacterLimit() {
+            promptInput.maxLength = MAX_CHAR_LIMIT;
+            limitLabel.textContent = `輸入靈感提示（限 ${MAX_CHAR_LIMIT} 字）`;
+            updateCounter(promptInput.value.length);
+        }
+
+        function updateCounter(length) {
+            charCounter.textContent = `${length}/${MAX_CHAR_LIMIT}`;
+            charCounter.className = length >= MAX_CHAR_LIMIT ? "text-rose-500 font-bold animate-bounce" : "text-cyan-400 font-bold";
+        }
+
+        promptInput.addEventListener('input', () => updateCounter(promptInput.value.length));
+
+        function fillPrompt(text) {
+            const truncated = text.substring(0, MAX_CHAR_LIMIT);
+            promptInput.value = truncated;
+            updateCounter(truncated.length);
+        }
+
+        function saveBlacklist() {
+            localStorage.setItem('ai_music_blacklist', JSON.stringify(userBlacklist));
+        }
+
+        function blockCurrentSong() {
+            if (!currentYoutubeId) return;
+            const title = document.getElementById('song-title').textContent;
+            const artist = document.getElementById('song-artist').textContent;
+            
+            if (!userBlacklist.some(item => item.id === currentYoutubeId)) {
+                userBlacklist.push({ id: currentYoutubeId, title: title, artist: artist });
+                saveBlacklist();
+            }
+            
+            const btn = document.getElementById('btn-blacklist');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> 已永久封鎖！為您切換...`;
+            btn.classList.replace('bg-rose-500/10', 'bg-rose-600');
+            btn.classList.replace('text-rose-400', 'text-white');
+
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.replace('bg-rose-600', 'bg-rose-500/10');
+                btn.classList.replace('text-white', 'text-rose-400');
+                triggerNextSongImmediately();
+            }, 1000);
+        }
+
+        function formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return "00:00";
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        window.addEventListener('message', (event) => {
+            if (event.origin !== 'https://pandapanda6666.github.io') return;
+
+            const data = event.data;
+            if (data.type === 'YOUTUBE_DURATION') {
+                updatePlaybackUI(0, data.duration);
+            } else if (data.type === 'YOUTUBE_PROGRESS') {
+                updatePlaybackUI(data.currentTime, data.duration);
+            } else if (data.type === 'YOUTUBE_ENDED') {
+                onPlaybackEnded();
+            }
+        });
+
+        function updatePlaybackUI(currentTime, duration) {
+            const countdownText = document.getElementById('countdown-text');
+            const progressBar = document.getElementById('progress-bar');
+            countdownText.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+            const percent = duration > 0 ? Math.min((currentTime / duration) * 100, 100) : 0;
+            progressBar.style.width = `${percent}%`;
+        }
+
+        function onPlaybackEnded() {
+            if (document.getElementById('auto-next-toggle').checked) playNextSongCycle();
+        }
+
+        function playEmbeddedMusic(videoId) {
+            currentYoutubeId = videoId;
+            const player = document.getElementById('yt-player');
+            player.src = `https://pandapanda6666.github.io/AI/music/video/?v=${videoId}`;
+            updatePlaybackUI(0, 0);
+        }
+
+        function triggerNextSongImmediately() {
+            document.getElementById('yt-player').src = ""; 
+            playNextSongCycle();
+        }
+
+        function reportBadLinkAndSkip() {
+            if (currentYoutubeId) reportedBadIds.push(currentYoutubeId);
+            triggerNextSongImmediately();
+        }
+
+        async function playNextSongCycle() {
+            if (nextSongData) {
+                applySongData(nextSongData);
+                nextSongData = null; 
+            } else {
+                await generateMusic();
+            }
+        }
+
+        function applySongData(song) {
+            document.getElementById('song-title').textContent = song.title;
+            document.getElementById('song-artist').textContent = song.artist;
+            document.getElementById('song-tag').innerHTML = `<i class="fa-solid fa-quote-left text-pink-500 mr-1"></i> ${song.tag} <i class="fa-solid fa-quote-right text-pink-500 ml-1"></i>`;
+
+            if (!playedSongIds.includes(song.youtubeId)) {
+                playedSongIds.push(song.youtubeId);
+                if (playedSongIds.length > 30) playedSongIds.shift();
+            }
+
+            document.getElementById('result-container').classList.remove('hidden');
+            playEmbeddedMusic(song.youtubeId);
+
+            if (document.getElementById('auto-next-toggle').checked) prefetchNextSong();
+        }
+
+        async function prefetchNextSong() {
+            if (isPrefetching) return;
+            isPrefetching = true;
+            nextSongData = null;
+
+            const prefetchIndicator = document.getElementById('prefetch-indicator');
+            prefetchIndicator.className = "absolute -top-2 right-2 bg-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1";
+            prefetchIndicator.querySelector('span:first-child').className = "w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping";
+            prefetchIndicator.querySelector('span:last-child').textContent = "正在思考下一首...";
+
+            try {
+                const prompt = promptInput.value;
+                let song = await fetchGeminiRecommendation(prompt, false);
+                
+                if (!userBlacklist.some(item => item.id === song.youtubeId) && !playedSongIds.includes(song.youtubeId)) {
+                    nextSongData = song;
+                    prefetchIndicator.className = "absolute -top-2 right-2 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1";
+                    prefetchIndicator.querySelector('span:first-child').className = "w-1.5 h-1.5 bg-emerald-400 rounded-full";
+                    prefetchIndicator.querySelector('span:last-child').textContent = "下一首已想好";
+                } else {
+                    throw new Error("Hit blacklist");
+                }
+            } catch (err) {
+                prefetchIndicator.classList.add('hidden'); // 若預載失敗就隱藏，等正式按鈕接管
+            } finally {
+                isPrefetching = false;
+            }
+        }
+
+        function cleanJSON(text) {
+            if (!text) return "";
+            let cleaned = text.trim();
+            if (cleaned.startsWith("```")) cleaned = cleaned.replace(/^```[a-zA-Z]*/, "").replace(/```$/, "").trim();
+            return cleaned;
+        }
+
+        async function fetchGeminiRecommendation(promptText, isRetryMode) {
+            const apiKey = document.getElementById('api-key-input').value.trim();
+            // 在 Y 版，這行防禦機制確保沒有 Key 絕對不會發送請求
+            if (!apiKey) throw new Error("NO_API_KEY"); 
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const prefVal = document.querySelector('input[name="search-pref"]:checked').value;
+            let prefQuery = "官方MV";
+            if (prefVal === "lyrics") prefQuery = "中文歌詞版";
+            if (prefVal === "live") prefQuery = "Live現場版";
+            if (prefVal === "audio") prefQuery = "純音訊 Audio";
+
+            const blockedIdArray = [...userBlacklist.map(i => i.id), ...reportedBadIds, ...playedSongIds];
+
+            const systemPrompt = `你是一個音樂搜尋定位專家。請搜尋 Google 並找出對應「${prefQuery}」的真實 YouTube 影片網址。
+絕對不准回傳這份黑名單中的 ID：[${blockedIdArray.join(', ')}]。請回傳包含 title, artist, youtubeId (11碼), durationRaw (如"3:51"), durationSeconds (秒數換算) 與 tag 的嚴格 JSON。`;
+
+            const finalPrompt = promptText.trim() || "好聽的音樂";
+            const payload = {
+                contents: [{ parts: [{ text: `提示: "${finalPrompt}"` }] }],
+                tools: [{ "google_search": {} }], 
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            title: { type: "STRING" }, artist: { type: "STRING" }, youtubeId: { type: "STRING" },
+                            durationRaw: { type: "STRING" }, durationSeconds: { type: "INTEGER" }, tag: { type: "STRING" }
+                        },
+                        required: ["title", "artist", "youtubeId", "durationRaw", "durationSeconds", "tag"]
+                    }
+                }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) throw new Error(`API_ERR_${response.status}`);
+            const result = await response.json();
+            const jsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (jsonText) return JSON.parse(cleanJSON(jsonText));
+            throw new Error("Invalid format");
+        }
+
+        async function generateMusic(isRetryMode = false) {
+            const apiKeyInput = document.getElementById('api-key-input');
+            const apiError = document.getElementById('api-error');
+            
+            // 強制阻擋機制
+            if (!apiKeyInput.value.trim()) {
+                apiKeyInput.classList.replace('border-rose-500/50', 'border-rose-500');
+                apiError.classList.remove('hidden');
+                setTimeout(() => {
+                    apiKeyInput.classList.replace('border-rose-500', 'border-rose-500/50');
+                    apiError.classList.add('hidden');
+                }, 2000);
+                return;
+            }
+
+            const prompt = promptInput.value;
+            const generateBtn = document.getElementById('generate-btn');
+            const loadingContainer = document.getElementById('loading-container');
+            const resultContainer = document.getElementById('result-container');
+            const loadingText = document.getElementById('loading-text');
+
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50', 'scale-[0.98]');
+            loadingContainer.classList.remove('hidden');
+
+            const textSteps = ["發送指令至 API...", "比對專屬黑名單...", "解析精準秒數...", "透過 Proxy 載入..."];
+            let step = 0;
+            const textInterval = setInterval(() => {
+                if (step < textSteps.length) loadingText.textContent = textSteps[step++];
+            }, 800);
+
+            try {
+                let song = await fetchGeminiRecommendation(prompt, isRetryMode);
+                if (userBlacklist.some(item => item.id === song.youtubeId)) throw new Error("Hit blacklist");
+
+                applySongData(song);
+                loadingContainer.classList.add('hidden');
+                resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (err) {
+                console.error(err);
+                loadingText.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-500 text-xl"></i><br><span class="text-rose-400">發生錯誤：請檢查您的 API Key 是否正確。</span>`;
+                setTimeout(() => {
+                    loadingContainer.classList.add('hidden');
+                    loadingText.innerHTML = `Gemini 正在搜尋完美的 YouTube 連結...`;
+                }, 3000);
+            } finally {
+                clearInterval(textInterval);
+                generateBtn.disabled = false;
+                generateBtn.classList.remove('opacity-50', 'scale-[0.98]');
+            }
+        }
+
+        initCharacterLimit();
+    </script>
+</body>
+</html>
