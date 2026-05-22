@@ -59,10 +59,31 @@
                 sendDuration();
             }
 
+            let progressTimer;
             function onPlayerStateChange(event) {
-                // 影片開始播放時再次確認時長
+                // 狀態 1: 正在播放
                 if (event.data == YT.PlayerState.PLAYING) {
                     sendDuration();
+                    // 啟動實時進度回報
+                    clearInterval(progressTimer);
+                    progressTimer = setInterval(() => {
+                        if (player && player.getCurrentTime) {
+                            window.parent.postMessage({ 
+                                type: 'YOUTUBE_PROGRESS', 
+                                currentTime: player.getCurrentTime(),
+                                duration: player.getDuration()
+                            }, '*');
+                        }
+                    }, 500);
+                } 
+                // 狀態 0: 影片物理播放完畢 (自動忽略廣告時間！)
+                else if (event.data == YT.PlayerState.ENDED) {
+                    clearInterval(progressTimer);
+                    window.parent.postMessage({ type: 'YOUTUBE_ENDED' }, '*');
+                }
+                // 狀態 2: 暫停或其他狀態
+                else {
+                    clearInterval(progressTimer);
                 }
             }
 
