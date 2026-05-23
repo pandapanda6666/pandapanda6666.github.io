@@ -37,23 +37,28 @@
 
         function onPlayerReady(event) {
             event.target.playVideo();
-            
-            // 強制喚醒機制：若卡在 0 秒超過 3 秒，強制重發播放指令 (解決自動播放阻擋)
+            startStuckCheck(); // 啟動防卡死機制
+        }
+
+        let stuckCheckTimer;
+        function startStuckCheck() {
             let zeroCount = 0;
-            const stuckInterval = setInterval(() => {
+            if (stuckCheckTimer) clearInterval(stuckCheckTimer);
+            
+            stuckCheckTimer = setInterval(() => {
                 if (!player || typeof player.getPlayerState !== 'function') return;
                 const state = player.getPlayerState();
                 const time = player.getCurrentTime();
                 
-                // 若未播放且時間停在 0 秒
+                // 偵測卡在 0 秒未播放的狀況
                 if (state !== YT.PlayerState.PLAYING && time === 0) {
                     zeroCount++;
                     if (zeroCount >= 6) { // 0.5秒 * 6次 = 3秒
-                        player.playVideo(); // 強制觸發點擊播放
+                        player.playVideo(); // 強制觸發
                         zeroCount = 0;
                     }
                 } else if (state === YT.PlayerState.PLAYING) {
-                    zeroCount = 0; // 若順利播放則歸零
+                    zeroCount = 0; 
                 }
             }, 500);
         }
@@ -80,7 +85,7 @@
         }
 
         function onPlayerError(event) {
-            // 回報無法播放的錯誤代碼 (如 100 找不到, 150 不允許嵌入)
+            // 發生 100(找不到), 150(不允許嵌入) 等錯誤，立刻回報給主網頁
             window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: event.data }, '*');
         }
     </script>
