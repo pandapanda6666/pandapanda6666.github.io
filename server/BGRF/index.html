@@ -96,6 +96,12 @@
                 </label>
             </div>
 
+            <!-- 新增的奶奶備註欄位 -->
+            <div class="mb-4 ml-4">
+                <span class="font-bold text-gray-700 block mb-1">奶奶的備註叮嚀 (選填)：</span>
+                <input type="text" id="grandmaMemo" class="input-line w-full max-w-md" placeholder="想對孫子說些什麼嗎？">
+            </div>
+
             <div class="mt-8 mb-6 bg-gray-50 p-4 rounded border border-gray-200">
                 <div class="mb-3 font-bold text-lg">奶奶簽章：</div>
                 <div class="flex flex-col space-y-4 ml-4">
@@ -337,6 +343,8 @@
                 if (sub.result === '駁回') detail = `<span class="text-gray-600 font-normal text-sm ml-2">(理由：${sub.rejectReason})</span>`;
                 if (sub.result === '條件核准') detail = `<span class="text-gray-600 font-normal text-sm ml-2">(金額：NT$${sub.conditionalAmount})</span>`;
                 
+                let memoHtml = sub.memo ? `<p class="text-blue-700 mt-1"><strong>奶奶備註：</strong>${sub.memo}</p>` : '';
+
                 // 相容舊版全圖截圖或是新版文字+畫布資料
                 let imagePreview = '';
                 if (sub.signatureImage) {
@@ -353,6 +361,7 @@
                         </div>
                         <div class="text-sm space-y-1">
                             <p><strong>審核結果：</strong> <span class="font-bold ${sub.result === '准奏' ? 'text-green-600' : 'text-red-600'}">${sub.result}</span>${detail}</p>
+                            ${memoHtml}
                             <p><strong>鍵盤輸入：</strong> ${sub.signatureText || sub.signature || '無'}</p>
                             ${imagePreview}
                         </div>
@@ -362,8 +371,11 @@
         }
 
         async function submitFormData() {
+            const msgEl = document.getElementById('submitMsg');
+            
             if (!socket || !socket.connected) {
-                alert("目前無法連線到伺服器，請稍後再試。");
+                msgEl.textContent = "目前無法連線到伺服器，請稍後再試。";
+                msgEl.className = "mr-4 text-red-600 font-bold";
                 return;
             }
 
@@ -373,28 +385,34 @@
             else if (document.getElementById('checkConditional').checked) selectedResult = '條件核准';
 
             if (!selectedResult) {
-                alert("奶奶，您忘記勾選審核結果囉！");
+                msgEl.textContent = "奶奶，您忘記勾選審核結果囉！";
+                msgEl.className = "mr-4 text-red-600 font-bold";
                 return;
             }
 
             const rejectReason = document.getElementById('rejectReason').value.trim();
             const conditionalAmount = document.getElementById('conditionalAmount').value.trim();
+            const grandmaMemo = document.getElementById('grandmaMemo').value.trim();
             const typedSignature = document.getElementById('signature').value.trim();
 
             if (selectedResult === '駁回' && !rejectReason) {
-                alert("奶奶，既然駁回了，請填寫一下駁回理由讓孫子知道原因！");
+                msgEl.textContent = "奶奶，既然駁回了，請填寫一下駁回理由讓孫子知道原因！";
+                msgEl.className = "mr-4 text-red-600 font-bold";
                 return;
             }
             if (selectedResult === '條件核准' && !conditionalAmount) {
-                alert("奶奶，請填寫條件核准的核發金額！");
+                msgEl.textContent = "奶奶，請填寫條件核准的核發金額！";
+                msgEl.className = "mr-4 text-red-600 font-bold";
                 return;
             }
             if (!typedSignature) {
-                alert("奶奶，請記得在鍵盤上輸入您的姓名作為電子簽章！");
+                msgEl.textContent = "奶奶，請記得在鍵盤上輸入您的姓名作為電子簽章！";
+                msgEl.className = "mr-4 text-red-600 font-bold";
                 return;
             }
             if (!hasDrawn) {
-                alert("奶奶，請在畫布上親筆簽名！");
+                msgEl.textContent = "奶奶，請在畫布上親筆簽名！";
+                msgEl.className = "mr-4 text-red-600 font-bold";
                 return;
             }
 
@@ -411,6 +429,7 @@
                     result: selectedResult,
                     rejectReason: rejectReason,
                     conditionalAmount: conditionalAmount,
+                    memo: grandmaMemo,
                     signatureText: typedSignature,
                     signatureImage: signatureImgData, // 儲存奶奶的筆跡
                     submitterAccount: currentUserProfile ? currentUserProfile.username : 'Guest',
@@ -432,7 +451,6 @@
                 // 畫面更新
                 renderSubmissionsList();
 
-                const msgEl = document.getElementById('submitMsg');
                 msgEl.textContent = "✅ 回覆已成功發送給孫子了！";
                 msgEl.className = "mr-4 text-green-600 font-bold";
                 
@@ -443,6 +461,7 @@
                 document.getElementById('checkConditional').checked = false;
                 document.getElementById('rejectReason').value = '';
                 document.getElementById('conditionalAmount').value = '';
+                document.getElementById('grandmaMemo').value = '';
                 document.getElementById('signature').value = '';
 
                 setTimeout(() => { msgEl.textContent = ""; }, 5000);
