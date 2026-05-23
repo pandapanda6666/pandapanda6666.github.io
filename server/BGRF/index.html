@@ -4,15 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>生日禮物採購申請表</title>
+    <title>教學器材採購申請表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <!-- 移除了 html2canvas，因為我們不再全網頁截圖 -->
+    <!-- 已徹底移除不穩定的 html2canvas 截圖套件，改用原生資料傳輸重繪 -->
     <style>
         body { background-color: #f3f4f6; font-family: "Microsoft JhengHei", sans-serif; }
         .form-container { background-color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 768px; margin: 2rem auto; padding: 2.5rem; color: #111827; }
         .input-line { border: none; border-bottom: 1px solid #111827; outline: none; background: transparent; padding: 0 4px; }
         .login-header { background-color: #1e293b; color: white; padding: 1rem; display: flex; justify-content: flex-end; align-items: center; }
+        canvas { touch-action: none; } /* 確保手機觸控簽名時，螢幕不會跟著滑動 */
         footer { text-align: center; padding: 1rem 0; color: #6b7280; font-size: 0.875rem; }
         footer a { color: #3b82f6; text-decoration: none; }
         footer a:hover { text-decoration: underline; }
@@ -22,18 +23,18 @@
     <div class="login-header" id="auth-container"><span class="text-gray-400">正在連線...</span></div>
 
     <div class="form-container">
-        <div id="form-content" class="bg-white pb-4 px-4 pt-4">
-            <h1 class="text-xl font-bold mb-6">【生日禮物採購申請表】</h1>
+        <div id="form-content-to-capture" class="bg-white pb-4 px-4 pt-4">
+            <h1 class="text-xl font-bold mb-6 text-center">【精密教學實驗器材採購申請表】</h1>
+            
             <div class="space-y-4 mb-6">
-                <p>申請人：您的孫子</p>
-                <p>審核人：奶奶</p>
-                <p>申請日期：2026年5月19日</p>
-                <p class="leading-relaxed">申請事由：申請購買電子與積木零件，作為遲來的生日禮物（申請人今年生日為5月6日，特此申請補發！）</p>
+                <p><strong>申請人：</strong>您的孫子</p>
+                <p><strong>審核人：</strong>奶奶</p>
+                <p><strong>申請日期：</strong>2026年5月19日</p>
+                <p class="leading-relaxed"><strong>申請事由：</strong>申請購買電子與積木零件，作為遲來的生日禮物（申請人今年生日為5月6日，特此申請補發！）</p>
                 <p class="text-red-600 font-bold">備註說明：本申請之積木與伺服馬達等電子零件，係用於科學原理實作與電子工程實驗教學，非一般娛樂玩具，特此聲明。</p>
             </div>
 
-            <p class="mb-2 font-bold">--- 採購明細清單 ---</p>
-
+            <p class="mb-2 font-bold text-lg">--- 採購明細清單 ---</p>
             <table class="w-full border-collapse border border-gray-800 text-sm mb-6">
                 <thead>
                     <tr>
@@ -68,61 +69,70 @@
                     </tr>
                     <tr>
                         <td class="border border-gray-800 p-2 font-bold">總計</td>
-                        <td class="border border-gray-800 p-2 font-bold" colspan="4">約NT$1,110</td>
+                        <td class="border border-gray-800 p-2 font-bold text-red-600" colspan="4">約NT$1,110</td>
                     </tr>
                 </tbody>
             </table>
 
             <h2 class="text-lg font-bold mb-6">申請總金額：約新台幣壹仟壹佰壹拾圓整</h2>
 
-            <div class="mb-4 text-gray-600 font-bold">奶奶專用審核區：</div>
-            <div class="mb-2">審核結果（請單選）：</div>
+            <div class="mb-4 text-gray-600 font-bold">👇 奶奶專用審核區：</div>
+            <div class="mb-2 font-bold">審核結果（請單選）：</div>
 
             <div class="space-y-3 ml-4 mb-6">
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" id="checkApprove" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 mr-2" onchange="handleCheckboxChange(this)">
-                    <span>准奏，同意撥款全額 NT$1,110</span>
+                    <span>✅ 准奏，同意撥款全額 NT$1,110</span>
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" id="checkReject" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 mr-2" onchange="handleCheckboxChange(this)">
-                    <span>駁回，理由：</span>
-                    <input type="text" id="rejectReason" class="input-line ml-1 flex-1 max-w-xs">
+                    <span>❌ 駁回，理由：</span>
+                    <input type="text" id="rejectReason" class="input-line ml-1 flex-1 max-w-xs" placeholder="若駁回請填寫原因">
                 </label>
                 <label class="flex items-center cursor-pointer">
                     <input type="checkbox" id="checkConditional" class="form-checkbox h-4 w-4 text-blue-600 border-gray-800 mr-2" onchange="handleCheckboxChange(this)">
-                    <span>條件核准，核發金額：NT$</span>
-                    <input type="text" id="conditionalAmount" class="input-line ml-1 w-24">
+                    <span>⚠️ 條件核准，核發金額：NT$</span>
+                    <input type="text" id="conditionalAmount" class="input-line ml-1 w-24" placeholder="例如: 800">
                 </label>
             </div>
 
-            <div class="mt-8 mb-6">
-                <div class="mb-3 font-bold">奶奶簽章：</div>
+            <div class="mt-8 mb-6 bg-gray-50 p-4 rounded border border-gray-200">
+                <div class="mb-3 font-bold text-lg">奶奶簽章：</div>
                 <div class="flex flex-col space-y-4 ml-4">
                     <div class="flex items-center">
-                        <span class="mr-2 text-sm text-gray-700">1. 鍵盤輸入姓名：</span>
-                        <input type="text" id="signature" class="input-line w-48" placeholder="請輸入姓名">
+                        <span class="mr-2 text-sm text-gray-700 font-bold">1. 鍵盤輸入姓名：</span>
+                        <input type="text" id="signature" class="input-line w-48" placeholder="請在此打字輸入姓名">
                     </div>
                     <div>
-                        <span class="mr-2 mb-2 block text-sm text-gray-700">2. 手寫簽名：</span>
-                        <div class="border border-gray-400 rounded inline-block bg-white overflow-hidden">
-                            <canvas id="signatureCanvas" width="300" height="150" class="cursor-crosshair block"></canvas>
+                        <span class="mr-2 mb-2 block text-sm text-gray-700 font-bold">2. 親筆手寫簽名：</span>
+                        <span class="text-xs text-red-600 mb-2 block font-bold">（備註：目前行動裝置無法簽名，請改用電腦操作）</span>
+                        <!-- 移除 shadow-inner 避免截圖變灰，並強制設定為 block -->
+                        <div class="border-2 border-gray-400 rounded inline-block bg-white overflow-hidden">
+                            <canvas id="signatureCanvas" width="350" height="150" class="cursor-crosshair block"></canvas>
                         </div>
-                        <div class="mt-2" id="canvas-controls">
-                            <button type="button" onclick="clearSignature()" class="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded shadow-sm text-gray-700">清除重寫</button>
+                        <div class="mt-2">
+                            <button type="button" onclick="clearSignature()" class="text-sm bg-gray-300 hover:bg-gray-400 px-3 py-1 rounded shadow-sm text-gray-800 font-bold">清除重寫</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-10 pt-4 border-t border-gray-200 flex justify-end items-center">
-            <span id="submitMsg" class="mr-4"></span>
-            <button id="submitBtn" onclick="submitFormData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded shadow cursor-pointer">
-                提交審核結果
+        <div class="mt-8 pt-4 border-t border-gray-200 flex justify-end items-center">
+            <span id="submitMsg" class="mr-4 transition-all duration-300"></span>
+            <button id="submitBtn" onclick="submitFormData()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded shadow-lg cursor-pointer transform hover:scale-105 transition-transform">
+                🚀 確定提交審核回覆
             </button>
         </div>
 
-        <div id="display-app-id" class="mt-8 p-3 bg-gray-100 rounded text-xs text-gray-500 break-all border border-gray-200 shadow-inner"></div>
+        <div id="display-app-id" class="mt-6 p-3 bg-gray-100 rounded text-xs text-gray-500 break-all border border-gray-200 shadow-inner"></div>
+
+        <div class="mt-12 border-t-2 border-gray-800 pt-6">
+            <h3 class="text-lg font-bold mb-4 text-gray-800">📜 奶奶先前的回覆紀錄</h3>
+            <div id="submissions-list" class="space-y-4">
+                <p class="text-gray-500 text-sm">目前尚無紀錄。</p>
+            </div>
+        </div>
     </div>
 
     <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
@@ -140,6 +150,7 @@
             if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
         });
 
+        // 動態獲取應用的唯一識別碼
         const appId = window.location.hostname + window.location.pathname;
         let socket;
         let currentUserProfile = null;
@@ -148,44 +159,76 @@
 
         const sigCanvas = document.getElementById('signatureCanvas');
         const sigCtx = sigCanvas.getContext('2d');
+        let isDrawing = false; // 使用布林值精確判斷是否正在繪畫，解決斷水問題
         let hasDrawn = false;
 
         function setupCanvas() {
-            // 背景改回透明，方便後端直接貼在重繪的網頁上
-            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+            sigCtx.fillStyle = "#ffffff";
+            sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
         }
         setupCanvas();
 
-        function draw(e) {
-            if (e.buttons !== 1 && e.type !== 'touchmove') return;
-            hasDrawn = true;
+        function getCoordinates(e) {
             const rect = sigCanvas.getBoundingClientRect();
             let clientX = e.clientX;
             let clientY = e.clientY;
+            
+            // 處理手機觸控座標
             if (e.touches && e.touches.length > 0) {
                 clientX = e.touches[0].clientX;
                 clientY = e.touches[0].clientY;
             }
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
-            sigCtx.lineWidth = 3;
-            sigCtx.lineCap = 'round';
-            sigCtx.strokeStyle = '#000';
-            sigCtx.lineTo(x, y);
-            sigCtx.stroke();
-            sigCtx.beginPath();
-            sigCtx.moveTo(x, y);
+
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
         }
 
-        sigCanvas.addEventListener('mousedown', (e) => { sigCtx.beginPath(); draw(e); });
+        function startDrawing(e) {
+            if (e.cancelable) e.preventDefault();
+            isDrawing = true;
+            hasDrawn = true;
+            const coords = getCoordinates(e);
+            sigCtx.beginPath();
+            sigCtx.moveTo(coords.x, coords.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            if (e.cancelable) e.preventDefault(); // 防止手機觸控時畫面滾動
+            
+            const coords = getCoordinates(e);
+
+            sigCtx.lineWidth = 4; // 筆觸加粗一點看起來更像簽字筆
+            sigCtx.lineCap = 'round';
+            sigCtx.lineJoin = 'round';
+            sigCtx.strokeStyle = '#000';
+
+            sigCtx.lineTo(coords.x, coords.y);
+            sigCtx.stroke();
+        }
+
+        function endDrawing(e) {
+            if (e && e.cancelable) e.preventDefault();
+            isDrawing = false;
+            sigCtx.closePath();
+        }
+
+        // 電腦滑鼠事件
+        sigCanvas.addEventListener('mousedown', startDrawing);
         sigCanvas.addEventListener('mousemove', draw);
-        sigCanvas.addEventListener('mouseup', () => { sigCtx.beginPath(); });
-        sigCanvas.addEventListener('mouseout', () => { sigCtx.beginPath(); });
-        sigCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); sigCtx.beginPath(); draw(e); }, { passive: false });
-        sigCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, { passive: false });
-        sigCanvas.addEventListener('touchend', () => { sigCtx.beginPath(); });
+        sigCanvas.addEventListener('mouseup', endDrawing);
+        sigCanvas.addEventListener('mouseout', endDrawing);
+        
+        // 手機觸控事件 (passive: false 確保可以呼叫 preventDefault)
+        sigCanvas.addEventListener('touchstart', startDrawing, { passive: false });
+        sigCanvas.addEventListener('touchmove', draw, { passive: false });
+        sigCanvas.addEventListener('touchend', endDrawing);
+        sigCanvas.addEventListener('touchcancel', endDrawing);
 
         function clearSignature() {
+            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
             setupCanvas();
             hasDrawn = false;
         }
@@ -219,7 +262,7 @@
                 socket.on('connect', () => {
                     socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                     const displayIdEl = document.getElementById('display-app-id');
-                    if(displayIdEl) displayIdEl.innerHTML = '<span class="font-bold">當前網頁專屬 App ID：</span><span class="text-red-500 font-bold ml-1">' + appId + '</span>';
+                    if(displayIdEl) displayIdEl.innerHTML = `<span class="font-bold">孫子連線用 App ID：</span><span class="text-red-500 font-bold ml-1">${appId}</span>`;
                     handleAuthAndRoom();
                 });
 
@@ -277,8 +320,45 @@
             socket.emit('getAppData', { appId: appId }, (res) => {
                 if (res && res.data && Array.isArray(res.data.submissions)) {
                     allSubmissions = res.data.submissions;
+                    renderSubmissionsList();
                 }
             });
+        }
+
+        function renderSubmissionsList() {
+            const listContainer = document.getElementById('submissions-list');
+            if (allSubmissions.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 text-sm">目前尚無紀錄。</p>';
+                return;
+            }
+
+            listContainer.innerHTML = allSubmissions.map((sub) => {
+                let detail = '';
+                if (sub.result === '駁回') detail = `<span class="text-gray-600 font-normal text-sm ml-2">(理由：${sub.rejectReason})</span>`;
+                if (sub.result === '條件核准') detail = `<span class="text-gray-600 font-normal text-sm ml-2">(金額：NT$${sub.conditionalAmount})</span>`;
+                
+                // 相容舊版全圖截圖或是新版文字+畫布資料
+                let imagePreview = '';
+                if (sub.signatureImage) {
+                    imagePreview = `<div class="mt-2 border border-gray-300 inline-block bg-white"><p class="text-xs text-gray-500 p-1 border-b bg-gray-50">手寫簽名：</p><img src="${sub.signatureImage}" class="h-16"></div>`;
+                } else if (sub.formImage) {
+                    imagePreview = `<div class="mt-2 text-xs text-blue-500">(這是一份舊版全圖截圖表單)</div>`;
+                }
+
+                return `
+                    <div class="bg-gray-50 p-4 rounded border border-gray-200 shadow-sm relative">
+                        <div class="flex justify-between items-center mb-2 border-b pb-2">
+                            <span class="font-bold text-blue-800">審核人：${sub.submitterName} <span class="text-gray-500 font-normal text-sm">(${sub.submitterAccount})</span></span>
+                            <span class="text-xs text-gray-400">${sub.timestamp}</span>
+                        </div>
+                        <div class="text-sm space-y-1">
+                            <p><strong>審核結果：</strong> <span class="font-bold ${sub.result === '准奏' ? 'text-green-600' : 'text-red-600'}">${sub.result}</span>${detail}</p>
+                            <p><strong>鍵盤輸入：</strong> ${sub.signatureText || sub.signature || '無'}</p>
+                            ${imagePreview}
+                        </div>
+                    </div>
+                `;
+            }).reverse().join('');
         }
 
         async function submitFormData() {
@@ -293,7 +373,7 @@
             else if (document.getElementById('checkConditional').checked) selectedResult = '條件核准';
 
             if (!selectedResult) {
-                alert("請勾選審核結果！");
+                alert("奶奶，您忘記勾選審核結果囉！");
                 return;
             }
 
@@ -302,55 +382,61 @@
             const typedSignature = document.getElementById('signature').value.trim();
 
             if (selectedResult === '駁回' && !rejectReason) {
-                alert("請填寫駁回理由！");
+                alert("奶奶，既然駁回了，請填寫一下駁回理由讓孫子知道原因！");
                 return;
             }
             if (selectedResult === '條件核准' && !conditionalAmount) {
-                alert("請填寫條件核准的核發金額！");
+                alert("奶奶，請填寫條件核准的核發金額！");
                 return;
             }
             if (!typedSignature) {
-                alert("請完成鍵盤輸入姓名！");
+                alert("奶奶，請記得在鍵盤上輸入您的姓名作為電子簽章！");
                 return;
             }
             if (!hasDrawn) {
-                alert("請在畫布上完成手寫簽名！");
+                alert("奶奶，請在畫布上親筆簽名！");
                 return;
             }
 
             const submitBtn = document.getElementById('submitBtn');
             const originalBtnText = submitBtn.innerHTML;
-            submitBtn.innerHTML = "正在上傳原始表單資料...";
+            submitBtn.innerHTML = "🔄 正在傳送審核結果給孫子...";
             submitBtn.disabled = true;
 
             try {
-                // 不再截圖，改為直接抓取 Canvas 的圖片 Base64 (僅含筆跡) 以及表單文字資料
-                const signatureImageBase64 = sigCanvas.toDataURL("image/png");
-
+                // 直接提取畫布中的純圖像 (PNG透明背景)，不再依賴笨重的全圖截圖套件
+                const signatureImgData = sigCanvas.toDataURL('image/png');
+                
                 const newSubmission = {
                     result: selectedResult,
                     rejectReason: rejectReason,
                     conditionalAmount: conditionalAmount,
-                    typedSignature: typedSignature,
-                    signatureImage: signatureImageBase64, // 傳送純筆跡圖片
+                    signatureText: typedSignature,
+                    signatureImage: signatureImgData, // 儲存奶奶的筆跡
                     submitterAccount: currentUserProfile ? currentUserProfile.username : 'Guest',
-                    submitterName: currentUserProfile ? currentUserProfile.nickname : '訪客',
+                    submitterName: currentUserProfile ? currentUserProfile.nickname : '奶奶',
                     timestamp: new Date().toLocaleString('zh-TW')
                 };
 
+                // 將新資料加入陣列並上傳
                 allSubmissions.push(newSubmission);
                 socket.emit('saveAppData', { appId: appId, data: { submissions: allSubmissions } });
 
+                // 上報日誌通知
                 socket.emit('logAppMessage', { 
                     appId: appId, 
-                    message: `${newSubmission.submitterName} 提交了一份審核結果: ${selectedResult} (已儲存資料與簽名)`, 
+                    message: `奶奶 (${newSubmission.submitterName}) 提交了一份新的審核回覆，結果: ${selectedResult}！`, 
                     type: 'info' 
                 });
 
+                // 畫面更新
+                renderSubmissionsList();
+
                 const msgEl = document.getElementById('submitMsg');
-                msgEl.textContent = "審核結果與簽名已成功上傳！";
+                msgEl.textContent = "✅ 回覆已成功發送給孫子了！";
                 msgEl.className = "mr-4 text-green-600 font-bold";
                 
+                // 清空表單方便下次填寫
                 clearSignature();
                 document.getElementById('checkApprove').checked = false;
                 document.getElementById('checkReject').checked = false;
@@ -359,11 +445,11 @@
                 document.getElementById('conditionalAmount').value = '';
                 document.getElementById('signature').value = '';
 
-                setTimeout(() => { msgEl.textContent = ""; }, 4000);
+                setTimeout(() => { msgEl.textContent = ""; }, 5000);
 
             } catch (err) {
-                console.error("資料傳送失敗:", err);
-                alert("表單資料上傳失敗，請稍後再試。");
+                console.error("上傳失敗:", err);
+                alert("資料傳送失敗，請稍後再試。");
             } finally {
                 submitBtn.innerHTML = originalBtnText;
                 submitBtn.disabled = false;
