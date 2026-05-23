@@ -4,86 +4,67 @@
     <meta charset="UTF-8">
     <title>YouTube Proxy Player</title>
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000; overflow: hidden; }
-        #player { width: 100%; height: 100%; border: none; }
+        body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+        #player { width: 100vw; height: 100vh; }
     </style>
 </head>
 <body>
     <div id="player"></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const videoId = urlParams.get('v');
+        var player;
 
-        if (videoId && videoId.length === 11) {
-            var tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            document.head.appendChild(tag);
-
-            var player;
-            function onYouTubeIframeAPIReady() {
-                player = new YT.Player('player', {
-                    videoId: videoId,
-                    playerVars: { 
-                        'autoplay': 1, 
-                        'controls': 1, 
-                        'rel': 0,
-                        'fs': 0,
-                        'playsinline': 1
-                    },
-                    events: {
-                        'onReady': onPlayerReady,
-                        'onStateChange': onPlayerStateChange,
-                        'onError': onPlayerError // 攔截無法播放的錯誤
-                    }
-                });
-            }
-
-            function onPlayerReady(event) {
-                event.target.playVideo();
-                sendDuration();
-            }
-
-            // --- 核心修正：自動回報錯誤給主視窗 ---
-            function onPlayerError(event) {
-                // event.data 會包含錯誤代碼 (例如 100 影片找不到, 150 不允許嵌入)
-                window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: event.data }, '*');
-            }
-
-            let progressTimer;
-            function onPlayerStateChange(event) {
-                if (event.data == YT.PlayerState.PLAYING) {
-                    sendDuration();
-                    clearInterval(progressTimer);
-                    // 每 0.5 秒回報一次實時進度 (自動過濾廣告時間)
-                    progressTimer = setInterval(() => {
-                        if (player && player.getCurrentTime) {
-                            window.parent.postMessage({ 
-                                type: 'YOUTUBE_PROGRESS', 
-                                currentTime: player.getCurrentTime(),
-                                duration: player.getDuration()
-                            }, '*');
-                        }
-                    }, 500);
-                } else if (event.data == YT.PlayerState.ENDED) {
-                    // 影片真正播完時，發送結束訊號
-                    clearInterval(progressTimer);
-                    window.parent.postMessage({ type: 'YOUTUBE_ENDED' }, '*');
-                } else {
-                    clearInterval(progressTimer);
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                videoId: videoId,
+                playerVars: { 'autoplay': 1, 'controls': 1, 'rel': 0, 'playsinline': 1 },
+                events: {
+                    'onReady': onPlayerReady,
+                    'onStateChange': onPlayerStateChange,
+                    'onError': (e) => window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: e.data }, '*')
                 }
-            }
+            });
+        }
 
-            function sendDuration() {
-                if (player && player.getDuration) {
-                    const duration = player.getDuration();
-                    if (duration > 0) {
-                        window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: duration }, '*');
+        function onPlayerReady(event) {
+            event.target.playVideo();
+            
+            // 強制喚醒：若卡在 0 秒超過 3 秒，強制重試
+            let zeroCount = 0;
+            const stuckInterval = setInterval(() => {
+                const state = player.getPlayerState();
+                const time = player.getCurrentTime();
+                if (state !== YT.PlayerState.PLAYING && time === 0) {
+                    zeroCount++;
+                    if (zeroCount >= 3) {
+                        player.playVideo();
+                        zeroCount = 0;
                     }
+                } else if (state === YT.PlayerState.PLAYING) {
+                    clearInterval(stuckInterval);
                 }
+            }, 1000);
+        }
+
+        let progressTimer;
+        function onPlayerStateChange(event) {
+            if (event.data == YT.PlayerState.PLAYING) {
+                window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: player.getDuration() }, '*');
+                progressTimer = setInterval(() => {
+                    window.parent.postMessage({ 
+                        type: 'YOUTUBE_PROGRESS', 
+                        currentTime: player.getCurrentTime(),
+                        duration: player.getDuration()
+                    }, '*');
+                }, 500);
+            } else if (event.data == YT.PlayerState.ENDED) {
+                clearInterval(progressTimer);
+                window.parent.postMessage({ type: 'YOUTUBE_ENDED' }, '*');
+            } else {
+                clearInterval(progressTimer);
             }
-        } else {
-            // 如果沒有影片 ID，顯示全黑
-            document.body.style.backgroundColor = "black";
         }
     </script>
 </body>
