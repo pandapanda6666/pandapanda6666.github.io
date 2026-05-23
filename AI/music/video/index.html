@@ -42,7 +42,6 @@
 
         let stuckCheckTimer;
         function startStuckCheck() {
-            let zeroCount = 0;
             if (stuckCheckTimer) clearInterval(stuckCheckTimer);
             
             stuckCheckTimer = setInterval(() => {
@@ -50,17 +49,11 @@
                 const state = player.getPlayerState();
                 const time = player.getCurrentTime();
                 
-                // 偵測卡在 0 秒未播放的狀況
-                if (state !== YT.PlayerState.PLAYING && time === 0) {
-                    zeroCount++;
-                    if (zeroCount >= 6) { // 0.5秒 * 6次 = 3秒
-                        player.playVideo(); // 強制觸發
-                        zeroCount = 0;
-                    }
-                } else if (state === YT.PlayerState.PLAYING) {
-                    zeroCount = 0; 
+                // 只要時間卡在 0 秒 (且未在播放中)，每 1 秒強制點擊一次 (playVideo)，直到進度開始前進
+                if (time === 0 && state !== YT.PlayerState.PLAYING) {
+                    player.playVideo(); // 強制觸發
                 }
-            }, 500);
+            }, 1000);
         }
 
         let progressTimer;
