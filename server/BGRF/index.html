@@ -7,7 +7,7 @@
     <title>生日禮物採購申請表</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- 移除了 html2canvas，因為我們不再全網頁截圖 -->
     <style>
         body { background-color: #f3f4f6; font-family: "Microsoft JhengHei", sans-serif; }
         .form-container { background-color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 768px; margin: 2rem auto; padding: 2.5rem; color: #111827; }
@@ -22,7 +22,7 @@
     <div class="login-header" id="auth-container"><span class="text-gray-400">正在連線...</span></div>
 
     <div class="form-container">
-        <div id="form-content-to-capture" class="bg-white pb-4 px-4 pt-4">
+        <div id="form-content" class="bg-white pb-4 px-4 pt-4">
             <h1 class="text-xl font-bold mb-6">【生日禮物採購申請表】</h1>
             <div class="space-y-4 mb-6">
                 <p>申請人：您的孫子</p>
@@ -104,7 +104,6 @@
                     </div>
                     <div>
                         <span class="mr-2 mb-2 block text-sm text-gray-700">2. 手寫簽名：</span>
-                        <!-- 移除 shadow-inner 避免 html2canvas 渲染出錯產生灰色區塊，並加上 block 修正間距 -->
                         <div class="border border-gray-400 rounded inline-block bg-white overflow-hidden">
                             <canvas id="signatureCanvas" width="300" height="150" class="cursor-crosshair block"></canvas>
                         </div>
@@ -152,8 +151,8 @@
         let hasDrawn = false;
 
         function setupCanvas() {
-            sigCtx.fillStyle = "#ffffff";
-            sigCtx.fillRect(0, 0, sigCanvas.width, sigCanvas.height);
+            // 背景改回透明，方便後端直接貼在重繪的網頁上
+            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         }
         setupCanvas();
 
@@ -187,7 +186,6 @@
         sigCanvas.addEventListener('touchend', () => { sigCtx.beginPath(); });
 
         function clearSignature() {
-            sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
             setupCanvas();
             hasDrawn = false;
         }
@@ -322,46 +320,19 @@
 
             const submitBtn = document.getElementById('submitBtn');
             const originalBtnText = submitBtn.innerHTML;
-            submitBtn.innerHTML = "正在產生表單截圖與上傳...";
+            submitBtn.innerHTML = "正在上傳原始表單資料...";
             submitBtn.disabled = true;
 
             try {
-                const controls = document.getElementById('canvas-controls');
-                if (controls) controls.style.display = 'none';
-
-                // 【終極防空白解法】：在截圖前，將畫布暫時轉為實體圖片，避開 html2canvas 無法讀取動態 Canvas 的 Bug
-                const sigImg = new Image();
-                sigImg.src = sigCanvas.toDataURL("image/png");
-                sigImg.id = "tempSigImg";
-                sigImg.style.width = sigCanvas.width + "px";
-                sigImg.style.height = sigCanvas.height + "px";
-                sigImg.style.display = "block";
-                
-                sigCanvas.style.display = "none"; // 隱藏原本的畫布
-                sigCanvas.parentNode.insertBefore(sigImg, sigCanvas); // 插入圖片替身
-
-                const formElement = document.getElementById('form-content-to-capture');
-                const canvas = await html2canvas(formElement, { 
-                    scale: 1.2, 
-                    allowTaint: true,
-                    useCORS: true,
-                    backgroundColor: "#ffffff",
-                    scrollY: -window.scrollY // 修復網頁向下捲動時導致的破圖留白問題
-                });
-                const formImageData = canvas.toDataURL('image/jpeg', 0.8);
-                
-                // 截圖完成後，把替身圖片刪除，並將原本的畫布顯示回來
-                sigCanvas.style.display = "block";
-                const tempImg = document.getElementById("tempSigImg");
-                if (tempImg) tempImg.parentNode.removeChild(tempImg);
-
-                if (controls) controls.style.display = 'block';
+                // 不再截圖，改為直接抓取 Canvas 的圖片 Base64 (僅含筆跡) 以及表單文字資料
+                const signatureImageBase64 = sigCanvas.toDataURL("image/png");
 
                 const newSubmission = {
-                    formImage: formImageData,
                     result: selectedResult,
                     rejectReason: rejectReason,
                     conditionalAmount: conditionalAmount,
+                    typedSignature: typedSignature,
+                    signatureImage: signatureImageBase64, // 傳送純筆跡圖片
                     submitterAccount: currentUserProfile ? currentUserProfile.username : 'Guest',
                     submitterName: currentUserProfile ? currentUserProfile.nickname : '訪客',
                     timestamp: new Date().toLocaleString('zh-TW')
@@ -372,12 +343,12 @@
 
                 socket.emit('logAppMessage', { 
                     appId: appId, 
-                    message: `${newSubmission.submitterName} 提交了一份完整申請表截圖，審核結果: ${selectedResult}`, 
+                    message: `${newSubmission.submitterName} 提交了一份審核結果: ${selectedResult} (已儲存資料與簽名)`, 
                     type: 'info' 
                 });
 
                 const msgEl = document.getElementById('submitMsg');
-                msgEl.textContent = "整張表單已成功上傳至伺服器！";
+                msgEl.textContent = "審核結果與簽名已成功上傳！";
                 msgEl.className = "mr-4 text-green-600 font-bold";
                 
                 clearSignature();
@@ -391,10 +362,8 @@
                 setTimeout(() => { msgEl.textContent = ""; }, 4000);
 
             } catch (err) {
-                console.error("圖片產生失敗:", err);
-                alert("表單截圖產生失敗，請稍後再試。");
-                const controls = document.getElementById('canvas-controls');
-                if (controls) controls.style.display = 'block';
+                console.error("資料傳送失敗:", err);
+                alert("表單資料上傳失敗，請稍後再試。");
             } finally {
                 submitBtn.innerHTML = originalBtnText;
                 submitBtn.disabled = false;
