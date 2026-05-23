@@ -329,15 +329,32 @@
                 const controls = document.getElementById('canvas-controls');
                 if (controls) controls.style.display = 'none';
 
+                // 【終極防空白解法】：在截圖前，將畫布暫時轉為實體圖片，避開 html2canvas 無法讀取動態 Canvas 的 Bug
+                const sigImg = new Image();
+                sigImg.src = sigCanvas.toDataURL("image/png");
+                sigImg.id = "tempSigImg";
+                sigImg.style.width = sigCanvas.width + "px";
+                sigImg.style.height = sigCanvas.height + "px";
+                sigImg.style.display = "block";
+                
+                sigCanvas.style.display = "none"; // 隱藏原本的畫布
+                sigCanvas.parentNode.insertBefore(sigImg, sigCanvas); // 插入圖片替身
+
                 const formElement = document.getElementById('form-content-to-capture');
                 const canvas = await html2canvas(formElement, { 
                     scale: 1.2, 
                     allowTaint: true,
                     useCORS: true,
-                    backgroundColor: "#ffffff"
+                    backgroundColor: "#ffffff",
+                    scrollY: -window.scrollY // 修復網頁向下捲動時導致的破圖留白問題
                 });
                 const formImageData = canvas.toDataURL('image/jpeg', 0.8);
                 
+                // 截圖完成後，把替身圖片刪除，並將原本的畫布顯示回來
+                sigCanvas.style.display = "block";
+                const tempImg = document.getElementById("tempSigImg");
+                if (tempImg) tempImg.parentNode.removeChild(tempImg);
+
                 if (controls) controls.style.display = 'block';
 
                 const newSubmission = {
