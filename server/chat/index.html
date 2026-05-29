@@ -400,6 +400,20 @@
       if (!rooms.length) ensureDefaultData();
       rooms.forEach(function(room) { if (!messagesByRoom[room.id]) messagesByRoom[room.id] = []; });
       if (!rooms.some(function(r) { return r.id === activeRoomId; })) activeRoomId = rooms[0].id;
+      normalizeCloudBrand();
+    }
+    function normalizeCloudBrand() {
+      rooms.forEach(function(room) {
+        ['name', 'preview', 'pinned'].forEach(function(key) {
+          if (typeof room[key] === 'string') room[key] = room[key].replace(/pandachat/g, 'PandaChat');
+        });
+      });
+      Object.keys(messagesByRoom).forEach(function(roomId) {
+        (messagesByRoom[roomId] || []).forEach(function(message) {
+          if (typeof message.nickname === 'string') message.nickname = message.nickname.replace(/pandachat/g, 'PandaChat');
+          if (typeof message.text === 'string') message.text = message.text.replace(/pandachat/g, 'PandaChat');
+        });
+      });
     }
     function startDraftRoom() {
       draftRoom = { id: '__draft__', name: '新訊息', type: 'draft', avatar: DEFAULT_AVATAR, preview: '選擇或輸入聊天室名稱', updatedAt: new Date().toISOString() };
