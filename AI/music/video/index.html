@@ -12,8 +12,8 @@
     <div id="player"></div>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const videoId = urlParams.get('v');
+        var urlParams = new URLSearchParams(window.location.search);
+        var videoId = urlParams.get('v');
         var player;
 
         function onYouTubeIframeAPIReady() {
@@ -25,7 +25,8 @@
                     'controls': 1, 
                     'rel': 0, 
                     'playsinline': 1,
-                    'disablekb': 0
+                    'disablekb': 0,
+                    'mute': 1 // 解決自動播放阻擋：預設靜音
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -40,25 +41,29 @@
             startStuckCheck(); // 啟動防卡死機制
         }
 
-        let stuckCheckTimer;
+        var stuckCheckTimer;
         function startStuckCheck() {
             if (stuckCheckTimer) clearInterval(stuckCheckTimer);
             
             stuckCheckTimer = setInterval(() => {
                 if (!player || typeof player.getPlayerState !== 'function') return;
-                const state = player.getPlayerState();
-                const time = player.getCurrentTime();
+                var state = player.getPlayerState();
+                var time = player.getCurrentTime();
                 
-                // 只要時間卡在 0 秒 (且未在播放中)，每 1 秒強制點擊一次 (playVideo)，直到進度開始前進
+                // 只要時間卡在 0 秒 (且未在播放中)，每 1 秒強制點擊一次 (playVideo)
                 if (time === 0 && state !== YT.PlayerState.PLAYING) {
                     player.playVideo(); // 強制觸發
+                    player.unMute();    // 嘗試解除靜音
+                } else if (state === YT.PlayerState.PLAYING && player.isMuted()) {
+                    player.unMute();    // 已經在播放，確保解除靜音
                 }
             }, 1000);
         }
 
-        let progressTimer;
+        var progressTimer;
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
+                player.unMute(); // 確保播放時有聲音
                 window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: player.getDuration() }, '*');
                 
                 if (progressTimer) clearInterval(progressTimer);
@@ -78,7 +83,7 @@
         }
 
         function onPlayerError(event) {
-            // 發生 100(找不到), 150(不允許嵌入) 等錯誤，立刻回報給主網頁
+            // 發生 100(找不到), 150(不允許嵌入) 等錯誤，立刻回報給主網頁跳過
             window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: event.data }, '*');
         }
     </script>
