@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 隨機音樂點唱機 (無API免填版)</title>
-    <!-- CSP 阻擋修正：使用 crossOrigin 並用 link 載入字體 -->
+    <title>AI 隨機音樂點唱機 (專業金鑰版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,12 +32,11 @@
         <div class="absolute -bottom-12 -right-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         <div class="text-center mb-8 relative z-10">
-            <!-- 無API版的首頁導向 -->
-            <button onclick="window.location.href='https://pandapanda6666.github.io/AI/music/'" class="absolute left-0 top-0 text-slate-400 hover:text-white transition-colors text-sm">
+            <button onclick="window.location.href='index.html'" class="absolute left-0 top-0 text-slate-400 hover:text-white transition-colors text-sm">
                 <i class="fa-solid fa-arrow-left"></i> 回首頁
             </button>
             <div class="inline-flex items-center gap-1.5 bg-pink-500/10 text-pink-400 text-xs px-3 py-1 rounded-full border border-pink-500/20 mb-3 font-semibold tracking-wider mt-6 sm:mt-0">
-                <i class="fa-solid fa-bolt"></i> 免 API 智慧版 · 資料互通
+                <i class="fa-solid fa-key"></i> 專業 API 版 · 資料互通
             </div>
             <h1 class="text-3xl md:text-4xl font-black tracking-wider bg-gradient-to-r from-pink-500 to-cyan-400 bg-clip-text text-transparent flex items-center justify-center gap-3">
                 <i class="fa-solid fa-wand-magic-sparkles text-pink-500 text-2xl"></i> AI 音樂點唱機
@@ -47,6 +45,11 @@
         </div>
 
         <div class="space-y-6 relative z-30">
+            <div>
+                <label for="api-key-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Gemini API Key</label>
+                <input type="password" id="api-key-input" placeholder="請輸入您的 Gemini API Key..." class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 px-4 text-sm text-slate-200 focus:outline-none focus:border-pink-500" onchange="saveApiKey()">
+            </div>
+
             <div>
                 <label for="prompt-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 flex justify-between items-center">
                     <span id="limit-label">隨機靈感提示 (當歌單為空時使用)</span>
@@ -191,8 +194,17 @@
 
         var promptInput = document.getElementById('prompt-input');
         var charCounter = document.getElementById('char-counter');
+        var apiKeyInput = document.getElementById('api-key-input');
 
-        function initCharacterLimit() { promptInput.maxLength = MAX_CHAR_LIMIT; updateCounter(promptInput.value.length); updateQueueBadge(); }
+        function loadApiKey() {
+            var storedKey = localStorage.getItem('gemini_api_key') || '';
+            apiKeyInput.value = storedKey;
+        }
+        function saveApiKey() {
+            localStorage.setItem('gemini_api_key', apiKeyInput.value.trim());
+        }
+
+        function initCharacterLimit() { promptInput.maxLength = MAX_CHAR_LIMIT; updateCounter(promptInput.value.length); updateQueueBadge(); loadApiKey(); }
         function updateCounter(length) { charCounter.textContent = `${length}/${MAX_CHAR_LIMIT}`; charCounter.className = length >= MAX_CHAR_LIMIT ? "text-rose-500 font-bold animate-bounce" : "text-cyan-400 font-bold"; }
         promptInput.addEventListener('input', () => updateCounter(promptInput.value.length));
 
@@ -356,6 +368,8 @@
 
         async function prefetchNextSong() {
             if (isPrefetching) return;
+            var apiKey = localStorage.getItem('gemini_api_key') || '';
+            if (!apiKey) return;
             isPrefetching = true;
             nextSongData = null;
 
@@ -396,7 +410,8 @@
         }
 
         async function fetchGeminiRecommendation(promptText, isSpecificSong) {
-            var apiKey = ""; 
+            var apiKey = localStorage.getItem('gemini_api_key') || '';
+            if (!apiKey) { alert("請先填寫 Gemini API Key！"); throw new Error("Missing API Key"); }
             var url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             var prefVal = document.querySelector('input[name="search-pref"]:checked').value;
             var prefQuery = prefVal === "lyrics" ? "中文歌詞版" : prefVal === "live" ? "現場版" : prefVal === "audio" ? "純音訊" : "官方MV";
@@ -437,6 +452,8 @@ ${behaviorInstruction}
         }
 
         async function generateMusic() {
+            var apiKey = localStorage.getItem('gemini_api_key') || '';
+            if (!apiKey) { alert("請先填寫右上角的 Gemini API Key！"); return; }
             document.getElementById('generate-btn').disabled = true;
             document.getElementById('loading-container').classList.remove('hidden');
             document.getElementById('prefetch-indicator').classList.add('hidden');
