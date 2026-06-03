@@ -1,0 +1,1118 @@
+<!-- [index.html] -->
+<!-- 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved. -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 麥塊網頁版 - 終極生存合成版</title>
+    <style>
+        @font-face { font-family: 'Minecraft'; src: local('Courier New'); }
+        body { margin: 0; overflow: hidden; font-family: 'Minecraft', 'Courier New', Courier, monospace; background-color: #000; user-select: none; color: white; }
+        #game-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #3b3b3b; background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%235d4037"/><rect width="32" height="32" fill="%234e342e"/><rect x="32" y="32" width="32" height="32" fill="%234e342e"/></svg>'); background-size: 64px 64px; z-index: 100; }
+        .in-game-menu { background-color: rgba(0, 0, 0, 0.7); background-image: none; }
+        .hidden { display: none !important; }
+        h1 { font-size: 4rem; text-shadow: 4px 4px 0 #000; margin-bottom: 2rem; color: #ddd; text-align: center; }
+        h2 { font-size: 2rem; text-shadow: 2px 2px 0 #000; margin-bottom: 1rem; }
+        .btn { background-color: #727272; color: white; border: 2px solid #000; border-top-color: #aaa; border-left-color: #aaa; padding: 10px 20px; font-size: 1.2rem; margin: 5px; cursor: pointer; width: 400px; font-family: inherit; text-align: center; box-sizing: border-box; text-shadow: 2px 2px 0 #333; }
+        .btn:hover { background-color: #888; border-top-color: #ccc; border-left-color: #ccc; }
+        .btn:active { border: 2px solid #000; border-bottom-color: #aaa; border-right-color: #aaa; padding: 12px 18px 8px 22px; }
+        .btn-half { width: 195px; display: inline-block; }
+        .flex-row { display: flex; gap: 10px; width: 400px; justify-content: space-between; }
+        .world-list { width: 400px; height: 300px; background-color: rgba(0,0,0,0.5); border: 2px solid #000; overflow-y: auto; margin-bottom: 10px; }
+        .world-item { padding: 10px; border-bottom: 2px solid #222; cursor: pointer; }
+        .world-item:hover { background-color: rgba(255,255,255,0.1); }
+        .world-item.selected { background-color: rgba(255,255,255,0.3); border: 2px solid #fff; }
+        .input-text { width: 400px; background-color: #000; color: white; border: 2px solid #aaa; padding: 10px; font-size: 1.2rem; font-family: inherit; margin-bottom: 15px; box-sizing: border-box; }
+        
+        #hud { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background-color: rgba(255, 255, 255, 0.9); mix-blend-mode: difference; }
+        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+        
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; background-color: rgba(0, 0, 0, 0.5); padding: 5px; border: 2px solid #333; pointer-events: auto; }
+        .inv-slot { width: 45px; height: 45px; border: 2px solid #888; border-top-color: #ccc; border-left-color: #ccc; background-color: #555; display: flex; justify-content: center; align-items: center; position: relative; cursor: pointer; user-select: none; }
+        .inv-slot:hover { background-color: #666; }
+        .inv-slot.active { border: 3px solid #fff; transform: scale(1.1); z-index: 5; }
+        .slot-num { position: absolute; top: 2px; left: 4px; font-size: 0.6rem; color: #ddd; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+        .slot-count { position: absolute; bottom: 2px; right: 4px; font-size: 0.8rem; font-weight: bold; color: white; text-shadow: 1px 1px 0 #000; pointer-events: none; }
+        .item-icon { width: 32px; height: 32px; background-size: cover; image-rendering: pixelated; pointer-events: none; }
+        
+        .inv-container { background: #c6c6c6; padding: 15px; border: 2px solid #000; border-top-color: #fff; border-left-color: #fff; display: flex; flex-direction: column; gap: 15px; }
+        .inv-grid { display: grid; grid-template-columns: repeat(9, 45px); gap: 5px; }
+        .inv-grid .inv-slot { background-color: #8b8b8b; border-color: #373737; border-bottom-color: #fff; border-right-color: #fff; }
+        .inv-grid .inv-slot:hover { background-color: #999; }
+        .crafting-area { display: flex; align-items: center; gap: 20px; margin-bottom: 10px; }
+        .crafting-grid-2x2 { display: grid; grid-template-columns: repeat(2, 45px); gap: 5px; }
+        .crafting-grid-3x3 { display: grid; grid-template-columns: repeat(3, 45px); gap: 5px; }
+        .arrow { font-size: 2rem; color: #333; font-weight: bold; }
+        .section-title { color: #333; font-size: 1rem; text-shadow: none; margin: 0 0 5px 0; text-align: left; font-weight: bold; }
+        
+        #health-bar { position: absolute; bottom: 75px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; }
+        .heart { width: 18px; height: 18px; font-size: 16px; line-height: 18px; text-shadow: 1px 1px 0 #000; }
+        
+        #cursor-item { position: absolute; pointer-events: none; z-index: 9999; display: none; width: 32px; height: 32px; background-size: cover; image-rendering: pixelated; }
+        #cursor-count { position: absolute; bottom: -8px; right: -8px; font-size: 0.8rem; font-weight: bold; color: white; text-shadow: 1px 1px 0 #000; }
+
+        footer { position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(0, 0, 0, 0.8); color: #aaa; text-align: center; padding: 10px 0; font-size: 0.9rem; z-index: 9999; }
+        footer a { color: #fff; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+</head>
+<body>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="hud" class="hidden">
+        <div id="crosshair"></div>
+        <div id="health-bar"></div>
+        <div id="hotbar"></div>
+    </div>
+
+    <div id="cursor-item"><div id="cursor-count"></div></div>
+
+    <div id="screen-main" class="ui-screen hidden">
+        <h1>MINECRAFT JS</h1>
+        <button class="btn" onclick="showScreen('screen-worlds')">開始遊戲</button>
+        <button class="btn" onclick="showScreen('screen-settings')">設定</button>
+        <button class="btn" onclick="showScreen('screen-tutorial')">教學</button>
+    </div>
+
+    <div id="screen-settings" class="ui-screen hidden">
+        <h2>設定</h2>
+        <div style="background: rgba(0,0,0,0.5); padding: 20px; border: 2px solid #000; margin-bottom: 15px;">
+            <div class="flex-row" style="margin-bottom: 10px;">
+                <span style="line-height: 40px;">玩家名稱:</span>
+                <input type="text" id="player-name-input" class="input-text" style="width: 250px; margin-bottom: 0;" placeholder="輸入名稱..." onchange="updatePlayerProfile()">
+            </div>
+            <div class="flex-row" style="margin-bottom: 10px;">
+                <span style="line-height: 40px; width: 140px; text-align: left;">皮膚顏色:</span>
+                <input type="color" id="color-skin" value="#f1c27d" style="width: 250px; height: 40px;" onchange="updatePlayerProfile()">
+            </div>
+            <div class="flex-row" style="margin-bottom: 10px;">
+                <span style="line-height: 40px; width: 140px; text-align: left;">衣服顏色:</span>
+                <input type="color" id="color-shirt" value="#3498db" style="width: 250px; height: 40px;" onchange="updatePlayerProfile()">
+            </div>
+            <div class="flex-row">
+                <span style="line-height: 40px; width: 140px; text-align: left;">褲子顏色:</span>
+                <input type="color" id="color-pants" value="#2c3e50" style="width: 250px; height: 40px;" onchange="updatePlayerProfile()">
+            </div>
+        </div>
+        <button class="btn" id="toggle-render-dist" onclick="toggleRenderDist()">視距: 2 區塊</button>
+        <button class="btn" onclick="showScreen('screen-main')">完成</button>
+    </div>
+
+    <div id="screen-tutorial" class="ui-screen hidden">
+        <h2>遊玩教學</h2>
+        <p style="color:#ccc; margin-bottom: 20px; line-height: 1.5; text-align: center;">
+            [W][A][S][D] 移動 | [空白鍵] 跳躍/游泳<br>
+            [滑鼠左鍵] 破壞/攻擊/拿取物品 | [滑鼠右鍵] 放置/分離物品/開啟<br>
+            [1 ~ 9] 切換快捷列 | [E] 開啟背包與合成<br>
+            [V] 切換第一/第三人稱視角 | [ESC] 暫停選單<br>
+            ※ 破壞方塊後，物品會掉落在地上，靠近即可撿起。
+        </p>
+        <button class="btn" onclick="showScreen('screen-main')">完成</button>
+    </div>
+
+    <div id="screen-worlds" class="ui-screen hidden">
+        <h2>選擇世界 (離線優先，背景雲端同步)</h2>
+        <div id="world-list-container" class="world-list"></div>
+        <div class="flex-row">
+            <button class="btn btn-half" onclick="playSelectedWorld()">遊玩</button>
+            <button class="btn btn-half" onclick="showScreen('screen-create')">建立</button>
+        </div>
+        <div class="flex-row" style="margin-top: 10px;">
+            <button class="btn btn-half" onclick="exportSelectedWorld()">匯出 (備份)</button>
+            <button class="btn btn-half" onclick="document.getElementById('import-file').click()">匯入</button>
+            <input type="file" id="import-file" style="display:none" accept=".json" onchange="importWorldData(event)">
+        </div>
+        <button class="btn" style="margin-top: 10px;" onclick="showScreen('screen-main')">取消</button>
+    </div>
+
+    <div id="screen-create" class="ui-screen hidden">
+        <h2>建立新的世界</h2>
+        <input type="text" id="new-world-name" class="input-text" placeholder="輸入世界名稱..." value="新的世界">
+        <div class="flex-row">
+            <button class="btn btn-half" id="toggle-mode" onclick="toggleSetting('mode')">遊戲模式: 生存</button>
+            <button class="btn btn-half" id="toggle-diff" onclick="toggleSetting('difficulty')">難易度: 普通</button>
+        </div>
+        <div class="flex-row">
+            <button class="btn btn-half" id="toggle-type" onclick="toggleSetting('type')">地圖類型: 普通</button>
+            <button class="btn btn-half" id="toggle-struct" onclick="toggleSetting('structures')">生成建築: 開</button>
+        </div>
+        <button class="btn" id="toggle-chest" onclick="toggleSetting('chest')">獎勵箱: 關</button>
+        <div class="flex-row" style="margin-top: 20px;">
+            <button class="btn btn-half" onclick="createNewWorld()">建立並儲存</button>
+            <button class="btn btn-half" onclick="showScreen('screen-worlds')">取消</button>
+        </div>
+    </div>
+
+    <div id="screen-pause" class="ui-screen in-game-menu hidden">
+        <h2>遊戲暫停</h2>
+        <button class="btn" onclick="resumeGame()">回到遊戲</button>
+        <button class="btn" onclick="saveAndQuit()">儲存並回到標題畫面</button>
+    </div>
+
+    <div id="screen-death" class="ui-screen in-game-menu hidden">
+        <h1 style="color: #ff5555; text-shadow: 2px 2px 0 #000;">你死亡了！</h1>
+        <button class="btn" onclick="respawn()">重生</button>
+        <button class="btn" onclick="saveAndQuit()">回到標題畫面</button>
+    </div>
+
+    <div id="screen-inventory" class="ui-screen in-game-menu hidden">
+        <div class="inv-container">
+            <div class="crafting-area">
+                <div>
+                    <h3 class="section-title">合成 (2x2)</h3>
+                    <div id="crafting-2x2-grid" class="crafting-grid-2x2"></div>
+                </div>
+                <div class="arrow">➔</div>
+                <div>
+                    <h3 class="section-title">產物</h3>
+                    <div id="crafting-2x2-result" class="inv-slot" style="background-color: #8b8b8b;"></div>
+                </div>
+            </div>
+            <div>
+                <h3 class="section-title">背包</h3>
+                <div id="inventory-main-grid" class="inv-grid"></div>
+            </div>
+            <div>
+                <h3 class="section-title">快捷列</h3>
+                <div id="inventory-hotbar-grid" class="inv-grid" style="grid-template-rows: 45px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-crafting-table" class="ui-screen in-game-menu hidden">
+        <div class="inv-container">
+            <div class="crafting-area">
+                <div>
+                    <h3 class="section-title">工作台合成 (3x3)</h3>
+                    <div id="crafting-3x3-grid" class="crafting-grid-3x3"></div>
+                </div>
+                <div class="arrow">➔</div>
+                <div>
+                    <h3 class="section-title">產物</h3>
+                    <div id="crafting-3x3-result" class="inv-slot" style="background-color: #8b8b8b; width: 60px; height: 60px;"></div>
+                </div>
+            </div>
+            <div>
+                <h3 class="section-title">背包</h3>
+                <div id="ct-inventory-main-grid" class="inv-grid"></div>
+            </div>
+            <div>
+                <h3 class="section-title">快捷列</h3>
+                <div id="ct-inventory-hotbar-grid" class="inv-grid" style="grid-template-rows: 45px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+
+    <script type="module">
+        // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 安全地解析 Firebase 設定
+        let parsedFirebaseConfig = {};
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config.trim() !== '') {
+                parsedFirebaseConfig = JSON.parse(__firebase_config);
+            }
+        } catch(e) {}
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const useFirebase = Object.keys(parsedFirebaseConfig).length > 0;
+        
+        let app, auth, db;
+        let userId = null;
+        let worldsCache = [];
+
+        if (useFirebase) {
+            try {
+                app = initializeApp(parsedFirebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+            } catch(e) {
+                console.error("Firebase 初始化失敗，將切換至純單機模式", e);
+            }
+        }
+
+        const uiScreens = ['screen-main', 'screen-settings', 'screen-tutorial', 'screen-worlds', 'screen-create', 'screen-pause', 'hud', 'screen-inventory', 'screen-crafting-table', 'screen-death'];
+        function showScreen(screenId) {
+            uiScreens.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+            if(screenId) {
+                const target = document.getElementById(screenId);
+                if (target) target.classList.remove('hidden');
+            }
+            if(screenId === 'screen-worlds') renderWorldList();
+        }
+        window.showScreen = showScreen;
+
+        // 本機為主：一開始就先讀取本機存檔並進入首頁，絕不等待雲端
+        function loadLocalWorldsFirst() {
+            try {
+                const localData = localStorage.getItem('mc_local_worlds');
+                if(localData) {
+                    const parsed = JSON.parse(localData);
+                    worldsCache = parsed.map(w => {
+                        w.storageType = ['本機'];
+                        return w;
+                    });
+                    worldsCache.sort((a,b) => b.updatedAt - a.updatedAt);
+                }
+            } catch(e) {
+                console.error("讀取本機存檔失敗:", e);
+            }
+            showScreen('screen-main');
+        }
+
+        loadLocalWorldsFirst();
+
+        const initAuth = async () => {
+            if (!useFirebase || !auth) return;
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                else await signInAnonymously(auth);
+            } catch(e) { console.error("認證初始化失敗:", e); }
+        };
+        initAuth();
+
+        if (useFirebase && auth) {
+            onAuthStateChanged(auth, async (user) => {
+                if(user) {
+                    userId = user.uid;
+                    await syncWithCloud();
+                }
+            });
+        }
+
+        // 雲端輔助：背景同步兩端資料
+        async function syncWithCloud() {
+            if(!useFirebase || !userId || !db) return;
+            try {
+                const snapshot = await getDocs(collection(db, 'artifacts', appId, 'users', userId, 'worlds'));
+                let localUpdated = false;
+
+                const localWorldsMap = new Map();
+                worldsCache.forEach(w => localWorldsMap.set(w.id, w));
+
+                snapshot.forEach(docSnap => {
+                    let cloudWorld = docSnap.data();
+                    if(localWorldsMap.has(cloudWorld.id)) {
+                        let localWorld = localWorldsMap.get(cloudWorld.id);
+                        if(cloudWorld.updatedAt > localWorld.updatedAt) {
+                            cloudWorld.storageType = ['雲端', '本機'];
+                            localWorldsMap.set(cloudWorld.id, cloudWorld);
+                            localUpdated = true;
+                        } else if (localWorld.updatedAt > cloudWorld.updatedAt) {
+                            localWorld.storageType = ['本機', '雲端'];
+                            uploadToCloud(localWorld); 
+                        } else {
+                            localWorld.storageType = ['本機', '雲端'];
+                        }
+                    } else {
+                        cloudWorld.storageType = ['雲端', '本機'];
+                        localWorldsMap.set(cloudWorld.id, cloudWorld);
+                        localUpdated = true;
+                    }
+                });
+
+                worldsCache = Array.from(localWorldsMap.values());
+                worldsCache.sort((a,b) => b.updatedAt - a.updatedAt);
+
+                if(localUpdated) {
+                    const cleanCache = JSON.parse(JSON.stringify(worldsCache));
+                    cleanCache.forEach(w => delete w.storageType);
+                    localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache));
+                }
+
+                if(!document.getElementById('screen-worlds').classList.contains('hidden')) {
+                    renderWorldList();
+                }
+            } catch(e) {
+                console.error("雲端同步失敗，維持純本機運作:", e);
+            }
+        }
+
+        async function uploadToCloud(worldObj) {
+            if(!useFirebase || !userId || !db) return;
+            try {
+                let cloudObj = JSON.parse(JSON.stringify(worldObj));
+                delete cloudObj.storageType;
+                await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'worlds', worldObj.id), cloudObj);
+            } catch(e) {
+                console.error("上傳至雲端失敗:", e);
+            }
+        }
+
+        function saveToLocal(worldObj) {
+            try {
+                let localWorlds = JSON.parse(localStorage.getItem('mc_local_worlds') || '[]');
+                const lIdx = localWorlds.findIndex(w => w.id === worldObj.id);
+                let cleanObj = JSON.parse(JSON.stringify(worldObj));
+                delete cleanObj.storageType;
+                
+                if(lIdx !== -1) localWorlds[lIdx] = cleanObj; else localWorlds.push(cleanObj);
+                localStorage.setItem('mc_local_worlds', JSON.stringify(localWorlds));
+                
+                const cIdx = worldsCache.findIndex(w => w.id === worldObj.id);
+                worldObj.storageType = userId ? ['本機', '雲端同步中'] : ['本機'];
+                if(cIdx !== -1) worldsCache[cIdx] = worldObj; else worldsCache.push(worldObj);
+                worldsCache.sort((a,b) => b.updatedAt - a.updatedAt);
+            } catch(e) { 
+                console.error("本機儲存失敗:", e); 
+                alert("本機儲存空間不足，存檔失敗！"); 
+            }
+        }
+
+        async function saveWorldToBoth(worldObj) {
+            worldObj.updatedAt = Date.now();
+            
+            // 強制優先存入本機，確保離線也能存
+            saveToLocal(worldObj);
+
+            // 背景拋給雲端進行上傳，不阻塞畫面
+            if (useFirebase) {
+                uploadToCloud(worldObj).then(() => {
+                    const cIdx = worldsCache.findIndex(w => w.id === worldObj.id);
+                    if(cIdx !== -1) {
+                        worldsCache[cIdx].storageType = ['本機', '雲端'];
+                        if(!document.getElementById('screen-worlds').classList.contains('hidden')) renderWorldList();
+                    }
+                });
+            }
+        }
+
+        window.exportSelectedWorld = () => {
+            if(!selectedWorldId) return;
+            const w = worldsCache.find(w => w.id === selectedWorldId);
+            if(!w) return;
+            let cleanObj = JSON.parse(JSON.stringify(w));
+            delete cleanObj.storageType;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cleanObj));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", cleanObj.name + "_backup.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        };
+
+        window.importWorldData = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedWorld = JSON.parse(e.target.result);
+                    if(!importedWorld.id || !importedWorld.name) throw new Error("無效的存檔格式");
+                    
+                    importedWorld.id = "imported_" + Date.now().toString();
+                    await saveWorldToBoth(importedWorld);
+                    selectedWorldId = importedWorld.id;
+                    alert("世界匯入成功！已優先寫入本機。");
+                } catch(err) {
+                    alert("匯入失敗：" + err.message);
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        };
+
+        function genTex(type) {
+            const c = document.createElement('canvas'); c.width = 16; c.height = 16;
+            const ctx = c.getContext('2d');
+            const fillNoise = (baseColor) => {
+                ctx.fillStyle = baseColor; ctx.fillRect(0, 0, 16, 16);
+                for(let i=0; i<16; i++) for(let j=0; j<16; j++) {
+                    if(Math.random() < 0.35) { ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)'; ctx.fillRect(i, j, 1, 1); }
+                }
+            };
+            if (type === 'grass_top') fillNoise('#557a2b');
+            else if (type === 'dirt') fillNoise('#5d4037');
+            else if (type === 'grass_side') {
+                fillNoise('#5d4037'); ctx.fillStyle = '#557a2b'; ctx.fillRect(0, 0, 16, 4);
+                for(let i=0; i<16; i++) if(Math.random()<0.6) ctx.fillRect(i, 4, 1, Math.floor(Math.random()*3)+1);
+                ctx.fillStyle = 'rgba(0,0,0,0.15)'; for(let i=0; i<16; i++) if(Math.random()<0.3) ctx.fillRect(i, Math.floor(Math.random()*4), 1, 1);
+            }
+            else if (type === 'stone') fillNoise('#7f8c8d');
+            else if (type === 'wood_side') { fillNoise('#4e342e'); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<16;i+=3) ctx.fillRect(i,0,1,16); }
+            else if (type === 'wood_top') { fillNoise('#795548'); ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.arc(8,8,6,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(8,8,3,0,Math.PI*2); ctx.stroke(); }
+            else if (type === 'leaves') { fillNoise('#2e7d32'); ctx.clearRect(0,0,16,16); ctx.fillStyle='#2e7d32'; ctx.fillRect(0,0,16,16); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<40;i++) ctx.fillRect(Math.random()*16,Math.random()*16,1,1); }
+            else if (type === 'water') { fillNoise('#1e88e5'); }
+            else if (type === 'bedrock') fillNoise('#212121');
+            else if (type === 'chest_front') { fillNoise('#e67e22'); ctx.fillStyle='#000'; ctx.fillRect(7,6,2,4); ctx.fillStyle='#555'; ctx.fillRect(1,1,14,14); ctx.fillStyle='#e67e22'; ctx.fillRect(2,2,12,12); ctx.fillStyle='#000'; ctx.fillRect(7,6,2,4); }
+            else if (type === 'chest_side') { fillNoise('#e67e22'); ctx.fillStyle='#555'; ctx.fillRect(1,1,14,14); ctx.fillStyle='#e67e22'; ctx.fillRect(2,2,12,12); }
+            else if (type === 'brick') { fillNoise('#c0392b'); ctx.fillStyle='#eec'; ctx.fillRect(0,3,16,1); ctx.fillRect(0,7,16,1); ctx.fillRect(0,11,16,1); ctx.fillRect(3,0,1,3); ctx.fillRect(9,4,1,3); ctx.fillRect(5,8,1,3); }
+            else if (type === 'sand') { fillNoise('#f1c40f'); }
+            else if (type === 'glass') { ctx.fillStyle='rgba(223, 249, 251, 0.4)'; ctx.fillRect(0,0,16,16); ctx.fillStyle='rgba(255,255,255,0.8)'; ctx.fillRect(1,1,14,1); ctx.fillRect(1,1,1,14); }
+            else if (type === 'planks') { fillNoise('#d35400'); ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(0,3,16,1); ctx.fillRect(0,7,16,1); ctx.fillRect(0,11,16,1); }
+            else if (type === 'cobblestone') { fillNoise('#95a5a6'); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<16;i+=4) { ctx.fillRect(i,0,1,16); ctx.fillRect(0,i,16,1); } }
+            else if (type === 'gold_ore') { fillNoise('#7f8c8d'); ctx.fillStyle='#fbc02d'; for(let i=0;i<10;i++) ctx.fillRect(Math.random()*14+1,Math.random()*14+1,2,2); }
+            else if (type === 'crafting_top') { fillNoise('#d35400'); ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(2,2,12,12); ctx.fillStyle='#d35400'; ctx.fillRect(3,3,10,10); ctx.fillStyle='#fff'; ctx.fillRect(7,3,2,10); ctx.fillRect(3,7,10,2); }
+            else if (type === 'crafting_side') { fillNoise('#d35400'); ctx.fillStyle='#000'; ctx.fillRect(3,3,2,4); ctx.fillRect(10,3,3,2); ctx.fillStyle='#7f8c8d'; ctx.fillRect(2,2,3,2); ctx.fillRect(12,2,2,3); }
+            else if (type === 'stick') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(4,12,8,2); ctx.fillRect(6,10,6,2); ctx.fillRect(8,8,4,2); ctx.fillRect(10,6,2,2); ctx.fillRect(12,4,2,2); }
+            return c.toDataURL();
+        }
+
+        const texCache = {};
+        function getTexUrl(name) { if(!texCache[name]) texCache[name] = genTex(name); return texCache[name]; }
+        function getMat(typeStr) { const tex = new THREE.TextureLoader().load(getTexUrl(typeStr)); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; return new THREE.MeshLambertMaterial({ map: tex }); }
+
+        const blockTypes = {
+            1: { name: '草地', t: 'grass_side' }, 2: { name: '泥土', t: 'dirt' }, 3: { name: '石頭', t: 'stone' }, 4: { name: '木頭', t: 'wood_side' }, 
+            5: { name: '樹葉', t: 'leaves' }, 6: { name: '水', t: 'water' }, 7: { name: '基岩', t: 'bedrock' }, 8: { name: '寶箱', t: 'chest_front' }, 
+            9: { name: '磚塊', t: 'brick' }, 10: { name: '沙子', t: 'sand' }, 11: { name: '玻璃', t: 'glass' }, 12: { name: '木板', t: 'planks' },
+            13: { name: '鵝卵石', t: 'cobblestone' }, 14: { name: '金礦', t: 'gold_ore' }, 15: { name: '工作台', t: 'crafting_side' }, 
+            16: { name: '木棍', t: 'stick', isItem: true }
+        };
+        
+        const materials = {};
+        materials[1] = [ getMat('grass_side'), getMat('grass_side'), getMat('grass_top'), getMat('dirt'), getMat('grass_side'), getMat('grass_side') ];
+        materials[2] = getMat('dirt'); materials[3] = getMat('stone');
+        materials[4] = [ getMat('wood_side'), getMat('wood_side'), getMat('wood_top'), getMat('wood_top'), getMat('wood_side'), getMat('wood_side') ];
+        materials[5] = getMat('leaves'); materials[5].transparent = true; materials[5].opacity = 0.9;
+        materials[6] = getMat('water'); materials[6].transparent = true; materials[6].opacity = 0.6;
+        materials[7] = getMat('bedrock');
+        materials[8] = [ getMat('chest_side'), getMat('chest_side'), getMat('chest_side'), getMat('chest_side'), getMat('chest_front'), getMat('chest_side') ];
+        materials[9] = getMat('brick'); materials[10] = getMat('sand');
+        materials[11] = getMat('glass'); materials[11].transparent = true; materials[11].opacity = 0.5;
+        materials[12] = getMat('planks'); materials[13] = getMat('cobblestone'); materials[14] = getMat('gold_ore');
+        materials[15] = [ getMat('crafting_side'), getMat('crafting_side'), getMat('crafting_top'), getMat('planks'), getMat('crafting_side'), getMat('crafting_side') ];
+
+        const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const waterGeometry = new THREE.BoxGeometry(1, 0.8, 1);
+        waterGeometry.translate(0, -0.1, 0);
+
+        const RECIPES = [
+            { id: 'planks', pattern: [[4]], res: 12, resCount: 4 }, 
+            { id: 'crafting_table', pattern: [[12, 12], [12, 12]], res: 15, resCount: 1 },
+            { id: 'stick', pattern: [[12], [12]], res: 16, resCount: 4 }
+        ];
+
+        let playerInventory = new Array(36).fill(null);
+        let craftingGrid2x2 = new Array(4).fill(null);
+        let craftingGrid3x3 = new Array(9).fill(null);
+        let cursorItem = null; 
+        let selectedSlot = 0;
+        
+        function getIconHtml(type) { return `<div class="item-icon" style="background-image: url(${getTexUrl(blockTypes[type].t)})"></div>`; }
+
+        document.addEventListener('mousemove', (e) => {
+            const cursorDiv = document.getElementById('cursor-item');
+            if(cursorItem) {
+                cursorDiv.style.display = 'block';
+                cursorDiv.style.left = e.clientX - 16 + 'px';
+                cursorDiv.style.top = e.clientY - 16 + 'px';
+                cursorDiv.style.backgroundImage = `url(${getTexUrl(blockTypes[cursorItem.type].t)})`;
+                document.getElementById('cursor-count').innerText = cursorItem.count > 1 ? cursorItem.count : '';
+            } else {
+                cursorDiv.style.display = 'none';
+            }
+        });
+
+        function handleSlotClick(e, slotArr, index, isResultSlot = false, onGridChange = null) {
+            e.preventDefault();
+            const rightClick = e.button === 2;
+            const slotItem = slotArr[index];
+
+            if(isResultSlot) {
+                if(slotItem && (!cursorItem || (cursorItem.type === slotItem.type && cursorItem.count + slotItem.count <= 64))) {
+                    if(!cursorItem) cursorItem = {type: slotItem.type, count: slotItem.count};
+                    else cursorItem.count += slotItem.count;
+                    onGridChange(true); 
+                }
+                return;
+            }
+
+            if(!cursorItem && slotItem) { 
+                if(rightClick && slotItem.count > 1) {
+                    const half = Math.floor(slotItem.count / 2);
+                    cursorItem = {type: slotItem.type, count: half};
+                    slotItem.count -= half;
+                } else { 
+                    cursorItem = {type: slotItem.type, count: slotItem.count};
+                    slotArr[index] = null;
+                }
+            } else if(cursorItem && !slotItem) { 
+                if(rightClick) { 
+                    slotArr[index] = {type: cursorItem.type, count: 1};
+                    cursorItem.count--;
+                    if(cursorItem.count <= 0) cursorItem = null;
+                } else { 
+                    slotArr[index] = {type: cursorItem.type, count: cursorItem.count};
+                    cursorItem = null;
+                }
+            } else if(cursorItem && slotItem) { 
+                if(cursorItem.type === slotItem.type) { 
+                    if(rightClick) {
+                        if(slotItem.count < 64) { slotItem.count++; cursorItem.count--; }
+                    } else {
+                        const space = 64 - slotItem.count;
+                        if(space > 0) {
+                            const add = Math.min(space, cursorItem.count);
+                            slotItem.count += add; cursorItem.count -= add;
+                        }
+                    }
+                    if(cursorItem.count <= 0) cursorItem = null;
+                } else { 
+                    if(!rightClick) {
+                        const temp = slotArr[index];
+                        slotArr[index] = cursorItem;
+                        cursorItem = temp;
+                    }
+                }
+            }
+            if(onGridChange && !isResultSlot) onGridChange(false); 
+            renderAllInventoryUIs();
+        }
+
+        function checkRecipes(gridArr, size) {
+            let minR = size, maxR = -1, minC = size, maxC = -1;
+            for(let r=0; r<size; r++) for(let c=0; c<size; c++) {
+                if(gridArr[r*size+c]) { minR=Math.min(minR,r); maxR=Math.max(maxR,r); minC=Math.min(minC,c); maxC=Math.max(maxC,c); }
+            }
+            if(maxR === -1) return null; 
+
+            const w = maxC - minC + 1; const h = maxR - minR + 1;
+            const pattern = [];
+            for(let r=0; r<h; r++) {
+                const row = [];
+                for(let c=0; c<w; c++) {
+                    const item = gridArr[(minR+r)*size + (minC+c)];
+                    row.push(item ? item.type : null);
+                }
+                pattern.push(row);
+            }
+
+            for(const rec of RECIPES) {
+                if(rec.pattern.length === h && rec.pattern[0].length === w) {
+                    let match = true;
+                    for(let r=0; r<h; r++) for(let c=0; c<w; c++) {
+                        if(rec.pattern[r][c] !== pattern[r][c]) match = false;
+                    }
+                    if(match) return {type: rec.res, count: rec.resCount};
+                }
+            }
+            return null;
+        }
+
+        function consumeCraftingGrid(gridArr) {
+            for(let i=0; i<gridArr.length; i++) {
+                if(gridArr[i]) {
+                    gridArr[i].count--;
+                    if(gridArr[i].count <= 0) gridArr[i] = null;
+                }
+            }
+        }
+
+        let currentCraftingResult2x2 = null;
+        let currentCraftingResult3x3 = null;
+
+        function updateCrafting2x2(consume = false) {
+            if(consume) consumeCraftingGrid(craftingGrid2x2);
+            currentCraftingResult2x2 = checkRecipes(craftingGrid2x2, 2);
+        }
+        function updateCrafting3x3(consume = false) {
+            if(consume) consumeCraftingGrid(craftingGrid3x3);
+            currentCraftingResult3x3 = checkRecipes(craftingGrid3x3, 3);
+        }
+
+        function renderGrid(containerId, slotArr, offset, length, onClickFn) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            container.innerHTML = '';
+            for(let i=0; i<length; i++) {
+                const globalIdx = offset + i;
+                const item = slotArr[globalIdx];
+                const div = document.createElement('div'); div.className = 'inv-slot';
+                if(item) { div.innerHTML = getIconHtml(item.type) + (item.count>1 ? `<div class="slot-count">${item.count}</div>` : ''); }
+                div.onmousedown = (e) => onClickFn(e, slotArr, globalIdx);
+                div.oncontextmenu = (e) => e.preventDefault();
+                container.appendChild(div);
+            }
+        }
+
+        function renderAllInventoryUIs() {
+            const hotbar = document.getElementById('hotbar');
+            hotbar.innerHTML = '';
+            for(let i = 0; i < 9; i++) {
+                const item = playerInventory[i];
+                const div = document.createElement('div'); div.className = `inv-slot ${i === selectedSlot ? 'active' : ''}`;
+                if(item) div.innerHTML = getIconHtml(item.type) + (item.count>1 ? `<div class="slot-count">${item.count}</div>` : '');
+                const num = document.createElement('div'); num.className = 'slot-num'; num.innerText = i + 1; div.appendChild(num);
+                hotbar.appendChild(div);
+            }
+
+            renderGrid('inventory-main-grid', playerInventory, 9, 27, handleSlotClick);
+            renderGrid('inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick);
+            renderGrid('crafting-2x2-grid', craftingGrid2x2, 0, 4, (e,arr,idx) => handleSlotClick(e,arr,idx,false,updateCrafting2x2));
+            const res2x2 = document.getElementById('crafting-2x2-result');
+            if(res2x2) {
+                res2x2.innerHTML = currentCraftingResult2x2 ? getIconHtml(currentCraftingResult2x2.type) + (currentCraftingResult2x2.count>1 ? `<div class="slot-count">${currentCraftingResult2x2.count}</div>` : '') : '';
+                res2x2.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult2x2], 0, true, updateCrafting2x2); };
+                res2x2.oncontextmenu = (e) => e.preventDefault();
+            }
+
+            renderGrid('ct-inventory-main-grid', playerInventory, 9, 27, handleSlotClick);
+            renderGrid('ct-inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick);
+            renderGrid('crafting-3x3-grid', craftingGrid3x3, 0, 9, (e,arr,idx) => handleSlotClick(e,arr,idx,false,updateCrafting3x3));
+            const res3x3 = document.getElementById('crafting-3x3-result');
+            if(res3x3) {
+                res3x3.innerHTML = currentCraftingResult3x3 ? getIconHtml(currentCraftingResult3x3.type) + (currentCraftingResult3x3.count>1 ? `<div class="slot-count">${currentCraftingResult3x3.count}</div>` : '') : '';
+                res3x3.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult3x3], 0, true, updateCrafting3x3); };
+                res3x3.oncontextmenu = (e) => e.preventDefault();
+            }
+        }
+
+        window.openInventory = () => {
+            if(controls) controls.unlock();
+            showScreen('screen-inventory');
+            renderAllInventoryUIs();
+        };
+
+        window.openCraftingTable = () => {
+            if(controls) controls.unlock();
+            showScreen('screen-crafting-table');
+            renderAllInventoryUIs();
+        };
+
+        function clearCraftingGrids() {
+            const dropToInv = (arr) => {
+                for(let i=0; i<arr.length; i++) {
+                    if(arr[i]) { giveItemToPlayer(arr[i].type, arr[i].count); arr[i] = null; }
+                }
+            };
+            dropToInv(craftingGrid2x2); updateCrafting2x2();
+            dropToInv(craftingGrid3x3); updateCrafting3x3();
+            if(cursorItem) { giveItemToPlayer(cursorItem.type, cursorItem.count); cursorItem = null; }
+        }
+
+        let renderDist = 2;
+        window.toggleRenderDist = () => { renderDist = renderDist === 2 ? 3 : (renderDist === 3 ? 4 : 2); document.getElementById('toggle-render-dist').innerText = `視距: ${renderDist} 區塊`; };
+
+        let playerHealth = 20;
+        let fallHighestY = 0;
+
+        function updateHealthUI() {
+            const hb = document.getElementById('health-bar');
+            if (currentWorldData && currentWorldData.mode === '創造') { hb.innerHTML = ''; return; }
+            hb.innerHTML = '';
+            for(let i=0; i<10; i++) {
+                const heart = document.createElement('div'); heart.className = 'heart';
+                if(playerHealth >= (i+1)*2) heart.innerText = '❤️'; else if(playerHealth === (i+1)*2 - 1) heart.innerText = '💔'; else heart.innerText = '🖤';
+                hb.appendChild(heart);
+            }
+        }
+        
+        window.respawn = () => {
+            playerHealth = 20;
+            playerPos.set(0, getNoiseHeight(0,0) + 10, 0); velocity.set(0,0,0);
+            updateHealthUI(); showScreen('hud'); controls.lock();
+        };
+
+        function takeDamage(amt) {
+            if(currentWorldData.mode === '創造') return;
+            playerHealth -= amt; updateHealthUI();
+            if(playerHealth <= 0) { if(controls) controls.unlock(); showScreen('screen-death'); }
+        }
+
+        const createConfig = { mode: ['生存', '創造'], modeIdx: 0, difficulty: ['普通', '困難'], diffIdx: 0, type: ['普通', '平坦'], typeIdx: 0, structures: ['開', '關'], structIdx: 0 };
+        window.toggleSetting = (key) => {
+            if(key === 'mode') { createConfig.modeIdx = (createConfig.modeIdx + 1) % 2; document.getElementById('toggle-mode').innerText = '遊戲模式: ' + createConfig.mode[createConfig.modeIdx]; }
+            if(key === 'type') { createConfig.typeIdx = (createConfig.typeIdx + 1) % 2; document.getElementById('toggle-type').innerText = '地圖類型: ' + createConfig.type[createConfig.typeIdx]; }
+        };
+
+        function renderWorldList() {
+            const container = document.getElementById('world-list-container'); container.innerHTML = '';
+            if(worldsCache.length === 0) container.innerHTML = '<div style="padding:10px;text-align:center;color:#888;">尚未建立任何世界</div>';
+            else worldsCache.forEach(w => {
+                const div = document.createElement('div'); div.className = 'world-item ' + (w.id === selectedWorldId ? 'selected' : '');
+                let tagHtml = '';
+                if(w.storageType) {
+                    if(w.storageType.includes('雲端') && w.storageType.includes('本機')) tagHtml = '<span style="color:#2ecc71;">[雲+機]</span>';
+                    else if(w.storageType.includes('雲端同步中')) tagHtml = '<span style="color:#f39c12;">[同步中]</span>';
+                    else if(w.storageType.includes('雲端')) tagHtml = '<span style="color:#3498db;">[雲端]</span>';
+                    else tagHtml = '<span style="color:#f1c40f;">[本機]</span>';
+                }
+                div.innerHTML = `<strong>${tagHtml} ${w.name}</strong><br><span style="font-size:0.8rem;color:#aaa;">${w.mode} | ${w.type}</span>`;
+                div.onclick = () => { selectedWorldId = w.id; renderWorldList(); }; container.appendChild(div);
+            });
+        }
+
+        let selectedWorldId = null;
+        let currentWorldData = null;
+
+        window.createNewWorld = async () => {
+            const newWorld = {
+                id: Date.now().toString(), name: document.getElementById('new-world-name').value || '新的世界',
+                mode: createConfig.mode[createConfig.modeIdx], type: createConfig.type[createConfig.typeIdx],
+                timeOfDay: 0, modifiedBlocks: {}, inventory: new Array(36).fill(null)
+            };
+            if(newWorld.mode === '創造') {
+                newWorld.inventory[0] = {type:1, count:64}; newWorld.inventory[1] = {type:2, count:64}; newWorld.inventory[2] = {type:3, count:64};
+                newWorld.inventory[3] = {type:4, count:64}; newWorld.inventory[4] = {type:12, count:64}; newWorld.inventory[5] = {type:15, count:64};
+            }
+            await saveWorldToBoth(newWorld); selectedWorldId = newWorld.id; window.playSelectedWorld();
+        };
+
+        window.playSelectedWorld = () => {
+            if(!selectedWorldId && worldsCache.length>0) selectedWorldId = worldsCache[0].id;
+            currentWorldData = worldsCache.find(w => w.id === selectedWorldId);
+            if(currentWorldData) startGame();
+        };
+
+        window.saveAndQuit = async () => {
+            if(currentWorldData) {
+                currentWorldData.inventory = playerInventory;
+                await saveWorldToBoth(currentWorldData);
+            }
+            if(controls) controls.unlock(); gameLoopActive = false; showScreen('screen-main');
+        };
+
+        window.resumeGame = () => { clearCraftingGrids(); showScreen('hud'); renderAllInventoryUIs(); if(controls) controls.lock(); };
+
+        let scene, camera, renderer, controls;
+        let dirLight, ambientLight;
+        let gameLoopActive = false;
+        let prevTime = 0;
+        let chunkGroupMap = new Map();
+        const CHUNK_SIZE = 16;
+        
+        const playerAABB = { width: 0.6, height: 1.8, depth: 0.6 };
+        let playerPos = new THREE.Vector3(0, 30, 0);
+        let velocity = new THREE.Vector3();
+        let canJump = false;
+        let moveState = { f: false, b: false, l: false, r: false, up: false };
+        let isThirdPerson = false;
+        let currentChunk = {x: null, z: null};
+
+        let playerProfile = { name: "Steve", skin: "#f1c27d", shirt: "#3498db", pants: "#2c3e50" };
+        try {
+            const savedProfile = localStorage.getItem('mc_player_profile');
+            if(savedProfile) playerProfile = JSON.parse(savedProfile);
+        } catch(e) {}
+
+        window.updatePlayerProfile = () => {
+            playerProfile.name = document.getElementById('player-name-input').value || "Steve";
+            playerProfile.skin = document.getElementById('color-skin').value;
+            playerProfile.shirt = document.getElementById('color-shirt').value;
+            playerProfile.pants = document.getElementById('color-pants').value;
+            localStorage.setItem('mc_player_profile', JSON.stringify(playerProfile));
+            
+            if(pSkin) pSkin.color.set(playerProfile.skin);
+            if(pMat) pMat.color.set(playerProfile.shirt);
+            if(pLegs) pLegs.color.set(playerProfile.pants);
+        };
+
+        document.getElementById('player-name-input').value = playerProfile.name;
+        document.getElementById('color-skin').value = playerProfile.skin;
+        document.getElementById('color-shirt').value = playerProfile.shirt;
+        document.getElementById('color-pants').value = playerProfile.pants;
+
+        const playerGroup = new THREE.Group();
+        const pMat = new THREE.MeshLambertMaterial({color: playerProfile.shirt});
+        const pSkin = new THREE.MeshLambertMaterial({color: playerProfile.skin});
+        const pLegs = new THREE.MeshLambertMaterial({color: playerProfile.pants});
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), pSkin); head.position.y = 0.65;
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.25), pMat);
+        const armL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.75, 0.25), pSkin); armL.position.set(0.4, 0.1, 0);
+        const armR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.75, 0.25), pSkin); armR.position.set(-0.4, 0.1, 0);
+        const legL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.75, 0.25), pLegs); legL.position.set(0.125, -0.75, 0);
+        const legR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.75, 0.25), pLegs); legR.position.set(-0.125, -0.75, 0);
+        playerGroup.add(head); playerGroup.add(body); playerGroup.add(armL); playerGroup.add(armR); playerGroup.add(legL); playerGroup.add(legR);
+        playerGroup.visible = false;
+
+        let droppedItems = [];
+        
+        function spawnDroppedItem(x, y, z, type, count) {
+            const size = 0.25;
+            const geom = new THREE.BoxGeometry(size, size, size);
+            const mesh = new THREE.Mesh(geom, materials[type]);
+            mesh.position.set(x + Math.random()*0.4 - 0.2, y + 0.5, z + Math.random()*0.4 - 0.2);
+            mesh.castShadow = true;
+            scene.add(mesh);
+            droppedItems.push({
+                mesh: mesh, type: type, count: count,
+                vel: new THREE.Vector3((Math.random()-0.5)*2, 2, (Math.random()-0.5)*2),
+                age: 0
+            });
+        }
+
+        function updateDroppedItems(delta) {
+            for(let i = droppedItems.length - 1; i >= 0; i--) {
+                const item = droppedItems[i];
+                item.age += delta;
+                item.vel.y -= 15.0 * delta; 
+                
+                let nextY = item.mesh.position.y + item.vel.y * delta;
+                if(checkCollisionBox(item.mesh.position.x-0.1, item.mesh.position.x+0.1, nextY-0.125, nextY+0.125, item.mesh.position.z-0.1, item.mesh.position.z+0.1)) {
+                    item.vel.y = 0; item.vel.x *= 0.5; item.vel.z *= 0.5;
+                } else {
+                    item.mesh.position.y = nextY;
+                }
+                item.mesh.position.x += item.vel.x * delta;
+                item.mesh.position.z += item.vel.z * delta;
+                item.mesh.rotation.y += 2 * delta; 
+
+                if(item.age > 0.5 && item.mesh.position.distanceTo(playerPos) < 1.5) {
+                    const leftovers = giveItemToPlayer(item.type, item.count);
+                    if(leftovers === 0) {
+                        scene.remove(item.mesh);
+                        droppedItems.splice(i, 1);
+                    } else {
+                        item.count = leftovers;
+                    }
+                }
+                if(item.age > 300) { scene.remove(item.mesh); droppedItems.splice(i, 1); }
+            }
+        }
+
+        function giveItemToPlayer(type, count) {
+            for(let i=0; i<36; i++) {
+                if(playerInventory[i] && playerInventory[i].type === type && playerInventory[i].count < 64) {
+                    const space = 64 - playerInventory[i].count;
+                    const add = Math.min(space, count);
+                    playerInventory[i].count += add;
+                    count -= add;
+                    if(count <= 0) break;
+                }
+            }
+            if(count > 0) {
+                for(let i=0; i<36; i++) {
+                    if(!playerInventory[i]) {
+                        playerInventory[i] = {type: type, count: count};
+                        count = 0; break;
+                    }
+                }
+            }
+            renderAllInventoryUIs();
+            return count; 
+        }
+
+        function getChunkKey(cx, cz) { return `${cx},${cz}`; }
+        function getBlockKey(x, y, z) { return `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`; }
+        function getNoiseHeight(x, z) {
+            if(currentWorldData.type === '平坦') return 4;
+            const scale = 6; const amp = 3;
+            let h = Math.sin(x/scale)*amp + Math.cos(z/(scale*0.8))*(amp*0.8) + Math.sin((x+z)/(scale*2))*2 + 8;
+            return Math.floor(h);
+        }
+        function getBlock(x, y, z) {
+            const key = getBlockKey(x,y,z);
+            if(currentWorldData.modifiedBlocks[key] !== undefined) return currentWorldData.modifiedBlocks[key];
+            if(y === 0) return 7;
+            const h = getNoiseHeight(x, z);
+            if(y > h) { if(h < 5 && y <= 5 && y > 0) return 6; return null; }
+            if(y === h) return currentWorldData.type === '平坦' ? 1 : (h <= 5 ? 10 : 1);
+            if(y > h - 3) return 2; return 3;
+        }
+
+        function renderChunk(cx, cz) {
+            const key = getChunkKey(cx, cz); if(chunkGroupMap.has(key)) return;
+            const group = new THREE.Group(); const startX = cx * CHUNK_SIZE; const startZ = cz * CHUNK_SIZE;
+            for(let x = startX; x < startX + CHUNK_SIZE; x++) {
+                for(let z = startZ; z < startZ + CHUNK_SIZE; z++) {
+                    const h = getNoiseHeight(x, z); const maxY = Math.max(h, 5);
+                    for(let y = 0; y <= Math.max(maxY, 20); y++) {
+                        const type = getBlock(x, y, z);
+                        if(type) {
+                            const t = getBlock(x, y+1, z); const b = getBlock(x, y-1, z);
+                            const l = getBlock(x-1, y, z); const r = getBlock(x+1, y, z);
+                            const f = getBlock(x, y, z-1); const bk = getBlock(x, y, z+1);
+                            if(type !== 6 && type !== 5 && type !== 11) {
+                                if(t&&b&&l&&r&&f&&bk && t!==6&&b!==6&&l!==6&&r!==6&&f!==6&&bk!==6 && t!==5&&b!==5&&l!==5&&r!==5&&f!==5&&bk!==5) continue;
+                            }
+                            const geom = (type === 6) ? waterGeometry : blockGeometry;
+                            const mesh = new THREE.Mesh(geom, materials[type]);
+                            mesh.position.set(x, y, z);
+                            mesh.castShadow = (type !== 6 && type !== 11); mesh.receiveShadow = true;
+                            mesh.userData = {type, x, y, z}; group.add(mesh);
+                        }
+                    }
+                    if(currentWorldData.type !== '平坦' && h >= 6 && (Math.abs(x*z)%100) < 2) {
+                        if(getBlock(x, h+1, z) === null) {
+                            for(let i=0; i<4; i++) if(getBlock(x, h+1+i, z) === null) addVisualBlock(group, x, h+1+i, z, 4);
+                            for(let lx=-2; lx<=2; lx++) for(let lz=-2; lz<=2; lz++) for(let ly=2; ly<=4; ly++) {
+                                if(Math.abs(lx)===2 && Math.abs(lz)===2 && ly===4) continue;
+                                if(lx===0 && lz===0 && ly<4) continue;
+                                if(getBlock(x+lx, h+1+ly, z+lz) === null) addVisualBlock(group, x+lx, h+1+ly, z+lz, 5);
+                            }
+                        }
+                    }
+                }
+            }
+            scene.add(group); chunkGroupMap.set(key, group);
+        }
+        function addVisualBlock(group, x, y, z, type) { const mesh = new THREE.Mesh(blockGeometry, materials[type]); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData = {type, x, y, z}; group.add(mesh); }
+
+        function updateChunks() {
+            const px = Math.floor(playerPos.x / CHUNK_SIZE); const pz = Math.floor(playerPos.z / CHUNK_SIZE);
+            if(px === currentChunk.x && pz === currentChunk.z) return;
+            currentChunk.x = px; currentChunk.z = pz; const activeKeys = new Set();
+            for(let x = px - renderDist; x <= px + renderDist; x++) for(let z = pz - renderDist; z <= pz + renderDist; z++) { const key = getChunkKey(x, z); activeKeys.add(key); renderChunk(x, z); }
+            chunkGroupMap.forEach((group, key) => { if(!activeKeys.has(key)) { scene.remove(group); chunkGroupMap.delete(key); } });
+        }
+
+        function setBlock(x, y, z, type) {
+            x = Math.floor(x); y = Math.floor(y); z = Math.floor(z); if(y < 0) return;
+            currentWorldData.modifiedBlocks[getBlockKey(x, y, z)] = type;
+            const cx = Math.floor(x / CHUNK_SIZE); const cz = Math.floor(z / CHUNK_SIZE);
+            const ckey = getChunkKey(cx, cz);
+            if(chunkGroupMap.has(ckey)) { scene.remove(chunkGroupMap.get(ckey)); chunkGroupMap.delete(ckey); renderChunk(cx, cz); }
+        }
+
+        function startGame() {
+            playerInventory = currentWorldData.inventory || new Array(36).fill(null);
+            renderAllInventoryUIs(); updateHealthUI(); showScreen('hud');
+            
+            if(!scene) {
+                renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: false });
+                renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x87CEEB, CHUNK_SIZE, CHUNK_SIZE * renderDist * 1.5);
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                ambientLight = new THREE.AmbientLight(0xffffff, 0.4); scene.add(ambientLight);
+                dirLight = new THREE.DirectionalLight(0xffffff, 1); dirLight.castShadow = true;
+                dirLight.shadow.mapSize.width = 1024; dirLight.shadow.mapSize.height = 1024; scene.add(dirLight);
+                scene.add(playerGroup);
+                controls = new THREE.PointerLockControls(camera, document.body); scene.add(controls.getObject());
+                controls.addEventListener('lock', () => { if(playerHealth > 0) showScreen('hud'); });
+                controls.addEventListener('unlock', () => { if(gameLoopActive && playerHealth > 0 && document.getElementById('screen-inventory').classList.contains('hidden') && document.getElementById('screen-crafting-table').classList.contains('hidden')) showScreen('screen-pause'); clearCraftingGrids(); });
+                setupInput(); window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }, false);
+            }
+            chunkGroupMap.forEach(group => scene.remove(group)); chunkGroupMap.clear(); currentChunk = {x: null, z: null};
+            droppedItems.forEach(item => scene.remove(item.mesh)); droppedItems = [];
+            playerHealth = 20; fallHighestY = 0; playerPos.set(0, getNoiseHeight(0,0) + 10, 0); velocity.set(0,0,0);
+            gameLoopActive = true; prevTime = performance.now(); controls.lock(); animate();
+        }
+
+        function checkCollisionBox(minX, maxX, minY, maxY, minZ, maxZ) {
+            const ix = Math.floor(minX), ax = Math.floor(maxX), iy = Math.floor(minY), ay = Math.floor(maxY), iz = Math.floor(minZ), az = Math.floor(maxZ);
+            for(let x=ix; x<=ax; x++) for(let y=iy; y<=ay; y++) for(let z=iz; z<=az; z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 11 && !blockTypes[t].isItem) return true; }
+            return false;
+        }
+
+        function animate() {
+            if(!gameLoopActive || playerHealth <= 0) return; requestAnimationFrame(animate);
+            const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
+            
+            updateDroppedItems(delta);
+
+            currentWorldData.timeOfDay += delta * 0.02; const cycle = currentWorldData.timeOfDay % (Math.PI * 2);
+            const sunHeight = Math.sin(cycle); dirLight.position.set(Math.cos(cycle)*50, sunHeight*50, Math.sin(cycle)*20);
+            const brightness = Math.max(0.1, Math.min(1.0, sunHeight + 0.3));
+            ambientLight.intensity = 0.2 + brightness * 0.3; dirLight.intensity = Math.max(0, sunHeight) * 1.2;
+            const skyColor = new THREE.Color().setHSL(0.55, 0.5, brightness); scene.background = skyColor; scene.fog.color = skyColor;
+            scene.fog.far = CHUNK_SIZE * renderDist * 1.5; updateChunks();
+
+            if (controls.isLocked) {
+                const inWater = getBlock(Math.round(playerPos.x), Math.round(playerPos.y + 0.5), Math.round(playerPos.z)) === 6;
+                const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir); camDir.y = 0; camDir.normalize();
+                const camRight = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
+
+                let inputZ = Number(moveState.b) - Number(moveState.f); let inputX = Number(moveState.r) - Number(moveState.l);
+                if (inputX !== 0 && inputZ !== 0) { const l = Math.sqrt(inputX*inputX + inputZ*inputZ); inputX /= l; inputZ /= l; }
+
+                const speed = inWater ? 3.0 : (currentWorldData.mode === '創造' ? 10.0 : 5.0);
+                const tVelX = (camDir.x * -inputZ + camRight.x * inputX) * speed; const tVelZ = (camDir.z * -inputZ + camRight.z * inputX) * speed;
+                const friction = inWater ? 5.0 : 10.0;
+                velocity.x += (tVelX - velocity.x) * friction * delta; velocity.z += (tVelZ - velocity.z) * friction * delta;
+
+                if (inWater) { velocity.y -= 25.0 * delta * 0.15; if(moveState.up) { velocity.y += 12 * delta; if(velocity.y > 4) velocity.y = 4; } velocity.y *= 0.9; canJump = false; fallHighestY = playerPos.y; }
+                else { velocity.y -= 25.0 * delta; if(moveState.up && canJump) { velocity.y = 8.5; canJump = false; } }
+
+                let hw = playerAABB.width / 2;
+                let nextX = playerPos.x + velocity.x * delta;
+                if(checkCollisionBox(nextX-hw, nextX+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, playerPos.z-hw, playerPos.z+hw)) { if(velocity.x > 0) playerPos.x = Math.floor(nextX+hw)-hw-0.001; else if(velocity.x < 0) playerPos.x = Math.floor(nextX-hw)+1+hw+0.001; velocity.x = 0; } else playerPos.x = nextX;
+
+                let nextY = playerPos.y + velocity.y * delta;
+                if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, nextY, nextY+playerAABB.height, playerPos.z-hw, playerPos.z+hw)) {
+                    if(velocity.y > 0) playerPos.y = Math.floor(nextY+playerAABB.height)-playerAABB.height-0.001;
+                    else if(velocity.y < 0) { playerPos.y = Math.floor(nextY)+1; canJump = true; const fallDist = fallHighestY - playerPos.y; if(fallDist > 3.5 && currentWorldData.mode === '生存') takeDamage(Math.floor(fallDist - 3)); fallHighestY = playerPos.y; } velocity.y = 0;
+                } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; }
+
+                let nextZ = playerPos.z + velocity.z * delta;
+                if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, nextZ-hw, nextZ+hw)) { if(velocity.z > 0) playerPos.z = Math.floor(nextZ+hw)-hw-0.001; else if(velocity.z < 0) playerPos.z = Math.floor(nextZ-hw)+1+hw+0.001; velocity.z = 0; } else playerPos.z = nextZ;
+
+                if (playerPos.y < -20) { takeDamage(20); }
+
+                playerGroup.position.copy(playerPos);
+                const horSpeed = Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z);
+                if(horSpeed > 0.5 && !inWater) {
+                    const swing = Math.sin(time * 0.01) * 0.5;
+                    armL.rotation.x = swing; armR.rotation.x = -swing; legL.rotation.x = -swing; legR.rotation.x = swing;
+                } else { armL.rotation.x = 0; armR.rotation.x = 0; legL.rotation.x = 0; legR.rotation.x = 0; }
+                
+                const yRotation = Math.atan2(camDir.x, camDir.z);
+                playerGroup.rotation.y = yRotation;
+
+                if (isThirdPerson) { camera.position.copy(playerPos); camera.position.y += 1.6; const backDir = new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion); camera.position.add(backDir.multiplyScalar(5)); }
+                else { camera.position.copy(playerPos); camera.position.y += 1.6; }
+                dirLight.position.x += playerPos.x; dirLight.position.z += playerPos.z; dirLight.target.position.copy(playerPos); dirLight.target.updateMatrixWorld();
+            }
+            renderer.render(scene, camera);
+        }
+
+        function setupInput() {
+            document.addEventListener('keydown', e => {
+                if(!controls.isLocked) {
+                    if(e.code === 'KeyE' && !document.getElementById('screen-inventory').classList.contains('hidden')) window.resumeGame();
+                    if(e.code === 'Escape' && (!document.getElementById('screen-inventory').classList.contains('hidden') || !document.getElementById('screen-crafting-table').classList.contains('hidden'))) window.resumeGame();
+                    return;
+                }
+                switch(e.code) {
+                    case 'KeyW': moveState.f = true; break; case 'KeyA': moveState.l = true; break;
+                    case 'KeyS': moveState.b = true; break; case 'KeyD': moveState.r = true; break;
+                    case 'Space': moveState.up = true; break;
+                    case 'KeyV': isThirdPerson = !isThirdPerson; playerGroup.visible = isThirdPerson; break;
+                    case 'KeyE': window.openInventory(); break;
+                }
+                if(e.key >= '1' && e.key <= '9') { selectedSlot = parseInt(e.key) - 1; renderAllInventoryUIs(); }
+            });
+            document.addEventListener('keyup', e => { switch(e.code) { case 'KeyW': moveState.f = false; break; case 'KeyA': moveState.l = false; break; case 'KeyS': moveState.b = false; break; case 'KeyD': moveState.r = false; break; case 'Space': moveState.up = false; break; }});
+
+            document.addEventListener('mousedown', e => {
+                if(!controls.isLocked || playerHealth <= 0) return; 
+                let meshes = []; chunkGroupMap.forEach(g => meshes.push(...g.children));
+                const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = raycaster.intersectObjects(meshes);
+
+                if (intersects.length > 0 && intersects[0].distance < 6) {
+                    const intersect = intersects[0]; const p = intersect.object.userData;
+                    
+                    if (e.button === 0) { 
+                        if(p.type === 7 && currentWorldData.mode !== '創造') return;
+                        setBlock(p.x, p.y, p.z, null);
+                        if(currentWorldData.mode === '生存') spawnDroppedItem(p.x, p.y, p.z, p.type, 1);
+                    } else if (e.button === 2) { 
+                        if(p.type === 15) { window.openCraftingTable(); return; } 
+                        
+                        const selItem = playerInventory[selectedSlot];
+                        if(!selItem || selItem.count <= 0 || blockTypes[selItem.type].isItem) return; 
+
+                        const n = intersect.face.normal; const nx = Math.round(p.x + n.x), ny = Math.round(p.y + n.y), nz = Math.round(p.z + n.z);
+                        const hw = playerAABB.width/2; const overlap = (playerPos.x-hw < nx+0.5 && playerPos.x+hw > nx-0.5) && (playerPos.y < ny+0.5 && playerPos.y+playerAABB.height > ny-0.5) && (playerPos.z-hw < nz+0.5 && playerPos.z+hw > nz-0.5);
+                        if(!overlap) {
+                            setBlock(nx, ny, nz, selItem.type);
+                            if(currentWorldData.mode === '生存') {
+                                selItem.count--; if(selItem.count <= 0) playerInventory[selectedSlot] = null;
+                                renderAllInventoryUIs();
+                            }
+                        }
+                    }
+                }
+            });
+            document.addEventListener('contextmenu', e => e.preventDefault());
+        }
+    </script>
+</body>
+</html>
