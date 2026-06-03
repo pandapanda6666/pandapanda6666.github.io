@@ -118,7 +118,7 @@
         <h2>遊玩教學</h2>
         <p style="color:#ccc; margin-bottom: 20px; line-height: 1.5; text-align: center;">
             [W][A][S][D] 移動 | [空白鍵] 跳躍/游泳<br>
-            [長按滑鼠左鍵] 破壞方塊 | [滑鼠右鍵] 放置/開啟<br>
+            [長按滑鼠左鍵] 破壞方塊 | [滑鼠右鍵] 放置/分離物品/開啟<br>
             [1 ~ 9] 切換快捷列 | [E] 開啟背包與合成<br>
             [V] 切換第一/第三人稱視角 | [ESC] 暫停選單<br>
             ※ 採集礦石需要相應等級的鎬子，否則不會掉落。<br>
@@ -442,9 +442,10 @@
             1: { name: '草地', t: 'grass_side' }, 2: { name: '泥土', t: 'dirt' }, 3: { name: '石頭', t: 'stone' }, 4: { name: '木頭', t: 'wood_side' }, 
             5: { name: '樹葉', t: 'leaves' }, 6: { name: '水', t: 'water' }, 7: { name: '基岩', t: 'bedrock' }, 8: { name: '寶箱', t: 'chest_front' }, 
             9: { name: '磚塊', t: 'brick' }, 10: { name: '沙子', t: 'sand' }, 11: { name: '玻璃', t: 'glass' }, 12: { name: '木板', t: 'planks' },
-            13: { name: '鵝卵石', t: 'cobblestone' }, 14: { name: '金礦', t: 'gold_ore' }, 15: { name: '工作台', t: 'crafting_side' }, 16: { name: '木棍', t: 'stick', isItem: true },
-            17: { name: '煤礦', t: 'coal_ore' }, 18: { name: '煤炭', t: 'coal', isItem: true }, 19: { name: '鐵礦', t: 'iron_ore' }, 20: { name: '鐵錠', t: 'iron_ingot', isItem: true },
-            21: { name: '熔爐', t: 'furnace_front' }, 22: { name: '木鎬', t: 'wood_pickaxe', isItem: true }, 23: { name: '石鎬', t: 'stone_pickaxe', isItem: true }, 24: { name: '鐵鎬', t: 'iron_pickaxe', isItem: true },
+            13: { name: '鵝卵石', t: 'cobblestone' }, 14: { name: '金礦', t: 'gold_ore' }, 15: { name: '工作台', t: 'crafting_side' }, 
+            16: { name: '木棍', t: 'stick', isItem: true }, 17: { name: '煤礦', t: 'coal_ore' }, 18: { name: '煤炭', t: 'coal', isItem: true }, 
+            19: { name: '鐵礦', t: 'iron_ore' }, 20: { name: '鐵錠', t: 'iron_ingot', isItem: true }, 21: { name: '熔爐', t: 'furnace_front' }, 
+            22: { name: '木鎬', t: 'wood_pickaxe', isItem: true }, 23: { name: '石鎬', t: 'stone_pickaxe', isItem: true }, 24: { name: '鐵鎬', t: 'iron_pickaxe', isItem: true },
             25: { name: '石磚', t: 'stone_bricks' }
         };
         
@@ -469,7 +470,7 @@
             if (type === 3 && tier >= reqTier) drop = 13;
             if (type === 3 && tier < reqTier) drop = null;
             if (isPickaxeBlock && tier < reqTier) drop = null;
-            if (type === 17 && tier >= reqTier) drop = 18; // 煤礦掉落煤炭
+            if (type === 17 && tier >= reqTier) drop = 18;
             
             return { time: time, drop: drop };
         }
@@ -486,8 +487,9 @@
         materials[11] = getMat('glass'); materials[11].transparent = true; materials[11].opacity = 0.5;
         materials[12] = getMat('planks'); materials[13] = getMat('cobblestone'); materials[14] = getMat('gold_ore');
         materials[15] = [ getMat('crafting_side'), getMat('crafting_side'), getMat('crafting_top'), getMat('planks'), getMat('crafting_side'), getMat('crafting_side') ];
-        materials[17] = getMat('coal_ore'); materials[19] = getMat('iron_ore');
+        materials[16] = getMat('stick'); materials[17] = getMat('coal_ore'); materials[18] = getMat('coal'); materials[19] = getMat('iron_ore'); materials[20] = getMat('iron_ingot');
         materials[21] = [ getMat('stone'), getMat('stone'), getMat('stone'), getMat('stone'), getMat('furnace_front'), getMat('stone') ];
+        materials[22] = getMat('wood_pickaxe'); materials[23] = getMat('stone_pickaxe'); materials[24] = getMat('iron_pickaxe');
         materials[25] = getMat('stone_bricks');
 
         const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
@@ -763,12 +765,26 @@
                     item.vel.y = 0; item.vel.x *= 0.5; item.vel.z *= 0.5;
                 } else { item.mesh.position.y = nextY; }
                 item.mesh.position.x += item.vel.x * delta; item.mesh.position.z += item.vel.z * delta; item.mesh.rotation.y += 2 * delta; 
+                
                 if(item.age > 0.5 && item.mesh.position.distanceTo(playerPos) < 1.5) {
                     const leftovers = giveItemToPlayer(item.type, item.count);
-                    if(leftovers === 0) { scene.remove(item.mesh); droppedItems.splice(i, 1); } else { item.count = leftovers; }
+                    if(leftovers === 0) { scene.remove(item.mesh); droppedItems.splice(i, 1); continue; } else { item.count = leftovers; }
                 }
                 if(item.age > 300) { scene.remove(item.mesh); droppedItems.splice(i, 1); }
             }
+        }
+
+        function giveItemToPlayer(type, count) {
+            const origCount = count;
+            for(let i=0; i<36; i++) {
+                if(playerInventory[i] && playerInventory[i].type === type && playerInventory[i].count < 64) {
+                    const space = 64 - playerInventory[i].count; const add = Math.min(space, count);
+                    playerInventory[i].count += add; count -= add; if(count <= 0) break;
+                }
+            }
+            if(count > 0) { for(let i=0; i<36; i++) { if(!playerInventory[i]) { playerInventory[i] = {type: type, count: count}; count = 0; break; } } }
+            if (origCount !== count) renderAllInventoryUIs();
+            return count; 
         }
 
         function getChunkKey(cx, cz) { return `${cx},${cz}`; }
@@ -814,9 +830,9 @@
             if(y > h - 3) return 2; 
             
             let hash = pseudoHash(x*1.5, z*1.5 + y*2.0);
-            if (hash > 0.95 && y < h - 5) return 14; // 金礦
-            if (hash < 0.08 && y < h - 4) return 19; // 鐵礦
-            if (hash > 0.45 && hash < 0.5 && y < h - 3) return 17; // 煤礦
+            if (hash > 0.95 && y < h - 5) return 14; 
+            if (hash < 0.08 && y < h - 4) return 19; 
+            if (hash > 0.45 && hash < 0.5 && y < h - 3) return 17; 
             return 3;
         }
 
@@ -825,7 +841,7 @@
             const group = new THREE.Group(); const startX = cx * CHUNK_SIZE; const startZ = cz * CHUNK_SIZE;
             for(let x = startX; x < startX + CHUNK_SIZE; x++) {
                 for(let z = startZ; z < startZ + CHUNK_SIZE; z++) {
-                    const h = getNoiseHeight(x, z); const maxY = Math.max(h, 8) + 8;
+                    const h = getNoiseHeight(x, z); const maxY = Math.max(h, 8) + 8; 
                     for(let y = 0; y <= Math.max(maxY, 20); y++) {
                         const type = getBlock(x, y, z);
                         if(type) {
@@ -906,14 +922,11 @@
                 playerPos.set(currentWorldData.playerPos.x, currentWorldData.playerPos.y, currentWorldData.playerPos.z);
                 const rot = currentWorldData.playerRot || 0;
                 camera.rotation.set(0, rot, 0); 
-            } else {
-                playerPos.set(0, getNoiseHeight(0,0) + 10, 0);
-            }
+            } else { playerPos.set(0, getNoiseHeight(0,0) + 10, 0); }
             velocity.set(0,0,0);
             gameLoopActive = true; prevTime = performance.now(); controls.lock(); animate();
         }
 
-        // 網路事件處理
         function handleNetworkPlayerJoined(data) {
             if(!scene) return;
             const allP = data.allPlayers; const currentIds = new Set(Object.keys(networkPlayers));
@@ -931,19 +944,10 @@
         }
 
         function getSmeltResult(type) {
-            if(type === 19) return 20; // 鐵礦 -> 鐵錠
-            if(type === 10) return 11; // 沙子 -> 玻璃
-            if(type === 13) return 3;  // 鵝卵石 -> 石頭
-            if(type === 4) return 18;  // 木頭 -> 煤炭
-            if(type === 2) return 9;   // 泥土 -> 磚塊
-            return null;
+            if(type === 19) return 20; if(type === 10) return 11; if(type === 13) return 3; if(type === 4) return 18; if(type === 2) return 9; return null;
         }
         function getFuelTime(type) {
-            if(type === 18) return 40; // 煤炭
-            if(type === 4 || type === 12) return 15; // 木頭/木板
-            if(type === 16) return 5;  // 木棍
-            if(type === 22) return 10; // 木鎬
-            return 0;
+            if(type === 18) return 40; if(type === 4 || type === 12) return 15; if(type === 16) return 5; if(type === 22) return 10; return 0;
         }
 
         function animate() {
@@ -959,7 +963,6 @@
             const skyColor = new THREE.Color().setHSL(0.55, 0.5, brightness); scene.background = skyColor; scene.fog.color = skyColor;
             scene.fog.far = CHUNK_SIZE * renderDist * 1.5; updateChunks();
 
-            // 熔爐背景運算
             if (currentWorldData.furnaceData) {
                 furnaceTickTimer += delta;
                 if (furnaceTickTimer >= 1.0) {
@@ -968,22 +971,16 @@
                         let furn = currentWorldData.furnaceData[key];
                         let dirty = false; let canSmelt = false; let resType = getSmeltResult(furn.i?.type);
                         if (furn.i && furn.i.count > 0 && resType) { if (!furn.o || (furn.o.type === resType && furn.o.count < 64)) canSmelt = true; }
-                        
                         if (furn.burnTime > 0) { furn.burnTime--; dirty = true; } 
                         else if (canSmelt && furn.f && furn.f.count > 0) {
                             let fTime = getFuelTime(furn.f.type);
                             if (fTime > 0) { furn.burnTime = fTime; furn.maxBurnTime = fTime; furn.f.count--; if (furn.f.count <= 0) furn.f = null; dirty = true; }
                         }
-                        
                         if (furn.burnTime > 0 && canSmelt) {
                             furn.smeltTimer++;
-                            if (furn.smeltTimer >= 5) {
-                                furn.smeltTimer = 0; furn.i.count--; if (furn.i.count <= 0) furn.i = null;
-                                if (!furn.o) furn.o = { type: resType, count: 1 }; else furn.o.count++;
-                            }
+                            if (furn.smeltTimer >= 5) { furn.smeltTimer = 0; furn.i.count--; if (furn.i.count <= 0) furn.i = null; if (!furn.o) furn.o = { type: resType, count: 1 }; else furn.o.count++; }
                             dirty = true;
                         } else { furn.smeltTimer = 0; }
-                        
                         if (dirty && activeFurnacePos === key && !document.getElementById('screen-furnace').classList.contains('hidden')) renderFurnaceUI();
                     }
                 }
