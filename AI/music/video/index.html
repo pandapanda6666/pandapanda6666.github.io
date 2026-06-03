@@ -1,3 +1,5 @@
+<!-- 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved. -->
+[youtube-proxy.html]
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -6,18 +8,28 @@
     <style>
         body { margin: 0; padding: 0; background: #000; overflow: hidden; }
         #player { width: 100vw; height: 100vh; }
+        footer { display: none; }
     </style>
 </head>
 <body>
     <div id="player"></div>
-    <script src="https://www.youtube.com/iframe_api"></script>
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+    
     <script>
         var urlParams = new URLSearchParams(window.location.search);
         var videoId = urlParams.get('v');
         var player;
 
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
         function onYouTubeIframeAPIReady() {
-            if (!videoId) return;
+            if (!videoId) {
+                window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: 404 }, '*');
+                return;
+            }
             player = new YT.Player('player', {
                 videoId: videoId,
                 playerVars: { 
@@ -26,7 +38,8 @@
                     'rel': 0, 
                     'playsinline': 1,
                     'disablekb': 0,
-                    'mute': 1 // 解決自動播放阻擋：預設靜音
+                    'mute': 1,
+                    'origin': 'https://pandapanda6666.github.io'
                 },
                 events: {
                     'onReady': onPlayerReady,
@@ -38,24 +51,23 @@
 
         function onPlayerReady(event) {
             event.target.playVideo();
-            startStuckCheck(); // 啟動防卡死機制
+            startStuckCheck(); 
         }
 
         var stuckCheckTimer;
         function startStuckCheck() {
             if (stuckCheckTimer) clearInterval(stuckCheckTimer);
             
-            stuckCheckTimer = setInterval(() => {
+            stuckCheckTimer = setInterval(function() {
                 if (!player || typeof player.getPlayerState !== 'function') return;
                 var state = player.getPlayerState();
                 var time = player.getCurrentTime();
                 
-                // 只要時間卡在 0 秒 (且未在播放中)，每 1 秒強制點擊一次 (playVideo)
                 if (time === 0 && state !== YT.PlayerState.PLAYING) {
-                    player.playVideo(); // 強制觸發
-                    player.unMute();    // 嘗試解除靜音
+                    player.playVideo(); 
+                    player.unMute();    
                 } else if (state === YT.PlayerState.PLAYING && player.isMuted()) {
-                    player.unMute();    // 已經在播放，確保解除靜音
+                    player.unMute();    
                 }
             }, 1000);
         }
@@ -63,11 +75,11 @@
         var progressTimer;
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
-                player.unMute(); // 確保播放時有聲音
+                player.unMute(); 
                 window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: player.getDuration() }, '*');
                 
                 if (progressTimer) clearInterval(progressTimer);
-                progressTimer = setInterval(() => {
+                progressTimer = setInterval(function() {
                     window.parent.postMessage({ 
                         type: 'YOUTUBE_PROGRESS', 
                         currentTime: player.getCurrentTime(),
@@ -83,7 +95,6 @@
         }
 
         function onPlayerError(event) {
-            // 發生 100(找不到), 150(不允許嵌入) 等錯誤，立刻回報給主網頁跳過
             window.parent.postMessage({ type: 'YOUTUBE_ERROR', code: event.data }, '*');
         }
     </script>
