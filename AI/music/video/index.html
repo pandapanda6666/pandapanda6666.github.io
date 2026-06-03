@@ -63,11 +63,13 @@
                 var state = player.getPlayerState();
                 var time = player.getCurrentTime();
                 
-                if (time === 0 && state !== YT.PlayerState.PLAYING) {
+                if (state !== YT.PlayerState.PLAYING && time === 0) {
                     player.playVideo(); 
-                    player.unMute();    
-                } else if (state === YT.PlayerState.PLAYING && player.isMuted()) {
-                    player.unMute();    
+                } else if (state === YT.PlayerState.PLAYING && time > 0) {
+                    if (player.isMuted()) {
+                        player.unMute();
+                    }
+                    clearInterval(stuckCheckTimer);
                 }
             }, 1000);
         }
@@ -75,7 +77,9 @@
         var progressTimer;
         function onPlayerStateChange(event) {
             if (event.data == YT.PlayerState.PLAYING) {
-                player.unMute(); 
+                if (player.isMuted()) {
+                    player.unMute(); 
+                }
                 window.parent.postMessage({ type: 'YOUTUBE_DURATION', duration: player.getDuration() }, '*');
                 
                 if (progressTimer) clearInterval(progressTimer);
