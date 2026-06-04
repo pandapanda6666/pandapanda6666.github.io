@@ -30,6 +30,7 @@
         #sso-ui:hover { background: rgba(0,0,0,0.8); border-color: #aaa; }
 
         #hud { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
+        #room-code-display { position: absolute; top: 15px; left: 15px; color: white; text-shadow: 2px 2px 0 #000; font-size: 1.2rem; }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); }
         #crosshair::before, #crosshair::after { content: ''; position: absolute; background-color: rgba(255, 255, 255, 0.9); mix-blend-mode: difference; }
         #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
@@ -62,6 +63,9 @@
         #cursor-item { position: absolute; pointer-events: none; z-index: 9999; display: none; width: 32px; height: 32px; background-size: cover; image-rendering: pixelated; }
         #cursor-count { position: absolute; bottom: -8px; right: -8px; font-size: 0.8rem; font-weight: bold; color: white; text-shadow: 1px 1px 0 #000; }
 
+        #tooltip { position: absolute; pointer-events: none; background: rgba(0,0,0,0.85); padding: 5px 10px; border: 2px solid #555; color: white; display: none; z-index: 10000; text-shadow: 1px 1px 0 #000; font-size: 0.9rem; }
+        #toast { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border: 2px solid #fff; z-index: 10000; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-size: 1.2rem; text-shadow: 1px 1px 0 #000; }
+
         footer { position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(0, 0, 0, 0.8); color: #aaa; text-align: center; padding: 10px 0; font-size: 0.9rem; z-index: 9999; }
         footer a { color: #fff; text-decoration: none; }
         footer a:hover { text-decoration: underline; }
@@ -72,22 +76,44 @@
 </head>
 <body>
     <div id="sso-ui" class="hidden"></div>
+    <div id="toast"></div>
+    <div id="tooltip"></div>
     <canvas id="game-canvas"></canvas>
 
     <div id="hud" class="hidden">
+        <div id="room-code-display"></div>
         <div id="crosshair"></div>
         <div id="mining-progress-container"><div id="mining-progress-bar"></div></div>
         <div id="health-bar"></div>
         <div id="hotbar"></div>
+        <div id="click-to-play" style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); color: rgba(255,255,255,0.7); font-size: 1.5rem; display: none; text-shadow: 2px 2px 0 #000;">點擊畫面回到遊戲</div>
     </div>
 
     <div id="cursor-item"><div id="cursor-count"></div></div>
 
     <div id="screen-main" class="ui-screen hidden">
         <h1>MINECRAFT JS</h1>
-        <button class="btn" onclick="showScreen('screen-worlds')">開始遊戲</button>
+        <button class="btn" onclick="startSingleplayer()">單人遊戲</button>
+        <button class="btn" onclick="showScreen('screen-multiplayer')">多人遊戲</button>
         <button class="btn" onclick="showScreen('screen-settings')">設定</button>
         <button class="btn" onclick="showScreen('screen-tutorial')">教學</button>
+    </div>
+
+    <div id="screen-multiplayer" class="ui-screen hidden">
+        <h2>多人遊戲</h2>
+        <div class="flex-row" style="margin-bottom: 20px;">
+            <button class="btn" onclick="createMultiplayerRoom()">建立房間 (主機)</button>
+        </div>
+        <div class="flex-row">
+            <input type="text" id="join-room-code" class="input-text btn-half" placeholder="輸入4位數代碼..." style="margin-bottom: 0;">
+            <button class="btn btn-half" onclick="joinMultiplayerRoom()">加入房間</button>
+        </div>
+        <button class="btn" style="margin-top: 20px;" onclick="showScreen('screen-main')">返回</button>
+    </div>
+
+    <div id="screen-loading" class="ui-screen hidden">
+        <h1 id="loading-title">載入中...</h1>
+        <p id="loading-text" style="color:#aaa;">正在連接伺服器與同步帳號資料</p>
     </div>
 
     <div id="screen-settings" class="ui-screen hidden">
@@ -122,13 +148,14 @@
             [1 ~ 9] 切換快捷列 | [E] 開啟背包與合成<br>
             [V] 切換第一/第三人稱視角 | [ESC] 暫停選單<br>
             ※ 採集礦石需要相應等級的鎬子，否則不會掉落。<br>
-            ※ 熔爐需要燃料與原料才能運作。
+            ※ 床可重設重生點；階梯會自動輔助攀登。<br>
+            ※ 拿著鐵桶對水按右鍵可裝水。
         </p>
         <button class="btn" onclick="showScreen('screen-main')">完成</button>
     </div>
 
     <div id="screen-worlds" class="ui-screen hidden">
-        <h2>選擇世界 (離線優先，背景雲端同步)</h2>
+        <h2>選擇世界</h2>
         <div id="world-list-container" class="world-list"></div>
         <div class="flex-row">
             <button class="btn btn-half" onclick="playSelectedWorld()">遊玩</button>
@@ -163,7 +190,7 @@
 
     <div id="screen-pause" class="ui-screen in-game-menu hidden">
         <h2>遊戲暫停</h2>
-        <button class="btn" onclick="resumeGame()">回到遊戲</button>
+        <button class="btn" onclick="resumeGameFromPause()">回到遊戲</button>
         <button class="btn" onclick="saveAndQuit()">儲存並回到標題畫面</button>
     </div>
 
@@ -263,39 +290,77 @@
         </div>
     </div>
 
+    <div id="custom-modal" class="ui-screen hidden" style="z-index: 20000; background-color: rgba(0,0,0,0.85); background-image: none;">
+        <div style="background-color: #c6c6c6; padding: 20px; border: 4px solid #fff; width: 400px; text-align: center; color: #333;">
+            <h2 id="custom-modal-title" style="margin-top: 0;">訊息</h2>
+            <p id="custom-modal-text" style="font-size: 1.2rem; margin-bottom: 20px;">這是訊息內容</p>
+            <div class="flex-row" style="justify-content: center; gap: 20px; width: auto;" id="custom-modal-buttons"></div>
+        </div>
+    </div>
+
     <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
 
     <script type="module">
-        // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const uiScreens = ['screen-main', 'screen-settings', 'screen-tutorial', 'screen-worlds', 'screen-create', 'screen-pause', 'hud', 'screen-inventory', 'screen-crafting-table', 'screen-chest', 'screen-furnace', 'screen-death'];
+        const appId = window.location.hostname + window.location.pathname;
+        let socket;
+        let ssoProfile = null;
+        let worldsCache = [];
+        let selectedWorldId = null;
+        let currentWorldData = null;
+        let menuJustClosed = false;
+        
+        let currentRoomId = appId;
+        let isHost = true;
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 3000);
+        }
+
+        function showCustomModal(title, text, isConfirm, onConfirm) {
+            document.getElementById('custom-modal-title').innerText = title;
+            document.getElementById('custom-modal-text').innerText = text;
+            const btnContainer = document.getElementById('custom-modal-buttons');
+            btnContainer.innerHTML = '';
+            
+            const btnOk = document.createElement('button');
+            btnOk.className = 'btn'; btnOk.style.width = '120px'; btnOk.innerText = '確定';
+            btnOk.onclick = () => { document.getElementById('custom-modal').classList.add('hidden'); if(onConfirm) onConfirm(); };
+            btnContainer.appendChild(btnOk);
+
+            if (isConfirm) {
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'btn'; btnCancel.style.width = '120px'; btnCancel.innerText = '取消';
+                btnCancel.onclick = () => { document.getElementById('custom-modal').classList.add('hidden'); };
+                btnContainer.appendChild(btnCancel);
+            }
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+        window.showCustomModal = showCustomModal;
+
+        const originalWarn = console.warn;
+        console.warn = function(...args) { if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return; originalWarn.apply(console, args); };
+        window.onerror = function(msg, url, line) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); };
+        window.addEventListener('unhandledrejection', function(event) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 }); });
+
+        const uiScreens = ['screen-main', 'screen-settings', 'screen-tutorial', 'screen-worlds', 'screen-create', 'screen-pause', 'hud', 'screen-inventory', 'screen-crafting-table', 'screen-chest', 'screen-furnace', 'screen-death', 'screen-multiplayer', 'screen-loading'];
         function showScreen(screenId) {
             uiScreens.forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
             if(screenId) { const target = document.getElementById(screenId); if (target) target.classList.remove('hidden'); }
-            if(screenId === 'screen-main' || screenId === 'screen-worlds') { document.getElementById('sso-ui').classList.remove('hidden'); } else { document.getElementById('sso-ui').classList.add('hidden'); }
+            if(screenId === 'screen-main' || screenId === 'screen-worlds' || screenId === 'screen-multiplayer') { document.getElementById('sso-ui').classList.remove('hidden'); } else { document.getElementById('sso-ui').classList.add('hidden'); }
             if(screenId === 'screen-worlds') renderWorldList();
         }
         window.showScreen = showScreen;
 
         let parsedFirebaseConfig = {};
         try { if (typeof __firebase_config !== 'undefined' && __firebase_config.trim() !== '') parsedFirebaseConfig = JSON.parse(__firebase_config); } catch(e) {}
-        
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const useFirebase = Object.keys(parsedFirebaseConfig).length > 0;
-        
-        let app, auth, db, socket;
-        let userId = null;
-        let worldsCache = [];
-        let selectedWorldId = null;
-        let currentWorldData = null;
-
-        const originalWarn = console.warn;
-        console.warn = function(...args) { if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return; originalWarn.apply(console, args); };
-        window.onerror = function(msg, url, line) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); };
-        window.addEventListener('unhandledrejection', function(event) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 }); });
+        let app, auth, db;
 
         if (useFirebase) { try { app = initializeApp(parsedFirebaseConfig); auth = getAuth(app); db = getFirestore(app); } catch(e) { console.error("Firebase 初始化失敗", e); } }
 
@@ -311,7 +376,6 @@
         };
         initAuth();
 
-        let ssoProfile = null;
         if (useFirebase && auth) { onAuthStateChanged(auth, async (user) => { if(user) { userId = user.uid; await syncWithCloud(); } }); }
 
         function renderGuestUI() { document.getElementById('sso-ui').innerHTML = '<button class="btn" style="width:auto; margin:0; padding:5px 10px; font-size:1rem; border-color:#000;" onclick="window.location.href=\'https://pandapanda6666.github.io/login-hub/?require=1&from=\'+encodeURIComponent(window.location.href)">登入/註冊</button>'; document.getElementById('sso-ui').onclick = null; }
@@ -329,7 +393,6 @@
                     socket.on('connect', () => {
                         socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                         if (urlParams.get('auth') === 'true') { const user = urlParams.get('user'); if (user) socket.emit('requestProfile', { username: user }); window.history.replaceState({}, document.title, window.location.pathname); }
-                        socket.emit('joinGameRoom', { room: appId, characterData: {} });
                     });
                     socket.on('profileData', (data) => { ssoProfile = data; renderAuthUI(data); socket.emit('getAppData', { appId: appId }, (res) => { if (res && res.worlds) mergeCloudWorlds(res.worlds); }); });
                     socket.on('playerJoined', handleNetworkPlayerJoined); socket.on('playerStateUpdated', handleNetworkPlayerState); socket.on('playerLeft', handleNetworkPlayerLeft); socket.on('appData', handleAppDataEvent);
@@ -337,6 +400,46 @@
             } catch(e) {}
         }
         window.addEventListener('load', initGameSystem);
+
+        // --- 多人遊戲系統 ---
+        window.startSingleplayer = () => {
+            currentRoomId = appId + '_single_' + Date.now();
+            isHost = true;
+            showScreen('screen-worlds');
+        };
+
+        window.createMultiplayerRoom = () => {
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            currentRoomId = appId + '_' + code;
+            isHost = true;
+            showCustomModal("房間已建立", "您的房間代碼為：\n" + code + "\n\n請將此代碼分享給您的朋友！", false, () => {
+                showScreen('screen-worlds');
+            });
+        };
+
+        window.joinMultiplayerRoom = () => {
+            const code = document.getElementById('join-room-code').value.trim();
+            if(!code) return showCustomModal("錯誤", "請輸入房間代碼", false, null);
+            currentRoomId = appId + '_' + code;
+            isHost = false;
+            
+            showScreen('screen-loading');
+            document.getElementById('loading-title').innerText = '連線中...';
+            document.getElementById('loading-text').innerText = '正在等待主機同步世界資料...';
+            
+            if(socket && socket.connected) {
+                socket.emit('joinGameRoom', { room: currentRoomId, characterData: playerProfile });
+                socket.emit('appData', { room: currentRoomId, action: 'requestWorldSync' });
+            } else {
+                showCustomModal("連線失敗", "您目前處於離線狀態，無法加入多人房間。", false, () => showScreen('screen-multiplayer'));
+            }
+            
+            setTimeout(() => {
+                if(!gameLoopActive && !isHost) {
+                    showCustomModal("連線逾時", "無法取得主機世界資料，主機可能不存在或已離線。", false, () => showScreen('screen-multiplayer'));
+                }
+            }, 10000);
+        };
 
         function mergeCloudWorlds(cloudWorlds) {
             let localUpdated = false; const localWorldsMap = new Map(); worldsCache.forEach(w => localWorldsMap.set(w.id, w));
@@ -361,10 +464,11 @@
         }
 
         function uploadToCloud(worldObj) {
-            if(socket && socket.connected && ssoProfile) { const cleanCache = JSON.parse(JSON.stringify(worldsCache)); cleanCache.forEach(w => delete w.storageType); socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); }
+            if(socket && socket.connected && ssoProfile && isHost) { const cleanCache = JSON.parse(JSON.stringify(worldsCache)); cleanCache.forEach(w => delete w.storageType); socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); }
         }
 
         function saveToLocal(worldObj) {
+            if(!isHost) return; // 訪客不儲存世界
             try {
                 let localWorlds = JSON.parse(localStorage.getItem('mc_local_worlds') || '[]'); const lIdx = localWorlds.findIndex(w => w.id === worldObj.id);
                 let cleanObj = JSON.parse(JSON.stringify(worldObj)); delete cleanObj.storageType;
@@ -375,15 +479,18 @@
         }
 
         function saveWorldToBothSync(worldObj) {
+            if(!isHost) return;
             worldObj.updatedAt = Date.now(); saveToLocal(worldObj); uploadToCloud(worldObj);
             setTimeout(() => { const cIdx = worldsCache.findIndex(w => w.id === worldObj.id); if(cIdx !== -1 && socket && socket.connected && ssoProfile) { worldsCache[cIdx].storageType = ['本機', '雲端']; if(!document.getElementById('screen-worlds').classList.contains('hidden')) renderWorldList(); } }, 1000);
         }
 
         window.deleteSelectedWorld = () => {
-            if(!selectedWorldId) return; if(!confirm('確定要刪除這個世界嗎？此操作無法還原！')) return;
-            worldsCache = worldsCache.filter(w => w.id !== selectedWorldId); const cleanCache = JSON.parse(JSON.stringify(worldsCache)); cleanCache.forEach(w => delete w.storageType); localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache));
-            if (socket && socket.connected && ssoProfile) { socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); socket.emit('logAppMessage', { appId: appId, message: '刪除世界: ' + selectedWorldId, type: 'warning' }); }
-            selectedWorldId = null; renderWorldList();
+            if(!selectedWorldId) return;
+            showCustomModal("刪除世界", "確定要刪除這個世界嗎？此操作無法還原！", true, () => {
+                worldsCache = worldsCache.filter(w => w.id !== selectedWorldId); const cleanCache = JSON.parse(JSON.stringify(worldsCache)); cleanCache.forEach(w => delete w.storageType); localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache));
+                if (socket && socket.connected && ssoProfile) { socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); socket.emit('logAppMessage', { appId: appId, message: '刪除世界: ' + selectedWorldId, type: 'warning' }); }
+                selectedWorldId = null; renderWorldList();
+            });
         };
 
         window.exportSelectedWorld = () => {
@@ -395,7 +502,7 @@
         window.importWorldData = async (event) => {
             const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
             reader.onload = async (e) => {
-                try { const importedWorld = JSON.parse(e.target.result); if(!importedWorld.id || !importedWorld.name) throw new Error("無效的存檔格式"); importedWorld.id = "imported_" + Date.now().toString(); saveWorldToBothSync(importedWorld); selectedWorldId = importedWorld.id; alert("世界匯入成功！已優先寫入本機。"); } catch(err) { alert("匯入失敗：" + err.message); } event.target.value = '';
+                try { const importedWorld = JSON.parse(e.target.result); if(!importedWorld.id || !importedWorld.name) throw new Error("無效的存檔格式"); importedWorld.id = "imported_" + Date.now().toString(); saveWorldToBothSync(importedWorld); selectedWorldId = importedWorld.id; showCustomModal("成功", "世界匯入成功！已優先寫入本機。", false, null); } catch(err) { showCustomModal("錯誤", "匯入失敗：" + err.message, false, null); } event.target.value = '';
             }; reader.readAsText(file);
         };
 
@@ -421,7 +528,7 @@
             else if (type === 'gold_ore') { fillNoise('#7f8c8d'); ctx.fillStyle='#fbc02d'; for(let i=0;i<10;i++) ctx.fillRect(Math.random()*14+1,Math.random()*14+1,2,2); }
             else if (type === 'crafting_top') { fillNoise('#d35400'); ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(2,2,12,12); ctx.fillStyle='#d35400'; ctx.fillRect(3,3,10,10); ctx.fillStyle='#fff'; ctx.fillRect(7,3,2,10); ctx.fillRect(3,7,10,2); }
             else if (type === 'crafting_side') { fillNoise('#d35400'); ctx.fillStyle='#000'; ctx.fillRect(3,3,2,4); ctx.fillRect(10,3,3,2); ctx.fillStyle='#7f8c8d'; ctx.fillRect(2,2,3,2); ctx.fillRect(12,2,2,3); }
-            else if (type === 'stick') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(4,12,8,2); ctx.fillRect(6,10,6,2); ctx.fillRect(8,8,4,2); ctx.fillRect(10,6,2,2); ctx.fillRect(12,4,2,2); }
+            else if (type === 'stick') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(4,10,2,2); ctx.fillRect(6,8,2,2); ctx.fillRect(8,6,2,2); ctx.fillRect(10,4,2,2); }
             else if (type === 'coal_ore') { fillNoise('#7f8c8d'); ctx.fillStyle='#111'; for(let i=0;i<12;i++) ctx.fillRect(Math.random()*14+1,Math.random()*14+1,2,2); }
             else if (type === 'coal') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(8,8,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#444'; ctx.fillRect(6,6,2,2); }
             else if (type === 'iron_ore') { fillNoise('#7f8c8d'); ctx.fillStyle='#d3a068'; for(let i=0;i<12;i++) ctx.fillRect(Math.random()*14+1,Math.random()*14+1,2,2); }
@@ -431,6 +538,18 @@
             else if (type === 'wood_pickaxe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#8d6e63'; ctx.fillRect(8,2,6,2); ctx.fillRect(10,4,2,2); ctx.fillRect(6,4,2,2); ctx.fillRect(12,6,2,2); ctx.fillRect(4,6,2,2); }
             else if (type === 'stone_pickaxe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#95a5a6'; ctx.fillRect(8,2,6,2); ctx.fillRect(10,4,2,2); ctx.fillRect(6,4,2,2); ctx.fillRect(12,6,2,2); ctx.fillRect(4,6,2,2); }
             else if (type === 'iron_pickaxe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#ecf0f1'; ctx.fillRect(8,2,6,2); ctx.fillRect(10,4,2,2); ctx.fillRect(6,4,2,2); ctx.fillRect(12,6,2,2); ctx.fillRect(4,6,2,2); }
+            else if (type === 'wood_sword') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(2,12,4,2); ctx.fillStyle='#8d6e63'; for(let i=0;i<6;i++) ctx.fillRect(6+i,10-i,4,4); }
+            else if (type === 'stone_sword') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(2,12,4,2); ctx.fillStyle='#95a5a6'; for(let i=0;i<6;i++) ctx.fillRect(6+i,10-i,4,4); }
+            else if (type === 'iron_sword') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(2,12,4,2); ctx.fillStyle='#ecf0f1'; for(let i=0;i<6;i++) ctx.fillRect(6+i,10-i,4,4); }
+            else if (type === 'wood_hoe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#8d6e63'; ctx.fillRect(8,2,6,2); ctx.fillRect(6,4,2,2); ctx.fillRect(4,6,2,2); }
+            else if (type === 'stone_hoe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#95a5a6'; ctx.fillRect(8,2,6,2); ctx.fillRect(6,4,2,2); ctx.fillRect(4,6,2,2); }
+            else if (type === 'iron_hoe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#ecf0f1'; ctx.fillRect(8,2,6,2); ctx.fillRect(6,4,2,2); ctx.fillRect(4,6,2,2); }
+            else if (type === 'wool') { fillNoise('#ecf0f1'); }
+            else if (type === 'bed_top') { ctx.fillStyle='#e74c3c'; ctx.fillRect(0,0,16,8); ctx.fillStyle='#ecf0f1'; ctx.fillRect(0,8,16,8); }
+            else if (type === 'bucket') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#bdc3c7'; ctx.fillRect(4,6,8,6); ctx.fillRect(5,12,6,2); }
+            else if (type === 'water_bucket') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#bdc3c7'; ctx.fillRect(4,6,8,6); ctx.fillRect(5,12,6,2); ctx.fillStyle='#3498db'; ctx.fillRect(5,7,6,4); }
+            else if (type === 'ladder') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(2,0,2,16); ctx.fillRect(12,0,2,16); ctx.fillRect(4,4,8,2); ctx.fillRect(4,10,8,2); }
+            else if (type === 'door_top') { ctx.fillStyle='#8d6e63'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#4e342e'; ctx.fillRect(2,2,4,4); ctx.fillRect(10,2,4,4); }
             
             return c.toDataURL();
         }
@@ -446,22 +565,28 @@
             16: { name: '木棍', t: 'stick', isItem: true }, 17: { name: '煤礦', t: 'coal_ore' }, 18: { name: '煤炭', t: 'coal', isItem: true }, 
             19: { name: '鐵礦', t: 'iron_ore' }, 20: { name: '鐵錠', t: 'iron_ingot', isItem: true }, 21: { name: '熔爐', t: 'furnace_front' }, 
             22: { name: '木鎬', t: 'wood_pickaxe', isItem: true }, 23: { name: '石鎬', t: 'stone_pickaxe', isItem: true }, 24: { name: '鐵鎬', t: 'iron_pickaxe', isItem: true },
-            25: { name: '石磚', t: 'stone_bricks' }
+            25: { name: '石磚', t: 'stone_bricks' }, 26: { name: '木劍', t: 'wood_sword', isItem: true }, 27: { name: '石劍', t: 'stone_sword', isItem: true },
+            28: { name: '鐵劍', t: 'iron_sword', isItem: true }, 29: { name: '木鋤', t: 'wood_hoe', isItem: true }, 30: { name: '石鋤', t: 'stone_hoe', isItem: true },
+            31: { name: '鐵鋤', t: 'iron_hoe', isItem: true }, 32: { name: '羊毛', t: 'wool' }, 33: { name: '床', t: 'bed_top' }, 34: { name: '鐵桶', t: 'bucket', isItem: true },
+            35: { name: '水桶', t: 'water_bucket', isItem: true }, 36: { name: '梯子', t: 'ladder' }, 37: { name: '木門', t: 'door_top' }, 38: { name: '木階梯', t: 'planks' }, 39: { name: '石階梯', t: 'cobblestone' }
         };
         
-        function getToolTier(type) { if(type === 22) return 1; if(type === 23) return 2; if(type === 24) return 3; return 0; }
+        function getToolTier(type) { if([22, 26, 29].includes(type)) return 1; if([23, 27, 30].includes(type)) return 2; if([24, 28, 31].includes(type)) return 3; return 0; }
         
         function getBlockHardnessAndDrop(type, toolType) {
             const tier = getToolTier(toolType);
             let base = 0.5; let reqTier = 0; let isPickaxeBlock = false;
             if (type === 7) return {time: Infinity, drop: null};
-            if (type === 3 || type === 13 || type === 25) { base = 1.5; reqTier = 1; isPickaxeBlock = true; }
+            if (type === 3 || type === 13 || type === 25 || type === 39) { base = 1.5; reqTier = 1; isPickaxeBlock = true; }
             if (type === 17 || type === 21) { base = 3.0; reqTier = 1; isPickaxeBlock = true; }
             if (type === 19) { base = 3.0; reqTier = 2; isPickaxeBlock = true; }
             if (type === 14) { base = 3.0; reqTier = 3; isPickaxeBlock = true; }
-            if (type === 4 || type === 12 || type === 15 || type === 8) base = 1.5;
-            if (type === 1 || type === 2 || type === 10) base = 0.5;
-            if (type === 5 || type === 11) base = 0.2;
+            if (type === 4 || type === 12 || type === 15 || type === 8 || type === 37 || type === 38) base = 1.5;
+            if (type === 1 || type === 2 || type === 10) { 
+                base = 0.5; 
+                if ([29, 30, 31].includes(toolType)) base = base / (tier * 2);
+            }
+            if (type === 5 || type === 11 || type === 36 || type === 32 || type === 33) base = 0.2;
             
             let time = base;
             if (isPickaxeBlock) { if (tier >= reqTier && tier > 0) time = base / (tier * 2); else time = base * 3; }
@@ -471,11 +596,15 @@
             if (type === 3 && tier < reqTier) drop = null;
             if (isPickaxeBlock && tier < reqTier) drop = null;
             if (type === 17 && tier >= reqTier) drop = 18;
+            if (type === 11) drop = null; 
             
             return { time: time, drop: drop };
         }
 
         const materials = {};
+        for(let key in blockTypes) {
+            if(blockTypes[key].isItem) materials[key] = getMat(blockTypes[key].t);
+        }
         materials[1] = [ getMat('grass_side'), getMat('grass_side'), getMat('grass_top'), getMat('dirt'), getMat('grass_side'), getMat('grass_side') ];
         materials[2] = getMat('dirt'); materials[3] = getMat('stone');
         materials[4] = [ getMat('wood_side'), getMat('wood_side'), getMat('wood_top'), getMat('wood_top'), getMat('wood_side'), getMat('wood_side') ];
@@ -487,10 +616,12 @@
         materials[11] = getMat('glass'); materials[11].transparent = true; materials[11].opacity = 0.5;
         materials[12] = getMat('planks'); materials[13] = getMat('cobblestone'); materials[14] = getMat('gold_ore');
         materials[15] = [ getMat('crafting_side'), getMat('crafting_side'), getMat('crafting_top'), getMat('planks'), getMat('crafting_side'), getMat('crafting_side') ];
-        materials[16] = getMat('stick'); materials[17] = getMat('coal_ore'); materials[18] = getMat('coal'); materials[19] = getMat('iron_ore'); materials[20] = getMat('iron_ingot');
+        materials[17] = getMat('coal_ore'); materials[19] = getMat('iron_ore'); 
         materials[21] = [ getMat('stone'), getMat('stone'), getMat('stone'), getMat('stone'), getMat('furnace_front'), getMat('stone') ];
-        materials[22] = getMat('wood_pickaxe'); materials[23] = getMat('stone_pickaxe'); materials[24] = getMat('iron_pickaxe');
         materials[25] = getMat('stone_bricks');
+        materials[32] = getMat('wool'); materials[33] = getMat('bed_top'); 
+        materials[36] = getMat('ladder'); materials[36].transparent = true; materials[37] = getMat('door_top');
+        materials[38] = getMat('planks'); materials[39] = getMat('cobblestone');
 
         const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
         const waterGeometry = new THREE.BoxGeometry(1, 0.8, 1); waterGeometry.translate(0, -0.1, 0);
@@ -503,7 +634,19 @@
             { id: 'wood_pickaxe', pattern: [[12,12,12],[null,16,null],[null,16,null]], res: 22, resCount: 1 },
             { id: 'stone_pickaxe', pattern: [[13,13,13],[null,16,null],[null,16,null]], res: 23, resCount: 1 },
             { id: 'iron_pickaxe', pattern: [[20,20,20],[null,16,null],[null,16,null]], res: 24, resCount: 1 },
-            { id: 'stone_bricks', pattern: [[3,3],[3,3]], res: 25, resCount: 4 }
+            { id: 'stone_bricks', pattern: [[3,3],[3,3]], res: 25, resCount: 4 },
+            { id: 'wood_sword', pattern: [[12],[12],[16]], res: 26, resCount: 1 },
+            { id: 'stone_sword', pattern: [[13],[13],[16]], res: 27, resCount: 1 },
+            { id: 'iron_sword', pattern: [[20],[20],[16]], res: 28, resCount: 1 },
+            { id: 'wood_hoe', pattern: [[12,12],[null,16],[null,16]], res: 29, resCount: 1 },
+            { id: 'stone_hoe', pattern: [[13,13],[null,16],[null,16]], res: 30, resCount: 1 },
+            { id: 'iron_hoe', pattern: [[20,20],[null,16],[null,16]], res: 31, resCount: 1 },
+            { id: 'ladder', pattern: [[16,null,16],[16,16,16],[16,null,16]], res: 36, resCount: 3 },
+            { id: 'door', pattern: [[12,12],[12,12],[12,12]], res: 37, resCount: 1 },
+            { id: 'bed', pattern: [[32,32,32],[12,12,12]], res: 33, resCount: 1 },
+            { id: 'bucket', pattern: [[20,null,20],[null,20,null]], res: 34, resCount: 1 },
+            { id: 'wood_stairs', pattern: [[12,null,null],[12,12,null],[12,12,12]], res: 38, resCount: 4 },
+            { id: 'stone_stairs', pattern: [[13,null,null],[13,13,null],[13,13,13]], res: 39, resCount: 4 }
         ];
 
         let playerInventory = new Array(36).fill(null);
@@ -518,6 +661,13 @@
                 cursorDiv.style.display = 'block'; cursorDiv.style.left = e.clientX - 16 + 'px'; cursorDiv.style.top = e.clientY - 16 + 'px';
                 cursorDiv.style.backgroundImage = `url(${getTexUrl(blockTypes[cursorItem.type].t)})`; document.getElementById('cursor-count').innerText = cursorItem.count > 1 ? cursorItem.count : '';
             } else { cursorDiv.style.display = 'none'; }
+            
+            let hoverSlot = document.elementFromPoint(e.clientX, e.clientY);
+            const t = document.getElementById('tooltip');
+            if(hoverSlot && hoverSlot.classList.contains('inv-slot') && hoverSlot.getAttribute('data-name')) {
+                t.style.display = 'block'; t.style.left = e.clientX + 15 + 'px'; t.style.top = e.clientY + 15 + 'px';
+                t.innerText = hoverSlot.getAttribute('data-name');
+            } else { t.style.display = 'none'; }
         });
 
         function handleSlotClick(e, slotArr, index, isResultSlot = false, onGridChange = null) {
@@ -526,7 +676,9 @@
                 if(slotItem && (!cursorItem || (cursorItem.type === slotItem.type && cursorItem.count + slotItem.count <= 64))) {
                     if(!cursorItem) cursorItem = {type: slotItem.type, count: slotItem.count}; else cursorItem.count += slotItem.count;
                     if(onGridChange) onGridChange(true); 
-                } return;
+                } 
+                renderAllInventoryUIs(); 
+                return;
             }
             if(!cursorItem && slotItem) { 
                 if(rightClick && slotItem.count > 1) { const half = Math.floor(slotItem.count / 2); cursorItem = {type: slotItem.type, count: half}; slotItem.count -= half; } else { cursorItem = {type: slotItem.type, count: slotItem.count}; slotArr[index] = null; }
@@ -564,7 +716,7 @@
             const container = document.getElementById(containerId); if(!container) return; container.innerHTML = '';
             for(let i=0; i<length; i++) {
                 const globalIdx = offset + i; const item = slotArr[globalIdx]; const div = document.createElement('div'); div.className = 'inv-slot';
-                if(item) { div.innerHTML = getIconHtml(item.type) + (item.count>1 ? `<div class="slot-count">${item.count}</div>` : ''); }
+                if(item) { div.innerHTML = getIconHtml(item.type) + (item.count>1 ? `<div class="slot-count">${item.count}</div>` : ''); div.setAttribute('data-type', item.type); div.setAttribute('data-name', blockTypes[item.type].name); }
                 div.onmousedown = (e) => onClickFn(e, slotArr, globalIdx); div.oncontextmenu = (e) => e.preventDefault(); container.appendChild(div);
             }
         }
@@ -596,11 +748,11 @@
             renderGrid('inventory-main-grid', playerInventory, 9, 27, handleSlotClick); renderGrid('inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick);
             renderGrid('crafting-2x2-grid', craftingGrid2x2, 0, 4, (e,arr,idx) => handleSlotClick(e,arr,idx,false,updateCrafting2x2));
             const res2x2 = document.getElementById('crafting-2x2-result');
-            if(res2x2) { res2x2.innerHTML = currentCraftingResult2x2 ? getIconHtml(currentCraftingResult2x2.type) + (currentCraftingResult2x2.count>1 ? `<div class="slot-count">${currentCraftingResult2x2.count}</div>` : '') : ''; res2x2.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult2x2], 0, true, updateCrafting2x2); }; res2x2.oncontextmenu = (e) => e.preventDefault(); }
+            if(res2x2) { res2x2.innerHTML = currentCraftingResult2x2 ? getIconHtml(currentCraftingResult2x2.type) + (currentCraftingResult2x2.count>1 ? `<div class="slot-count">${currentCraftingResult2x2.count}</div>` : '') : ''; if(currentCraftingResult2x2) { res2x2.setAttribute('data-name', blockTypes[currentCraftingResult2x2.type].name); } else { res2x2.removeAttribute('data-name'); } res2x2.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult2x2], 0, true, updateCrafting2x2); }; res2x2.oncontextmenu = (e) => e.preventDefault(); }
             renderGrid('ct-inventory-main-grid', playerInventory, 9, 27, handleSlotClick); renderGrid('ct-inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick);
             renderGrid('crafting-3x3-grid', craftingGrid3x3, 0, 9, (e,arr,idx) => handleSlotClick(e,arr,idx,false,updateCrafting3x3));
             const res3x3 = document.getElementById('crafting-3x3-result');
-            if(res3x3) { res3x3.innerHTML = currentCraftingResult3x3 ? getIconHtml(currentCraftingResult3x3.type) + (currentCraftingResult3x3.count>1 ? `<div class="slot-count">${currentCraftingResult3x3.count}</div>` : '') : ''; res3x3.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult3x3], 0, true, updateCrafting3x3); }; res3x3.oncontextmenu = (e) => e.preventDefault(); }
+            if(res3x3) { res3x3.innerHTML = currentCraftingResult3x3 ? getIconHtml(currentCraftingResult3x3.type) + (currentCraftingResult3x3.count>1 ? `<div class="slot-count">${currentCraftingResult3x3.count}</div>` : '') : ''; if(currentCraftingResult3x3) { res3x3.setAttribute('data-name', blockTypes[currentCraftingResult3x3.type].name); } else { res3x3.removeAttribute('data-name'); } res3x3.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult3x3], 0, true, updateCrafting3x3); }; res3x3.oncontextmenu = (e) => e.preventDefault(); }
             
             const chestScreen = document.getElementById('screen-chest');
             if(chestScreen && !chestScreen.classList.contains('hidden') && activeChestPos && currentWorldData.chests) {
@@ -622,6 +774,13 @@
             dropToInv(craftingGrid2x2); updateCrafting2x2(); dropToInv(craftingGrid3x3); updateCrafting3x3();
             if(cursorItem) { giveItemToPlayer(cursorItem.type, cursorItem.count); cursorItem = null; }
         }
+        
+        function closeAllMenus() {
+            clearCraftingGrids(); activeChestPos = null; activeFurnacePos = null;
+            showScreen('hud'); renderAllInventoryUIs();
+            menuJustClosed = true; setTimeout(() => menuJustClosed = false, 200);
+            if(controls) controls.lock();
+        }
 
         let renderDist = 2;
         window.toggleRenderDist = () => { renderDist = renderDist === 2 ? 3 : (renderDist === 3 ? 4 : 2); document.getElementById('toggle-render-dist').innerText = `視距: ${renderDist} 區塊`; };
@@ -638,66 +797,28 @@
             }
         }
         
-        window.respawn = () => { playerHealth = 20; playerPos.set(0, getNoiseHeight(0,0) + 10, 0); velocity.set(0,0,0); updateHealthUI(); showScreen('hud'); controls.lock(); };
+        window.respawn = () => { 
+            playerHealth = 20; 
+            if(currentWorldData.spawnPos) playerPos.set(currentWorldData.spawnPos.x, currentWorldData.spawnPos.y, currentWorldData.spawnPos.z);
+            else playerPos.set(0, getNoiseHeight(0,0) + 10, 0); 
+            velocity.set(0,0,0); updateHealthUI(); showScreen('hud'); controls.lock(); 
+        };
         function takeDamage(amt) { if(currentWorldData.mode === '創造') return; playerHealth -= amt; updateHealthUI(); if(playerHealth <= 0) { if(controls) controls.unlock(); showScreen('screen-death'); } }
 
-        const createConfig = { mode: ['生存', '創造'], modeIdx: 0, difficulty: ['普通', '困難'], diffIdx: 0, type: ['普通', '平坦'], typeIdx: 0, structures: ['開', '關'], structIdx: 0, chest: ['關', '開'], chestIdx: 0 };
-        window.toggleSetting = (key) => {
-            if(key === 'mode') { createConfig.modeIdx = (createConfig.modeIdx + 1) % 2; document.getElementById('toggle-mode').innerText = '遊戲模式: ' + createConfig.mode[createConfig.modeIdx]; }
-            if(key === 'difficulty') { createConfig.diffIdx = (createConfig.diffIdx + 1) % 2; document.getElementById('toggle-diff').innerText = '難易度: ' + createConfig.difficulty[createConfig.diffIdx]; }
-            if(key === 'type') { createConfig.typeIdx = (createConfig.typeIdx + 1) % 2; document.getElementById('toggle-type').innerText = '地圖類型: ' + createConfig.type[createConfig.typeIdx]; }
-            if(key === 'structures') { createConfig.structIdx = (createConfig.structIdx + 1) % 2; document.getElementById('toggle-struct').innerText = '生成建築: ' + createConfig.structures[createConfig.structIdx]; }
-            if(key === 'chest') { createConfig.chestIdx = (createConfig.chestIdx + 1) % 2; document.getElementById('toggle-chest').innerText = '獎勵箱: ' + createConfig.chest[createConfig.chestIdx]; }
-        };
-
-        function renderWorldList() {
-            const container = document.getElementById('world-list-container'); container.innerHTML = '';
-            if(worldsCache.length === 0) container.innerHTML = '<div style="padding:10px;text-align:center;color:#888;">尚未建立任何世界</div>';
-            else worldsCache.forEach(w => {
-                const div = document.createElement('div'); div.className = 'world-item ' + (w.id === selectedWorldId ? 'selected' : '');
-                let tagHtml = '';
-                if(w.storageType) {
-                    if(w.storageType.includes('雲端') && w.storageType.includes('本機')) tagHtml = '<span style="color:#2ecc71;">[雲+機]</span>';
-                    else if(w.storageType.includes('雲端同步中')) tagHtml = '<span style="color:#f39c12;">[同步中]</span>';
-                    else if(w.storageType.includes('雲端')) tagHtml = '<span style="color:#3498db;">[雲端]</span>';
-                    else tagHtml = '<span style="color:#f1c40f;">[本機]</span>';
-                }
-                div.innerHTML = `<strong>${tagHtml} ${w.name}</strong><br><span style="font-size:0.8rem;color:#aaa;">${w.mode} | ${w.type}</span>`;
-                div.onclick = () => { selectedWorldId = w.id; renderWorldList(); }; container.appendChild(div);
-            });
+        // 多人與單人遊戲流程
+        function handleNetworkPlayerJoined(data) {
+            if(!scene) return;
+            const allP = data.allPlayers; const currentIds = new Set(Object.keys(networkPlayers));
+            for (let id in allP) { if(id !== socket.id && !networkPlayers[id]) { const p = createDummyPlayer(); scene.add(p.mesh); networkPlayers[id] = p; } currentIds.delete(id); }
+            currentIds.forEach(id => { scene.remove(networkPlayers[id].mesh); delete networkPlayers[id]; });
         }
-
-        window.createNewWorld = () => {
-            const newWorld = {
-                id: Date.now().toString(), name: document.getElementById('new-world-name').value || '新的世界',
-                mode: createConfig.mode[createConfig.modeIdx], type: createConfig.type[createConfig.typeIdx],
-                structures: createConfig.structures[createConfig.structIdx] === '開', chest: createConfig.chest[createConfig.chestIdx] === '開',
-                timeOfDay: 0, modifiedBlocks: {}, inventory: new Array(36).fill(null), chests: {}, furnaceData: {}
-            };
-            if(newWorld.mode === '創造') {
-                newWorld.inventory[0] = {type:1, count:64}; newWorld.inventory[1] = {type:2, count:64}; newWorld.inventory[2] = {type:3, count:64};
-                newWorld.inventory[3] = {type:4, count:64}; newWorld.inventory[4] = {type:12, count:64}; newWorld.inventory[5] = {type:15, count:64};
-                newWorld.inventory[6] = {type:21, count:64}; newWorld.inventory[7] = {type:24, count:1};
-            }
-            saveWorldToBothSync(newWorld); selectedWorldId = newWorld.id; window.playSelectedWorld();
-        };
-
-        window.playSelectedWorld = () => {
-            if(!selectedWorldId && worldsCache.length>0) selectedWorldId = worldsCache[0].id;
-            currentWorldData = worldsCache.find(w => w.id === selectedWorldId);
-            if(currentWorldData) startGame();
-        };
-
-        window.saveAndQuit = () => { 
-            if(currentWorldData) { 
-                currentWorldData.inventory = playerInventory; 
-                currentWorldData.playerPos = {x: playerPos.x, y: playerPos.y, z: playerPos.z};
-                if(camera) currentWorldData.playerRot = camera.rotation.y;
-                saveWorldToBothSync(currentWorldData); 
-            } 
-            if(controls) controls.unlock(); gameLoopActive = false; showScreen('screen-main'); 
-        };
-        window.resumeGame = () => { clearCraftingGrids(); showScreen('hud'); renderAllInventoryUIs(); if(controls) controls.lock(); };
+        function handleNetworkPlayerState(data) { if(networkPlayers[data.id]) { networkPlayers[data.id].targetPos.set(data.x, data.y, data.z); networkPlayers[data.id].targetRot = data.rot; } }
+        function handleNetworkPlayerLeft(data) { if(networkPlayers[data.id]) { scene.remove(networkPlayers[data.id].mesh); delete networkPlayers[data.id]; } }
+        function handleAppDataEvent(data) { 
+            if(data.action === 'setBlock' && currentWorldData && data.worldId === currentWorldData.id) { setBlock(data.x, data.y, data.z, data.type, true); } 
+            if(data.action === 'requestWorldSync' && isHost && currentWorldData) { socket.emit('appData', { room: currentRoomId, action: 'hostWorldSync', worldData: currentWorldData }); }
+            if(data.action === 'hostWorldSync' && !isHost && !gameLoopActive) { currentWorldData = data.worldData; startGame(); }
+        }
 
         let scene, camera, renderer, controls;
         let dirLight, ambientLight;
@@ -752,9 +873,15 @@
 
         let droppedItems = [];
         function spawnDroppedItem(x, y, z, type, count) {
-            const size = 0.25; const geom = new THREE.BoxGeometry(size, size, size); const mesh = new THREE.Mesh(geom, materials[type]);
+            let geom, mesh;
+            if (blockTypes[type] && blockTypes[type].isItem) {
+                geom = new THREE.BoxGeometry(0.3, 0.3, 0.02);
+            } else {
+                geom = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+            }
+            mesh = new THREE.Mesh(geom, materials[type]);
             mesh.position.set(x + Math.random()*0.4 - 0.2, y + 0.5, z + Math.random()*0.4 - 0.2); mesh.castShadow = true; scene.add(mesh);
-            droppedItems.push({ mesh: mesh, type: type, count: count, vel: new THREE.Vector3((Math.random()-0.5)*2, 2, (Math.random()-0.5)*2), age: 0 });
+            droppedItems.push({ mesh: mesh, type: type, count: count, vel: new THREE.Vector3((Math.random()-0.5)*2, 2, (Math.random()-0.5)*2), age: 0, isItem: (blockTypes[type] && blockTypes[type].isItem) });
         }
 
         function updateDroppedItems(delta) {
@@ -764,7 +891,8 @@
                 if(checkCollisionBox(item.mesh.position.x-0.1, item.mesh.position.x+0.1, nextY-0.125, nextY+0.125, item.mesh.position.z-0.1, item.mesh.position.z+0.1)) {
                     item.vel.y = 0; item.vel.x *= 0.5; item.vel.z *= 0.5;
                 } else { item.mesh.position.y = nextY; }
-                item.mesh.position.x += item.vel.x * delta; item.mesh.position.z += item.vel.z * delta; item.mesh.rotation.y += 2 * delta; 
+                item.mesh.position.x += item.vel.x * delta; item.mesh.position.z += item.vel.z * delta; 
+                item.mesh.rotation.y += 2 * delta; 
                 
                 if(item.age > 0.5 && item.mesh.position.distanceTo(playerPos) < 1.5) {
                     const leftovers = giveItemToPlayer(item.type, item.count);
@@ -772,19 +900,6 @@
                 }
                 if(item.age > 300) { scene.remove(item.mesh); droppedItems.splice(i, 1); }
             }
-        }
-
-        function giveItemToPlayer(type, count) {
-            const origCount = count;
-            for(let i=0; i<36; i++) {
-                if(playerInventory[i] && playerInventory[i].type === type && playerInventory[i].count < 64) {
-                    const space = 64 - playerInventory[i].count; const add = Math.min(space, count);
-                    playerInventory[i].count += add; count -= add; if(count <= 0) break;
-                }
-            }
-            if(count > 0) { for(let i=0; i<36; i++) { if(!playerInventory[i]) { playerInventory[i] = {type: type, count: count}; count = 0; break; } } }
-            if (origCount !== count) renderAllInventoryUIs();
-            return count; 
         }
 
         function getChunkKey(cx, cz) { return `${cx},${cz}`; }
@@ -825,7 +940,12 @@
             if(currentWorldData.modifiedBlocks[key] !== undefined) return currentWorldData.modifiedBlocks[key];
             if(y === 0) return 7;
             const h = getNoiseHeight(x, z);
-            if(y > h) { const tree = getTreeBlock(x, y, z, h); if (tree) return tree; if(h < 8 && y <= 8 && y > 0) return 6; return null; }
+            if(y > h) { 
+                const tree = getTreeBlock(x, y, z, h); if (tree) return tree; 
+                if(y === h + 1 && h >= 5 && pseudoHash(x+10, z-10) > 0.99) return 32; 
+                if(h < 8 && y <= 8 && y > 0) return 6; 
+                return null; 
+            }
             if(y === h) return currentWorldData.type === '平坦' ? 1 : (h <= 8 ? 10 : 1);
             if(y > h - 3) return 2; 
             
@@ -846,9 +966,9 @@
                         const type = getBlock(x, y, z);
                         if(type) {
                             const t = getBlock(x, y+1, z); const b = getBlock(x, y-1, z); const l = getBlock(x-1, y, z); const r = getBlock(x+1, y, z); const f = getBlock(x, y, z-1); const bk = getBlock(x, y, z+1);
-                            if(type !== 6 && type !== 5 && type !== 11) { if(t&&b&&l&&r&&f&&bk && t!==6&&b!==6&&l!==6&&r!==6&&f!==6&&bk!==6 && t!==5&&b!==5&&l!==5&&r!==5&&f!==5&&bk!==5) continue; }
+                            if(type !== 6 && type !== 5 && type !== 11 && type !== 36) { if(t&&b&&l&&r&&f&&bk && t!==6&&b!==6&&l!==6&&r!==6&&f!==6&&bk!==6 && t!==5&&b!==5&&l!==5&&r!==5&&f!==5&&bk!==5 && t!==36&&b!==36&&l!==36&&r!==36&&f!==36&&bk!==36) continue; }
                             const geom = (type === 6) ? waterGeometry : blockGeometry; const mesh = new THREE.Mesh(geom, materials[type]);
-                            mesh.position.set(x, y, z); mesh.castShadow = (type !== 6 && type !== 11); mesh.receiveShadow = true; mesh.userData = {type, x, y, z}; group.add(mesh);
+                            mesh.position.set(x, y, z); mesh.castShadow = (type !== 6 && type !== 11 && type !== 36); mesh.receiveShadow = true; mesh.userData = {type, x, y, z}; group.add(mesh);
                         }
                     }
                 }
@@ -870,7 +990,7 @@
             const cx = Math.floor(x / CHUNK_SIZE); const cz = Math.floor(z / CHUNK_SIZE);
             const ckey = getChunkKey(cx, cz);
             if(chunkGroupMap.has(ckey)) { scene.remove(chunkGroupMap.get(ckey)); chunkGroupMap.delete(ckey); renderChunk(cx, cz); }
-            if(!isRemote && socket && socket.connected) socket.emit('appData', { room: appId, action: 'setBlock', worldId: currentWorldData.id, x: x, y: y, z: z, type: type });
+            if(!isRemote && socket && socket.connected) socket.emit('appData', { room: currentRoomId, action: 'setBlock', worldId: currentWorldData.id, x: x, y: y, z: z, type: type });
         }
 
         function startGame() {
@@ -878,6 +998,9 @@
             if(!currentWorldData.furnaceData) currentWorldData.furnaceData = {};
             renderAllInventoryUIs(); updateHealthUI(); showScreen('hud');
             
+            if(!isHost || currentRoomId.includes('_single_')) { document.getElementById('room-code-display').innerText = ''; } 
+            else { document.getElementById('room-code-display').innerText = '房間代碼: ' + currentRoomId.split('_').pop(); }
+
             if(!scene) {
                 renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas'), antialias: false });
                 renderer.setSize(window.innerWidth, window.innerHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -888,15 +1011,22 @@
                 dirLight.shadow.mapSize.width = 1024; dirLight.shadow.mapSize.height = 1024; scene.add(dirLight);
                 scene.add(playerGroup);
                 controls = new THREE.PointerLockControls(camera, document.body); scene.add(controls.getObject());
-                controls.addEventListener('lock', () => { if(playerHealth > 0) showScreen('hud'); });
+                
+                document.getElementById('hud').addEventListener('mousedown', () => { if(!controls.isLocked && playerHealth > 0) controls.lock(); });
+                
+                controls.addEventListener('lock', () => { 
+                    if(playerHealth > 0) { showScreen('hud'); document.getElementById('click-to-play').style.display = 'none'; }
+                });
                 
                 controls.addEventListener('unlock', () => { 
+                    if(menuJustClosed) return; 
                     const invHidden = document.getElementById('screen-inventory').classList.contains('hidden');
                     const craftHidden = document.getElementById('screen-crafting-table').classList.contains('hidden');
                     const chestHidden = document.getElementById('screen-chest').classList.contains('hidden');
                     const furnHidden = document.getElementById('screen-furnace').classList.contains('hidden');
                     if(gameLoopActive && playerHealth > 0 && invHidden && craftHidden && chestHidden && furnHidden) { showScreen('screen-pause'); }
-                    clearCraftingGrids(); 
+                    else if (playerHealth > 0) { document.getElementById('click-to-play').style.display = 'block'; }
+                    clearCraftingGrids(); activeChestPos = null; activeFurnacePos = null;
                     isMining = false; miningTimer = 0; document.getElementById('mining-progress-container').style.display = 'none';
                 });
                 
@@ -922,32 +1052,35 @@
                 playerPos.set(currentWorldData.playerPos.x, currentWorldData.playerPos.y, currentWorldData.playerPos.z);
                 const rot = currentWorldData.playerRot || 0;
                 camera.rotation.set(0, rot, 0); 
-            } else { playerPos.set(0, getNoiseHeight(0,0) + 10, 0); }
+            } else {
+                if(currentWorldData.spawnPos) playerPos.set(currentWorldData.spawnPos.x, currentWorldData.spawnPos.y, currentWorldData.spawnPos.z);
+                else playerPos.set(0, getNoiseHeight(0,0) + 10, 0);
+            }
             velocity.set(0,0,0);
             gameLoopActive = true; prevTime = performance.now(); controls.lock(); animate();
+            
+            if (socket && socket.connected) {
+                socket.emit('joinGameRoom', { room: currentRoomId, characterData: playerProfile });
+            }
         }
-
-        function handleNetworkPlayerJoined(data) {
-            if(!scene) return;
-            const allP = data.allPlayers; const currentIds = new Set(Object.keys(networkPlayers));
-            for (let id in allP) { if(id !== socket.id && !networkPlayers[id]) { const p = createDummyPlayer(); scene.add(p.mesh); networkPlayers[id] = p; } currentIds.delete(id); }
-            currentIds.forEach(id => { scene.remove(networkPlayers[id].mesh); delete networkPlayers[id]; });
-        }
-        function handleNetworkPlayerState(data) { if(networkPlayers[data.id]) { networkPlayers[data.id].targetPos.set(data.x, data.y, data.z); networkPlayers[data.id].targetRot = data.rot; } }
-        function handleNetworkPlayerLeft(data) { if(networkPlayers[data.id]) { scene.remove(networkPlayers[data.id].mesh); delete networkPlayers[data.id]; } }
-        function handleAppDataEvent(data) { if(data.action === 'setBlock' && currentWorldData && data.worldId === currentWorldData.id) { setBlock(data.x, data.y, data.z, data.type, true); } }
 
         function checkCollisionBox(minX, maxX, minY, maxY, minZ, maxZ) {
             const ix = Math.floor(minX), ax = Math.floor(maxX), iy = Math.floor(minY), ay = Math.floor(maxY), iz = Math.floor(minZ), az = Math.floor(maxZ);
-            for(let x=ix; x<=ax; x++) for(let y=iy; y<=ay; y++) for(let z=iz; z<=az; z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 11 && !blockTypes[t].isItem) return true; }
+            for(let x=ix; x<=ax; x++) for(let y=iy; y<=ay; y++) for(let z=iz; z<=az; z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 11 && t !== 36 && !blockTypes[t].isItem) return true; }
             return false;
+        }
+        
+        function getHitBlockType(minX, maxX, minY, maxY, minZ, maxZ) {
+            for(let x=Math.floor(minX); x<=Math.floor(maxX); x++) for(let y=Math.floor(minY); y<=Math.floor(maxY); y++) for(let z=Math.floor(minZ); z<=Math.floor(maxZ); z++) {
+                let t = getBlock(x,y,z); if(t && t !== 6 && t !== 11 && t !== 36 && !blockTypes[t].isItem) return t;
+            } return null;
         }
 
         function getSmeltResult(type) {
             if(type === 19) return 20; if(type === 10) return 11; if(type === 13) return 3; if(type === 4) return 18; if(type === 2) return 9; return null;
         }
         function getFuelTime(type) {
-            if(type === 18) return 40; if(type === 4 || type === 12) return 15; if(type === 16) return 5; if(type === 22) return 10; return 0;
+            if(type === 18) return 40; if(type === 4 || type === 12) return 15; if(type === 16) return 5; if(type === 22 || type === 29) return 10; return 0;
         }
 
         function animate() {
@@ -989,23 +1122,33 @@
             if (controls.isLocked) {
                 const pFloorX = Math.floor(playerPos.x); const pFloorZ = Math.floor(playerPos.z);
                 const inWater = getBlock(pFloorX, Math.floor(playerPos.y), pFloorZ) === 6 || getBlock(pFloorX, Math.floor(playerPos.y + 1.0), pFloorZ) === 6;
+                const onLadder = getBlock(pFloorX, Math.floor(playerPos.y), pFloorZ) === 36 || getBlock(pFloorX, Math.floor(playerPos.y + 1.0), pFloorZ) === 36;
                 const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir); camDir.y = 0; camDir.normalize();
                 const camRight = new THREE.Vector3().crossVectors(camDir, camera.up).normalize();
 
                 let inputZ = Number(moveState.b) - Number(moveState.f); let inputX = Number(moveState.r) - Number(moveState.l);
                 if (inputX !== 0 && inputZ !== 0) { const l = Math.sqrt(inputX*inputX + inputZ*inputZ); inputX /= l; inputZ /= l; }
 
-                const speed = inWater ? 3.0 : (currentWorldData.mode === '創造' ? 10.0 : 5.0);
+                const speed = inWater || onLadder ? 3.0 : (currentWorldData.mode === '創造' ? 10.0 : 5.0);
                 const tVelX = (camDir.x * -inputZ + camRight.x * inputX) * speed; const tVelZ = (camDir.z * -inputZ + camRight.z * inputX) * speed;
-                const friction = inWater ? 5.0 : 10.0;
+                const friction = inWater || onLadder ? 5.0 : 10.0;
                 velocity.x += (tVelX - velocity.x) * friction * delta; velocity.z += (tVelZ - velocity.z) * friction * delta;
 
                 if (inWater) { velocity.y -= 25.0 * delta * 0.15; if(moveState.up) { velocity.y += 12 * delta; if(velocity.y > 4) velocity.y = 4; } velocity.y *= 0.9; canJump = false; fallHighestY = playerPos.y; }
+                else if (onLadder) { velocity.y = 0; if(moveState.up) velocity.y = 4; else if(moveState.f || moveState.b || moveState.l || moveState.r) velocity.y = -1; canJump = true; fallHighestY = playerPos.y; }
                 else { velocity.y -= 25.0 * delta; if(moveState.up && canJump) { velocity.y = 8.5; canJump = false; } }
 
                 let hw = playerAABB.width / 2;
+                
                 let nextX = playerPos.x + velocity.x * delta;
-                if(checkCollisionBox(nextX-hw, nextX+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, playerPos.z-hw, playerPos.z+hw)) { if(velocity.x > 0) playerPos.x = Math.floor(nextX+hw)-hw-0.001; else if(velocity.x < 0) playerPos.x = Math.floor(nextX-hw)+1+hw+0.001; velocity.x = 0; } else playerPos.x = nextX;
+                if(checkCollisionBox(nextX-hw, nextX+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, playerPos.z-hw, playerPos.z+hw)) { 
+                    let hitTypeX = getHitBlockType(nextX-hw, nextX+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, playerPos.z-hw, playerPos.z+hw);
+                    if ((hitTypeX === 38 || hitTypeX === 39) && !checkCollisionBox(nextX-hw, nextX+hw, playerPos.y+1.0, playerPos.y+playerAABB.height, playerPos.z-hw, playerPos.z+hw)) {
+                        playerPos.y += 1.0; playerPos.x = nextX;
+                    } else {
+                        if(velocity.x > 0) playerPos.x = Math.floor(nextX+hw)-hw-0.001; else if(velocity.x < 0) playerPos.x = Math.floor(nextX-hw)+1+hw+0.001; velocity.x = 0; 
+                    }
+                } else playerPos.x = nextX;
 
                 let nextY = playerPos.y + velocity.y * delta;
                 if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, nextY, nextY+playerAABB.height, playerPos.z-hw, playerPos.z+hw)) {
@@ -1014,13 +1157,20 @@
                 } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; }
 
                 let nextZ = playerPos.z + velocity.z * delta;
-                if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, nextZ-hw, nextZ+hw)) { if(velocity.z > 0) playerPos.z = Math.floor(nextZ+hw)-hw-0.001; else if(velocity.z < 0) playerPos.z = Math.floor(nextZ-hw)+1+hw+0.001; velocity.z = 0; } else playerPos.z = nextZ;
+                if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, nextZ-hw, nextZ+hw)) { 
+                    let hitTypeZ = getHitBlockType(playerPos.x-hw, playerPos.x+hw, playerPos.y, playerPos.y+playerAABB.height-0.1, nextZ-hw, nextZ+hw);
+                    if ((hitTypeZ === 38 || hitTypeZ === 39) && !checkCollisionBox(playerPos.x-hw, playerPos.x+hw, playerPos.y+1.0, playerPos.y+playerAABB.height, nextZ-hw, nextZ+hw)) {
+                        playerPos.y += 1.0; playerPos.z = nextZ;
+                    } else {
+                        if(velocity.z > 0) playerPos.z = Math.floor(nextZ+hw)-hw-0.001; else if(velocity.z < 0) playerPos.z = Math.floor(nextZ-hw)+1+hw+0.001; velocity.z = 0; 
+                    }
+                } else playerPos.z = nextZ;
 
                 if (playerPos.y < -20) { takeDamage(20); }
 
                 playerGroup.position.copy(playerPos);
                 const horSpeed = Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z);
-                if(horSpeed > 0.5 && !inWater) { const swing = Math.sin(time * 0.01) * 0.5; armL.rotation.x = swing; armR.rotation.x = -swing; legL.rotation.x = -swing; legR.rotation.x = swing; } 
+                if(horSpeed > 0.5 && !inWater && !onLadder) { const swing = Math.sin(time * 0.01) * 0.5; armL.rotation.x = swing; armR.rotation.x = -swing; legL.rotation.x = -swing; legR.rotation.x = swing; } 
                 else { armL.rotation.x = 0; armR.rotation.x = 0; legL.rotation.x = 0; legR.rotation.x = 0; }
                 const yRotation = Math.atan2(camDir.x, camDir.z); playerGroup.rotation.y = yRotation;
 
@@ -1028,7 +1178,7 @@
                 else { camera.position.copy(playerPos); camera.position.y += 1.6; }
                 dirLight.position.x += playerPos.x; dirLight.position.z += playerPos.z; dirLight.target.position.copy(playerPos); dirLight.target.updateMatrixWorld();
 
-                if(socket && socket.connected) { syncTimer += delta; if(syncTimer > 0.1) { socket.emit('syncPlayerState', { room: appId, x: playerPos.x, y: playerPos.y, z: playerPos.z, rot: yRotation }); syncTimer = 0; } }
+                if(socket && socket.connected) { syncTimer += delta; if(syncTimer > 0.1) { socket.emit('syncPlayerState', { room: currentRoomId, x: playerPos.x, y: playerPos.y, z: playerPos.z, rot: yRotation }); syncTimer = 0; } }
 
                 if (isMining) {
                     let meshes = []; chunkGroupMap.forEach(g => meshes.push(...g.children));
@@ -1075,8 +1225,8 @@
                     const craftHidden = document.getElementById('screen-crafting-table').classList.contains('hidden');
                     const chestHidden = document.getElementById('screen-chest').classList.contains('hidden');
                     const furnHidden = document.getElementById('screen-furnace').classList.contains('hidden');
-                    if(e.code === 'KeyE' && !invHidden) window.resumeGame();
-                    if(e.code === 'Escape' && (!invHidden || !craftHidden || !chestHidden || !furnHidden)) window.resumeGame();
+                    if(e.code === 'KeyE' && !invHidden) closeAllMenus();
+                    if(e.code === 'Escape' && (!invHidden || !craftHidden || !chestHidden || !furnHidden)) { closeAllMenus(); return; }
                     return;
                 }
                 switch(e.code) {
@@ -1103,13 +1253,27 @@
                         if(p.type === 15) { window.openCraftingTable(); return; } 
                         if(p.type === 8) { window.openChest(getBlockKey(p.x, p.y, p.z)); return; } 
                         if(p.type === 21) { window.openFurnace(getBlockKey(p.x, p.y, p.z)); return; } 
+                        if(p.type === 33) { currentWorldData.spawnPos = {x: p.x, y: p.y+1, z: p.z}; showToast("已重設重生點！"); return; }
                         
                         const selItem = playerInventory[selectedSlot];
-                        if(!selItem || selItem.count <= 0 || blockTypes[selItem.type].isItem) return; 
-
+                        if(!selItem || selItem.count <= 0) return; 
+                        
+                        if(selItem.type === 34 && p.type === 6) { setBlock(p.x, p.y, p.z, null); selItem.count--; giveItemToPlayer(35, 1); if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); return; }
+                        
                         const n = intersects[0].face.normal; const nx = Math.round(p.x + n.x), ny = Math.round(p.y + n.y), nz = Math.round(p.z + n.z);
+                        
+                        if(selItem.type === 35) { setBlock(nx, ny, nz, 6); selItem.count--; giveItemToPlayer(34, 1); if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); return; }
+                        
+                        if(blockTypes[selItem.type].isItem) return;
+
                         const hw = playerAABB.width/2; const overlap = (playerPos.x-hw < nx+0.5 && playerPos.x+hw > nx-0.5) && (playerPos.y < ny+0.5 && playerPos.y+playerAABB.height > ny-0.5) && (playerPos.z-hw < nz+0.5 && playerPos.z+hw > nz-0.5);
-                        if(!overlap) { setBlock(nx, ny, nz, selItem.type); if(currentWorldData.mode === '生存') { selItem.count--; if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); } }
+                        if(!overlap) {
+                            setBlock(nx, ny, nz, selItem.type);
+                            if(currentWorldData.mode === '生存') {
+                                selItem.count--; if(selItem.count <= 0) playerInventory[selectedSlot] = null;
+                                renderAllInventoryUIs();
+                            }
+                        }
                     }
                 }
             });
