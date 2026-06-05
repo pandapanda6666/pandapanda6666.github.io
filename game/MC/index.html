@@ -1,4 +1,3 @@
-<!-- [index.html] -->
 <!-- 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved. -->
 <!DOCTYPE html>
 <html lang="zh-TW">
@@ -126,7 +125,7 @@
                 <h3 style="margin-top: 0; text-align: center; border-bottom: 2px solid #555; padding-bottom: 10px;">設定您的角色</h3>
                 <div class="flex-row" style="margin-bottom: 10px; width: 100%;">
                     <span style="line-height: 40px; width: 120px; text-align: left;">玩家名稱:</span>
-                    <input type="text" id="welcome-player-name" class="input-text" style="width: 250px; margin-bottom: 0;" placeholder="輸入暱稱..." onchange="updatePlayerProfile()">
+                    <input type="text" id="welcome-player-name" class="input-text" style="width: 250px; margin-bottom: 0;" placeholder="輸入暱稱..." onchange="updatePlayerProfile(this.value)">
                 </div>
                 <div class="flex-row" style="margin-bottom: 10px; width: 100%;">
                     <span style="line-height: 40px; width: 120px; text-align: left;">自訂皮膚:</span>
@@ -218,11 +217,10 @@
         <h2 id="tutorial-title">遊玩教學</h2>
         <p style="color:#ccc; margin-bottom: 20px; line-height: 1.5; text-align: center;">
             [W][A][S][D] 移動 | [空白鍵] 跳躍/游泳<br>
-            [長按滑鼠左鍵] 破壞方塊/攻擊動物 | [滑鼠右鍵] 放置/吃食物/開啟<br>
+            [長按滑鼠左鍵] 破壞方塊/攻擊動物 | [滑鼠右鍵] 放置/吃食物/開啟/用生怪蛋<br>
             [1 ~ 9] 切換快捷列 | [E] 開啟背包與合成<br>
             [V] 切換三段視角 (第一/第三人稱) | [T] 或 [/] 開啟指令聊天<br>
             [ESC] 暫停選單<br>
-            ※ 採集礦石需要相應等級的鎬子。<br>
             ※ 拿著鐵桶對水按右鍵可裝水。<br>
             ※ 飢餓度過低會扣血，拿著食物按右鍵可進食。
         </p>
@@ -382,10 +380,11 @@
     <script>
         // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
 
-        // === 全域變數群 ===
         let isChatting = false;
+        let lavaTimer = 0;
+        let cactusTimer = 0;
+        let suffocateTimer = 0;
 
-        // === 語言系統 (i18n) ===
         let currentLang = localStorage.getItem('mc_lang') || 'zh-TW';
         const langDict = {
             'zh-TW': {
@@ -447,7 +446,6 @@
             });
         };
 
-        // === 全域變數宣告 ===
         window.worldsCache = [];
         window.selectedWorldId = null;
         window.currentWorldData = null;
@@ -475,7 +473,7 @@
 
         let isMining = false; let miningTargetKey = null; let miningTimer = 0;
         let droppedItems = [];
-        let animalEntities = [];
+        let gameEntities = []; // 動物與怪物實體
         let playerInventory = new Array(36).fill(null);
         let craftingGrid2x2 = new Array(4).fill(null); let craftingGrid3x3 = new Array(9).fill(null);
         let activeChestPos = null; let activeFurnacePos = null; let cursorItem = null; let selectedSlot = 0;
@@ -483,10 +481,7 @@
         let playerHealth = 20; let fallHighestY = 0;
         let playerHunger = 20; let hungerTimer = 0; let starveTimer = 0; let regenTimer = 0;
         let playerBreath = 10; let drownTimer = 0;
-        
-        let lavaTimer = 0; let cactusTimer = 0; let suffocateTimer = 0;
 
-        // === 錯誤攔截器 ===
         const originalWarn = console.warn;
         console.warn = function(...args) { if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return; originalWarn.apply(console, args); };
         window.onerror = function(msg, url, line) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); };
@@ -539,7 +534,6 @@
         }
         window.showScreen = showScreen;
 
-        // === 材質與方塊庫 ===
         function genTex(type) {
             const c = document.createElement('canvas'); c.width = 16; c.height = 16; const ctx = c.getContext('2d');
             const fillNoise = (baseColor) => { ctx.fillStyle = baseColor; ctx.fillRect(0, 0, 16, 16); for(let i=0; i<16; i++) for(let j=0; j<16; j++) { if(Math.random() < 0.35) { ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)'; ctx.fillRect(i, j, 1, 1); } } };
@@ -595,11 +589,24 @@
             else if (type === 'lava') { fillNoise('#e67e22'); ctx.fillStyle='rgba(255,0,0,0.3)'; for(let i=0;i<20;i++) ctx.fillRect(Math.random()*16,Math.random()*16,2,2); }
             else if (type === 'cactus_side') { fillNoise('#2ecc71'); ctx.fillStyle='#27ae60'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#000'; for(let i=0;i<30;i++) ctx.fillRect(Math.random()*16,Math.random()*16,1,1); }
             else if (type === 'cactus_top') { fillNoise('#2ecc71'); ctx.fillStyle='#27ae60'; ctx.fillRect(0,0,16,16); }
+            
             else if (type === 'pig_skin') { ctx.fillStyle='#f8a5c2'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#f19066'; ctx.fillRect(4,8,8,4); ctx.fillStyle='#333'; ctx.fillRect(4,4,2,2); ctx.fillRect(10,4,2,2); }
             else if (type === 'sheep_skin') { ctx.fillStyle='#ecf0f1'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#eec'; ctx.fillRect(4,4,8,8); ctx.fillStyle='#333'; ctx.fillRect(2,6,2,2); ctx.fillRect(12,6,2,2); }
             else if (type === 'cow_skin') { ctx.fillStyle='#fff'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#222'; ctx.fillRect(2,2,4,4); ctx.fillRect(10,8,4,6); ctx.fillRect(6,0,2,2); ctx.fillRect(4,4,2,2); ctx.fillRect(10,4,2,2); }
             else if (type === 'chicken_skin') { ctx.fillStyle='#fff'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#e74c3c'; ctx.fillRect(6,0,4,4); ctx.fillStyle='#f1c40f'; ctx.fillRect(6,4,4,4); ctx.fillStyle='#000'; ctx.fillRect(2,4,2,2); ctx.fillRect(12,4,2,2); }
             
+            else if (type === 'zombie_skin') { ctx.fillStyle='#2ecc71'; ctx.fillRect(0,0,16,8); ctx.fillStyle='#3498db'; ctx.fillRect(0,8,16,8); ctx.fillStyle='#000'; ctx.fillRect(4,4,2,2); ctx.fillRect(10,4,2,2); }
+            else if (type === 'creeper_skin') { fillNoise('#27ae60'); ctx.fillStyle='#000'; ctx.fillRect(4,4,2,2); ctx.fillRect(10,4,2,2); ctx.fillRect(6,6,4,4); ctx.fillRect(4,8,2,4); ctx.fillRect(10,8,2,4); }
+            else if (type === 'skeleton_skin') { ctx.fillStyle='#ecf0f1'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#2c3e50'; ctx.fillRect(4,4,2,2); ctx.fillRect(10,4,2,2); ctx.fillRect(6,8,4,2); }
+            else if (type === 'spider_skin') { ctx.fillStyle='#2c3e50'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#c0392b'; ctx.fillRect(4,6,2,2); ctx.fillRect(10,6,2,2); }
+            
+            else if (type.startsWith('egg_')) {
+                ctx.clearRect(0,0,16,16);
+                let colors = { 'egg_pig': ['#f8a5c2', '#e66767'], 'egg_sheep': ['#ecf0f1', '#bdc3c7'], 'egg_cow': ['#5d4037', '#212121'], 'egg_chicken': ['#fff', '#e74c3c'], 'egg_zombie': ['#2ecc71', '#2c3e50'], 'egg_creeper': ['#27ae60', '#000'], 'egg_skeleton': ['#bdc3c7', '#7f8c8d'], 'egg_spider': ['#2c3e50', '#c0392b'] };
+                let [bg, fg] = colors[type];
+                ctx.fillStyle = bg; ctx.beginPath(); ctx.ellipse(8,8,6,7,0,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = fg; ctx.fillRect(6,6,2,2); ctx.fillRect(10,8,2,2); ctx.fillRect(6,10,2,2);
+            }
             return c.toDataURL();
         }
 
@@ -621,7 +628,9 @@
             40: { name: '地板門', t: 'trapdoor' }, 41: { name: '生肉', t: 'raw_meat', isItem: true }, 42: { name: '熟肉', t: 'cooked_meat', isItem: true }, 43: { name: '陷阱箱', t: 'trapped_chest_front' },
             44: { name: '木斧', t: 'wood_axe', isItem: true }, 45: { name: '石斧', t: 'stone_axe', isItem: true }, 46: { name: '鐵斧', t: 'iron_axe', isItem: true },
             47: { name: '木鏟', t: 'wood_shovel', isItem: true }, 48: { name: '石鏟', t: 'stone_shovel', isItem: true }, 49: { name: '鐵鏟', t: 'iron_shovel', isItem: true },
-            50: { name: '岩漿', t: 'lava' }, 51: { name: '仙人掌', t: 'cactus_side' }
+            50: { name: '岩漿', t: 'lava' }, 51: { name: '仙人掌', t: 'cactus_side' },
+            52: { name: '生怪蛋(豬)', t: 'egg_pig', isItem: true }, 53: { name: '生怪蛋(羊)', t: 'egg_sheep', isItem: true }, 54: { name: '生怪蛋(牛)', t: 'egg_cow', isItem: true }, 55: { name: '生怪蛋(雞)', t: 'egg_chicken', isItem: true },
+            56: { name: '生怪蛋(殭屍)', t: 'egg_zombie', isItem: true }, 57: { name: '生怪蛋(苦力怕)', t: 'egg_creeper', isItem: true }, 58: { name: '生怪蛋(骷髏)', t: 'egg_skeleton', isItem: true }, 59: { name: '生怪蛋(蜘蛛)', t: 'egg_spider', isItem: true }
         };
 
         const materials = {};
@@ -923,6 +932,8 @@
                 newWorld.inventory[0] = {type:1, count:64}; newWorld.inventory[1] = {type:2, count:64}; newWorld.inventory[2] = {type:3, count:64};
                 newWorld.inventory[3] = {type:4, count:64}; newWorld.inventory[4] = {type:12, count:64}; newWorld.inventory[5] = {type:15, count:64};
                 newWorld.inventory[6] = {type:21, count:64}; newWorld.inventory[7] = {type:24, count:1};
+                newWorld.inventory[8] = {type:56, count:64}; newWorld.inventory[9] = {type:57, count:64}; newWorld.inventory[10] = {type:58, count:64};
+                newWorld.inventory[11] = {type:59, count:64}; newWorld.inventory[12] = {type:52, count:64};
             }
             saveWorldToBothSync(newWorld); window.selectedWorldId = newWorld.id; window.playSelectedWorld();
         };
@@ -1125,6 +1136,7 @@
                 else if (reason === 'cactus') msg = '被仙人掌刺死了';
                 else if (reason === 'suffocate') msg = '在牆裡窒息了';
                 else if (reason === 'suicide') msg = '自殺了';
+                else if (reason === 'mob') msg = '被怪物殺死了';
                 
                 document.getElementById('death-title').innerText = msg;
                 if(controls) controls.unlock(); showScreen('screen-death'); 
@@ -1248,22 +1260,52 @@
             droppedItems.push({ mesh: mesh, type: type, count: count, vel: new THREE.Vector3((Math.random()-0.5)*2, 2, (Math.random()-0.5)*2), age: 0, isItem: (blockTypes[type] && blockTypes[type].isItem) });
         }
         
-        function spawnAnimal(x, y, z, aType) {
-            let mat = getMat(aType + '_skin');
+        function spawnEntity(x, y, z, eType) {
+            let mat = getMat(eType + '_skin');
             let group = new THREE.Group();
-            let bGeom = new THREE.BoxGeometry(0.6, 0.4, 0.8); let body = new THREE.Mesh(bGeom, mat); body.position.y = 0.5; group.add(body);
-            let hGeom = new THREE.BoxGeometry(0.4, 0.4, 0.4); let head = new THREE.Mesh(hGeom, mat); head.position.set(0, 0.6, -0.5); group.add(head);
-            let lGeom = new THREE.BoxGeometry(0.2, 0.3, 0.2);
-            let fl = new THREE.Mesh(lGeom, mat); fl.position.set(0.2, 0.15, -0.3); group.add(fl);
-            let fr = new THREE.Mesh(lGeom, mat); fr.position.set(-0.2, 0.15, -0.3); group.add(fr);
-            let bl = new THREE.Mesh(lGeom, mat); bl.position.set(0.2, 0.15, 0.3); group.add(bl);
-            let br = new THREE.Mesh(lGeom, mat); br.position.set(-0.2, 0.15, 0.3); group.add(br);
+            let hp = 10, isHostile = false, dmg = 0, partsData = {};
             
-            if(aType === 'chicken') { group.scale.set(0.6, 0.6, 0.6); }
+            if (['zombie', 'skeleton'].includes(eType)) {
+                hp = 20; isHostile = true; dmg = 2;
+                let bGeom = new THREE.BoxGeometry(0.5, 0.75, 0.25); let body = new THREE.Mesh(bGeom, mat); body.position.y = 1.125; group.add(body);
+                let hGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5); let head = new THREE.Mesh(hGeom, mat); head.position.set(0, 1.75, 0); group.add(head);
+                let aGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25);
+                let aL = new THREE.Mesh(aGeom, mat); aL.position.set(0.375, 1.125, 0); group.add(aL);
+                let aR = new THREE.Mesh(aGeom, mat); aR.position.set(-0.375, 1.125, 0); group.add(aR);
+                let lGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25);
+                let lL = new THREE.Mesh(lGeom, mat); lL.position.set(0.125, 0.375, 0); group.add(lL);
+                let lR = new THREE.Mesh(lGeom, mat); lR.position.set(-0.125, 0.375, 0); group.add(lR);
+                partsData = { type: 'biped', head: head, aL: aL, aR: aR, lL: lL, lR: lR };
+            } else if (eType === 'creeper') {
+                hp = 20; isHostile = true; dmg = 10;
+                let bGeom = new THREE.BoxGeometry(0.5, 0.75, 0.25); let body = new THREE.Mesh(bGeom, mat); body.position.y = 0.875; group.add(body);
+                let hGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5); let head = new THREE.Mesh(hGeom, mat); head.position.set(0, 1.5, 0); group.add(head);
+                let lGeom = new THREE.BoxGeometry(0.25, 0.5, 0.25);
+                let fl = new THREE.Mesh(lGeom, mat); fl.position.set(0.2, 0.25, 0.2); group.add(fl);
+                let fr = new THREE.Mesh(lGeom, mat); fr.position.set(-0.2, 0.25, 0.2); group.add(fr);
+                let bl = new THREE.Mesh(lGeom, mat); bl.position.set(0.2, 0.25, -0.2); group.add(bl);
+                let br = new THREE.Mesh(lGeom, mat); br.position.set(-0.2, 0.25, -0.2); group.add(br);
+                partsData = { type: 'quad', head: head, legs: [fl, fr, bl, br] };
+            } else if (eType === 'spider') {
+                hp = 16; isHostile = true; dmg = 2;
+                let bGeom = new THREE.BoxGeometry(0.8, 0.3, 0.8); let body = new THREE.Mesh(bGeom, mat); body.position.y = 0.15; group.add(body);
+                let hGeom = new THREE.BoxGeometry(0.4, 0.3, 0.4); let head = new THREE.Mesh(hGeom, mat); head.position.set(0, 0.3, -0.6); group.add(head);
+                partsData = { type: 'spider', head: head };
+            } else {
+                let bGeom = new THREE.BoxGeometry(0.6, 0.4, 0.8); let body = new THREE.Mesh(bGeom, mat); body.position.y = 0.5; group.add(body);
+                let hGeom = new THREE.BoxGeometry(0.4, 0.4, 0.4); let head = new THREE.Mesh(hGeom, mat); head.position.set(0, 0.6, -0.5); group.add(head);
+                let lGeom = new THREE.BoxGeometry(0.2, 0.3, 0.2);
+                let fl = new THREE.Mesh(lGeom, mat); fl.position.set(0.2, 0.15, -0.3); group.add(fl);
+                let fr = new THREE.Mesh(lGeom, mat); fr.position.set(-0.2, 0.15, -0.3); group.add(fr);
+                let bl = new THREE.Mesh(lGeom, mat); bl.position.set(0.2, 0.15, 0.3); group.add(bl);
+                let br = new THREE.Mesh(lGeom, mat); br.position.set(-0.2, 0.15, 0.3); group.add(br);
+                if(eType === 'chicken') group.scale.set(0.6, 0.6, 0.6);
+                partsData = { type: 'quad', head: head, legs: [fl, fr, bl, br] };
+            }
             
             group.position.set(x, y, z);
             scene.add(group);
-            animalEntities.push({ mesh: group, type: aType, hp: 10, vel: new THREE.Vector3(), timer: 0, head: head, legs: [fl, fr, bl, br] });
+            gameEntities.push({ mesh: group, type: eType, hp: hp, isHostile: isHostile, dmg: dmg, vel: new THREE.Vector3(), timer: 0, parts: partsData, attackTimer: 0 });
         }
 
         function getCollidingBlocks(minX, maxX, minY, maxY, minZ, maxZ) {
@@ -1304,50 +1346,78 @@
             }
         }
         
-        function updateAnimals(delta, time) {
-            for(let i = animalEntities.length - 1; i >= 0; i--) {
-                const animal = animalEntities[i];
-                animal.timer += delta;
-                if(animal.timer > 3) {
-                    animal.timer = 0;
-                    if(Math.random() > 0.3) {
-                        const angle = Math.random() * Math.PI * 2;
-                        animal.vel.x = Math.cos(angle) * 1.5; animal.vel.z = Math.sin(angle) * 1.5;
-                        animal.mesh.rotation.y = -angle + Math.PI/2;
-                    } else { animal.vel.x = 0; animal.vel.z = 0; }
+        function updateEntities(delta, time) {
+            for(let i = gameEntities.length - 1; i >= 0; i--) {
+                const ent = gameEntities[i];
+                ent.timer += delta;
+                
+                if (ent.isHostile) {
+                    let dist = ent.mesh.position.distanceTo(playerPos);
+                    if (dist < 16 && playerHealth > 0 && window.currentWorldData.mode !== '創造') {
+                        let dir = new THREE.Vector3().subVectors(playerPos, ent.mesh.position);
+                        dir.y = 0; dir.normalize();
+                        ent.vel.x = dir.x * 2.5; ent.vel.z = dir.z * 2.5;
+                        ent.mesh.rotation.y = Math.atan2(ent.vel.x, ent.vel.z);
+                        
+                        if (dist < 1.5) {
+                            ent.attackTimer -= delta;
+                            if (ent.attackTimer <= 0) { takeDamage(ent.dmg, 'mob'); ent.attackTimer = 1.5; }
+                        }
+                    } else {
+                        if(ent.timer > 3) {
+                            ent.timer = 0;
+                            if(Math.random() > 0.3) { const angle = Math.random() * Math.PI * 2; ent.vel.x = Math.cos(angle) * 1.5; ent.vel.z = Math.sin(angle) * 1.5; ent.mesh.rotation.y = -angle + Math.PI/2; } 
+                            else { ent.vel.x = 0; ent.vel.z = 0; }
+                        }
+                    }
+                } else {
+                    if(ent.timer > 3) {
+                        ent.timer = 0;
+                        if(Math.random() > 0.3) { const angle = Math.random() * Math.PI * 2; ent.vel.x = Math.cos(angle) * 1.5; ent.vel.z = Math.sin(angle) * 1.5; ent.mesh.rotation.y = -angle + Math.PI/2; } 
+                        else { ent.vel.x = 0; ent.vel.z = 0; }
+                    }
                 }
                 
-                animal.vel.y -= 15.0 * delta;
-                let nextY = animal.mesh.position.y + animal.vel.y * delta;
-                let hitsY = getCollidingBlocks(animal.mesh.position.x-0.3, animal.mesh.position.x+0.3, nextY, nextY+0.8, animal.mesh.position.z-0.4, animal.mesh.position.z+0.4);
+                ent.vel.y -= 15.0 * delta;
+                let nextY = ent.mesh.position.y + ent.vel.y * delta;
+                let hitsY = getCollidingBlocks(ent.mesh.position.x-0.3, ent.mesh.position.x+0.3, nextY, nextY+0.8, ent.mesh.position.z-0.4, ent.mesh.position.z+0.4);
                 if(hitsY.length > 0) { 
                     let highestY = -999; for(let b of hitsY) if(b.y > highestY) highestY = b.y;
-                    animal.mesh.position.y = highestY + 0.5; animal.vel.y = 0;
-                } else { animal.mesh.position.y = nextY; }
+                    ent.mesh.position.y = highestY + 0.5; ent.vel.y = 0;
+                } else { ent.mesh.position.y = nextY; }
                 
-                let nextX = animal.mesh.position.x + animal.vel.x * delta;
-                let hitsX = getCollidingBlocks(nextX-0.3, nextX+0.3, animal.mesh.position.y+0.1, animal.mesh.position.y+0.7, animal.mesh.position.z-0.4, animal.mesh.position.z+0.4);
-                if(hitsX.length > 0) { animal.vel.x = 0; animal.timer = 3; } else { animal.mesh.position.x = nextX; }
+                let nextX = ent.mesh.position.x + ent.vel.x * delta;
+                let hitsX = getCollidingBlocks(nextX-0.3, nextX+0.3, ent.mesh.position.y+0.1, ent.mesh.position.y+0.7, ent.mesh.position.z-0.4, ent.mesh.position.z+0.4);
+                if(hitsX.length > 0) { ent.vel.x = 0; ent.timer = 3; } else { ent.mesh.position.x = nextX; }
                 
-                let nextZ = animal.mesh.position.z + animal.vel.z * delta;
-                let hitsZ = getCollidingBlocks(animal.mesh.position.x-0.3, animal.mesh.position.x+0.3, animal.mesh.position.y+0.1, animal.mesh.position.y+0.7, nextZ-0.4, nextZ+0.4);
-                if(hitsZ.length > 0) { animal.vel.z = 0; animal.timer = 3; } else { animal.mesh.position.z = nextZ; }
+                let nextZ = ent.mesh.position.z + ent.vel.z * delta;
+                let hitsZ = getCollidingBlocks(ent.mesh.position.x-0.3, ent.mesh.position.x+0.3, ent.mesh.position.y+0.1, ent.mesh.position.y+0.7, nextZ-0.4, nextZ+0.4);
+                if(hitsZ.length > 0) { ent.vel.z = 0; ent.timer = 3; } else { ent.mesh.position.z = nextZ; }
                 
-                if(Math.abs(animal.vel.x) > 0 || Math.abs(animal.vel.z) > 0) {
+                if(Math.abs(ent.vel.x) > 0 || Math.abs(ent.vel.z) > 0) {
                     const walkTime = time * 0.01;
-                    animal.legs[0].rotation.x = Math.sin(walkTime) * 0.5; animal.legs[1].rotation.x = -Math.sin(walkTime) * 0.5;
-                    animal.legs[2].rotation.x = -Math.sin(walkTime) * 0.5; animal.legs[3].rotation.x = Math.sin(walkTime) * 0.5;
+                    if (ent.parts.type === 'quad') {
+                        ent.parts.legs[0].rotation.x = Math.sin(walkTime) * 0.5; ent.parts.legs[1].rotation.x = -Math.sin(walkTime) * 0.5;
+                        ent.parts.legs[2].rotation.x = -Math.sin(walkTime) * 0.5; ent.parts.legs[3].rotation.x = Math.sin(walkTime) * 0.5;
+                    } else if (ent.parts.type === 'biped') {
+                        ent.parts.aL.rotation.x = Math.sin(walkTime) * 0.5; ent.parts.aR.rotation.x = -Math.sin(walkTime) * 0.5;
+                        ent.parts.lL.rotation.x = -Math.sin(walkTime) * 0.5; ent.parts.lR.rotation.x = Math.sin(walkTime) * 0.5;
+                    }
                 } else {
-                    animal.legs.forEach(leg => leg.rotation.x = 0);
+                    if (ent.parts.type === 'quad') { ent.parts.legs.forEach(leg => leg.rotation.x = 0); } 
+                    else if (ent.parts.type === 'biped') { ent.parts.aL.rotation.x = 0; ent.parts.aR.rotation.x = 0; ent.parts.lL.rotation.x = 0; ent.parts.lR.rotation.x = 0; }
                 }
                 
-                if(animal.hp <= 0) {
-                    scene.remove(animal.mesh);
-                    if(animal.type === 'pig') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 2);
-                    if(animal.type === 'cow') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 3);
-                    if(animal.type === 'chicken') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 1);
-                    if(animal.type === 'sheep') { spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 32, 1); spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 1); }
-                    animalEntities.splice(i, 1);
+                if(ent.hp <= 0) {
+                    scene.remove(ent.mesh);
+                    if(ent.type === 'pig') spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 41, 2);
+                    if(ent.type === 'cow') spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 41, 3);
+                    if(ent.type === 'chicken') spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 41, 1);
+                    if(ent.type === 'sheep') { spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 32, 1); spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 41, 1); }
+                    if(ent.type === 'zombie') spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 41, 1);
+                    if(ent.type === 'skeleton') spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 16, 2);
+                    if(ent.type === 'spider') spawnDroppedItem(ent.mesh.position.x, ent.mesh.position.y, ent.mesh.position.z, 32, 1);
+                    gameEntities.splice(i, 1);
                 }
             }
         }
@@ -1387,7 +1457,7 @@
         function getBlock(x, y, z) {
             const key = window.getBlockKey(x,y,z); if(window.currentWorldData.modifiedBlocks[key] !== undefined) return window.currentWorldData.modifiedBlocks[key];
             if(y === 0) return 7; const h = window.getNoiseHeight(x, z);
-            if(y > h) { const tree = getTreeBlock(x, y, z, h); if (tree) return tree; if(y === h + 1 && h >= 5 && pseudoHash(x+10, z-10) > 0.99) return 32; if(h < 8 && y <= 8 && y > 0) return 6; return null; }
+            if(y > h) { const tree = getTreeBlock(x, y, z, h); if (tree) return tree; if(h < 8 && y <= 8 && y > 0) return 6; return null; }
             if(y === h) return window.currentWorldData.type === '超平坦' ? 1 : (h <= 8 ? 10 : 1);
             if(y > h - 3) return 2; 
             let hash = pseudoHash(x*1.5, z*1.5 + y*2.0); if (hash > 0.95 && y < h - 5) return 14; if (hash < 0.08 && y < h - 4) return 19; if (hash > 0.45 && hash < 0.5 && y < h - 3) return 17; 
@@ -1404,10 +1474,16 @@
                         const type = getBlock(x, y, z);
                         if(type) {
                             const t = getBlock(x, y+1, z); const b = getBlock(x, y-1, z); const l = getBlock(x-1, y, z); const r = getBlock(x+1, y, z); const f = getBlock(x, y, z-1); const bk = getBlock(x, y, z+1);
-                            if(type !== 6 && type !== 5 && type !== 11 && type !== 36 && type !== 40) { if(t&&b&&l&&r&&f&&bk && t!==6&&b!==6&&l!==6&&r!==6&&f!==6&&bk!==6 && t!==5&&b!==5&&l!==5&&r!==5&&f!==5&&bk!==5 && t!==36&&b!==36&&l!==36&&r!==36&&f!==36&&bk!==36 && t!==40&&b!==40&&l!==40&&r!==40&&f!==40&&bk!==40) continue; }
+                            if(type !== 6 && type !== 5 && type !== 11 && type !== 36 && type !== 40 && type !== 51) { if(t&&b&&l&&r&&f&&bk && t!==6&&b!==6&&l!==6&&r!==6&&f!==6&&bk!==6 && t!==5&&b!==5&&l!==5&&r!==5&&f!==5&&bk!==5 && t!==36&&b!==36&&l!==36&&r!==36&&f!==36&&bk!==36 && t!==40&&b!==40&&l!==40&&r!==40&&f!==40&&bk!==40 && t!==51&&b!==51&&l!==51&&r!==51&&f!==51&&bk!==51) continue; }
                             const geom = (type === 6) ? waterGeometry : blockGeometry; const mesh = new THREE.Mesh(geom, materials[type]);
-                            mesh.position.set(x, y, z); mesh.castShadow = (type !== 6 && type !== 11 && type !== 36 && type !== 40); mesh.receiveShadow = true; mesh.userData = {type, x, y, z}; group.add(mesh);
-                            if(type === 1 && Math.random() < 0.005 && animalEntities.length < 20) { const animals = ['pig', 'sheep', 'cow', 'chicken']; spawnAnimal(x, y+1.5, z, animals[Math.floor(Math.random()*animals.length)]); }
+                            mesh.position.set(x, y, z); mesh.castShadow = (type !== 6 && type !== 11 && type !== 36 && type !== 40 && type !== 51); mesh.receiveShadow = true; mesh.userData = {type, x, y, z}; group.add(mesh);
+                            
+                            // 動物與怪物自然生成
+                            if(type === 1 && Math.random() < 0.005 && gameEntities.length < 20) { const animals = ['pig', 'sheep', 'cow', 'chicken']; spawnEntity(x, y+1.5, z, animals[Math.floor(Math.random()*animals.length)]); }
+                            if((type === 1 || type === 3) && Math.random() < 0.002 && gameEntities.length < 20) {
+                                let isNight = (window.currentWorldData.timeOfDay % (Math.PI*2)) > Math.PI;
+                                if(y < h || isNight) { const mobs = ['zombie', 'creeper', 'skeleton', 'spider']; spawnEntity(x, y+1.5, z, mobs[Math.floor(Math.random()*mobs.length)]); }
+                            }
                         }
                     }
                 }
@@ -1472,7 +1548,7 @@
             }
             chunkGroupMap.forEach(group => scene.remove(group)); chunkGroupMap.clear(); currentChunk = {x: null, z: null};
             droppedItems.forEach(item => scene.remove(item.mesh)); droppedItems = [];
-            animalEntities.forEach(a => scene.remove(a.mesh)); animalEntities = [];
+            gameEntities.forEach(a => scene.remove(a.mesh)); gameEntities = [];
             for (let id in networkPlayers) { scene.remove(networkPlayers[id].mesh); } networkPlayers = {};
             
             if(Object.keys(window.currentWorldData.modifiedBlocks).length === 0) {
@@ -1507,7 +1583,7 @@
             if (cd) cd.innerText = `X: ${Math.floor(playerPos.x)} Y: ${Math.floor(playerPos.y)} Z: ${Math.floor(playerPos.z)}`;
             
             updateDroppedItems(delta);
-            updateAnimals(delta, time);
+            updateEntities(delta, time);
 
             let rules = window.currentWorldData.rules || { doDaylightCycle: true };
             if (rules.doDaylightCycle) window.currentWorldData.timeOfDay += delta * 0.02; 
@@ -1568,36 +1644,18 @@
                     if (hitsX.every(b => b.type === 38 || b.type === 39) && getCollidingBlocks(nextX-hw, nextX+hw, playerPos.y+1.05, playerPos.y+1.8, playerPos.z-hw, playerPos.z+hw).length === 0) { 
                         playerPos.y += 1.0; playerPos.x = nextX; 
                     } else { 
-                        if (velocity.x > 0) {
-                            let hit = false, minX_hit = Infinity;
-                            for (let b of hitsX) { if (b.x > playerPos.x) { if (b.x < minX_hit) minX_hit = b.x; hit = true; } }
-                            if (hit) { playerPos.x = minX_hit - 0.5 - hw - 0.001; velocity.x = 0; } else playerPos.x = nextX;
-                        } else if (velocity.x < 0) {
-                            let hit = false, maxX_hit = -Infinity;
-                            for (let b of hitsX) { if (b.x < playerPos.x) { if (b.x > maxX_hit) maxX_hit = b.x; hit = true; } }
-                            if (hit) { playerPos.x = maxX_hit + 0.5 + hw + 0.001; velocity.x = 0; } else playerPos.x = nextX;
-                        } else playerPos.x = nextX;
+                        if (velocity.x > 0) { let hit = false, minX_hit = Infinity; for (let b of hitsX) { if (b.x > playerPos.x) { if (b.x < minX_hit) minX_hit = b.x; hit = true; } } if (hit) { playerPos.x = minX_hit - 0.5 - hw - 0.001; velocity.x = 0; } else playerPos.x = nextX; } 
+                        else if (velocity.x < 0) { let hit = false, maxX_hit = -Infinity; for (let b of hitsX) { if (b.x < playerPos.x) { if (b.x > maxX_hit) maxX_hit = b.x; hit = true; } } if (hit) { playerPos.x = maxX_hit + 0.5 + hw + 0.001; velocity.x = 0; } else playerPos.x = nextX; } 
+                        else playerPos.x = nextX;
                     }
                 } else playerPos.x = nextX;
 
                 let nextY = playerPos.y + velocity.y * delta;
                 let hitsY = getCollidingBlocks(playerPos.x-hw, playerPos.x+hw, nextY, nextY+playerAABB.height, playerPos.z-hw, playerPos.z+hw);
                 if(hitsY.length > 0) {
-                    if(velocity.y > 0) { 
-                        let hit = false, minY_hit = Infinity;
-                        for (let b of hitsY) { if (b.y > playerPos.y) { if (b.y < minY_hit) minY_hit = b.y; hit = true; } }
-                        if (hit) { playerPos.y = minY_hit - 0.5 - playerAABB.height - 0.001; velocity.y = 0; } else playerPos.y = nextY;
-                    }
-                    else if(velocity.y < 0) { 
-                        let hit = false, maxY_hit = -Infinity;
-                        for (let b of hitsY) { if (b.y <= playerPos.y + 0.5) { if (b.y > maxY_hit) maxY_hit = b.y; hit = true; } }
-                        if (hit) { 
-                            playerPos.y = maxY_hit + 0.5; canJump = true; 
-                            const fallDist = fallHighestY - playerPos.y; 
-                            if(fallDist > 3.5 && window.currentWorldData.mode === '生存') takeDamage(Math.floor(fallDist - 3), 'fall'); 
-                            fallHighestY = playerPos.y; velocity.y = 0;
-                        } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; }
-                    } else playerPos.y = nextY;
+                    if(velocity.y > 0) { let hit = false, minY_hit = Infinity; for (let b of hitsY) { if (b.y > playerPos.y) { if (b.y < minY_hit) minY_hit = b.y; hit = true; } } if (hit) { playerPos.y = minY_hit - 0.5 - playerAABB.height - 0.001; velocity.y = 0; } else playerPos.y = nextY; }
+                    else if(velocity.y < 0) { let hit = false, maxY_hit = -Infinity; for (let b of hitsY) { if (b.y <= playerPos.y + 0.5) { if (b.y > maxY_hit) maxY_hit = b.y; hit = true; } } if (hit) { playerPos.y = maxY_hit + 0.5; canJump = true; const fallDist = fallHighestY - playerPos.y; if(fallDist > 3.5 && window.currentWorldData.mode === '生存') takeDamage(Math.floor(fallDist - 3), 'fall'); fallHighestY = playerPos.y; velocity.y = 0; } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; } } 
+                    else playerPos.y = nextY;
                 } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; }
 
                 let nextZ = playerPos.z + velocity.z * delta;
@@ -1606,15 +1664,9 @@
                     if (hitsZ.every(b => b.type === 38 || b.type === 39) && getCollidingBlocks(playerPos.x-hw, playerPos.x+hw, playerPos.y+1.05, playerPos.y+1.8, nextZ-hw, nextZ+hw).length === 0) { 
                         playerPos.y += 1.0; playerPos.z = nextZ; 
                     } else { 
-                        if (velocity.z > 0) {
-                            let hit = false, minZ_hit = Infinity;
-                            for (let b of hitsZ) { if (b.z > playerPos.z) { if (b.z < minZ_hit) minZ_hit = b.z; hit = true; } }
-                            if (hit) { playerPos.z = minZ_hit - 0.5 - hw - 0.001; velocity.z = 0; } else playerPos.z = nextZ;
-                        } else if (velocity.z < 0) {
-                            let hit = false, maxZ_hit = -Infinity;
-                            for (let b of hitsZ) { if (b.z < playerPos.z) { if (b.z > maxZ_hit) maxZ_hit = b.z; hit = true; } }
-                            if (hit) { playerPos.z = maxZ_hit + 0.5 + hw + 0.001; velocity.z = 0; } else playerPos.z = nextZ;
-                        } else playerPos.z = nextZ;
+                        if (velocity.z > 0) { let hit = false, minZ_hit = Infinity; for (let b of hitsZ) { if (b.z > playerPos.z) { if (b.z < minZ_hit) minZ_hit = b.z; hit = true; } } if (hit) { playerPos.z = minZ_hit - 0.5 - hw - 0.001; velocity.z = 0; } else playerPos.z = nextZ; } 
+                        else if (velocity.z < 0) { let hit = false, maxZ_hit = -Infinity; for (let b of hitsZ) { if (b.z < playerPos.z) { if (b.z > maxZ_hit) maxZ_hit = b.z; hit = true; } } if (hit) { playerPos.z = maxZ_hit + 0.5 + hw + 0.001; velocity.z = 0; } else playerPos.z = nextZ; } 
+                        else playerPos.z = nextZ;
                     }
                 } else playerPos.z = nextZ;
 
@@ -1623,23 +1675,15 @@
                 if (inLava || headInLava) { lavaTimer += delta; if (lavaTimer > 0.5) { takeDamage(4, 'lava'); lavaTimer = 0; } } else { lavaTimer = 0; }
                 if (isSuffocating) { suffocateTimer += delta; if (suffocateTimer > 0.5) { takeDamage(2, 'suffocate'); suffocateTimer = 0; } } else { suffocateTimer = 0; }
                 
-                let touchingCactus = false;
-                let eMinX = playerPos.x - hw - 0.05, eMaxX = playerPos.x + hw + 0.05, eMinY = playerPos.y, eMaxY = playerPos.y + 1.75, eMinZ = playerPos.z - hw - 0.05, eMaxZ = playerPos.z + hw + 0.05;
+                let touchingCactus = false; let eMinX = playerPos.x - hw - 0.05, eMaxX = playerPos.x + hw + 0.05, eMinY = playerPos.y, eMaxY = playerPos.y + 1.75, eMinZ = playerPos.z - hw - 0.05, eMaxZ = playerPos.z + hw + 0.05;
                 for(let cx=Math.floor(eMinX+0.5); cx<=Math.floor(eMaxX+0.5); cx++) for(let cy=Math.floor(eMinY+0.5); cy<=Math.floor(eMaxY+0.5); cy++) for(let cz=Math.floor(eMinZ+0.5); cz<=Math.floor(eMaxZ+0.5); cz++) if(getBlock(cx,cy,cz) === 51) touchingCactus = true;
                 if (touchingCactus) { cactusTimer += delta; if (cactusTimer > 0.5) { takeDamage(1, 'cactus'); cactusTimer = 0; } } else { cactusTimer = 0; }
 
                 if (window.currentWorldData.mode === '生存' || window.currentWorldData.mode === '冒險') {
                     if (headInWater) { playerBreath -= delta * 0.5; if (playerBreath <= 0) { drownTimer += delta; if (drownTimer > 1.0) { takeDamage(2, 'drown'); drownTimer = 0; } } } 
-                    else { playerBreath = Math.min(10, playerBreath + delta * 5); }
-                    updateBreathUI();
-                    
-                    let drainRate = 0.005 * delta;
-                    if (moveState.up && canJump) drainRate += 0.02;
-                    if (inWater && (inputX !== 0 || inputZ !== 0)) drainRate += 0.01 * delta;
-                    if (isMining) drainRate += 0.005 * delta;
-                    
-                    hungerTimer += drainRate;
-                    if (hungerTimer >= 1.0) { hungerTimer = 0; playerHunger = Math.max(0, playerHunger - 1); updateHungerUI(); }
+                    else { playerBreath = Math.min(10, playerBreath + delta * 5); } updateBreathUI();
+                    let drainRate = 0.005 * delta; if (moveState.up && canJump) drainRate += 0.02; if (inWater && (inputX !== 0 || inputZ !== 0)) drainRate += 0.01 * delta; if (isMining) drainRate += 0.005 * delta;
+                    hungerTimer += drainRate; if (hungerTimer >= 1.0) { hungerTimer = 0; playerHunger = Math.max(0, playerHunger - 1); updateHungerUI(); }
                     if (playerHunger <= 0) { starveTimer += delta; if (starveTimer > 4.0) { takeDamage(1, 'starve'); starveTimer = 0; } } 
                     else if (playerHunger >= 18 && playerHealth < 20) { regenTimer += delta; if (regenTimer > 4.0) { playerHealth++; updateHealthUI(); playerHunger--; updateHungerUI(); regenTimer = 0; } }
                 }
@@ -1648,75 +1692,42 @@
             playerGroup.position.copy(playerPos);
             const horSpeed = Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z);
             if (inWater || inLava) {
-                playerGroup.rotation.x = -Math.PI / 2;
-                playerGroup.position.y -= 0.5;
-                const swimTime = time * 0.01;
-                playerGroup.children[2].rotation.x = Math.PI + Math.sin(swimTime) * 0.2; 
-                playerGroup.children[3].rotation.x = Math.PI - Math.sin(swimTime) * 0.2;
-                playerGroup.children[4].rotation.x = Math.sin(swimTime * 2) * 0.5; 
-                playerGroup.children[5].rotation.x = -Math.sin(swimTime * 2) * 0.5;
-                playerGroup.children[0].rotation.x = 0;
+                playerGroup.rotation.x = -Math.PI / 2; playerGroup.position.y -= 0.5; const swimTime = time * 0.01;
+                playerGroup.children[2].rotation.x = Math.PI + Math.sin(swimTime) * 0.2; playerGroup.children[3].rotation.x = Math.PI - Math.sin(swimTime) * 0.2;
+                playerGroup.children[4].rotation.x = Math.sin(swimTime * 2) * 0.5; playerGroup.children[5].rotation.x = -Math.sin(swimTime * 2) * 0.5; playerGroup.children[0].rotation.x = 0;
             } else {
                 playerGroup.rotation.x = 0;
-                if(horSpeed > 0.5 && !onLadder) { 
-                    const swing = Math.sin(time * 0.01) * 0.5; 
-                    playerGroup.children[2].rotation.x = swing; playerGroup.children[3].rotation.x = -swing; 
-                    playerGroup.children[4].rotation.x = -swing; playerGroup.children[5].rotation.x = swing; 
-                } else { 
-                    playerGroup.children[2].rotation.x = 0; playerGroup.children[3].rotation.x = 0; 
-                    playerGroup.children[4].rotation.x = 0; playerGroup.children[5].rotation.x = 0; 
-                }
-                
-                const pitch = Math.asin(Math.max(-1, Math.min(1, camera.getWorldDirection(new THREE.Vector3()).y)));
-                playerGroup.children[0].rotation.x = pitch;
+                if(horSpeed > 0.5 && !onLadder) { const swing = Math.sin(time * 0.01) * 0.5; playerGroup.children[2].rotation.x = swing; playerGroup.children[3].rotation.x = -swing; playerGroup.children[4].rotation.x = -swing; playerGroup.children[5].rotation.x = swing; } 
+                else { playerGroup.children[2].rotation.x = 0; playerGroup.children[3].rotation.x = 0; playerGroup.children[4].rotation.x = 0; playerGroup.children[5].rotation.x = 0; }
+                const pitch = Math.asin(Math.max(-1, Math.min(1, camera.getWorldDirection(new THREE.Vector3()).y))); playerGroup.children[0].rotation.x = pitch;
             }
             
             const yRotation = Math.atan2(camDir.x, camDir.z); playerGroup.rotation.y = yRotation;
 
-            camera.position.copy(playerPos);
-            camera.position.y += 1.6;
-
-            renderCamera.position.copy(camera.position);
-            renderCamera.quaternion.copy(camera.quaternion);
+            camera.position.copy(playerPos); camera.position.y += 1.6;
+            renderCamera.position.copy(camera.position); renderCamera.quaternion.copy(camera.quaternion);
             
-            if (cameraMode === 1) {
-                playerGroup.visible = true;
-                const offset = new THREE.Vector3(0, 0, 4).applyQuaternion(camera.quaternion);
-                renderCamera.position.add(offset);
-            } else if (cameraMode === 2) {
-                playerGroup.visible = true;
-                const offset = new THREE.Vector3(0, 0, -4).applyQuaternion(camera.quaternion);
-                renderCamera.position.add(offset);
-                renderCamera.rotateY(Math.PI);
-            } else {
-                playerGroup.visible = false;
-            }
+            if (cameraMode === 1) { playerGroup.visible = true; const offset = new THREE.Vector3(0, 0, 4).applyQuaternion(camera.quaternion); renderCamera.position.add(offset); } 
+            else if (cameraMode === 2) { playerGroup.visible = true; const offset = new THREE.Vector3(0, 0, -4).applyQuaternion(camera.quaternion); renderCamera.position.add(offset); renderCamera.rotateY(Math.PI); } 
+            else { playerGroup.visible = false; }
 
             dirLight.position.x += playerPos.x; dirLight.position.z += playerPos.z; dirLight.target.position.copy(playerPos); dirLight.target.updateMatrixWorld();
 
-            if(socket && socket.connected && controls.isLocked) { 
-                syncTimer += delta; 
-                if(syncTimer > 0.1) { 
-                    const pitch = Math.asin(Math.max(-1, Math.min(1, camera.getWorldDirection(new THREE.Vector3()).y)));
-                    socket.emit('syncPlayerState', { room: currentRoomId, x: playerPos.x, y: playerPos.y, z: playerPos.z, rot: yRotation, pitch: pitch }); 
-                    syncTimer = 0; 
-                } 
-            }
+            if(socket && socket.connected && controls.isLocked) { syncTimer += delta; if(syncTimer > 0.1) { const pitch = Math.asin(Math.max(-1, Math.min(1, camera.getWorldDirection(new THREE.Vector3()).y))); socket.emit('syncPlayerState', { room: currentRoomId, x: playerPos.x, y: playerPos.y, z: playerPos.z, rot: yRotation, pitch: pitch }); syncTimer = 0; } }
 
             if (isMining && window.currentWorldData.mode !== '冒險' && controls.isLocked) {
                 let meshes = []; chunkGroupMap.forEach(g => meshes.push(...g.children));
-                animalEntities.forEach(a => meshes.push(a.mesh.children[0], a.mesh.children[1]));
+                gameEntities.forEach(a => { if(a.parts.type === 'biped') meshes.push(a.parts.head, a.parts.body); else if(a.parts.type === 'quad') meshes.push(a.parts.head, a.parts.legs[0].parent.children[0]); else meshes.push(a.parts.head, a.parts.head.parent.children[0]); });
                 
                 const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
                 let intersects = raycaster.intersectObjects(meshes); intersects = intersects.filter(hit => hit.object.userData.type !== 6);
 
                 if (intersects.length > 0 && intersects[0].distance < 6) {
-                    if (intersects[0].object.parent && animalEntities.find(a => a.mesh === intersects[0].object.parent)) {
+                    if (intersects[0].object.parent && gameEntities.find(a => a.mesh === intersects[0].object.parent)) {
                         miningTimer += delta;
                         if(miningTimer > 0.5) {
-                            let animal = animalEntities.find(a => a.mesh === intersects[0].object.parent);
-                            if(animal) { animal.hp -= 2; animal.vel.y = 5; animal.vel.x = camDir.x * 5; animal.vel.z = camDir.z * 5; }
-                            miningTimer = 0;
+                            let animal = gameEntities.find(a => a.mesh === intersects[0].object.parent);
+                            if(animal) { animal.hp -= 2; animal.vel.y = 5; animal.vel.x = camDir.x * 5; animal.vel.z = camDir.z * 5; } miningTimer = 0;
                         }
                     } else {
                         const p = intersects[0].object.userData; const key = window.getBlockKey(p.x, p.y, p.z);
@@ -1760,11 +1771,8 @@
                     case 'KeyW': moveState.f = true; break; case 'KeyA': moveState.l = true; break; case 'KeyS': moveState.b = true; break; case 'KeyD': moveState.r = true; break; case 'Space': moveState.up = true; break;
                     case 'KeyV': cameraMode = (cameraMode + 1) % 3; break; case 'KeyE': window.openInventory(); break;
                     case 'KeyT': case 'Slash': 
-                        e.preventDefault(); isChatting = true; controls.unlock();
-                        document.getElementById('chat-input').style.display = 'block'; 
-                        if(e.code === 'Slash') document.getElementById('chat-input').value = '/';
-                        setTimeout(() => document.getElementById('chat-input').focus(), 50);
-                        break;
+                        e.preventDefault(); isChatting = true; controls.unlock(); document.getElementById('chat-input').style.display = 'block'; 
+                        if(e.code === 'Slash') document.getElementById('chat-input').value = '/'; setTimeout(() => document.getElementById('chat-input').focus(), 50); break;
                 }
                 if(e.key >= '1' && e.key <= '9') { selectedSlot = parseInt(e.key) - 1; renderAllInventoryUIs(); }
             });
@@ -1777,11 +1785,7 @@
                     const selItem = playerInventory[selectedSlot];
                     
                     if (selItem && (selItem.type === 41 || selItem.type === 42)) {
-                        if (playerHunger < 20) {
-                            playerHunger = Math.min(20, playerHunger + (selItem.type === 42 ? 8 : 3));
-                            selItem.count--; if(selItem.count <= 0) playerInventory[selectedSlot] = null;
-                            updateHungerUI(); renderAllInventoryUIs();
-                        }
+                        if (playerHunger < 20) { playerHunger = Math.min(20, playerHunger + (selItem.type === 42 ? 8 : 3)); selItem.count--; if(selItem.count <= 0) playerInventory[selectedSlot] = null; updateHungerUI(); renderAllInventoryUIs(); }
                         return;
                     }
 
@@ -1791,17 +1795,24 @@
 
                     if (intersects.length > 0 && intersects[0].distance < 6) {
                         const p = intersects[0].object.userData;
+                        const nx = Math.round(p.x + intersects[0].face.normal.x), ny = Math.round(p.y + intersects[0].face.normal.y), nz = Math.round(p.z + intersects[0].face.normal.z);
+                        
                         if(p.type === 15) { window.openCraftingTable(); return; } 
                         if(p.type === 8 || p.type === 43) { window.openChest(window.getBlockKey(p.x, p.y, p.z)); return; } 
                         if(p.type === 21) { window.openFurnace(window.getBlockKey(p.x, p.y, p.z)); return; } 
                         if(p.type === 33) { window.currentWorldData.spawnPos = {x: p.x, y: p.y+1, z: p.z}; showToast("已重設重生點！"); return; }
                         
+                        if(selItem && selItem.type >= 52 && selItem.type <= 59) {
+                            const typeMap = {52: 'pig', 53: 'sheep', 54: 'cow', 55: 'chicken', 56: 'zombie', 57: 'creeper', 58: 'skeleton', 59: 'spider'};
+                            spawnEntity(nx, ny, nz, typeMap[selItem.type]);
+                            if (window.currentWorldData.mode === '生存') { selItem.count--; if (selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); }
+                            return;
+                        }
+
                         if(window.currentWorldData.mode === '冒險') return; 
                         
                         if(!selItem || selItem.count <= 0) return; 
                         if(selItem.type === 34 && p.type === 6) { window.setBlock(p.x, p.y, p.z, null); selItem.count--; giveItemToPlayer(35, 1); if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); return; }
-                        
-                        const n = intersects[0].face.normal; const nx = Math.round(p.x + n.x), ny = Math.round(p.y + n.y), nz = Math.round(p.z + n.z);
                         if(selItem.type === 35) { window.setBlock(nx, ny, nz, 6); selItem.count--; giveItemToPlayer(34, 1); if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); return; }
                         if(blockTypes[selItem.type].isItem) return;
 
