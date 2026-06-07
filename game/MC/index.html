@@ -14,7 +14,7 @@
         .hidden { display: none !important; }
         h1 { font-size: 4rem; text-shadow: 4px 4px 0 #000; margin-bottom: 2rem; color: #ddd; text-align: center; }
         h2 { font-size: 2rem; text-shadow: 2px 2px 0 #000; margin-bottom: 1rem; }
-        .btn { background-color: #727272; color: white; border: 2px solid #000; border-top-color: #aaa; border-left-color: #aaa; padding: 10px 20px; font-size: 1.2rem; margin: 5px; cursor: pointer; width: 400px; font-family: inherit; text-align: center; box-sizing: border-box; text-shadow: 2px 2px 0 #333; transition: transform 0.1s; }
+        .btn { background-color: #727272; color: white; border: 2px solid #000; border-top-color: #aaa; border-left-color: #aaa; padding: 10px 20px; font-size: 1.2rem; margin: 5px; cursor: pointer; width: 400px; font-family: inherit; text-align: center; box-sizing: border-box; text-shadow: 2px 2px 0 #333; }
         .btn:hover { background-color: #888; border-top-color: #ccc; border-left-color: #ccc; transform: scale(1.02); }
         .btn:active { border: 2px solid #000; border-bottom-color: #aaa; border-right-color: #aaa; padding: 12px 18px 8px 22px; transform: scale(0.98); }
         .btn-half { width: 195px; display: inline-block; }
@@ -84,7 +84,6 @@
         footer a { color: #fff; text-decoration: none; pointer-events: auto; }
         footer a:hover { text-decoration: underline; }
 
-        /* 創造模式物品欄滾動條美化 */
         #creative-grid::-webkit-scrollbar { width: 8px; }
         #creative-grid::-webkit-scrollbar-track { background: #555; }
         #creative-grid::-webkit-scrollbar-thumb { background: #888; border: 1px solid #333; }
@@ -405,7 +404,7 @@
                 'btn-create-confirm': '建立並進入', 'pause-title': '遊戲暫停', 'btn-resume': '回到遊戲', 
                 'btn-quit': '儲存並回到標題畫面', 'btn-respawn': '重生', 'btn-death-quit': '回到標題畫面',
                 'setup-character': '設定您的角色', 'player-name': '玩家名稱:', 'custom-skin': '自訂皮膚:',
-                'skin-hint': '支援 64x64 或 64x32 格式，支援透明背景', 'sso-hint': '您也可以點擊右上角按鈕使用 SSO 帳號快速登入',
+                'skin-hint': '支援 64x64 或 64x32 標準去背 PNG 格式', 'sso-hint': '您也可以點擊右上角按鈕使用 SSO 帳號快速登入',
                 'btn-enter-lobby': '進入遊戲大廳', 'name-placeholder': '輸入暱稱...', 'code-placeholder': '輸入代碼...',
                 'loading-title': '載入中...', 'loading-text': '正在連接伺服器與同步資料', 'click-to-play': '點擊畫面回到遊戲',
                 'chat-placeholder': '輸入指令或訊息... (Enter 傳送, Esc 取消)', 'world-name-placeholder': '輸入世界名稱...',
@@ -748,6 +747,26 @@
         
         window.respawn = () => { playerHealth = 20; playerHunger = 20; playerBreath = 10; if(window.currentWorldData.spawnPos) playerPos.set(window.currentWorldData.spawnPos.x, window.currentWorldData.spawnPos.y, window.currentWorldData.spawnPos.z); else playerPos.set(0, window.getNoiseHeight(0,0) + 10, 0); velocity.set(0,0,0); updateHealthUI(); updateHungerUI(); updateBreathUI(); showScreen('hud'); document.getElementById('click-to-play').style.display = 'block'; };
         
+        function getSmeltResult(type) { if(type === 19) return 20; if(type === 10) return 11; if(type === 13) return 3; if(type === 4) return 18; if(type === 2) return 9; if(type === 41) return 42; return null; }
+        function getFuelTime(type) { if(type === 18) return 40; if(type === 4 || type === 12) return 15; if(type === 16) return 5; if([22, 26, 29, 44, 47].includes(type)) return 10; return 0; }
+        function getToolTier(type) { if([22, 26, 29, 44, 47].includes(type)) return 1; if([23, 27, 30, 45, 48].includes(type)) return 2; if([24, 28, 31, 46, 49].includes(type)) return 3; return 0; }
+        
+        window.getBlockHardnessAndDrop = function(type, toolType) {
+            const tier = getToolTier(toolType); let base = 0.5; let reqTier = 0; let isPickaxeBlock = false;
+            if (type === 7) return {time: Infinity, drop: null};
+            if (type === 3 || type === 13 || type === 25 || type === 39 || type === 21) { base = 1.5; reqTier = 1; isPickaxeBlock = true; }
+            if (type === 17 || type === 21) { base = 3.0; reqTier = 1; isPickaxeBlock = true; }
+            if (type === 19) { base = 3.0; reqTier = 2; isPickaxeBlock = true; }
+            if (type === 14) { base = 3.0; reqTier = 3; isPickaxeBlock = true; }
+            if (type === 4 || type === 12 || type === 15 || type === 8 || type === 43 || type === 37 || type === 38 || type === 40) { base = 1.5; if([44,45,46].includes(toolType)) base = base/(tier*2); }
+            if (type === 1 || type === 2 || type === 10 || type === 50 || type === 51) { base = 0.5; if ([47, 48, 49].includes(toolType)) base = base / (tier * 2); }
+            if (type === 5 || type === 11 || type === 36 || type === 32 || type === 33) base = 0.2;
+            let time = base; if (isPickaxeBlock) { if (tier >= reqTier && tier > 0) time = base / (tier * 2); else time = base * 3; }
+            let drop = type; if (type === 3 && tier >= reqTier) drop = 13; if (type === 3 && tier < reqTier) drop = null; if (isPickaxeBlock && tier < reqTier) drop = null;
+            if (type === 17 && tier >= reqTier) drop = 18; if (type === 11 || type === 50) drop = null; 
+            return { time: time, drop: drop };
+        };
+
         function takeDamage(amt, reason = 'unknown') { 
             if(window.currentWorldData.mode === '創造') return; playerHealth -= amt; updateHealthUI(); 
             if(playerHealth <= 0) { 
