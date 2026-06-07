@@ -1,965 +1,1125 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PandaPanda的AI日常 - 統一登入中心</title>
-    <link class="rounded-full" rel="icon" href="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no">
+    <title>PandaPanda 的 AI 日常</title>
+    <link rel="icon" href="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script>
-        const originalWarn = console.warn;
-        console.warn = function(...args) {
-            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
-            originalWarn.apply(console, args);
-        };
-        window.onerror = function(msg, url, line) {
-            if (typeof socket !== 'undefined' && socket.connected) {
-                socket.emit('logError', { errorMsg: msg, url: url, line: line });
-            }
-        };
-        window.addEventListener('unhandledrejection', function(event) {
-            if (typeof socket !== 'undefined' && socket.connected) {
-                socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
-            }
-        });
-        
-        window.addEventListener('DOMContentLoaded', () => {
-             const canvas = document.createElement('canvas');
-             canvas.width = window.innerWidth;
-             canvas.height = window.innerHeight;
-             canvas.style.position = 'fixed';
-             canvas.style.top = '0';
-             canvas.style.left = '0';
-             canvas.style.pointerEvents = 'none';
-             canvas.style.zIndex = '99999';
-             canvas.style.opacity = '0.01'; 
-             document.body.appendChild(canvas);
-             const ctx = canvas.getContext('2d');
-             ctx.font = '10px Arial';
-             ctx.fillStyle = '#000000';
-             const text = '版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved. 並且不提供網頁修改';
-             for(let i=0; i<300; i++) {
-                 ctx.fillText(text, Math.random() * canvas.width, Math.random() * canvas.height);
-             }
 
-             const urlParams = new URLSearchParams(window.location.search);
-             if (urlParams.get('action') === 'reportIssue') {
-                 setTimeout(() => {
-                     if (window.openIssueModal) window.openIssueModal();
-                 }, 500);
-             }
-        });
-    </script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; }
-        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; transition: 0.2s; }
-        input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-        .avatar-preview { width: 96px; height: 96px; object-fit: cover; border-radius: 50%; border: 4px solid white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        :root {
+            --primary-color: #2c5e32;
+            --secondary-color: #3c6e42;
+            --background-color: #f0f8e8;
+            --card-bg-color: #ffffff;
+            --text-color: #3d3d3d;
+            --border-color: #dde8d4;
+            --error-color: #D8000C;
+            --error-bg-color: #FFD2D2;
+            --yellow-custom: #fbbf24;
+            --dark-blue-bg: #001f3f;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #system-broadcast {
+            width: 100%;
+            background-color: #ff9800;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: none; 
+            animation: slideDown 0.3s ease-out forwards;
+        }
+
+        @keyframes slideDown {
+            from { transform: translateY(-100%); }
+            to { transform: translateY(0); }
+        }
+
+        #auth-container {
+            margin-left: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .login-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-family: inherit;
+        }
+
+        .login-btn:hover {
+            background-color: #1a3a1d;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        .user-profile-panel {
+            background-color: var(--card-bg-color);
+            padding: 6px 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .user-profile-panel:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .user-profile-panel .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-profile-panel .avatar {
+            width: 32px;
+            height: 32px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.1em;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .user-profile-panel .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-profile-panel .details {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+
+        .user-profile-panel .status {
+            font-size: 0.7em;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .user-profile-panel .name {
+            font-size: 0.95em;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-top: 2px;
+            max-width: 100px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-profile-panel .settings-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85em;
+            color: #555;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background-color: #f0f0f0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-family: inherit;
+            font-weight: 600;
+        }
+
+        .user-profile-panel .settings-btn:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        #system-monitor {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #00ff00;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            z-index: 20000;
+            pointer-events: none;
+            border: 1px solid #444;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .logo {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .logo img {
+            width: 45px;
+            height: 45px;
+            margin-right: 12px;
+            border-radius: 50%;
+        }
+
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        nav a {
+            margin-left: 25px;
+            text-decoration: none;
+            color: var(--secondary-color);
+            font-weight: 600;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            padding-bottom: 8px;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        nav a:hover {
+            color: var(--primary-color);
+        }
+        
+        nav a.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .page-section {
+            background-color: var(--card-bg-color);
+            padding: 40px;
+            margin-top: 30px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        .page-section.active {
+            display: block;
+        }
+
+        .page-section h2 {
+            font-size: 2em;
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #eef5e9;
+            padding-bottom: 10px;
+        }
+        
+        #countdown-container {
+            margin-top: 30px;
+            background-color: #f8fbf6;
+            border-radius: 15px;
+            border: 2px solid var(--border-color);
+            padding: 10px;
+            overflow: hidden;
+        }
+        
+        #timer-iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+        }
+
+        #project-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .project-card {
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            color: inherit;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .img-container {
+            width: 5rem;
+            height: 5rem;
+            flex-shrink: 0;
+            background: #f0f0f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .project-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .img-fallback-text {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            font-weight: bold;
+            text-align: center;
+            line-height: 1.2;
+            padding: 4px;
+        }
+
+        .text-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0;
+        }
+
+        .project-desc {
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+            color: #666;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .arrow-icon {
+            color: var(--secondary-color);
+            flex-shrink: 0;
+        }
+
+        #loading-indicator {
+            text-align: center;
+            padding: 3rem 0;
+            color: #666;
+        }
+        
+        .loading-spinner-small {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #ccc;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.5rem;
+        }
+
+        .security-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+            backdrop-filter: blur(5px);
+        }
+
+        .security-modal-content {
+            background-color: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .security-modal-content h2 {
+            color: #d9534f;
+            margin-top: 0;
+            font-size: 1.8em;
+        }
+
+        .security-modal-content p {
+            line-height: 1.8;
+            margin-bottom: 25px;
+        }
+
+        .security-modal-close-btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .security-modal-close-btn:hover {
+            background-color: #1e4222;
+        }
+        .security-modal-close-btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.8;
+        }
+        
+        #final-warning-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #a91e22;
+            color: white;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10002;
+            text-align: center;
+            font-size: 2em;
+            font-weight: bold;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        #block-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: black;
+            color: red;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10003;
+            text-align: center;
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #777;
+            font-size: 0.9em;
+        }
+        
+        .social-links {
+            margin-bottom: 15px;
+        }
+
+        .social-links a {
+            color: var(--secondary-color);
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: 600;
+            transition: text-decoration 0.3s ease;
+        }
+
+        .social-links a:hover {
+            text-decoration: underline;
+        }
+
+        #report-issue-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #d9534f;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 12px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 10000;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+
+        #report-issue-btn:hover {
+            background-color: #c9302c;
+            transform: translateY(-3px);
+        }
+
+        @media (max-width: 880px) {
+            header {
+                flex-direction: column;
+                gap: 20px;
+            }
+            #auth-container {
+                margin-left: 0;
+                margin-top: 15px;
+                justify-content: center;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-section {
+                padding: 30px;
+            }
+            #report-issue-btn {
+                bottom: 15px;
+                right: 15px;
+                padding: 10px 16px;
+                font-size: 0.9em;
+            }
+        }
+        
+        @media (max-width: 480px) {
+             .page-section {
+                padding: 25px;
+            }
+        }
     </style>
 </head>
-<body class="bg-[#eef2e6] min-h-screen flex items-center justify-center p-4">
+<body>
+    
+    <div id="system-broadcast"></div>
 
-    <div id="app" class="relative bg-white/95 backdrop-blur-xl w-full max-w-md rounded-2xl shadow-xl overflow-hidden p-8 border border-green-100 z-10 my-8">
-        
-        <div id="headerSection" class="text-center mb-8">
-            <h1 id="formTitle" class="text-3xl font-bold text-green-800 tracking-wide">PandaPanda的AI日常</h1>
-            <p id="formSubtitle" class="text-green-600 font-medium mt-2">通用帳號系統</p>
-            <div id="serverStatus" class="inline-flex mt-4 items-center justify-center h-6">
-                <svg class="animate-spin h-6 w-6 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            </div>
+    <div id="system-monitor"></div>
+
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>載入中...</p>
+    </div>
+    
+    <div id="security-modal" class="security-modal-overlay">
+        <div class="security-modal-content">
+            <h2>住手！</h2>
+            <p>這是一個專為開發人員設計的瀏覽器功能。如果有人告訴您在這裡複製貼上任何東西來啟用特殊功能或「駭入」他人帳號，這很可能是一場騙局，並且會讓攻擊者有機會竊取您的個人資訊或控制您的帳號。</p>
+            <button id="close-security-modal" class="security-modal-close-btn">我瞭解了</button>
         </div>
-
-        <div id="loadingView" class="py-12 text-center">
-            <svg class="animate-spin h-14 w-14 text-green-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p id="loadingText" class="mt-6 text-slate-600 font-bold tracking-widest animate-pulse">系統連線中，請稍候...</p>
-        </div>
-
-        <div id="guestView" class="hidden text-center space-y-6">
-            <div class="w-24 h-24 mx-auto bg-slate-100 rounded-full flex items-center justify-center border-4 border-white shadow-md">
-                <svg class="w-12 h-12 text-slate-400 pointer-events-none" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path></svg>
-            </div>
-            <div>
-                <h2 class="text-xl font-bold text-green-800">您目前尚未登入</h2>
-                <p class="text-slate-500 text-sm mt-2">部分應用程式功能需要登入後才能使用</p>
-            </div>
-            <button onclick="toggleView('login')" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95">
-                點此登入 / 註冊帳號
-            </button>
-        </div>
-
-        <div id="profileView" class="hidden text-center space-y-6">
-            <div class="relative inline-block">
-                <img id="displayAvatar" src="" alt="Avatar" class="avatar-preview bg-slate-100 mx-auto pointer-events-none">
-                <button onclick="toggleView('editProfile')" type="button" class="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full shadow-lg hover:bg-green-700 transition">
-                    <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                </button>
-            </div>
-            <div>
-                <h2 id="displayNickname" class="text-2xl font-bold text-green-800">使用者暱稱</h2>
-                <p id="displayUsername" class="text-slate-500 text-sm mt-1">@username</p>
-                <div class="mt-2 inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm border border-green-200">
-                    🪙 P幣: <span id="displayPCoin" class="ml-1">0</span>
-                </div>
-            </div>
-            <div class="space-y-3 pt-4 border-t border-green-50">
-                <button id="returnAppBtn" onclick="returnToApp()" type="button" class="hidden w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-md transition-all">
-                    進入系統應用
-                </button>
-                <button onclick="toggleView('editProfile')" type="button" class="w-full bg-green-50 hover:bg-green-100 text-green-700 font-bold py-3 rounded-xl transition-all">
-                    修改所有個人資料
-                </button>
-                <div class="flex gap-3">
-                    <button onclick="switchAccount()" type="button" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-all">
-                        切換帳戶
-                    </button>
-                    <button onclick="handleLogout()" type="button" class="w-1/2 bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3 rounded-xl transition-all">
-                        登出系統
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div id="editProfileView" class="hidden space-y-4">
-            <div class="max-h-[60vh] overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-                <div class="text-center mb-4">
-                    <div class="relative inline-block">
-                        <img id="editAvatarPreview" src="" alt="Preview" class="avatar-preview bg-slate-100 pointer-events-none">
-                    </div>
-                    <div class="mt-3">
-                        <label class="cursor-pointer text-sm font-bold text-green-600 hover:text-green-700 transition">
-                            更換大頭貼
-                            <input type="file" id="editAvatarInput" accept="image/*" class="hidden" onchange="previewImage(this, 'editAvatarPreview')">
-                        </label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">公開暱稱 <span class="text-red-500">*</span></label>
-                        <input type="text" id="editNickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">真實姓名</label>
-                        <input type="text" id="editRealName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">登入密碼</label>
-                        <input type="password" id="editPassword" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件</label>
-                        <input type="email" id="editEmail" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">性別</label>
-                        <select id="editGender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner bg-white">
-                            <option value="男">男</option>
-                            <option value="女">女</option>
-                            <option value="其他">其他</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">生日</label>
-                        <input type="date" id="editBirthday" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話</label>
-                    <input type="tel" id="editPhone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                </div>
-            </div>
-
-            <div class="flex gap-3 pt-4 border-t border-green-50">
-                <button onclick="toggleView('profile')" type="button" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition-all">取消</button>
-                <button onclick="saveProfile()" type="button" class="w-1/2 bg-green-700 hover:bg-green-800 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all">儲存變更</button>
-            </div>
-        </div>
-
-        <div id="loginView" class="hidden">
-            <div id="loginForm" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">登入帳號</label>
-                    <input type="text" id="username" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的帳號">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">登入密碼</label>
-                    <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的密碼">
-                </div>
-                <button onclick="handleLogin()" id="loginBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
-                    一般登入系統
-                </button>
-                <div class="flex items-center my-4">
-                    <div class="flex-grow border-t border-slate-200"></div>
-                    <span class="mx-3 text-slate-400 text-sm font-medium">或</span>
-                    <div class="flex-grow border-t border-slate-200"></div>
-                </div>
-                <button onclick="handleGoogleLogin()" id="googleBtn" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl flex items-center justify-center transition shadow-sm">
-                    <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5 mr-3 pointer-events-none">
-                    使用 Google 帳號登入
-                </button>
-            </div>
-            <div class="mt-6 text-center flex flex-col space-y-3">
-                <button onclick="toggleView('register')" type="button" class="text-green-600 hover:text-green-800 text-sm font-bold transition">還沒有帳號？立即註冊</button>
-                <button onclick="openIssueModal()" type="button" class="text-slate-400 hover:text-red-500 text-xs font-bold transition">遇到困難？回報問題</button>
-            </div>
-        </div>
-
-        <div id="registerView" class="hidden">
-            <div class="flex bg-slate-100 rounded-xl p-1 mb-5">
-                <button id="regTabNormal" onclick="setRegMode('normal')" type="button" class="w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition">帳號密碼註冊</button>
-                <button id="regTabGoogle" onclick="setRegMode('google')" type="button" class="w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition">Google 註冊</button>
-            </div>
-
-            <div id="registerForm" class="space-y-3">
-                <div class="max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
-                    <div class="text-center mb-4">
-                        <div class="relative inline-block">
-                            <img id="regAvatarPreview" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>" class="avatar-preview bg-slate-100 mx-auto cursor-pointer" onclick="document.getElementById('reg_avatar').click()">
-                        </div>
-                        <div class="mt-1">
-                            <label class="cursor-pointer text-xs font-bold text-slate-500 hover:text-green-600 transition">
-                                點擊上傳大頭貼
-                                <input type="file" id="reg_avatar" accept="image/*" class="hidden" onchange="previewImage(this, 'regAvatarPreview')">
-                            </label>
-                        </div>
-                    </div>
-
-                    <div id="regGoogleFields" class="hidden mb-4">
-                        <div id="googleNotLinked">
-                            <button onclick="handleRegGoogleAuth()" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 rounded-xl flex items-center justify-center transition shadow-sm">
-                                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5 mr-3 pointer-events-none">
-                                連結 Google 帳號 <span class="text-red-500 ml-1">*</span>
-                            </button>
-                        </div>
-                        <div id="googleLinked" class="hidden text-center bg-green-50 border border-green-200 rounded-xl py-3 px-4 flex justify-between items-center">
-                            <span class="text-sm font-bold text-green-700">已連結：<span id="linkedGoogleEmail"></span></span>
-                            <button onclick="clearRegGoogle()" type="button" class="text-xs text-slate-500 hover:text-red-500">清除</button>
-                        </div>
-                    </div>
-
-                    <div id="regAccountFields" class="space-y-3 mb-3">
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">設定帳號 <span class="text-red-500">*</span></label>
-                                <input type="text" id="reg_username" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入帳號">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-700 mb-1">設定密碼 <span class="text-red-500">*</span></label>
-                                <input type="password" id="reg_password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入密碼">
-                            </div>
-                        </div>
-                        <div id="regEmailDiv">
-                            <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span id="email_req_indicator" class="text-xs text-slate-400 font-normal">(與電話擇一必填) <span class="text-red-500">*</span></span></label>
-                            <input type="email" id="reg_email" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入電子郵件">
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="block text-sm font-bold text-slate-700 mb-1">公開暱稱 <span class="text-red-500">*</span></label>
-                        <input type="text" id="reg_nickname" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="在系統中顯示的名稱">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">姓氏 <span class="text-red-500">*</span></label>
-                            <input type="text" id="reg_lastName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="例: 王">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">名字 <span class="text-red-500">*</span></label>
-                            <input type="text" id="reg_firstName" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="例: 小明">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">性別 <span class="text-red-500">*</span></label>
-                            <select id="reg_gender" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner bg-white">
-                                <option value="">請選擇</option>
-                                <option value="男">男</option>
-                                <option value="女">女</option>
-                                <option value="其他">其他</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-1">生日 <span class="text-red-500">*</span></label>
-                            <input type="date" id="reg_birthday" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 <span id="phone_req_indicator" class="text-xs text-slate-400 font-normal">(與信箱擇一必填) <span class="text-red-500">*</span></span></label>
-                        <input type="tel" id="reg_phone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入聯絡電話">
-                    </div>
-                </div>
-                
-                <button onclick="handleRegister()" id="registerBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
-                    送出註冊資料
-                </button>
-                <div class="mt-4 text-center">
-                    <button onclick="toggleView('login')" type="button" class="text-slate-500 hover:text-slate-700 text-sm font-bold transition">已有帳號？返回登入</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="messageBox" class="mt-6 text-center text-sm hidden p-3 rounded-lg border"></div>
-
-        <footer class="mt-8 pt-6 border-t border-green-100 text-center relative z-20 text-xs text-slate-500 font-bold">
-            版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-green-600 transition">PandaPanda的AI日常</a> All Rights Reserved.
-        </footer>
+    </div>
+    
+    <div id="final-warning-overlay">
+        <p>偵測到不當操作，頁面已被鎖定。</p>
+    </div>
+    
+    <div id="block-overlay">
+        <h1 style="font-size: 3em; margin-bottom: 20px;">存取被拒絕</h1>
+        <p style="font-size: 1.5em;">您的瀏覽環境不符合安全要求。</p>
+        <div id="block-details" style="margin: 20px 0; font-size: 1.2em; color: white;"></div>
+        <p style="color: yellow;">正在重新導向至 Google...</p>
     </div>
 
-    <button onclick="openGuideModal()" class="fixed bottom-6 left-6 bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-2xl z-50 flex items-center justify-center transition-transform hover:scale-110" title="使用說明">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <button id="report-issue-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        回報問題
     </button>
-    <div id="guideModal" class="hidden fixed inset-0 bg-emerald-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh]">
-            <div class="bg-green-600 p-4 text-white font-bold text-lg flex justify-between items-center shrink-0">
-                <span>📘 系統使用說明</span>
-                <button onclick="closeGuideModal()" class="hover:text-green-200 text-2xl leading-none">&times;</button>
-            </div>
-            <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-                <h3 class="font-bold text-slate-800 border-b pb-2">1. 關於登入系統</h3>
-                <p class="text-slate-600 text-sm">本系統為「PandaPanda的AI日常」通用帳號中心，一個帳號即可暢遊所有關聯的應用程式與遊戲。</p>
 
-                <h3 class="font-bold text-slate-800 border-b pb-2 mt-4">2. 註冊與綁定 Google</h3>
-                <p class="text-slate-600 text-sm">您可以直接填寫帳號密碼註冊，也可以選擇「Google 註冊」自動綁定信箱。無論使用何種方式註冊，皆須自訂一組帳號密碼，以便未來可隨意選擇一般登入或 Google 快速登入。</p>
-
-                <h3 class="font-bold text-slate-800 border-b pb-2 mt-4">3. 修改個人資料</h3>
-                <p class="text-slate-600 text-sm">登入後，點擊「修改所有個人資料」，即可隨時更換大頭貼、更改暱稱與密碼。所有變更將即時同步至各個應用程式。</p>
-
-                <h3 class="font-bold text-slate-800 border-b pb-2 mt-4">4. 遇到問題怎麼辦？</h3>
-                <p class="text-slate-600 text-sm">點擊畫面右下角的紅色「❓」按鈕，即可將您遇到的錯誤或建議直接發送給管理員。系統會自動附上您的環境資訊協助排查。</p>
-            </div>
-            <div class="p-4 bg-green-50 border-t shrink-0">
-                <button onclick="closeGuideModal()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-md transition-all">我了解了</button>
-            </div>
-        </div>
-    </div>
-
-    <button onclick="openIssueModal()" class="fixed bottom-6 right-6 bg-red-500 hover:bg-red-600 text-white p-4 rounded-full shadow-2xl z-50 flex items-center justify-center transition-transform hover:scale-110" title="回報問題">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-    </button>
-    <div id="issueModal" class="hidden fixed inset-0 bg-emerald-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="bg-red-500 p-4 text-white font-bold text-lg flex justify-between items-center shrink-0">
-                <span>回報系統問題</span>
-                <button onclick="closeIssueModal()" class="hover:text-red-200 text-2xl leading-none">&times;</button>
-            </div>
-            <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-                <p class="text-slate-600 text-sm">如果您在使用過程中遇到任何錯誤或異常，請在下方詳細描述。若有程式碼錯誤，也可貼在專屬的程式碼區塊中，我們將記錄以利排查。</p>
+    <div class="container">
+        <header>
+            <div class="logo"><img src="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no" alt="PandaPanda Logo"> PandaPanda的AI日常</div>
+            <nav>
+                <a href="#" class="nav-link active" data-page="about">關於本站</a>
+                <a href="#" class="nav-link" data-page="tools">自製</a>
+                <a href="https://pandapanda6666.github.io/shop/" target="_blank" rel="noopener noreferrer">商城</a>
+                <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
+                <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook</a>
                 
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">一般問題描述 <span class="text-red-500">*</span></label>
-                    <textarea id="issueText" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none resize-none" placeholder="請描述您遇到的問題..."></textarea>
+                <div id="auth-container">
+                    <button id="login-btn" class="login-btn">登入 / 註冊</button>
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">程式碼片段 <span class="text-xs text-slate-400 font-normal">(選填)</span></label>
-                    <textarea id="issueCode" rows="4" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none resize-none font-mono text-sm bg-slate-50" placeholder="如果有程式碼報錯，請將整段代碼貼在這裡..."></textarea>
-                </div>
-            </div>
-            <div class="p-4 bg-slate-50 border-t shrink-0">
-                <button onclick="submitIssue()" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl shadow-md transition-all">送出回報</button>
-            </div>
-        </div>
-    </div>
+            </nav>
+        </header>
 
+        <main>
+            <section id="about" class="page-section active">
+                <h2>歡迎來到 PandaPanda 的 AI 世界</h2>
+                <p>
+                    歡迎來到PandaPanda的AI日常<br>
+                    這裡有用AI做的網站和還有各種小工具<br>
+                </p>
+
+                <div id="countdown-container">
+                    <iframe id="timer-iframe" src="./festival_timer.html"></iframe>
+                </div>
+
+            </section>
+
+            <section id="tools" class="page-section">
+                <h2>自製區</h2>
+                <p>
+                    請選擇一個專案，探索各種自製的有趣內容！
+                </p>
+                
+                <div id="project-list"></div>
+                
+                <div id="loading-indicator">
+                    <div class="loading-spinner-small"></div>
+                    <p>正在自動辨識目錄結構...</p>
+                </div>
+            </section>
+        </main>
+
+        <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: inherit; text-decoration: none;">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+    </div>
+    
     <script>
-        window.handleGoogleLogin = function() { console.log('系統載入中...'); };
-        window.handleRegGoogleAuth = function() { console.log('系統載入中...'); };
-        window.handleLogin = function() { console.log('系統載入中...'); };
-        window.handleRegister = function() { console.log('系統載入中...'); };
-        window.toggleView = function() {};
-        window.setRegMode = function() {};
-        window.clearRegGoogle = function() {};
-        window.previewImage = function() {};
-        window.submitIssue = function() {};
-        window.openIssueModal = function() {};
-        window.closeIssueModal = function() {};
-        window.openGuideModal = function() {};
-        window.closeGuideModal = function() {};
-        window.saveProfile = function() {};
-        window.switchAccount = function() {};
-        window.handleLogout = function() {};
-        window.returnToApp = function() {};
-        
-        window.regMode = 'normal'; 
-        window.tempRegEmail = null;
-        window.currentRegAvatarBase64 = '';
-        window.currentEditAvatarBase64 = '';
-    </script>
+        let blockRedirectTimer = null;
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
-            authDomain: "brawl-survival-27c30.firebaseapp.com",
-            projectId: "brawl-survival-27c30",
-            storageBucket: "brawl-survival-27c30.firebasestorage.app",
-            messagingSenderId: "968683230232",
-            appId: "1:968683230232:web:5fec3f105cfe9907e81f6d"
+        const _secret = [112, 97, 110, 100, 97, 49, 50, 51, 52];
+        const verifySec = (input) => {
+            if (!input || input.length !== _secret.length) return false;
+            return input.split('').every((c, idx) => c.charCodeAt(0) === _secret[idx]);
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
-
-        let socket;
-        let serverUrl = "";
-        let currentUserData = null;
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectUrl = urlParams.get('from') || "";
-        const requireLogin = urlParams.get('require') === '1' || urlParams.get('require') === 'true';
-
-        let clientLocationInfo = "定位中...";
-        const isMobile = /Mobile|Android|iP(hone|od)/.test(navigator.userAgent) ? "手機/平板" : "電腦桌面";
-        let clientDeviceInfo = `${isMobile} (${navigator.userAgent})`;
-        
-        let locationPromise = fetch('https://ipapi.co/json/')
-            .then(res => res.json())
-            .then(data => {
-                return `${data.city || ''} ${data.country_name || ''} (IP: ${data.ip || ''})`.trim() || "未知地點";
-            })
-            .catch(() => "未知地點 (無法取得 IP)");
-
-        const regEmailInput = document.getElementById('reg_email');
-        const regPhoneInput = document.getElementById('reg_phone');
-        const emailReqIndicator = document.getElementById('email_req_indicator');
-        const phoneReqIndicator = document.getElementById('phone_req_indicator');
-
-        function updateContactRequirements() {
-            if (regEmailInput && regPhoneInput) {
-                if (regEmailInput.value.trim() !== '') {
-                    phoneReqIndicator.style.display = 'none';
-                } else {
-                    phoneReqIndicator.style.display = 'inline';
-                }
-
-                if (regPhoneInput.value.trim() !== '') {
-                    emailReqIndicator.style.display = 'none';
-                } else {
-                    emailReqIndicator.style.display = 'inline';
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'F2') {
+                e.preventDefault(); 
+                e.stopPropagation();
+                const pwd = prompt('請輸入解除封鎖密碼：');
+                if (verifySec(pwd)) {
+                    localStorage.setItem('isImmune', 'true'); 
+                    localStorage.removeItem('isPermanentlyBlocked');
+                    localStorage.removeItem('lockoutUntil');
+                    localStorage.removeItem('ultimateWarningCount');
+                    if (blockRedirectTimer) clearTimeout(blockRedirectTimer);
+                    alert('✅ 已啟用無敵模式！本瀏覽器已永久解除封鎖並獲得免疫。');
+                    window.location.href = window.location.pathname; 
+                } else if (pwd !== null) {
+                    alert('❌ 密碼錯誤！存取依舊被拒絕。');
                 }
             }
-        }
+        }, true);
 
-        if (regEmailInput && regPhoneInput) {
-            regEmailInput.addEventListener('input', updateContactRequirements);
-            regPhoneInput.addEventListener('input', updateContactRequirements);
-        }
+        window.authInfo = {
+            isAuth: false,
+            user: '',
+            server: '',
+            nickname: '',
+            avatar: '',
+            email: '',
+            phone: '',
+            level: 0
+        };
 
-        async function fetchServerUrl() {
-            try {
-                const response = await fetch(`server_url.txt?t=${Date.now()}`);
-                if (!response.ok) throw new Error("無法獲取伺服器網址");
-                serverUrl = (await response.text()).trim();
-                initSocket();
-            } catch (err) {
-                document.getElementById('loadingText').innerText = "無法獲取伺服器網址，請確認設定";
-                document.getElementById('loadingText').classList.replace('text-slate-600', 'text-red-500');
-                document.getElementById('loadingText').classList.remove('animate-pulse');
-                showMsg("連線失敗，請檢查伺服器狀態。", "error");
-            }
-        }
+        const loginCenterUrl = 'https://pandapanda6666.github.io/login-hub/';
 
-        function initSocket() {
-            socket = io(serverUrl, { transports: ['websocket'] });
-            
-            socket.on('connect', () => {
-                const statusEl = document.getElementById('serverStatus');
-                if (statusEl) {
-                    statusEl.innerHTML = `
-                        <svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                        </svg>
-                    `;
-                    statusEl.className = "inline-flex mt-4 items-center justify-center h-6";
-                }
-                
-                document.getElementById('loadingText').innerText = "驗證帳號狀態中...";
-                checkAutoLogin();
+        function renderAuthUI() {
+            const authContainer = document.getElementById('auth-container');
+            const currentUrl = window.location.origin + window.location.pathname;
 
-                locationPromise.then(loc => {
-                    clientLocationInfo = loc;
-                    socket.emit('initClientInfo', { location: loc, device: clientDeviceInfo });
+            if (window.authInfo.isAuth) {
+                const avatarHTML = window.authInfo.avatar 
+                    ? `<img src="${window.authInfo.avatar}" alt="Avatar">` 
+                    : `<span>👤</span>`;
+
+                authContainer.innerHTML = `
+                    <div class="user-profile-panel">
+                        <div class="user-info">
+                            <div class="avatar">${avatarHTML}</div>
+                            <div class="details">
+                                <span class="status">已登入</span>
+                                <span class="name" title="${window.authInfo.nickname}">${window.authInfo.nickname}</span>
+                            </div>
+                        </div>
+                        <button id="account-settings-btn" class="settings-btn" title="設定與切換帳號">
+                            ⚙️ 帳號設定
+                        </button>
+                    </div>
+                `;
+                document.getElementById('account-settings-btn').addEventListener('click', () => {
+                    window.location.href = `${loginCenterUrl}?from=${encodeURIComponent(currentUrl)}`;
                 });
-            });
+            } else {
+                authContainer.innerHTML = `
+                    <button id="login-btn" class="login-btn">登入 / 註冊</button>
+                `;
+                document.getElementById('login-btn').addEventListener('click', () => {
+                    window.location.href = `${loginCenterUrl}?from=${encodeURIComponent(currentUrl)}&require=1`;
+                });
+            }
+        }
 
-            socket.on('connect_error', () => {
-                const statusEl = document.getElementById('serverStatus');
-                if (statusEl) {
-                    statusEl.innerHTML = "連線異常";
-                    statusEl.className = "inline-flex mt-4 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 shadow-sm";
+        function showBroadcast(message) {
+            const broadcastEl = document.getElementById('system-broadcast');
+            broadcastEl.textContent = message;
+            broadcastEl.style.display = 'block';
+            
+            setTimeout(() => {
+                broadcastEl.style.display = 'none';
+            }, 5000);
+        }
+
+        (function initAuth() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAuthQuery = urlParams.get('auth') === 'true';
+
+            if (isAuthQuery) {
+                window.authInfo.isAuth = true;
+                window.authInfo.user = urlParams.get('user');
+                window.authInfo.server = urlParams.get('server');
+
+                localStorage.setItem('sso_auth', 'true');
+                localStorage.setItem('sso_user', window.authInfo.user);
+                localStorage.setItem('sso_server', window.authInfo.server);
+
+                if (window.history.replaceState) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
                 }
-                document.getElementById('loadingText').innerText = "伺服器未回應，請稍後再試";
-                document.getElementById('loadingText').classList.replace('text-slate-600', 'text-red-500');
-                document.getElementById('loadingText').classList.remove('animate-pulse');
-            });
+            } else if (localStorage.getItem('sso_auth') === 'true') {
+                window.authInfo.isAuth = true;
+                window.authInfo.user = localStorage.getItem('sso_user');
+                window.authInfo.server = localStorage.getItem('sso_server');
+            }
 
-            socket.on('illegalWebpage', () => {
-                document.body.innerHTML = '<div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background-color:#ffffff; color:#dc2626; font-family:sans-serif; font-size:32px; font-weight:bold; text-align:center;">這是詐騙<br>請立刻撥打165反詐騙專線</div>';
-            });
+            renderAuthUI();
 
-            socket.on('loginResult', (res) => {
-                if (res.success) {
-                    showMsg("登入成功！", "success");
-                    currentUserData = res;
-                    localStorage.setItem('panda_auto_user', res.username);
-                    localStorage.setItem('panda_auto_pass', res.password);
+            if (window.authInfo.isAuth && window.authInfo.server) {
+                try {
+                    window.socket = io(window.authInfo.server);
                     
-                    updateProfileDashboard();
-                    
-                    if (requireLogin && redirectUrl) {
-                        setTimeout(returnToApp, 1000);
-                    } else {
-                        toggleView('profile');
+                    window.socket.on('connect', () => {
+                        console.log('🔗 已連接至 Socket 伺服器');
+                        window.socket.emit('requestProfile', { username: window.authInfo.user });
+                    });
+
+                    window.socket.on('profileData', (data) => {
+                        console.log('📥 接收到使用者資料:', data);
+                        window.authInfo.nickname = data.nickname || window.authInfo.user;
+                        window.authInfo.avatar = data.avatar || '';
+                        window.authInfo.email = data.email || '';
+                        window.authInfo.phone = data.phone || '';
+                        window.authInfo.level = data.level || 0;
+                        renderAuthUI();
+                    });
+
+                    window.socket.on('systemMessage', (msg) => {
+                        showBroadcast(msg);
+                    });
+
+                    window.socket.on('connect_error', (err) => {
+                        console.error('Socket 連線失敗:', err);
+                        showBroadcast('無法連接伺服器，請重新登入！');
+                        localStorage.removeItem('sso_auth');
+                        localStorage.removeItem('sso_user');
+                        localStorage.removeItem('sso_server');
+                        window.authInfo.isAuth = false;
+                        renderAuthUI();
+                    });
+
+                } catch (e) {
+                    console.error('Socket 初始化錯誤:', e);
+                }
+            }
+        })();
+
+        function permanentBlock(reason, details = '') {
+            if (localStorage.getItem('isImmune') === 'true') return; 
+            
+            localStorage.setItem('isPermanentlyBlocked', 'true');
+            const blockOverlay = document.getElementById('block-overlay');
+            const blockDetails = document.getElementById('block-details');
+            if (blockOverlay) {
+                blockOverlay.style.display = 'flex';
+                if (blockDetails) {
+                    blockDetails.innerHTML = `原因: ${reason}<br><br>${details}`;
+                }
+                const container = document.querySelector('.container');
+                if (container) container.style.display = 'none';
+                document.body.style.overflow = 'hidden';
+            }
+            
+            blockRedirectTimer = setTimeout(() => {
+                if (localStorage.getItem('isPermanentlyBlocked') && localStorage.getItem('isImmune') !== 'true') {
+                    window.location.href = 'https://www.google.com/';
+                }
+            }, 3000); 
+        }
+
+        (async function checkSecurityOnLoad() {
+            const urlParamsForGodMode = new URLSearchParams(window.location.search);
+            if (verifySec(urlParamsForGodMode.get('godmode'))) {
+                localStorage.setItem('isImmune', 'true');
+                localStorage.removeItem('isPermanentlyBlocked');
+                localStorage.removeItem('lockoutUntil');
+                localStorage.removeItem('ultimateWarningCount');
+                if (window.history.replaceState) {
+                    const clean = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: clean }, '', clean);
+                }
+                alert('已啟用無敵解鎖網址！本瀏覽器已永久解除封鎖並獲得免疫。');
+                return; 
+            }
+
+            if (localStorage.getItem('isImmune') === 'true') {
+                localStorage.removeItem('isPermanentlyBlocked');
+                localStorage.removeItem('lockoutUntil');
+                localStorage.removeItem('ultimateWarningCount');
+                return; 
+            }
+
+            if (localStorage.getItem('isPermanentlyBlocked')) {
+                const blockOverlay = document.getElementById('block-overlay');
+                if (blockOverlay) {
+                    blockOverlay.style.display = 'flex';
+                    document.querySelector('.container').style.display = 'none';
+                    document.body.style.overflow = 'hidden';
+                }
+                setTimeout(() => {
+                    if (localStorage.getItem('isPermanentlyBlocked') && localStorage.getItem('isImmune') !== 'true') {
+                        window.location.href = 'https://www.google.com/';
                     }
+                }, 2000);
+                return;
+            }
+
+            const lockoutUntil = localStorage.getItem('lockoutUntil');
+            if (lockoutUntil && Date.now() < parseInt(lockoutUntil, 10)) {
+                 if (localStorage.getItem('isImmune') !== 'true') {
+                    permanentBlock('您因頻繁違規操作已被暫時鎖定', '請稍後再試或按F2輸入密碼');
+                    return;
+                 }
+            } else {
+                localStorage.removeItem('lockoutUntil');
+            }
+
+            if (localStorage.getItem('isImmune') !== 'true' && navigator.brave && await navigator.brave.isBrave()) {
+                permanentBlock('偵測到 Brave 瀏覽器');
+                return;
+            }
+
+            const monitorEl = document.getElementById('system-monitor');
+            
+            function isMobileDevice() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            }
+
+            function updateMonitorAndCheckSecurity() {
+                const screenW = screen.width;
+                const screenH = screen.height;
+                const windowW = window.outerWidth;
+                const windowH = window.outerHeight;
+                const innerW = window.innerWidth;
+                const innerH = window.innerHeight;
+                const isMobile = isMobileDevice();
+                const type = isMobile ? '行動裝置' : '電腦';
+
+                if (monitorEl) {
+                    monitorEl.innerHTML = `螢幕: ${screenW}x${screenH}\n視窗(外): ${windowW}x${windowH}\n視窗(內): ${innerW}x${innerH}\n類型: ${type}`;
+                    monitorEl.style.color = isMobile ? '#ffff00' : '#00ff00';
+                }
+
+                if (type === '電腦') {
+                    const threshold = 200; 
+                    const widthDiff = windowW - innerW;
+                    const heightDiff = windowH - innerH;
+
+                    if ((widthDiff > threshold || heightDiff > threshold) && localStorage.getItem('isImmune') !== 'true') {
+                         const details = `偵測到內容空間異常\n(外寬: ${windowW} - 內寬: ${innerW} = ${widthDiff})`;
+                        permanentBlock('偵測到開發者工具 (面板佔用空間)', details);
+                    }
+                }
+            }
+
+            window.addEventListener('load', updateMonitorAndCheckSecurity);
+            window.addEventListener('resize', updateMonitorAndCheckSecurity);
+        })();
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const securityModal = document.getElementById('security-modal');
+            const closeSecurityModalBtn = document.getElementById('close-security-modal');
+            let countdownTimer;
+            let warningCount = 0;
+            let lastWarningTime = 0;
+
+            function showSecurityWarning() {
+                if (localStorage.getItem('isImmune') === 'true') return; 
+                
+                const now = Date.now();
+                if (now - lastWarningTime < 5000) {
+                    warningCount++;
                 } else {
-                    if (res.msg === 'google_need_register') {
-                        showMsg("此 Google 帳號尚未註冊，請先進行註冊。", "error");
-                        toggleView('register');
-                        setRegMode('google');
-                        window.tempRegEmail = res.email;
-                        document.getElementById('googleNotLinked').classList.add('hidden');
-                        document.getElementById('googleLinked').classList.remove('hidden');
-                        document.getElementById('linkedGoogleEmail').innerText = res.email;
+                    warningCount = 1;
+                }
+                lastWarningTime = now;
+
+                if (warningCount >= 3) {
+                    let ultimateCount = parseInt(localStorage.getItem('ultimateWarningCount') || '0') + 1;
+                    localStorage.setItem('ultimateWarningCount', ultimateCount);
+
+                    if (ultimateCount >= 3) {
+                        localStorage.setItem('lockoutUntil', Date.now() + 3600000); 
+                        localStorage.removeItem('ultimateWarningCount');
                     } else {
-                        if (res.msg === 'user_not_found' || res.msg.includes('不存在') || res.msg.includes('密碼錯誤')) {
-                            localStorage.removeItem('panda_auto_user');
-                            localStorage.removeItem('panda_auto_pass');
+                        localStorage.setItem('lockoutUntil', Date.now() + 60000); 
+                    }
+                    
+                    permanentBlock('您因頻繁違規操作已被暫時鎖定', '系統將重新導向');
+                    return;
+                }
+
+                if (securityModal.style.display === 'flex') return;
+                securityModal.style.display = 'flex';
+                closeSecurityModalBtn.disabled = true;
+                let countdown = 3;
+                closeSecurityModalBtn.textContent = `我瞭解了 (${countdown})`;
+                clearInterval(countdownTimer);
+                countdownTimer = setInterval(() => {
+                    countdown--;
+                    if (countdown <= 0) {
+                        clearInterval(countdownTimer);
+                        closeSecurityModalBtn.disabled = false;
+                        closeSecurityModalBtn.textContent = '我瞭解了';
+                    } else {
+                        closeSecurityModalBtn.textContent = `我瞭解了 (${countdown})`;
+                    }
+                }, 1000);
+            }
+
+            function hideSecurityWarning() {
+                securityModal.style.display = 'none';
+                clearInterval(countdownTimer);
+            }
+
+            closeSecurityModalBtn.addEventListener('click', hideSecurityWarning);
+            
+            document.addEventListener('keydown', function(event) {
+                if (localStorage.getItem('isImmune') === 'true') return;
+                if (event.key === 'F2') return;
+                
+                if (event.keyCode === 123 || (event.ctrlKey && event.shiftKey && event.keyCode === 73) || (event.metaKey && event.altKey && event.keyCode === 73)) {
+                    event.preventDefault();
+                    showSecurityWarning();
+                }
+            });
+            document.addEventListener('contextmenu', event => {
+                if (localStorage.getItem('isImmune') !== 'true') event.preventDefault();
+            });
+
+            const loadingOverlay = document.getElementById('loading-overlay');
+            function showLoader() { loadingOverlay.style.display = 'flex'; }
+            function hideLoader() { loadingOverlay.style.display = 'none'; }
+            
+            setTimeout(hideLoader, 500);
+
+            function getAbsoluteUrl(relativePath) {
+                try {
+                    let base = window.location.href;
+                    if (!base.endsWith('/') && !base.includes('.html')) base += '/';
+                    base = base.replace(/\/index\.html$/, '/');
+                    return new URL(relativePath, base).href;
+                } catch (e) {
+                    return relativePath;
+                }
+            }
+
+            window.handleImageError = function(img, projectUrl) {
+                const previewUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(projectUrl)}?w=400`;
+                if (img.src !== previewUrl) {
+                    img.src = previewUrl;
+                } else {
+                    img.parentElement.innerHTML = `<div class="img-fallback-text">載入預覽中</div>`;
+                }
+            }
+
+            async function getRepoInfo() {
+                return { user: 'pandapanda6666', repo: 'pandapanda6666.github.io', subPath: '' };
+            }
+
+            async function scanAndLoadFolders() {
+                const container = document.getElementById('project-list');
+                const loadingIndicator = document.getElementById('loading-indicator');
+                const repoInfo = await getRepoInfo();
+                
+                if (!repoInfo) {
+                    loadingIndicator.innerHTML = `<p style="color:red;">讀取目錄失敗</p>`;
+                    return;
+                }
+
+                try {
+                    const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
+                    const response = await fetch(apiUrl);
+                    
+                    if (!response.ok) {
+                        if (response.status === 403) throw new Error("GitHub API 達到上限，請稍候");
+                        throw new Error("讀取目錄失敗");
+                    }
+
+                    const contents = await response.json();
+                    const directories = contents.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
+
+                    let hasContent = false;
+                    container.innerHTML = ''; 
+
+                    for (const item of directories) {
+                        try {
+                            const folder = item.name;
+                            const projectUrl = getAbsoluteUrl(`./${folder}/`);
+                            const readmeUrl = getAbsoluteUrl(`./${folder}/README.md`);
+                            const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
                             
-                            const typedUser = document.getElementById('username').value;
-                            const typedPass = document.getElementById('password').value;
+                            const readmeRes = await fetch(readmeUrl);
+                            if (!readmeRes.ok) continue; 
+
+                            const text = await readmeRes.text();
+                            const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
+                            if (lines.length === 0) continue;
+
+                            hasContent = true;
+                            const name = lines[0].replace(/^#\s*/, '').trim();
+                            const desc = lines.length > 1 ? lines[1].trim() : "無說明文字";
+
+                            const cardHTML = `
+                                <a href="${projectUrl}" class="project-card">
+                                    <div class="card-content">
+                                        <div class="img-container">
+                                            <img src="${iconUrl}" alt="${name}" class="project-img" 
+                                                 onerror="handleImageError(this, '${projectUrl}')">
+                                        </div>
+                                        <div class="text-content">
+                                            <h3 class="project-title">${name}</h3>
+                                            <p class="project-desc">${desc}</p>
+                                        </div>
+                                        <div class="arrow-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </a>
+                            `;
                             
-                            document.getElementById('reg_username').value = typedUser;
-                            document.getElementById('reg_password').value = typedPass;
-                            
-                            if (res.msg === 'user_not_found' || res.msg.includes('不存在')) {
-                                showMsg("該帳號不存在，已自動帶入資料請完成註冊", "info");
-                                toggleView('register');
-                                setRegMode('normal');
-                            } else {
-                                showMsg("登入狀態已過期，請重新登入", "error");
-                                toggleView('login');
-                            }
-                        } else {
-                            showMsg("登入失敗: " + res.msg, "error");
-                            toggleView('login');
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = cardHTML.trim();
+                            container.appendChild(tempDiv.firstChild);
+
+                        } catch (e) {
+                            console.warn("Skipping folder:", item.name, e);
                         }
                     }
+
+                    loadingIndicator.style.display = 'none';
+                    if (!hasContent) container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#999;">目前沒有可顯示的項目</div>`;
+
+                } catch (error) {
+                    loadingIndicator.innerHTML = `<p style="color: #ff6b6b;">${error.message}</p>`;
                 }
-            });
+            }
 
-            socket.on('registerResult', (res) => {
-                if (res.success) {
-                    showMsg(res.msg || "註冊成功！請登入系統。", "success");
-                    setTimeout(() => { toggleView('login'); }, 1500);
-                } else {
-                    showMsg("註冊失敗: " + res.msg, "error");
-                }
-            });
+            const navLinks = document.querySelectorAll('nav a.nav-link');
+            const pageSections = document.querySelectorAll('.page-section');
+            let projectsLoaded = false;
 
-            socket.on('updateProfileResult', (res) => {
-                if (res.success) {
-                    showMsg("個人資料已更新！", "success");
-                    currentUserData.nickname = res.nickname;
-                    currentUserData.avatar = res.avatar;
-                    currentUserData.password = res.password;
-                    currentUserData.realName = res.realName;
-                    currentUserData.gender = res.gender;
-                    currentUserData.birthday = res.birthday;
-                    currentUserData.email = res.email;
-                    currentUserData.phone = res.phone;
-                    updateProfileDashboard();
-                    toggleView('profile');
-                } else {
-                    showMsg("更新失敗: " + res.msg, "error");
-                }
-            });
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    const pageId = this.dataset.page;
+                    
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
 
-            socket.on('logoutSuccess', () => {
-                currentUserData = null;
-                localStorage.removeItem('panda_auto_user');
-                localStorage.removeItem('panda_auto_pass');
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
-                toggleView('login');
-                showMsg("已成功登出", "info");
-            });
-        }
-
-        function checkAutoLogin() {
-            const savedU = localStorage.getItem('panda_auto_user');
-            const savedP = localStorage.getItem('panda_auto_pass');
-            
-            if (savedP === 'GOOGLE_AUTH') {
-                document.getElementById('loadingText').innerText = "驗證 Google 登入狀態中...";
-                const unsubscribe = onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        socket.emit('googleLogin', { email: user.email, name: user.displayName });
-                    } else {
-                        if (requireLogin) toggleView('login'); else toggleView('guest');
+                    pageSections.forEach(section => {
+                        section.classList.toggle('active', section.id === pageId);
+                    });
+                    
+                    if (pageId === 'tools' && !projectsLoaded) {
+                        scanAndLoadFolders();
+                        projectsLoaded = true;
                     }
-                    unsubscribe();
                 });
-            } else if (savedU && savedP) {
-                socket.emit('login', { username: savedU, password: savedP });
-            } else {
-                document.getElementById('loadingText').innerText = "系統連線中，請稍候...";
-                if (requireLogin) {
-                    toggleView('login');
-                } else {
-                    toggleView('guest');
-                }
-            }
-        }
-
-        window.toggleView = function(view) {
-            if (socket && socket.connected) {
-                socket.emit('clientAction', { action: '切換視圖', details: `進入了 [${view}] 畫面` });
-            }
-
-            ['loadingView', 'guestView', 'loginView', 'registerView', 'profileView', 'editProfileView'].forEach(v => {
-                document.getElementById(v).classList.add('hidden');
             });
-            document.getElementById('messageBox').classList.add('hidden');
-            document.getElementById('headerSection').classList.remove('hidden');
 
-            const title = document.getElementById('formTitle');
-            const subtitle = document.getElementById('formSubtitle');
-
-            if (view === 'register') {
-                document.getElementById('registerView').classList.remove('hidden');
-                title.innerText = "註冊新帳號";
-                subtitle.innerText = "填寫下方資料以建立您的帳號";
-                subtitle.className = "text-green-600 font-medium mt-2";
-            } else if (view === 'login') {
-                document.getElementById('loginView').classList.remove('hidden');
-                title.innerText = "登入系統";
-                subtitle.innerText = "輸入帳號密碼以進入";
-                subtitle.className = "text-green-600 font-medium mt-2";
-            } else if (view === 'guest') {
-                document.getElementById('guestView').classList.remove('hidden');
-                title.innerText = "PandaPanda的AI日常";
-                subtitle.innerText = "通用帳號系統";
-                subtitle.className = "text-slate-500 font-medium mt-2";
-            } else if (view === 'profile') {
-                document.getElementById('profileView').classList.remove('hidden');
-                document.getElementById('headerSection').classList.add('hidden');
-                if (redirectUrl) {
-                    document.getElementById('returnAppBtn').classList.remove('hidden');
-                }
-            } else if (view === 'editProfile') {
-                document.getElementById('editProfileView').classList.remove('hidden');
-                document.getElementById('headerSection').classList.add('hidden');
-                
-                document.getElementById('editNickname').value = currentUserData.nickname || currentUserData.username;
-                document.getElementById('editRealName').value = currentUserData.realName || '';
-                document.getElementById('editGender').value = currentUserData.gender || '';
-                document.getElementById('editBirthday').value = currentUserData.birthday || '';
-                document.getElementById('editPhone').value = currentUserData.phone || '';
-                document.getElementById('editEmail').value = currentUserData.email || '';
-                
-                const pwdInput = document.getElementById('editPassword');
-                pwdInput.value = currentUserData.password || '';
-                pwdInput.disabled = false;
-                pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
-
-                document.getElementById('editAvatarPreview').src = currentUserData.avatar || getDefaultAvatar();
-                window.currentEditAvatarBase64 = currentUserData.avatar || '';
-            }
-        };
-
-        window.setRegMode = function(mode) {
-            window.regMode = mode;
-            if (socket && socket.connected) {
-                socket.emit('clientAction', { action: '操作介面', details: `切換註冊模式為: ${mode === 'normal' ? '一般註冊' : 'Google註冊'}` });
-            }
-
-            const tabN = document.getElementById('regTabNormal');
-            const tabG = document.getElementById('regTabGoogle');
-            const fieldsG = document.getElementById('regGoogleFields');
-            const emailDiv = document.getElementById('regEmailDiv');
-
-            if (mode === 'normal') {
-                tabN.className = "w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition";
-                tabG.className = "w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition";
-                fieldsG.classList.add('hidden');
-                emailDiv.classList.remove('hidden');
-            } else {
-                tabN.className = "w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition";
-                tabG.className = "w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition";
-                fieldsG.classList.remove('hidden');
-                emailDiv.classList.add('hidden');
-            }
-        };
-
-        window.handleRegGoogleAuth = async function() {
-            try {
-                const result = await signInWithPopup(auth, provider);
-                window.tempRegEmail = result.user.email;
-                document.getElementById('googleNotLinked').classList.add('hidden');
-                document.getElementById('googleLinked').classList.remove('hidden');
-                document.getElementById('linkedGoogleEmail').innerText = window.tempRegEmail;
-                
-                if(document.getElementById('reg_email')) {
-                    document.getElementById('reg_email').value = window.tempRegEmail;
-                    updateContactRequirements();
-                }
-                
-                showMsg("已成功連結 Google 帳號，請繼續填寫下方資料", "success");
-                if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `成功綁定準備註冊的 Google 信箱` });
-            } catch (error) {
-                showMsg("連結 Google 失敗: " + error.message, "error");
-            }
-        };
-
-        window.clearRegGoogle = function() {
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `清除了準備註冊的 Google 綁定` });
-            window.tempRegEmail = null;
-            document.getElementById('googleLinked').classList.add('hidden');
-            document.getElementById('googleNotLinked').classList.remove('hidden');
-            if(document.getElementById('reg_email')) {
-                document.getElementById('reg_email').value = "";
-                updateContactRequirements();
-            }
-        };
-
-        function updateProfileDashboard() {
-            if (!currentUserData) return;
-            document.getElementById('displayNickname').innerText = currentUserData.nickname || currentUserData.username;
-            document.getElementById('displayUsername').innerText = "@" + currentUserData.username;
-            document.getElementById('displayAvatar').src = currentUserData.avatar || getDefaultAvatar();
-            
-            const pCoinDisplay = document.getElementById('displayPCoin');
-            if (pCoinDisplay) {
-                pCoinDisplay.innerText = currentUserData.pCoin || 0;
-            }
-        }
-
-        function getDefaultAvatar() {
-            return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
-        }
-
-        window.previewImage = function(input, previewId) {
-            if (input.files && input.files[0]) {
-                if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `使用者點擊上傳並預覽了新的大頭貼` });
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        const MAX = 200;
-                        let w = img.width, h = img.height;
-                        if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
-                        else if (h > MAX) { w *= MAX / h; h = MAX; }
-                        canvas.width = w; canvas.height = h;
-                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                        document.getElementById(previewId).src = dataUrl;
-                        if (previewId === 'regAvatarPreview') window.currentRegAvatarBase64 = dataUrl;
-                        if (previewId === 'editAvatarPreview') window.currentEditAvatarBase64 = dataUrl;
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(input.files[0]);
-            }
-        };
-
-        window.handleLogin = function() {
-            if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
-            
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊了 一般登入系統 按鈕` });
-
-            const u = document.getElementById('username').value;
-            const p = document.getElementById('password').value;
-            if (!u || !p) return showMsg("請輸入帳號與密碼", "error");
-            showMsg("驗證中...", "info");
-            socket.emit('login', { username: u, password: p });
-        };
-
-        window.handleGoogleLogin = async function() {
-            try {
-                const result = await signInWithPopup(auth, provider);
-                showMsg("驗證成功，正在登入伺服器...", "info");
-
-                if (!socket || !socket.connected) {
-                    return showMsg("伺服器連線異常，請確認伺服器已啟動", "error");
-                }
-
-                socket.emit('googleLogin', { email: result.user.email, name: result.user.displayName });
-            } catch (error) {
-                showMsg("Google 登入失敗: " + error.message, "error");
-            }
-        };
-
-        window.handleRegister = function() {
-            if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊了 送出註冊資料 按鈕` });
-
-            const u = document.getElementById('reg_username').value.trim();
-            const p = document.getElementById('reg_password').value;
-            const nk = document.getElementById('reg_nickname').value.trim();
-            const ln = document.getElementById('reg_lastName').value.trim();
-            const fn = document.getElementById('reg_firstName').value.trim();
-            const gender = document.getElementById('reg_gender').value;
-            const birthday = document.getElementById('reg_birthday').value;
-            const phone = document.getElementById('reg_phone').value.trim();
-            const email = document.getElementById('reg_email') ? document.getElementById('reg_email').value.trim() : '';
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const phoneRegex = /^[\d\+\-\s]{8,20}$/;
-
-            let payload = {
-                username: u,
-                password: p,
-                nickname: nk,
-                realName: ln + fn,
-                birthday: birthday,
-                gender: gender,
-                phone: phone,
-                email: email,
-                avatar: window.currentRegAvatarBase64 || ''
-            };
-
-            if (window.regMode === 'google') {
-                if (!window.tempRegEmail) return showMsg("請先連結 Google 帳號", "error");
-                if (!u || !p || !nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
-                
-                payload.isGoogle = true;
-                payload.gmail = window.tempRegEmail;
-                payload.email = window.tempRegEmail;
-            } else {
-                if (!u || !p || !nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
-                if (!email && !phone) return showMsg("必須輸入電子郵件或電話號碼其中一項", "error");
-                
-                payload.isGoogle = false;
-            }
-
-            if (email && window.regMode !== 'google' && !emailRegex.test(email)) return showMsg("電子郵件格式不正確", "error");
-            if (phone && !phoneRegex.test(phone)) return showMsg("聯絡電話格式不正確，請輸入有效的號碼", "error");
-
-            showMsg("正在送出註冊資料...", "info");
-            socket.emit('register', payload);
-        };
-
-        window.submitIssue = function() {
-            const text = document.getElementById('issueText').value.trim();
-            const code = document.getElementById('issueCode').value.trim();
-            
-            if (!text && !code) return showMsg("請至少輸入一般問題描述或程式碼片段", "error");
-            
-            let finalText = text;
-            if (code) {
-                finalText += (text ? "\n\n" : "") + "【程式碼片段】:\n" + code;
-            }
-
-            if (socket && socket.connected) {
-                socket.emit('clientAction', { action: '操作介面', details: `點擊了 送出回報 按鈕` });
-                socket.emit('reportIssue', { text: finalText });
-                document.getElementById('issueModal').classList.add('hidden');
-                document.getElementById('issueText').value = '';
-                document.getElementById('issueCode').value = '';
-                showMsg("問題回報已送出，包含程式碼內容，感謝您的協助！", "success");
-            } else {
-                showMsg("伺服器未連線，無法送出回報。", "error");
-            }
-        };
-
-        window.openIssueModal = function() {
-            document.getElementById('issueModal').classList.remove('hidden');
-            if (socket && socket.connected) socket.emit('clientAction', { action: '查看回報', details: '開啟了問題回報面板' });
-        };
-        window.closeIssueModal = function() {
-            document.getElementById('issueModal').classList.add('hidden');
-            if (socket && socket.connected) socket.emit('clientAction', { action: '關閉回報', details: '關閉了問題回報面板' });
-        };
-
-        window.openGuideModal = function() {
-            document.getElementById('guideModal').classList.remove('hidden');
-            if (socket && socket.connected) socket.emit('clientAction', { action: '查看說明', details: '開啟了系統使用說明面板' });
-        };
-        window.closeGuideModal = function() {
-            document.getElementById('guideModal').classList.add('hidden');
-            if (socket && socket.connected) socket.emit('clientAction', { action: '關閉說明', details: '關閉了系統使用說明面板' });
-        };
-
-        window.saveProfile = function() {
-            if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊了 儲存變更 按鈕` });
-
-            let payload = {
-                nickname: document.getElementById('editNickname').value.trim(),
-                realName: document.getElementById('editRealName').value.trim(),
-                gender: document.getElementById('editGender').value,
-                birthday: document.getElementById('editBirthday').value,
-                phone: document.getElementById('editPhone').value.trim(),
-                email: document.getElementById('editEmail').value.trim(),
-                avatar: window.currentEditAvatarBase64 || '',
-                password: document.getElementById('editPassword').value
-            };
-
-            if (!payload.nickname) {
-                return showMsg("公開暱稱不可為空", "error");
-            }
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const phoneRegex = /^[\d\+\-\s]{8,20}$/;
-
-            if (payload.email && !emailRegex.test(payload.email)) return showMsg("電子郵件格式不正確", "error");
-            if (payload.phone && !phoneRegex.test(payload.phone)) return showMsg("聯絡電話格式不正確，請輸入有效的號碼", "error");
-
-            showMsg("正在儲存...", "info");
-            socket.emit('updateProfile', payload);
-        };
-
-        window.switchAccount = function() {
-            if (socket) socket.emit('logout');
-        };
-
-        window.handleLogout = function() {
-            switchAccount();
-        };
-
-        window.returnToApp = function() {
-            if (!currentUserData || !redirectUrl) return;
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊 進入系統應用 返回原本網站` });
-            const target = new URL(redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`);
-            target.searchParams.set('user', currentUserData.username);
-            target.searchParams.set('server', serverUrl);
-            target.searchParams.set('auth', 'true');
-            window.location.href = target.href;
-        };
-
-        function showMsg(text, type) {
-            const box = document.getElementById('messageBox');
-            box.innerText = text;
-            if (type === 'error') box.className = `mt-6 text-center text-sm font-bold text-red-700 bg-red-100 p-3 rounded-xl border border-red-200`;
-            else if (type === 'success') box.className = `mt-6 text-center text-sm font-bold text-green-700 bg-green-100 p-3 rounded-xl border border-green-200`;
-            else box.className = `mt-6 text-center text-sm font-bold text-green-700 bg-green-100 p-3 rounded-xl border border-green-200`;
-            box.classList.remove('hidden');
-        }
-
-        fetchServerUrl();
+            document.getElementById('report-issue-btn').addEventListener('click', function() {
+                window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+            });
+        });
     </script>
+    <iframe src="./warning.html" style="display: none;" title="安全警告"></iframe>
 </body>
 </html>
