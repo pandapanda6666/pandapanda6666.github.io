@@ -14,7 +14,7 @@
         .hidden { display: none !important; }
         h1 { font-size: 4rem; text-shadow: 4px 4px 0 #000; margin-bottom: 2rem; color: #ddd; text-align: center; }
         h2 { font-size: 2rem; text-shadow: 2px 2px 0 #000; margin-bottom: 1rem; }
-        .btn { background-color: #727272; color: white; border: 2px solid #000; border-top-color: #aaa; border-left-color: #aaa; padding: 10px 20px; font-size: 1.2rem; margin: 5px; cursor: pointer; width: 400px; font-family: inherit; text-align: center; box-sizing: border-box; text-shadow: 2px 2px 0 #333; }
+        .btn { background-color: #727272; color: white; border: 2px solid #000; border-top-color: #aaa; border-left-color: #aaa; padding: 10px 20px; font-size: 1.2rem; margin: 5px; cursor: pointer; width: 400px; font-family: inherit; text-align: center; box-sizing: border-box; text-shadow: 2px 2px 0 #333; transition: transform 0.1s; }
         .btn:hover { background-color: #888; border-top-color: #ccc; border-left-color: #ccc; transform: scale(1.02); }
         .btn:active { border: 2px solid #000; border-bottom-color: #aaa; border-right-color: #aaa; padding: 12px 18px 8px 22px; transform: scale(0.98); }
         .btn-half { width: 195px; display: inline-block; }
@@ -131,7 +131,7 @@
                 <h3 style="margin-top: 0; text-align: center; border-bottom: 2px solid #555; padding-bottom: 10px;" data-i18n="setup-character">設定您的角色</h3>
                 <div class="flex-row" style="margin-bottom: 10px; width: 100%;">
                     <span style="line-height: 40px; width: 120px; text-align: left;" data-i18n="player-name">玩家名稱:</span>
-                    <input type="text" id="welcome-player-name" class="input-text" style="width: 250px; margin-bottom: 0;" data-i18n="name-placeholder" placeholder="輸入暱稱...">
+                    <input type="text" id="welcome-player-name" class="input-text" style="width: 250px; margin-bottom: 0;" data-i18n="name-placeholder" placeholder="輸入暱稱..." onchange="updatePlayerProfile(this.value)">
                 </div>
                 <div class="flex-row" style="margin-bottom: 10px; width: 100%;">
                     <span style="line-height: 40px; width: 120px; text-align: left;" data-i18n="custom-skin">自訂皮膚:</span>
@@ -180,7 +180,7 @@
             <div style="flex-grow: 1;">
                 <div class="flex-row" style="margin-bottom: 10px; width: 100%;">
                     <span style="line-height: 40px; width: 120px; text-align: left;" data-i18n="player-name">玩家名稱:</span>
-                    <input type="text" id="profile-player-name" class="input-text" style="width: 250px; margin-bottom: 0;" data-i18n="name-placeholder" placeholder="輸入名稱...">
+                    <input type="text" id="profile-player-name" class="input-text" style="width: 250px; margin-bottom: 0;" data-i18n="name-placeholder" placeholder="輸入名稱..." onchange="updatePlayerProfile()">
                 </div>
                 <div class="flex-row" style="margin-bottom: 10px; width: 100%;">
                     <span style="line-height: 40px; width: 120px; text-align: left;" data-i18n="custom-skin">自訂皮膚:</span>
@@ -191,7 +191,7 @@
             <div id="preview-container-profile" style="width: 150px; height: 200px; flex-shrink: 0; border: 2px solid #000; background-color: rgba(0,0,0,0.8); position: relative;">
             </div>
         </div>
-        <button class="btn" onclick="saveProfileAndReturn()" data-i18n="btn-profile-back">完成並返回大廳</button>
+        <button class="btn" onclick="showScreen('screen-main')" data-i18n="btn-profile-back">完成並返回大廳</button>
     </div>
 
     <div id="screen-multiplayer" class="ui-screen hidden">
@@ -282,6 +282,7 @@
     <div id="screen-inventory" class="ui-screen in-game-menu hidden">
         <div class="inv-container">
             <div class="close-btn" onclick="closeAllMenus()">✖</div>
+            
             <div id="crafting-2x2-area" class="crafting-area">
                 <div>
                     <h3 class="section-title" data-i18n="crafting-2x2">合成 (2x2)</h3>
@@ -390,7 +391,11 @@
     <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
 
     <script>
-        // === 語言系統 (i18n) ===
+        // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
+
+        let isChatting = false;
+        let lavaTimer = 0; let cactusTimer = 0; let suffocateTimer = 0;
+        
         let currentLang = localStorage.getItem('mc_lang') || 'zh-TW';
         const langDict = {
             'zh-TW': {
@@ -404,7 +409,7 @@
                 'btn-create-confirm': '建立並進入', 'pause-title': '遊戲暫停', 'btn-resume': '回到遊戲', 
                 'btn-quit': '儲存並回到標題畫面', 'btn-respawn': '重生', 'btn-death-quit': '回到標題畫面',
                 'setup-character': '設定您的角色', 'player-name': '玩家名稱:', 'custom-skin': '自訂皮膚:',
-                'skin-hint': '支援 64x64 或 64x32 標準去背 PNG 格式', 'sso-hint': '您也可以點擊右上角按鈕使用 SSO 帳號快速登入',
+                'skin-hint': '支援 64x64 或 64x32 格式，支援透明背景', 'sso-hint': '您也可以點擊右上角按鈕使用 SSO 帳號快速登入',
                 'btn-enter-lobby': '進入遊戲大廳', 'name-placeholder': '輸入暱稱...', 'code-placeholder': '輸入代碼...',
                 'loading-title': '載入中...', 'loading-text': '正在連接伺服器與同步資料', 'click-to-play': '點擊畫面回到遊戲',
                 'chat-placeholder': '輸入指令或訊息... (Enter 傳送, Esc 取消)', 'world-name-placeholder': '輸入世界名稱...',
@@ -456,37 +461,56 @@
         function getLang(key) { if(langDict[currentLang] && langDict[currentLang][key]) return langDict[currentLang][key]; if(langDict['zh-TW'] && langDict['zh-TW'][key]) return langDict['zh-TW'][key]; return key; }
         window.applyLanguage = () => { document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if(el.tagName === 'INPUT' && (el.type === 'text' || el.type === 'number')) { el.placeholder = getLang(key); } else { el.innerText = getLang(key); } }); };
 
-        // === 全域變數宣告 ===
         window.worldsCache = []; window.selectedWorldId = null; window.currentWorldData = null;
         const appId = window.location.hostname + window.location.pathname;
         let socket; let ssoProfile = null; let menuJustClosed = false; let currentRoomId = appId; let isHost = true;
+        
         let scene, camera, renderCamera, renderer, controls;
-        let cameraMode = 0; let dirLight, ambientLight; let gameLoopActive = false; let prevTime = 0;
+        let cameraMode = 0; let dirLight, ambientLight;
+        let gameLoopActive = false; let prevTime = 0;
         let chunkGroupMap = new Map(); let networkPlayers = {}; let syncTimer = 0; let furnaceTickTimer = 0;
         const CHUNK_SIZE = 16; let renderDist = 2;
+        
         const playerAABB = { width: 0.6, height: 1.8, depth: 0.6 };
         let playerPos = new THREE.Vector3(0, 30, 0); let velocity = new THREE.Vector3(); let canJump = false;
         let moveState = { f: false, b: false, l: false, r: false, up: false }; let currentChunk = {x: null, z: null};
 
-        let isMining = false; let miningTargetKey = null; let miningTimer = 0; let isChatting = false;
+        let isMining = false; let miningTargetKey = null; let miningTimer = 0;
         let droppedItems = []; let animalEntities = [];
-        let playerInventory = new Array(36).fill(null); let craftingGrid2x2 = new Array(4).fill(null); let craftingGrid3x3 = new Array(9).fill(null);
+        let playerInventory = new Array(36).fill(null);
+        let craftingGrid2x2 = new Array(4).fill(null); let craftingGrid3x3 = new Array(9).fill(null);
         let activeChestPos = null; let activeFurnacePos = null; let cursorItem = null; let selectedSlot = 0;
 
-        let playerHealth = 20; let fallHighestY = 0; let playerHunger = 20; let hungerTimer = 0; let starveTimer = 0; let regenTimer = 0;
-        let playerBreath = 10; let drownTimer = 0; let lavaTimer = 0; let cactusTimer = 0; let suffocateTimer = 0;
+        let playerHealth = 20; let fallHighestY = 0;
+        let playerHunger = 20; let hungerTimer = 0; let starveTimer = 0; let regenTimer = 0;
+        let playerBreath = 10; let drownTimer = 0;
 
-        const originalWarn = console.warn; console.warn = function(...args) { if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return; originalWarn.apply(console, args); };
+        const originalWarn = console.warn;
+        console.warn = function(...args) { if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return; originalWarn.apply(console, args); };
         window.onerror = function(msg, url, line) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); };
         window.addEventListener('unhandledrejection', function(event) { if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 }); });
 
-        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.style.opacity = 1; setTimeout(() => t.style.opacity = 0, 3000); }
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.style.opacity = 1;
+            setTimeout(() => t.style.opacity = 0, 3000);
+        }
+
         function showCustomModal(title, text, isConfirm, onConfirm) {
-            document.getElementById('custom-modal-title').innerText = title; document.getElementById('custom-modal-text').innerText = text;
-            const btnContainer = document.getElementById('custom-modal-buttons'); btnContainer.innerHTML = '';
+            document.getElementById('custom-modal-title').innerText = title;
+            document.getElementById('custom-modal-text').innerText = text;
+            const btnContainer = document.getElementById('custom-modal-buttons');
+            btnContainer.innerHTML = '';
+            
             const btnOk = document.createElement('button'); btnOk.className = 'btn'; btnOk.style.width = '120px'; btnOk.innerText = '確定';
-            btnOk.onclick = () => { document.getElementById('custom-modal').classList.add('hidden'); if(onConfirm) onConfirm(); }; btnContainer.appendChild(btnOk);
-            if (isConfirm) { const btnCancel = document.createElement('button'); btnCancel.className = 'btn'; btnCancel.style.width = '120px'; btnCancel.innerText = '取消'; btnCancel.onclick = () => { document.getElementById('custom-modal').classList.add('hidden'); }; btnContainer.appendChild(btnCancel); }
+            btnOk.onclick = () => { document.getElementById('custom-modal').classList.add('hidden'); if(onConfirm) onConfirm(); };
+            btnContainer.appendChild(btnOk);
+
+            if (isConfirm) {
+                const btnCancel = document.createElement('button'); btnCancel.className = 'btn'; btnCancel.style.width = '120px'; btnCancel.innerText = '取消';
+                btnCancel.onclick = () => { document.getElementById('custom-modal').classList.add('hidden'); };
+                btnContainer.appendChild(btnCancel);
+            }
             document.getElementById('custom-modal').classList.remove('hidden');
         }
         window.showCustomModal = showCustomModal;
@@ -497,25 +521,31 @@
             if(screenId) { const target = document.getElementById(screenId); if (target) target.classList.remove('hidden'); }
             if(screenId === 'screen-welcome' || screenId === 'screen-main' || screenId === 'screen-worlds' || screenId === 'screen-multiplayer') { document.getElementById('sso-ui').classList.remove('hidden'); } else { document.getElementById('sso-ui').classList.add('hidden'); }
             if(screenId === 'screen-worlds') renderWorldList();
+            
             const pCanvas = document.getElementById('preview-canvas');
-            if(pCanvas) { if(screenId === 'screen-welcome') { const c = document.getElementById('preview-container-welcome'); if(c && !c.contains(pCanvas)) c.appendChild(pCanvas); } else if (screenId === 'screen-profile') { const c = document.getElementById('preview-container-profile'); if(c && !c.contains(pCanvas)) c.appendChild(pCanvas); } }
+            if(pCanvas) {
+                if(screenId === 'screen-welcome') { const c = document.getElementById('preview-container-welcome'); if(c && !c.contains(pCanvas)) c.appendChild(pCanvas); } 
+                else if (screenId === 'screen-profile') { const c = document.getElementById('preview-container-profile'); if(c && !c.contains(pCanvas)) c.appendChild(pCanvas); }
+            }
         }
         window.showScreen = showScreen;
 
-        // === 材質與方塊庫 ===
         function genTex(type) {
             const c = document.createElement('canvas'); c.width = 16; c.height = 16; const ctx = c.getContext('2d');
             const fillNoise = (baseColor) => { ctx.fillStyle = baseColor; ctx.fillRect(0, 0, 16, 16); for(let i=0; i<16; i++) for(let j=0; j<16; j++) { if(Math.random() < 0.35) { ctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.12)'; ctx.fillRect(i, j, 1, 1); } } };
+            
             if (type === 'grass_top') fillNoise('#557a2b'); else if (type === 'dirt') fillNoise('#5d4037');
             else if (type === 'grass_side') { fillNoise('#5d4037'); ctx.fillStyle = '#557a2b'; ctx.fillRect(0, 0, 16, 4); for(let i=0; i<16; i++) if(Math.random()<0.6) ctx.fillRect(i, 4, 1, Math.floor(Math.random()*3)+1); ctx.fillStyle = 'rgba(0,0,0,0.15)'; for(let i=0; i<16; i++) if(Math.random()<0.3) ctx.fillRect(i, Math.floor(Math.random()*4), 1, 1); }
-            else if (type === 'stone') fillNoise('#7f8c8d'); else if (type === 'wood_side') { fillNoise('#4e342e'); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<16;i+=3) ctx.fillRect(i,0,1,16); }
+            else if (type === 'stone') fillNoise('#7f8c8d'); 
+            else if (type === 'wood_side') { fillNoise('#4e342e'); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<16;i+=3) ctx.fillRect(i,0,1,16); }
             else if (type === 'wood_top') { fillNoise('#795548'); ctx.fillStyle='rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.arc(8,8,6,0,Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.arc(8,8,3,0,Math.PI*2); ctx.stroke(); }
             else if (type === 'leaves') { fillNoise('#2e7d32'); ctx.clearRect(0,0,16,16); ctx.fillStyle='#2e7d32'; ctx.fillRect(0,0,16,16); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<40;i++) ctx.fillRect(Math.random()*16,Math.random()*16,1,1); }
             else if (type === 'water') { fillNoise('#1e88e5'); } else if (type === 'bedrock') fillNoise('#212121');
             else if (type === 'chest_front' || type === 'trapped_chest_front') { fillNoise('#e67e22'); ctx.fillStyle='#000'; ctx.fillRect(7,6,2,4); ctx.fillStyle='#555'; ctx.fillRect(1,1,14,14); ctx.fillStyle='#e67e22'; ctx.fillRect(2,2,12,12); ctx.fillStyle= type==='chest_front'?'#000':'#c0392b'; ctx.fillRect(7,6,2,4); }
             else if (type === 'chest_side') { fillNoise('#e67e22'); ctx.fillStyle='#555'; ctx.fillRect(1,1,14,14); ctx.fillStyle='#e67e22'; ctx.fillRect(2,2,12,12); }
             else if (type === 'brick') { fillNoise('#c0392b'); ctx.fillStyle='#eec'; ctx.fillRect(0,3,16,1); ctx.fillRect(0,7,16,1); ctx.fillRect(0,11,16,1); ctx.fillRect(3,0,1,3); ctx.fillRect(9,4,1,3); ctx.fillRect(5,8,1,3); }
-            else if (type === 'sand') { fillNoise('#f1c40f'); } else if (type === 'glass') { ctx.fillStyle='rgba(223, 249, 251, 0.4)'; ctx.fillRect(0,0,16,16); ctx.fillStyle='rgba(255,255,255,0.8)'; ctx.fillRect(1,1,14,1); ctx.fillRect(1,1,1,14); }
+            else if (type === 'sand') { fillNoise('#f1c40f'); }
+            else if (type === 'glass') { ctx.fillStyle='rgba(223, 249, 251, 0.4)'; ctx.fillRect(0,0,16,16); ctx.fillStyle='rgba(255,255,255,0.8)'; ctx.fillRect(1,1,14,1); ctx.fillRect(1,1,1,14); }
             else if (type === 'planks') { fillNoise('#d35400'); ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fillRect(0,3,16,1); ctx.fillRect(0,7,16,1); ctx.fillRect(0,11,16,1); }
             else if (type === 'cobblestone') { fillNoise('#95a5a6'); ctx.fillStyle='rgba(0,0,0,0.2)'; for(let i=0;i<16;i+=4) { ctx.fillRect(i,0,1,16); ctx.fillRect(0,i,16,1); } }
             else if (type === 'gold_ore') { fillNoise('#7f8c8d'); ctx.fillStyle='#fbc02d'; for(let i=0;i<10;i++) ctx.fillRect(Math.random()*14+1,Math.random()*14+1,2,2); }
@@ -543,7 +573,8 @@
             else if (type === 'wood_hoe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#8d6e63'; ctx.fillRect(8,2,6,2); ctx.fillRect(6,4,2,2); ctx.fillRect(4,6,2,2); }
             else if (type === 'stone_hoe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#95a5a6'; ctx.fillRect(8,2,6,2); ctx.fillRect(6,4,2,2); ctx.fillRect(4,6,2,2); }
             else if (type === 'iron_hoe') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; for(let i=0;i<8;i++) ctx.fillRect(2+i,12-i,2,2); ctx.fillStyle='#ecf0f1'; ctx.fillRect(8,2,6,2); ctx.fillRect(6,4,2,2); ctx.fillRect(4,6,2,2); }
-            else if (type === 'wool') { fillNoise('#ecf0f1'); } else if (type === 'bed_top') { ctx.fillStyle='#e74c3c'; ctx.fillRect(0,0,16,8); ctx.fillStyle='#ecf0f1'; ctx.fillRect(0,8,16,8); }
+            else if (type === 'wool') { fillNoise('#ecf0f1'); }
+            else if (type === 'bed_top') { ctx.fillStyle='#e74c3c'; ctx.fillRect(0,0,16,8); ctx.fillStyle='#ecf0f1'; ctx.fillRect(0,8,16,8); }
             else if (type === 'bucket') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#bdc3c7'; ctx.fillRect(4,6,8,6); ctx.fillRect(5,12,6,2); }
             else if (type === 'water_bucket') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#bdc3c7'; ctx.fillRect(4,6,8,6); ctx.fillRect(5,12,6,2); ctx.fillStyle='#3498db'; ctx.fillRect(5,7,6,4); }
             else if (type === 'ladder') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#5d4037'; ctx.fillRect(2,0,2,16); ctx.fillRect(12,0,2,16); ctx.fillRect(4,4,8,2); ctx.fillRect(4,10,8,2); }
@@ -554,6 +585,7 @@
             else if (type === 'lava') { fillNoise('#e67e22'); ctx.fillStyle='rgba(255,0,0,0.3)'; for(let i=0;i<20;i++) ctx.fillRect(Math.random()*16,Math.random()*16,2,2); }
             else if (type === 'cactus_side') { fillNoise('#2ecc71'); ctx.fillStyle='#27ae60'; ctx.fillRect(0,0,16,16); ctx.fillStyle='#000'; for(let i=0;i<30;i++) ctx.fillRect(Math.random()*16,Math.random()*16,1,1); }
             else if (type === 'cactus_top') { fillNoise('#2ecc71'); ctx.fillStyle='#27ae60'; ctx.fillRect(0,0,16,16); }
+            
             else if (type === 'egg_pig') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#f8a5c2'; ctx.beginPath(); ctx.ellipse(8,8,5,6,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#f19066'; for(let i=0;i<5;i++) ctx.fillRect(Math.random()*6+5,Math.random()*8+4,2,2); }
             else if (type === 'egg_sheep') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#ecf0f1'; ctx.beginPath(); ctx.ellipse(8,8,5,6,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#eec'; for(let i=0;i<5;i++) ctx.fillRect(Math.random()*6+5,Math.random()*8+4,2,2); }
             else if (type === 'egg_cow') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#222'; ctx.beginPath(); ctx.ellipse(8,8,5,6,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#fff'; for(let i=0;i<5;i++) ctx.fillRect(Math.random()*6+5,Math.random()*8+4,2,2); }
@@ -562,6 +594,7 @@
             else if (type === 'egg_skeleton') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#ecf0f1'; ctx.beginPath(); ctx.ellipse(8,8,5,6,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#7f8c8d'; for(let i=0;i<5;i++) ctx.fillRect(Math.random()*6+5,Math.random()*8+4,2,2); }
             else if (type === 'egg_creeper') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#27ae60'; ctx.beginPath(); ctx.ellipse(8,8,5,6,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#000'; for(let i=0;i<5;i++) ctx.fillRect(Math.random()*6+5,Math.random()*8+4,2,2); }
             else if (type === 'egg_spider') { ctx.clearRect(0,0,16,16); ctx.fillStyle='#222'; ctx.beginPath(); ctx.ellipse(8,8,5,6,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#e74c3c'; for(let i=0;i<5;i++) ctx.fillRect(Math.random()*6+5,Math.random()*8+4,2,2); }
+            
             else if (type === 'pig_face') { fillNoise('#f8a5c2'); ctx.fillStyle='#333'; ctx.fillRect(2,6,2,2); ctx.fillRect(12,6,2,2); ctx.fillStyle='#f19066'; ctx.fillRect(4,8,8,4); }
             else if (type === 'sheep_face') { fillNoise('#ecf0f1'); ctx.fillStyle='#eec'; ctx.fillRect(2,2,12,12); ctx.fillStyle='#333'; ctx.fillRect(2,6,2,2); ctx.fillRect(12,6,2,2); }
             else if (type === 'cow_face') { fillNoise('#5d4037'); ctx.fillStyle='#222'; ctx.fillRect(0,0,6,6); ctx.fillStyle='#333'; ctx.fillRect(2,6,2,2); ctx.fillRect(12,6,2,2); ctx.fillStyle='#e74c3c'; ctx.fillRect(4,10,8,6); }
@@ -570,6 +603,7 @@
             else if (type === 'skeleton_face') { fillNoise('#ecf0f1'); ctx.fillStyle='#222'; ctx.fillRect(2,6,4,2); ctx.fillRect(10,6,4,2); ctx.fillRect(6,10,4,2); }
             else if (type === 'creeper_face') { fillNoise('#27ae60'); ctx.fillStyle='#000'; ctx.fillRect(2,4,4,4); ctx.fillRect(10,4,4,4); ctx.fillRect(6,8,4,6); ctx.fillRect(4,10,2,4); ctx.fillRect(10,10,2,4); }
             else if (type === 'spider_face') { fillNoise('#222'); ctx.fillStyle='#e74c3c'; ctx.fillRect(4,6,2,2); ctx.fillRect(10,6,2,2); ctx.fillRect(6,4,1,1); ctx.fillRect(9,4,1,1); }
+            
             return c.toDataURL();
         }
 
@@ -577,67 +611,139 @@
         function getMat(typeStr) { const tex = new THREE.TextureLoader().load(getTexUrl(typeStr)); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; return new THREE.MeshLambertMaterial({ map: tex }); }
 
         const blockTypes = {
-            1: { name: '草地', t: 'grass_side' }, 2: { name: '泥土', t: 'dirt' }, 3: { name: '石頭', t: 'stone' }, 4: { name: '木頭', t: 'wood_side' }, 5: { name: '樹葉', t: 'leaves' }, 6: { name: '水', t: 'water' }, 7: { name: '基岩', t: 'bedrock' }, 8: { name: '寶箱', t: 'chest_front' }, 9: { name: '磚塊', t: 'brick' }, 10: { name: '沙子', t: 'sand' }, 11: { name: '玻璃', t: 'glass' }, 12: { name: '木板', t: 'planks' }, 13: { name: '鵝卵石', t: 'cobblestone' }, 14: { name: '金礦', t: 'gold_ore' }, 15: { name: '工作台', t: 'crafting_side' }, 16: { name: '木棍', t: 'stick', isItem: true }, 17: { name: '煤礦', t: 'coal_ore' }, 18: { name: '煤炭', t: 'coal', isItem: true }, 19: { name: '鐵礦', t: 'iron_ore' }, 20: { name: '鐵錠', t: 'iron_ingot', isItem: true }, 21: { name: '熔爐', t: 'furnace_front' }, 22: { name: '木鎬', t: 'wood_pickaxe', isItem: true }, 23: { name: '石鎬', t: 'stone_pickaxe', isItem: true }, 24: { name: '鐵鎬', t: 'iron_pickaxe', isItem: true }, 25: { name: '石磚', t: 'stone_bricks' }, 26: { name: '木劍', t: 'wood_sword', isItem: true }, 27: { name: '石劍', t: 'stone_sword', isItem: true }, 28: { name: '鐵劍', t: 'iron_sword', isItem: true }, 29: { name: '木鋤', t: 'wood_hoe', isItem: true }, 30: { name: '石鋤', t: 'stone_hoe', isItem: true }, 31: { name: '鐵鋤', t: 'iron_hoe', isItem: true }, 32: { name: '羊毛', t: 'wool' }, 33: { name: '床', t: 'bed_top' }, 34: { name: '鐵桶', t: 'bucket', isItem: true }, 35: { name: '水桶', t: 'water_bucket', isItem: true }, 36: { name: '梯子', t: 'ladder' }, 37: { name: '木門', t: 'door_top' }, 38: { name: '木階梯', t: 'planks' }, 39: { name: '石階梯', t: 'cobblestone' }, 40: { name: '地板門', t: 'trapdoor' }, 41: { name: '生肉', t: 'raw_meat', isItem: true }, 42: { name: '熟肉', t: 'cooked_meat', isItem: true }, 43: { name: '陷阱箱', t: 'trapped_chest_front' }, 44: { name: '木斧', t: 'wood_axe', isItem: true }, 45: { name: '石斧', t: 'stone_axe', isItem: true }, 46: { name: '鐵斧', t: 'iron_axe', isItem: true }, 47: { name: '木鏟', t: 'wood_shovel', isItem: true }, 48: { name: '石鏟', t: 'stone_shovel', isItem: true }, 49: { name: '鐵鏟', t: 'iron_shovel', isItem: true }, 50: { name: '岩漿', t: 'lava' }, 51: { name: '仙人掌', t: 'cactus_side' }, 100: { name: '生怪蛋(豬)', t: 'egg_pig', isItem: true, entity: 'pig' }, 101: { name: '生怪蛋(羊)', t: 'egg_sheep', isItem: true, entity: 'sheep' }, 102: { name: '生怪蛋(牛)', t: 'egg_cow', isItem: true, entity: 'cow' }, 103: { name: '生怪蛋(雞)', t: 'egg_chicken', isItem: true, entity: 'chicken' }, 104: { name: '生怪蛋(殭屍)', t: 'egg_zombie', isItem: true, entity: 'zombie' }, 105: { name: '生怪蛋(骷髏)', t: 'egg_skeleton', isItem: true, entity: 'skeleton' }, 106: { name: '生怪蛋(苦力怕)', t: 'egg_creeper', isItem: true, entity: 'creeper' }, 107: { name: '生怪蛋(蜘蛛)', t: 'egg_spider', isItem: true, entity: 'spider' }
+            1: { name: '草地', t: 'grass_side' }, 2: { name: '泥土', t: 'dirt' }, 3: { name: '石頭', t: 'stone' }, 4: { name: '木頭', t: 'wood_side' }, 
+            5: { name: '樹葉', t: 'leaves' }, 6: { name: '水', t: 'water' }, 7: { name: '基岩', t: 'bedrock' }, 8: { name: '寶箱', t: 'chest_front' }, 
+            9: { name: '磚塊', t: 'brick' }, 10: { name: '沙子', t: 'sand' }, 11: { name: '玻璃', t: 'glass' }, 12: { name: '木板', t: 'planks' },
+            13: { name: '鵝卵石', t: 'cobblestone' }, 14: { name: '金礦', t: 'gold_ore' }, 15: { name: '工作台', t: 'crafting_side' }, 
+            16: { name: '木棍', t: 'stick', isItem: true }, 17: { name: '煤礦', t: 'coal_ore' }, 18: { name: '煤炭', t: 'coal', isItem: true }, 
+            19: { name: '鐵礦', t: 'iron_ore' }, 20: { name: '鐵錠', t: 'iron_ingot', isItem: true }, 21: { name: '熔爐', t: 'furnace_front' }, 
+            22: { name: '木鎬', t: 'wood_pickaxe', isItem: true }, 23: { name: '石鎬', t: 'stone_pickaxe', isItem: true }, 24: { name: '鐵鎬', t: 'iron_pickaxe', isItem: true },
+            25: { name: '石磚', t: 'stone_bricks' }, 26: { name: '木劍', t: 'wood_sword', isItem: true }, 27: { name: '石劍', t: 'stone_sword', isItem: true },
+            28: { name: '鐵劍', t: 'iron_sword', isItem: true }, 29: { name: '木鋤', t: 'wood_hoe', isItem: true }, 30: { name: '石鋤', t: 'stone_hoe', isItem: true },
+            31: { name: '鐵鋤', t: 'iron_hoe', isItem: true }, 32: { name: '羊毛', t: 'wool' }, 33: { name: '床', t: 'bed_top' }, 34: { name: '鐵桶', t: 'bucket', isItem: true },
+            35: { name: '水桶', t: 'water_bucket', isItem: true }, 36: { name: '梯子', t: 'ladder' }, 37: { name: '木門', t: 'door_top' }, 38: { name: '木階梯', t: 'planks' }, 39: { name: '石階梯', t: 'cobblestone' },
+            40: { name: '地板門', t: 'trapdoor' }, 41: { name: '生肉', t: 'raw_meat', isItem: true }, 42: { name: '熟肉', t: 'cooked_meat', isItem: true }, 43: { name: '陷阱箱', t: 'trapped_chest_front' },
+            44: { name: '木斧', t: 'wood_axe', isItem: true }, 45: { name: '石斧', t: 'stone_axe', isItem: true }, 46: { name: '鐵斧', t: 'iron_axe', isItem: true },
+            47: { name: '木鏟', t: 'wood_shovel', isItem: true }, 48: { name: '石鏟', t: 'stone_shovel', isItem: true }, 49: { name: '鐵鏟', t: 'iron_shovel', isItem: true },
+            50: { name: '岩漿', t: 'lava' }, 51: { name: '仙人掌', t: 'cactus_side' },
+            100: { name: '生怪蛋(豬)', t: 'egg_pig', isItem: true, entity: 'pig' }, 101: { name: '生怪蛋(羊)', t: 'egg_sheep', isItem: true, entity: 'sheep' },
+            102: { name: '生怪蛋(牛)', t: 'egg_cow', isItem: true, entity: 'cow' }, 103: { name: '生怪蛋(雞)', t: 'egg_chicken', isItem: true, entity: 'chicken' },
+            104: { name: '生怪蛋(殭屍)', t: 'egg_zombie', isItem: true, entity: 'zombie' }, 105: { name: '生怪蛋(骷髏)', t: 'egg_skeleton', isItem: true, entity: 'skeleton' },
+            106: { name: '生怪蛋(苦力怕)', t: 'egg_creeper', isItem: true, entity: 'creeper' }, 107: { name: '生怪蛋(蜘蛛)', t: 'egg_spider', isItem: true, entity: 'spider' }
         };
 
         const materials = {};
         for(let key in blockTypes) { if(blockTypes[key].isItem) materials[key] = getMat(blockTypes[key].t); }
         materials[1] = [ getMat('grass_side'), getMat('grass_side'), getMat('grass_top'), getMat('dirt'), getMat('grass_side'), getMat('grass_side') ];
-        materials[2] = getMat('dirt'); materials[3] = getMat('stone'); materials[4] = [ getMat('wood_side'), getMat('wood_side'), getMat('wood_top'), getMat('wood_top'), getMat('wood_side'), getMat('wood_side') ];
+        materials[2] = getMat('dirt'); materials[3] = getMat('stone');
+        materials[4] = [ getMat('wood_side'), getMat('wood_side'), getMat('wood_top'), getMat('wood_top'), getMat('wood_side'), getMat('wood_side') ];
         materials[5] = getMat('leaves'); materials[5].transparent = true; materials[5].opacity = 0.9;
-        materials[6] = getMat('water'); materials[6].transparent = true; materials[6].opacity = 0.6; materials[7] = getMat('bedrock');
+        materials[6] = getMat('water'); materials[6].transparent = true; materials[6].opacity = 0.6;
+        materials[7] = getMat('bedrock');
         materials[8] = [ getMat('chest_side'), getMat('chest_side'), getMat('chest_side'), getMat('chest_side'), getMat('chest_front'), getMat('chest_side') ];
-        materials[9] = getMat('brick'); materials[10] = getMat('sand'); materials[11] = getMat('glass'); materials[11].transparent = true; materials[11].opacity = 0.5;
+        materials[9] = getMat('brick'); materials[10] = getMat('sand');
+        materials[11] = getMat('glass'); materials[11].transparent = true; materials[11].opacity = 0.5;
         materials[12] = getMat('planks'); materials[13] = getMat('cobblestone'); materials[14] = getMat('gold_ore');
         materials[15] = [ getMat('crafting_side'), getMat('crafting_side'), getMat('crafting_top'), getMat('planks'), getMat('crafting_side'), getMat('crafting_side') ];
-        materials[17] = getMat('coal_ore'); materials[19] = getMat('iron_ore'); materials[21] = [ getMat('stone'), getMat('stone'), getMat('stone'), getMat('stone'), getMat('furnace_front'), getMat('stone') ];
-        materials[25] = getMat('stone_bricks'); materials[32] = getMat('wool'); materials[33] = getMat('bed_top'); materials[36] = getMat('ladder'); materials[36].transparent = true; materials[37] = getMat('door_top');
-        materials[38] = getMat('planks'); materials[39] = getMat('cobblestone'); materials[40] = getMat('trapdoor'); materials[40].transparent = true;
+        materials[17] = getMat('coal_ore'); materials[19] = getMat('iron_ore'); 
+        materials[21] = [ getMat('stone'), getMat('stone'), getMat('stone'), getMat('stone'), getMat('furnace_front'), getMat('stone') ];
+        materials[25] = getMat('stone_bricks'); materials[32] = getMat('wool'); materials[33] = getMat('bed_top'); 
+        materials[36] = getMat('ladder'); materials[36].transparent = true; materials[37] = getMat('door_top');
+        materials[38] = getMat('planks'); materials[39] = getMat('cobblestone');
+        materials[40] = getMat('trapdoor'); materials[40].transparent = true;
         materials[43] = [ getMat('chest_side'), getMat('chest_side'), getMat('chest_side'), getMat('chest_side'), getMat('trapped_chest_front'), getMat('chest_side') ];
-        materials[50] = getMat('lava'); materials[51] = [ getMat('cactus_side'), getMat('cactus_side'), getMat('cactus_top'), getMat('cactus_top'), getMat('cactus_side'), getMat('cactus_side') ];
+        materials[50] = getMat('lava');
+        materials[51] = [ getMat('cactus_side'), getMat('cactus_side'), getMat('cactus_top'), getMat('cactus_top'), getMat('cactus_side'), getMat('cactus_side') ];
 
-        const blockGeometry = new THREE.BoxGeometry(1, 1, 1); const waterGeometry = new THREE.BoxGeometry(1, 0.8, 1); waterGeometry.translate(0, -0.1, 0);
+        const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+        const waterGeometry = new THREE.BoxGeometry(1, 0.8, 1); waterGeometry.translate(0, -0.1, 0);
 
         const RECIPES = [ 
-            { id: 'planks', pattern: [[4]], res: 12, resCount: 4 }, { id: 'crafting_table', pattern: [[12, 12], [12, 12]], res: 15, resCount: 1 }, { id: 'chest', pattern: [[12,12,12],[12,null,12],[12,12,12]], res: 8, resCount: 1 },
-            { id: 'trapped_chest', pattern: [[8, 16]], res: 43, resCount: 1 }, { id: 'stick', pattern: [[12], [12]], res: 16, resCount: 4 }, { id: 'furnace', pattern: [[13,13,13],[13,null,13],[13,13,13]], res: 21, resCount: 1 },
-            { id: 'wood_pickaxe', pattern: [[12,12,12],[null,16,null],[null,16,null]], res: 22, resCount: 1 }, { id: 'stone_pickaxe', pattern: [[13,13,13],[null,16,null],[null,16,null]], res: 23, resCount: 1 },
-            { id: 'iron_pickaxe', pattern: [[20,20,20],[null,16,null],[null,16,null]], res: 24, resCount: 1 }, { id: 'wood_axe', pattern: [[12,12],[12,16],[null,16]], res: 44, resCount: 1 },
-            { id: 'stone_axe', pattern: [[13,13],[13,16],[null,16]], res: 45, resCount: 1 }, { id: 'iron_axe', pattern: [[20,20],[20,16],[null,16]], res: 46, resCount: 1 },
-            { id: 'wood_shovel', pattern: [[12],[16],[16]], res: 47, resCount: 1 }, { id: 'stone_shovel', pattern: [[13],[16],[16]], res: 48, resCount: 1 }, { id: 'iron_shovel', pattern: [[20],[16],[16]], res: 49, resCount: 1 },
-            { id: 'wood_sword', pattern: [[12],[12],[16]], res: 26, resCount: 1 }, { id: 'stone_sword', pattern: [[13],[13],[16]], res: 27, resCount: 1 }, { id: 'iron_sword', pattern: [[20],[20],[16]], res: 28, resCount: 1 },
-            { id: 'wood_hoe', pattern: [[12,12],[null,16],[null,16]], res: 29, resCount: 1 }, { id: 'stone_hoe', pattern: [[13,13],[null,16],[null,16]], res: 30, resCount: 1 }, { id: 'iron_hoe', pattern: [[20,20],[null,16],[null,16]], res: 31, resCount: 1 },
-            { id: 'ladder', pattern: [[16,null,16],[16,16,16],[16,null,16]], res: 36, resCount: 3 }, { id: 'door', pattern: [[12,12],[12,12],[12,12]], res: 37, resCount: 3 }, { id: 'trapdoor', pattern: [[12,12,12],[12,12,12]], res: 40, resCount: 2 },
-            { id: 'bed', pattern: [[32,32,32],[12,12,12]], res: 33, resCount: 1 }, { id: 'bucket', pattern: [[20,null,20],[null,20,null]], res: 34, resCount: 1 },
-            { id: 'wood_stairs', pattern: [[12,null,null],[12,12,null],[12,12,12]], res: 38, resCount: 4 }, { id: 'stone_stairs', pattern: [[13,null,null],[13,13,null],[13,13,13]], res: 39, resCount: 4 }
+            { id: 'planks', pattern: [[4]], res: 12, resCount: 4 }, 
+            { id: 'crafting_table', pattern: [[12, 12], [12, 12]], res: 15, resCount: 1 }, 
+            { id: 'chest', pattern: [[12,12,12],[12,null,12],[12,12,12]], res: 8, resCount: 1 },
+            { id: 'trapped_chest', pattern: [[8, 16]], res: 43, resCount: 1 },
+            { id: 'stick', pattern: [[12], [12]], res: 16, resCount: 4 },
+            { id: 'furnace', pattern: [[13,13,13],[13,null,13],[13,13,13]], res: 21, resCount: 1 },
+            { id: 'wood_pickaxe', pattern: [[12,12,12],[null,16,null],[null,16,null]], res: 22, resCount: 1 },
+            { id: 'stone_pickaxe', pattern: [[13,13,13],[null,16,null],[null,16,null]], res: 23, resCount: 1 },
+            { id: 'iron_pickaxe', pattern: [[20,20,20],[null,16,null],[null,16,null]], res: 24, resCount: 1 },
+            { id: 'wood_axe', pattern: [[12,12],[12,16],[null,16]], res: 44, resCount: 1 },
+            { id: 'stone_axe', pattern: [[13,13],[13,16],[null,16]], res: 45, resCount: 1 },
+            { id: 'iron_axe', pattern: [[20,20],[20,16],[null,16]], res: 46, resCount: 1 },
+            { id: 'wood_shovel', pattern: [[12],[16],[16]], res: 47, resCount: 1 },
+            { id: 'stone_shovel', pattern: [[13],[16],[16]], res: 48, resCount: 1 },
+            { id: 'iron_shovel', pattern: [[20],[16],[16]], res: 49, resCount: 1 },
+            { id: 'wood_sword', pattern: [[12],[12],[16]], res: 26, resCount: 1 },
+            { id: 'stone_sword', pattern: [[13],[13],[16]], res: 27, resCount: 1 },
+            { id: 'iron_sword', pattern: [[20],[20],[16]], res: 28, resCount: 1 },
+            { id: 'wood_hoe', pattern: [[12,12],[null,16],[null,16]], res: 29, resCount: 1 },
+            { id: 'stone_hoe', pattern: [[13,13],[null,16],[null,16]], res: 30, resCount: 1 },
+            { id: 'iron_hoe', pattern: [[20,20],[null,16],[null,16]], res: 31, resCount: 1 },
+            { id: 'ladder', pattern: [[16,null,16],[16,16,16],[16,null,16]], res: 36, resCount: 3 },
+            { id: 'door', pattern: [[12,12],[12,12],[12,12]], res: 37, resCount: 3 },
+            { id: 'trapdoor', pattern: [[12,12,12],[12,12,12]], res: 40, resCount: 2 },
+            { id: 'bed', pattern: [[32,32,32],[12,12,12]], res: 33, resCount: 1 },
+            { id: 'bucket', pattern: [[20,null,20],[null,20,null]], res: 34, resCount: 1 },
+            { id: 'wood_stairs', pattern: [[12,null,null],[12,12,null],[12,12,12]], res: 38, resCount: 4 },
+            { id: 'stone_stairs', pattern: [[13,null,null],[13,13,null],[13,13,13]], res: 39, resCount: 4 }
         ];
 
-        function getSkinMaterialPart(img, x, y, w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d'); ctx.drawImage(img, x, y, w, h, 0, 0, w, h); const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; return new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }); }
+        function getSkinMaterialPart(img, x, y, w, h) {
+            const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d');
+            ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+            const tex = new THREE.CanvasTexture(c); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+            return new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+        }
+
         function buildPartMaterials(img, layouts) { return layouts.map(l => getSkinMaterialPart(img, l[0], l[1], l[2], l[3])); }
+
         function applySkinToGroup(group, dataUrl) {
-            const img = new Image(); img.onload = () => {
+            const img = new Image();
+            img.onload = () => {
                 const is64 = img.height === 64;
                 const matsHead = buildPartMaterials(img, [[0,8,8,8],[16,8,8,8],[8,0,8,8],[16,0,8,8],[8,8,8,8],[24,8,8,8]]);
                 const matsBody = buildPartMaterials(img, [[16,20,4,12],[28,20,4,12],[20,16,8,4],[28,16,8,4],[20,20,8,12],[32,20,8,12]]);
                 const matsArmR = buildPartMaterials(img, [[40,20,4,12],[48,20,4,12],[44,16,4,4],[48,16,4,4],[44,20,4,12],[52,20,4,12]]);
                 const matsLegR = buildPartMaterials(img, [[0,20,4,12],[8,20,4,12],[4,16,4,4],[8,16,4,4],[4,20,4,12],[12,20,4,12]]);
+                
                 let matsArmL, matsLegL;
-                if(is64) { matsArmL = buildPartMaterials(img, [[32,52,4,12],[40,52,4,12],[36,48,4,4],[40,48,4,4],[36,52,4,12],[44,52,4,12]]); matsLegL = buildPartMaterials(img, [[16,52,4,12],[24,52,4,12],[20,48,4,4],[24,48,4,4],[20,52,4,12],[28,52,4,12]]); } else { matsArmL = matsArmR; matsLegL = matsLegR; }
-                group.children[0].material = matsHead; group.children[1].material = matsBody; group.children[2].material = matsArmL; group.children[3].material = matsArmR; group.children[4].material = matsLegL; group.children[5].material = matsLegR;
-            }; img.src = dataUrl;
+                if(is64) {
+                    matsArmL = buildPartMaterials(img, [[32,52,4,12],[40,52,4,12],[36,48,4,4],[40,48,4,4],[36,52,4,12],[44,52,4,12]]);
+                    matsLegL = buildPartMaterials(img, [[16,52,4,12],[24,52,4,12],[20,48,4,4],[24,48,4,4],[20,52,4,12],[28,52,4,12]]);
+                } else { matsArmL = matsArmR; matsLegL = matsLegR; }
+
+                group.children[0].material = matsHead; group.children[1].material = matsBody; group.children[2].material = matsArmL;
+                group.children[3].material = matsArmR; group.children[4].material = matsLegL; group.children[5].material = matsLegR;
+            };
+            img.src = dataUrl;
         }
 
         let localPlayerSkin = localStorage.getItem('mc_player_skin');
-        if(!localPlayerSkin) { const c = document.createElement('canvas'); c.width = 64; c.height = 32; const ctx = c.getContext('2d'); ctx.fillStyle = '#f1c27d'; ctx.fillRect(0,0,64,32); ctx.fillStyle = '#4a3018'; ctx.fillRect(8,0,8,8); ctx.fillRect(0,8,32,3); ctx.fillStyle = '#3498db'; ctx.fillRect(16,20,24,12); ctx.fillRect(40,20,16,12); ctx.fillStyle = '#2c3e50'; ctx.fillRect(0,20,16,12); ctx.fillStyle = '#fff'; ctx.fillRect(10,12,1,1); ctx.fillRect(14,12,1,1); ctx.fillStyle = '#34495e'; ctx.fillRect(11,12,1,1); ctx.fillRect(15,12,1,1); ctx.fillStyle = '#a0522d'; ctx.fillRect(11,14,2,1); ctx.fillStyle = '#7f8c8d'; ctx.fillRect(4,28,4,4); ctx.fillRect(12,28,4,4); localPlayerSkin = c.toDataURL(); localStorage.setItem('mc_player_skin', localPlayerSkin); }
+        if(!localPlayerSkin) {
+            const c = document.createElement('canvas'); c.width = 64; c.height = 32; const ctx = c.getContext('2d');
+            ctx.fillStyle = '#f1c27d'; ctx.fillRect(0,0,64,32); ctx.fillStyle = '#4a3018'; ctx.fillRect(8,0,8,8); ctx.fillRect(0,8,32,3);
+            ctx.fillStyle = '#3498db'; ctx.fillRect(16,20,24,12); ctx.fillRect(40,20,16,12); ctx.fillStyle = '#2c3e50'; ctx.fillRect(0,20,16,12);
+            ctx.fillStyle = '#fff'; ctx.fillRect(10,12,1,1); ctx.fillRect(14,12,1,1); ctx.fillStyle = '#34495e'; ctx.fillRect(11,12,1,1); ctx.fillRect(15,12,1,1);
+            ctx.fillStyle = '#a0522d'; ctx.fillRect(11,14,2,1); ctx.fillStyle = '#7f8c8d'; ctx.fillRect(4,28,4,4); ctx.fillRect(12,28,4,4);
+            localPlayerSkin = c.toDataURL(); localStorage.setItem('mc_player_skin', localPlayerSkin);
+        }
 
         const emptyMat = new THREE.MeshBasicMaterial({transparent: true, opacity: 0});
+        
         function createPlayerSkeleton() {
             const group = new THREE.Group();
             const b = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.25), emptyMat); b.position.y = 1.125;
-            const hGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5); hGeom.translate(0, 0.25, 0); const h = new THREE.Mesh(hGeom, emptyMat); h.position.y = 1.5;
-            const armGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); armGeom.translate(0, -0.375, 0); const aL = new THREE.Mesh(armGeom, emptyMat); aL.position.set(0.375, 1.5, 0); const aR = new THREE.Mesh(armGeom, emptyMat); aR.position.set(-0.375, 1.5, 0);
-            const legGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); legGeom.translate(0, -0.375, 0); const lL = new THREE.Mesh(legGeom, emptyMat); lL.position.set(0.125, 0.75, 0); const lR = new THREE.Mesh(legGeom, emptyMat); lR.position.set(-0.125, 0.75, 0);
-            group.add(h); group.add(b); group.add(aL); group.add(aR); group.add(lL); group.add(lR); return group;
+            const hGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5); hGeom.translate(0, 0.25, 0);
+            const h = new THREE.Mesh(hGeom, emptyMat); h.position.y = 1.5;
+            const armGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); armGeom.translate(0, -0.375, 0);
+            const aL = new THREE.Mesh(armGeom, emptyMat); aL.position.set(0.375, 1.5, 0);
+            const aR = new THREE.Mesh(armGeom, emptyMat); aR.position.set(-0.375, 1.5, 0);
+            const legGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); legGeom.translate(0, -0.375, 0);
+            const lL = new THREE.Mesh(legGeom, emptyMat); lL.position.set(0.125, 0.75, 0);
+            const lR = new THREE.Mesh(legGeom, emptyMat); lR.position.set(-0.125, 0.75, 0);
+            group.add(h); group.add(b); group.add(aL); group.add(aR); group.add(lL); group.add(lR);
+            return group;
         }
 
         const playerGroup = createPlayerSkeleton(); playerGroup.visible = false; applySkinToGroup(playerGroup, localPlayerSkin);
@@ -647,88 +753,42 @@
             const canvas = document.getElementById('preview-canvas'); if (!canvas) return;
             previewRenderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true }); previewRenderer.setSize(150, 200);
             previewScene = new THREE.Scene(); previewCamera = new THREE.PerspectiveCamera(45, 150/200, 0.1, 100); previewCamera.position.set(0, 1.0, 3.5); previewCamera.lookAt(0, 1.0, 0);
-            previewScene.add(new THREE.AmbientLight(0xffffff, 0.6)); const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(2, 5, 3); previewScene.add(dirLight);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); previewScene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8); dirLight.position.set(2, 5, 3); previewScene.add(dirLight);
             previewModel = createPlayerSkeleton(); previewScene.add(previewModel); applySkinToGroup(previewModel, localPlayerSkin); animatePreview();
         }
 
         function animatePreview() { requestAnimationFrame(animatePreview); if (previewModel && (!document.getElementById('screen-welcome').classList.contains('hidden') || !document.getElementById('screen-profile').classList.contains('hidden'))) { previewModel.rotation.y += 0.02; previewRenderer.render(previewScene, previewCamera); } }
 
         window.handleSkinUpload = (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (e) => { const dataUrl = e.target.result; localStorage.setItem('mc_player_skin', dataUrl); localPlayerSkin = dataUrl; applySkinToGroup(playerGroup, dataUrl); if(previewModel) applySkinToGroup(previewModel, dataUrl); showToast("皮膚已更新！"); }; reader.readAsDataURL(file); };
-
-        window.updatePlayerProfile = () => { let profile = { name: "Steve" }; try { const savedProfile = localStorage.getItem('mc_player_profile'); if(savedProfile) profile = JSON.parse(savedProfile); } catch(e) {} const welcomeInput = document.getElementById('welcome-player-name'); const profileInput = document.getElementById('profile-player-name'); if (profileInput && !profileInput.closest('.hidden')) { if (profileInput.value) profile.name = profileInput.value; } else if (welcomeInput && !welcomeInput.closest('.hidden')) { if (welcomeInput.value) profile.name = welcomeInput.value; } if(welcomeInput) welcomeInput.value = profile.name; if(profileInput) profileInput.value = profile.name; localStorage.setItem('mc_player_profile', JSON.stringify(profile)); };
-        window.saveProfileAndReturn = () => { window.updatePlayerProfile(); showScreen('screen-main'); };
+        window.updatePlayerProfile = (newName) => { let profile = { name: "Steve" }; try { const savedProfile = localStorage.getItem('mc_player_profile'); if(savedProfile) profile = JSON.parse(savedProfile); } catch(e) {} if(newName !== undefined) profile.name = newName; else profile.name = document.getElementById('profile-player-name')?.value || document.getElementById('welcome-player-name')?.value || "Steve"; const wName = document.getElementById('welcome-player-name'); if(wName) wName.value = profile.name; const pName = document.getElementById('profile-player-name'); if(pName) pName.value = profile.name; localStorage.setItem('mc_player_profile', JSON.stringify(profile)); };
         window.enterMainMenu = () => { window.updatePlayerProfile(); showScreen('screen-main'); };
-        window.toggleRenderDist = () => { renderDist = renderDist === 2 ? 3 : (renderDist === 3 ? 4 : 2); document.getElementById('toggle-render-dist').innerText = `視距: ${renderDist} 區塊`; };
 
-        window.addEventListener('load', () => {
-            try { const localData = localStorage.getItem('mc_local_worlds'); if(localData) { window.worldsCache = JSON.parse(localData).map(w => { w.storageType = ['本機']; return w; }); window.worldsCache.sort((a,b) => b.updatedAt - a.updatedAt); } } catch(e) {}
-            let profile = { name: "Steve" }; try { const savedProfile = localStorage.getItem('mc_player_profile'); if(savedProfile) profile = JSON.parse(savedProfile); } catch(e) {}
-            const wName = document.getElementById('welcome-player-name'); if(wName) wName.value = profile.name;
-            const pName = document.getElementById('profile-player-name'); if(pName) pName.value = profile.name;
-            applyLanguage(); showScreen('screen-welcome'); initGameSystem();
-        });
-
-        async function initGameSystem() {
-            document.getElementById('sso-ui').innerHTML = '<button class="btn" style="width:auto; margin:0; padding:5px 10px; font-size:1rem; border-color:#000;" onclick="window.location.href=\'https://pandapanda6666.github.io/login-hub/?require=1&from=\'+encodeURIComponent(window.location.href)">登入/註冊</button>';
-            const urlParams = new URLSearchParams(window.location.search); let serverUrl = urlParams.get('server');
-            if (!serverUrl) { try { const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt'); if(!res.ok) throw new Error(); serverUrl = (await res.text()).trim(); } catch (e) { initPreview(); return; } }
-            try { if(typeof io !== 'undefined') { socket = io(serverUrl, { transports: ['websocket'] }); socket.on('connect', () => { socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent }); if (urlParams.get('auth') === 'true') { const user = urlParams.get('user'); if (user) socket.emit('requestProfile', { username: user }); window.history.replaceState({}, document.title, window.location.pathname); } }); socket.on('profileData', (data) => { ssoProfile = data; document.getElementById('sso-ui').innerHTML = `<img src="${data.avatar || ''}" style="width:32px; height:32px; border-radius:50%; border:2px solid #fff;"><div style="display:flex; flex-direction:column; font-size:0.8rem; line-height:1.2;"><span>${data.nickname || '玩家'}</span><span style="color:#f1c40f;">P幣: ${data.pCoin || 0}</span></div>`; document.getElementById('sso-ui').onclick = () => { window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href); }; socket.emit('getAppData', { appId: appId }, (res) => { if (res && res.worlds) mergeCloudWorlds(res.worlds); }); }); socket.on('playerJoined', handleNetworkPlayerJoined); socket.on('playerStateUpdated', handleNetworkPlayerState); socket.on('playerLeft', handleNetworkPlayerLeft); socket.on('appData', handleAppDataEvent); } } catch(e) {}
-            initPreview();
+        function renderCreativeGrid() {
+            const grid = document.getElementById('creative-grid'); grid.innerHTML = '';
+            for(let key in blockTypes) {
+                const itemType = parseInt(key); const div = document.createElement('div'); div.className = 'inv-slot'; div.innerHTML = getIconHtml(itemType);
+                div.onmousedown = (e) => { e.preventDefault(); cursorItem = { type: itemType, count: 64 }; renderAllInventoryUIs(); }; div.oncontextmenu = (e) => e.preventDefault(); grid.appendChild(div);
+            }
         }
-
-        window.startSingleplayer = () => { currentRoomId = appId + '_single_' + Date.now(); isHost = true; showScreen('screen-worlds'); };
-        window.createMultiplayerRoom = () => { const code = Math.floor(1000 + Math.random() * 9000).toString(); currentRoomId = appId + '_' + code; isHost = true; showCustomModal("房間已建立", "您的房間代碼為：\n" + code + "\n\n請將此代碼分享給您的朋友！", false, () => { showScreen('screen-worlds'); }); };
-        window.joinMultiplayerRoom = () => { const code = document.getElementById('join-room-code').value.trim(); if(!code) return showCustomModal("錯誤", "請輸入房間代碼", false, null); currentRoomId = appId + '_' + code; isHost = false; showScreen('screen-loading'); document.getElementById('loading-title').innerText = '連線中...'; document.getElementById('loading-text').innerText = '正在等待主機同步世界資料...'; if(socket && socket.connected) { let pName = "玩家"; try { pName = JSON.parse(localStorage.getItem('mc_player_profile')).name; } catch(e) {} socket.emit('joinGameRoom', { room: currentRoomId, characterData: { skinUrl: localPlayerSkin, name: pName } }); socket.emit('appData', { room: currentRoomId, action: 'requestWorldSync' }); } else { showCustomModal("連線失敗", "您目前處於離線狀態，無法加入多人房間。", false, () => showScreen('screen-multiplayer')); } setTimeout(() => { if(!gameLoopActive && !isHost) { showCustomModal("連線逾時", "無法取得主機世界資料，主機可能不存在或已離線。", false, () => showScreen('screen-multiplayer')); } }, 10000); };
-
-        function mergeCloudWorlds(cloudWorlds) { let localUpdated = false; const localWorldsMap = new Map(); window.worldsCache.forEach(w => localWorldsMap.set(w.id, w)); cloudWorlds.forEach(cloudW => { if(localWorldsMap.has(cloudW.id)) { let localW = localWorldsMap.get(cloudW.id); if(cloudW.updatedAt > localW.updatedAt) { cloudW.storageType = ['雲端', '本機']; localWorldsMap.set(cloudW.id, cloudW); localUpdated = true; } else if (localW.updatedAt > cloudW.updatedAt) { localW.storageType = ['本機', '雲端']; uploadToCloud(localW); } else { localW.storageType = ['本機', '雲端']; } } else { cloudW.storageType = ['雲端', '本機']; localWorldsMap.set(cloudW.id, cloudW); localUpdated = true; } }); window.worldsCache = Array.from(localWorldsMap.values()); window.worldsCache.sort((a,b) => b.updatedAt - a.updatedAt); if(localUpdated) { const cleanCache = JSON.parse(JSON.stringify(window.worldsCache)); cleanCache.forEach(w => delete w.storageType); localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache)); } if(!document.getElementById('screen-worlds').classList.contains('hidden')) renderWorldList(); }
-        function uploadToCloud(worldObj) { if(socket && socket.connected && ssoProfile && isHost) { const cleanCache = JSON.parse(JSON.stringify(window.worldsCache)); cleanCache.forEach(w => delete w.storageType); socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); } }
-        function saveToLocal(worldObj) { if(!isHost) return; try { let localWorlds = JSON.parse(localStorage.getItem('mc_local_worlds') || '[]'); const lIdx = localWorlds.findIndex(w => w.id === worldObj.id); let cleanObj = JSON.parse(JSON.stringify(worldObj)); delete cleanObj.storageType; if(lIdx !== -1) localWorlds[lIdx] = cleanObj; else localWorlds.push(cleanObj); localStorage.setItem('mc_local_worlds', JSON.stringify(localWorlds)); const cIdx = window.worldsCache.findIndex(w => w.id === worldObj.id); worldObj.storageType = (socket && socket.connected && ssoProfile) ? ['本機', '雲端同步中'] : ['本機']; if(cIdx !== -1) window.worldsCache[cIdx] = worldObj; else window.worldsCache.push(worldObj); window.worldsCache.sort((a,b) => b.updatedAt - a.updatedAt); } catch(e) {} }
-        function saveWorldToBothSync(worldObj) { if(!isHost) return; worldObj.updatedAt = Date.now(); saveToLocal(worldObj); uploadToCloud(worldObj); setTimeout(() => { const cIdx = window.worldsCache.findIndex(w => w.id === worldObj.id); if(cIdx !== -1 && socket && socket.connected && ssoProfile) { window.worldsCache[cIdx].storageType = ['本機', '雲端']; if(!document.getElementById('screen-worlds').classList.contains('hidden')) renderWorldList(); } }, 1000); }
-
-        window.deleteSelectedWorld = () => { if(!window.selectedWorldId) return; showCustomModal("刪除世界", "確定要刪除這個世界嗎？此操作無法還原！", true, () => { window.worldsCache = window.worldsCache.filter(w => w.id !== window.selectedWorldId); const cleanCache = JSON.parse(JSON.stringify(window.worldsCache)); cleanCache.forEach(w => delete w.storageType); localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache)); if (socket && socket.connected && ssoProfile) { socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); socket.emit('logAppMessage', { appId: appId, message: '刪除世界: ' + window.selectedWorldId, type: 'warning' }); } window.selectedWorldId = null; renderWorldList(); }); };
-        window.exportSelectedWorld = () => { if(!window.selectedWorldId) return; const w = window.worldsCache.find(w => w.id === window.selectedWorldId); if(!w) return; let cleanObj = JSON.parse(JSON.stringify(w)); delete cleanObj.storageType; const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cleanObj)); const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", cleanObj.name + "_backup.json"); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove(); };
-        window.importWorldData = async (event) => { const file = event.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (e) => { try { const importedWorld = JSON.parse(e.target.result); if(!importedWorld.id || !importedWorld.name) throw new Error("無效的存檔格式"); importedWorld.id = "imported_" + Date.now().toString(); saveWorldToBothSync(importedWorld); window.selectedWorldId = importedWorld.id; showCustomModal("成功", "世界匯入成功！已優先寫入本機。", false, null); } catch(err) { showCustomModal("錯誤", "匯入失敗：" + err.message, false, null); } event.target.value = ''; }; reader.readAsText(file); };
-
-        const createConfig = { mode: ['生存', '創造', '冒險'], modeIdx: 0, difficulty: ['和平', '簡單', '普通', '困難', '超困難'], diffIdx: 2, type: ['普通', '超巨大', '超平坦'], typeIdx: 0, structures: ['開', '關'], structIdx: 0, chest: ['關', '開'], chestIdx: 0 };
-        window.toggleSetting = (key) => { if(key === 'mode') { createConfig.modeIdx = (createConfig.modeIdx + 1) % createConfig.mode.length; document.getElementById('toggle-mode').innerText = '遊戲模式: ' + createConfig.mode[createConfig.modeIdx]; } if(key === 'difficulty') { createConfig.diffIdx = (createConfig.diffIdx + 1) % createConfig.difficulty.length; document.getElementById('toggle-diff').innerText = '難易度: ' + createConfig.difficulty[createConfig.diffIdx]; } if(key === 'type') { createConfig.typeIdx = (createConfig.typeIdx + 1) % createConfig.type.length; document.getElementById('toggle-type').innerText = '地圖類型: ' + createConfig.type[createConfig.typeIdx]; } if(key === 'structures') { createConfig.structIdx = (createConfig.structIdx + 1) % createConfig.structures.length; document.getElementById('toggle-struct').innerText = '生成建築: ' + createConfig.structures[createConfig.structIdx]; } if(key === 'chest') { createConfig.chestIdx = (createConfig.chestIdx + 1) % createConfig.chest.length; document.getElementById('toggle-chest').innerText = '獎勵箱: ' + createConfig.chest[createConfig.chestIdx]; } };
-
-        window.createNewWorld = () => { const modeText = document.getElementById('toggle-mode').innerText; const typeText = document.getElementById('toggle-type').innerText; const structText = document.getElementById('toggle-struct').innerText; const chestText = document.getElementById('toggle-chest').innerText; const newWorld = { id: Date.now().toString(), name: document.getElementById('new-world-name').value || '新的世界', mode: modeText.split(': ')[1], type: typeText.split(': ')[1], structures: structText.includes('開'), chest: chestText.includes('開'), timeOfDay: 0, modifiedBlocks: {}, inventory: new Array(36).fill(null), chests: {}, furnaceData: {}, rules: { keepInventory: false, doDaylightCycle: true }, seed: Math.random() * 10000 }; if(newWorld.mode === '創造') { newWorld.inventory[0] = {type:1, count:64}; newWorld.inventory[1] = {type:2, count:64}; newWorld.inventory[2] = {type:3, count:64}; newWorld.inventory[3] = {type:4, count:64}; newWorld.inventory[4] = {type:12, count:64}; newWorld.inventory[5] = {type:15, count:64}; newWorld.inventory[6] = {type:21, count:64}; newWorld.inventory[7] = {type:24, count:1}; } saveWorldToBothSync(newWorld); window.selectedWorldId = newWorld.id; window.playSelectedWorld(); };
-        window.playSelectedWorld = () => { if(!window.selectedWorldId && window.worldsCache.length>0) window.selectedWorldId = window.worldsCache[0].id; window.currentWorldData = window.worldsCache.find(w => w.id === window.selectedWorldId); if(window.currentWorldData) startGame(); };
-        window.saveAndQuit = () => { if(window.currentWorldData) { window.currentWorldData.inventory = playerInventory; window.currentWorldData.playerPos = {x: playerPos.x, y: playerPos.y, z: playerPos.z}; if(camera) window.currentWorldData.playerRot = camera.rotation.y; saveWorldToBothSync(window.currentWorldData); } if(controls) controls.unlock(); gameLoopActive = false; showScreen('screen-main'); };
-        window.resumeGameFromPause = () => { window.clearCraftingGrids(); showScreen('hud'); renderAllInventoryUIs(); document.getElementById('click-to-play').style.display = 'block'; };
-
-        function renderWorldList() { const container = document.getElementById('world-list-container'); container.innerHTML = ''; if(window.worldsCache.length === 0) container.innerHTML = '<div style="padding:10px;text-align:center;color:#888;">尚未建立任何世界</div>'; else window.worldsCache.forEach(w => { const div = document.createElement('div'); div.className = 'world-item ' + (w.id === window.selectedWorldId ? 'selected' : ''); let tagHtml = ''; if(w.storageType) { if(w.storageType.includes('雲端') && w.storageType.includes('本機')) tagHtml = '<span style="color:#2ecc71;">[雲+機]</span>'; else if(w.storageType.includes('雲端同步中')) tagHtml = '<span style="color:#f39c12;">[同步中]</span>'; else if(w.storageType.includes('雲端')) tagHtml = '<span style="color:#3498db;">[雲端]</span>'; else tagHtml = '<span style="color:#f1c40f;">[本機]</span>'; } div.innerHTML = `<strong>${tagHtml} ${w.name}</strong><br><span style="font-size:0.8rem;color:#aaa;">${w.mode} | ${w.type}</span>`; div.onclick = () => { window.selectedWorldId = w.id; renderWorldList(); }; container.appendChild(div); }); }
-
-        function getIconHtml(type) { return `<div class="item-icon" style="background-image: url(${getTexUrl(blockTypes[type].t)})"></div>`; }
-        document.addEventListener('mousemove', (e) => { const cursorDiv = document.getElementById('cursor-item'); if(cursorItem) { cursorDiv.style.display = 'block'; cursorDiv.style.left = e.clientX - 16 + 'px'; cursorDiv.style.top = e.clientY - 16 + 'px'; cursorDiv.style.backgroundImage = `url(${getTexUrl(blockTypes[cursorItem.type].t)})`; document.getElementById('cursor-count').innerText = cursorItem.count > 1 ? cursorItem.count : ''; } else { cursorDiv.style.display = 'none'; } let hoverSlot = document.elementFromPoint(e.clientX, e.clientY); const t = document.getElementById('tooltip'); if(hoverSlot && hoverSlot.classList.contains('inv-slot') && hoverSlot.getAttribute('data-name')) { t.style.display = 'block'; t.style.left = e.clientX + 15 + 'px'; t.style.top = e.clientY + 15 + 'px'; t.innerText = hoverSlot.getAttribute('data-name'); } else { t.style.display = 'none'; } });
-
-        function handleSlotClick(e, slotArr, index, isResultSlot = false, onGridChange = null) { e.preventDefault(); const rightClick = e.button === 2; const slotItem = slotArr[index]; if(isResultSlot) { if(slotItem && (!cursorItem || (cursorItem.type === slotItem.type && cursorItem.count + slotItem.count <= 64))) { if(!cursorItem) cursorItem = {type: slotItem.type, count: slotItem.count}; else cursorItem.count += slotItem.count; if(onGridChange) onGridChange(true); } renderAllInventoryUIs(); return; } if(!cursorItem && slotItem) { if(rightClick && slotItem.count > 1) { const half = Math.floor(slotItem.count / 2); cursorItem = {type: slotItem.type, count: half}; slotItem.count -= half; } else { cursorItem = {type: slotItem.type, count: slotItem.count}; slotArr[index] = null; } } else if(cursorItem && !slotItem) { if(rightClick) { slotArr[index] = {type: cursorItem.type, count: 1}; cursorItem.count--; if(cursorItem.count <= 0) cursorItem = null; } else { slotArr[index] = {type: cursorItem.type, count: cursorItem.count}; cursorItem = null; } } else if(cursorItem && slotItem) { if(cursorItem.type === slotItem.type) { if(rightClick) { if(slotItem.count < 64) { slotItem.count++; cursorItem.count--; } } else { const space = 64 - slotItem.count; if(space > 0) { const add = Math.min(space, cursorItem.count); slotItem.count += add; cursorItem.count -= add; } } if(cursorItem.count <= 0) cursorItem = null; } else { if(!rightClick) { const temp = slotArr[index]; slotArr[index] = cursorItem; cursorItem = temp; } } } if(onGridChange && !isResultSlot) onGridChange(false); renderAllInventoryUIs(); }
-
-        function checkRecipes(gridArr, size) { let minR = size, maxR = -1, minC = size, maxC = -1; for(let r=0; r<size; r++) for(let c=0; c<size; c++) { if(gridArr[r*size+c]) { minR=Math.min(minR,r); maxR=Math.max(maxR,r); minC=Math.min(minC,c); maxC=Math.max(maxC,c); } } if(maxR === -1) return null; const w = maxC - minC + 1; const h = maxR - minR + 1; const pattern = []; for(let r=0; r<h; r++) { const row = []; for(let c=0; c<w; c++) { const item = gridArr[(minR+r)*size + (minC+c)]; row.push(item ? item.type : null); } pattern.push(row); } for(const rec of RECIPES) { if(rec.pattern.length === h && rec.pattern[0].length === w) { let match = true; for(let r=0; r<h; r++) for(let c=0; c<w; c++) { if(rec.pattern[r][c] !== pattern[r][c]) match = false; } if(match) return {type: rec.res, count: rec.resCount}; } } return null; }
-        function consumeCraftingGrid(gridArr) { for(let i=0; i<gridArr.length; i++) { if(gridArr[i]) { gridArr[i].count--; if(gridArr[i].count <= 0) gridArr[i] = null; } } }
-        let currentCraftingResult2x2 = null; let currentCraftingResult3x3 = null;
-        function updateCrafting2x2(consume = false) { if(consume) consumeCraftingGrid(craftingGrid2x2); currentCraftingResult2x2 = checkRecipes(craftingGrid2x2, 2); }
-        function updateCrafting3x3(consume = false) { if(consume) consumeCraftingGrid(craftingGrid3x3); currentCraftingResult3x3 = checkRecipes(craftingGrid3x3, 3); }
-
-        function renderGrid(containerId, slotArr, offset, length, onClickFn) { const container = document.getElementById(containerId); if(!container) return; container.innerHTML = ''; for(let i=0; i<length; i++) { const globalIdx = offset + i; const item = slotArr[globalIdx]; const div = document.createElement('div'); div.className = 'inv-slot'; if(item) { div.innerHTML = getIconHtml(item.type) + (item.count>1 ? `<div class="slot-count">${item.count}</div>` : ''); div.setAttribute('data-type', item.type); div.setAttribute('data-name', blockTypes[item.type].name); } div.onmousedown = (e) => onClickFn(e, slotArr, globalIdx); div.oncontextmenu = (e) => e.preventDefault(); container.appendChild(div); } }
-        function renderFurnaceUI() { if (!activeFurnacePos) return; let furn = window.currentWorldData.furnaceData[activeFurnacePos]; let arr = [furn.i, furn.f, furn.o]; const applyF = () => { furn.i = arr[0]; furn.f = arr[1]; furn.o = arr[2]; }; renderGrid('furnace-input-slot', arr, 0, 1, (e,a,i) => { handleSlotClick(e,a,i,false,applyF); }); renderGrid('furnace-fuel-slot', arr, 1, 1, (e,a,i) => { handleSlotClick(e,a,i,false,applyF); }); renderGrid('furnace-output-slot', arr, 2, 1, (e,a,i) => { handleSlotClick(e,a,i,true,applyF); }); document.getElementById('furnace-fire-icon').style.color = furn.burnTime > 0 ? '#e74c3c' : '#555'; document.getElementById('furnace-arrow').style.color = furn.smeltTimer > 0 ? '#f1c40f' : '#333'; renderGrid('furnace-inventory-main-grid', playerInventory, 9, 27, handleSlotClick); renderGrid('furnace-inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick); }
-        function renderCreativeGrid() { const grid = document.getElementById('creative-grid'); if(!grid) return; grid.innerHTML = ''; for(let key in blockTypes) { const itemType = parseInt(key); const div = document.createElement('div'); div.className = 'inv-slot'; div.innerHTML = getIconHtml(itemType); div.setAttribute('data-name', blockTypes[itemType].name); div.onmousedown = (e) => { e.preventDefault(); cursorItem = { type: itemType, count: 64 }; renderAllInventoryUIs(); }; div.oncontextmenu = (e) => e.preventDefault(); grid.appendChild(div); } }
 
         function renderAllInventoryUIs() {
             const hotbar = document.getElementById('hotbar'); hotbar.innerHTML = '';
             for(let i = 0; i < 9; i++) { const item = playerInventory[i]; const div = document.createElement('div'); div.className = `inv-slot ${i === selectedSlot ? 'active' : ''}`; if(item) div.innerHTML = getIconHtml(item.type) + (item.count>1 ? `<div class="slot-count">${item.count}</div>` : ''); const num = document.createElement('div'); num.className = 'slot-num'; num.innerText = i + 1; div.appendChild(num); hotbar.appendChild(div); }
             renderGrid('inventory-main-grid', playerInventory, 9, 27, handleSlotClick); renderGrid('inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick);
             
-            const c2x2Area = document.getElementById('crafting-2x2-area'); const cInvArea = document.getElementById('creative-inventory-area');
-            if(window.currentWorldData && window.currentWorldData.mode === '創造') { if(c2x2Area) c2x2Area.classList.add('hidden'); if(cInvArea) cInvArea.classList.remove('hidden'); renderCreativeGrid(); } 
-            else {
-                if(c2x2Area) c2x2Area.classList.remove('hidden'); if(cInvArea) cInvArea.classList.add('hidden');
+            if(window.currentWorldData && window.currentWorldData.mode === '創造') {
+                document.getElementById('crafting-2x2-area').classList.add('hidden'); document.getElementById('creative-inventory-area').classList.remove('hidden'); renderCreativeGrid();
+            } else {
+                document.getElementById('crafting-2x2-area').classList.remove('hidden'); document.getElementById('creative-inventory-area').classList.add('hidden');
                 renderGrid('crafting-2x2-grid', craftingGrid2x2, 0, 4, (e,arr,idx) => handleSlotClick(e,arr,idx,false,updateCrafting2x2));
                 const res2x2 = document.getElementById('crafting-2x2-result'); if(res2x2) { res2x2.innerHTML = currentCraftingResult2x2 ? getIconHtml(currentCraftingResult2x2.type) + (currentCraftingResult2x2.count>1 ? `<div class="slot-count">${currentCraftingResult2x2.count}</div>` : '') : ''; if(currentCraftingResult2x2) { res2x2.setAttribute('data-name', blockTypes[currentCraftingResult2x2.type].name); } else { res2x2.removeAttribute('data-name'); } res2x2.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult2x2], 0, true, updateCrafting2x2); }; res2x2.oncontextmenu = (e) => e.preventDefault(); }
             }
+            
             renderGrid('ct-inventory-main-grid', playerInventory, 9, 27, handleSlotClick); renderGrid('ct-inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick);
             renderGrid('crafting-3x3-grid', craftingGrid3x3, 0, 9, (e,arr,idx) => handleSlotClick(e,arr,idx,false,updateCrafting3x3));
             const res3x3 = document.getElementById('crafting-3x3-result'); if(res3x3) { res3x3.innerHTML = currentCraftingResult3x3 ? getIconHtml(currentCraftingResult3x3.type) + (currentCraftingResult3x3.count>1 ? `<div class="slot-count">${currentCraftingResult3x3.count}</div>` : '') : ''; if(currentCraftingResult3x3) { res3x3.setAttribute('data-name', blockTypes[currentCraftingResult3x3.type].name); } else { res3x3.removeAttribute('data-name'); } res3x3.onmousedown = (e) => { e.preventDefault(); handleSlotClick(e, [currentCraftingResult3x3], 0, true, updateCrafting3x3); }; res3x3.oncontextmenu = (e) => e.preventDefault(); }
+            
             const chestScreen = document.getElementById('screen-chest'); if(chestScreen && !chestScreen.classList.contains('hidden') && activeChestPos && window.currentWorldData.chests) { const chestInv = window.currentWorldData.chests[activeChestPos]; if(chestInv) { renderGrid('chest-grid', chestInv, 0, 27, handleSlotClick); renderGrid('chest-inventory-main-grid', playerInventory, 9, 27, handleSlotClick); renderGrid('chest-inventory-hotbar-grid', playerInventory, 0, 9, handleSlotClick); } }
             const furnaceScreen = document.getElementById('screen-furnace'); if(furnaceScreen && !furnaceScreen.classList.contains('hidden') && activeFurnacePos) renderFurnaceUI();
         }
@@ -737,21 +797,15 @@
         window.openCraftingTable = () => { showScreen('screen-crafting-table'); if(controls) controls.unlock(); renderAllInventoryUIs(); };
         window.openChest = (posKey) => { showScreen('screen-chest'); if(controls) controls.unlock(); activeChestPos = posKey; if(!window.currentWorldData.chests) window.currentWorldData.chests = {}; if(!window.currentWorldData.chests[posKey]) { window.currentWorldData.chests[posKey] = new Array(27).fill(null); } renderAllInventoryUIs(); };
         window.openFurnace = (posKey) => { showScreen('screen-furnace'); if(controls) controls.unlock(); activeFurnacePos = posKey; if(!window.currentWorldData.furnaceData) window.currentWorldData.furnaceData = {}; if(!window.currentWorldData.furnaceData[posKey]) { window.currentWorldData.furnaceData[posKey] = { i: null, f: null, o: null, burnTime: 0, maxBurnTime: 0, smeltTimer: 0 }; } renderAllInventoryUIs(); };
+
         window.clearCraftingGrids = () => { const dropToInv = (arr) => { for(let i=0; i<arr.length; i++) { if(arr[i]) { giveItemToPlayer(arr[i].type, arr[i].count); arr[i] = null; } } }; dropToInv(craftingGrid2x2); updateCrafting2x2(); dropToInv(craftingGrid3x3); updateCrafting3x3(); if(cursorItem) { giveItemToPlayer(cursorItem.type, cursorItem.count); cursorItem = null; } };
 
         window.closeAllMenus = () => { window.clearCraftingGrids(); activeChestPos = null; activeFurnacePos = null; showScreen('hud'); renderAllInventoryUIs(); menuJustClosed = true; setTimeout(() => menuJustClosed = false, 200); document.getElementById('click-to-play').style.display = 'block'; if(controls && playerHealth > 0 && !isChatting) { try { controls.lock(); } catch(e) {} } };
 
-        function updateHealthUI() { const hb = document.getElementById('health-bar'); if (window.currentWorldData && window.currentWorldData.mode === '創造') { hb.innerHTML = ''; return; } hb.innerHTML = ''; for(let i=0; i<10; i++) { const heart = document.createElement('div'); heart.className = 'heart'; if(playerHealth >= (i+1)*2) heart.innerText = '❤️'; else if(playerHealth === (i+1)*2 - 1) heart.innerText = '💔'; else heart.innerText = '🖤'; hb.appendChild(heart); } }
-        function updateHungerUI() { const hb = document.getElementById('hunger-bar'); if (window.currentWorldData && window.currentWorldData.mode === '創造') { hb.innerHTML = ''; return; } hb.innerHTML = ''; for(let i=0; i<10; i++) { const icon = document.createElement('div'); icon.className = 'hunger-icon'; if(playerHunger >= (i+1)*2) icon.innerText = '🍗'; else if(playerHunger === (i+1)*2 - 1) icon.innerText = '🍖'; else icon.innerText = '🦴'; hb.appendChild(icon); } }
-        function updateBreathUI() { const bb = document.getElementById('breath-bar'); if (window.currentWorldData && window.currentWorldData.mode === '創造') { bb.innerHTML = ''; return; } bb.innerHTML = ''; if (playerBreath < 10) { for(let i=0; i<10; i++) { const icon = document.createElement('div'); icon.className = 'bubble'; if(playerBreath >= i+1) icon.innerText = '🫧'; else icon.innerText = ''; bb.appendChild(icon); } } }
-        
-        window.respawn = () => { playerHealth = 20; playerHunger = 20; playerBreath = 10; if(window.currentWorldData.spawnPos) playerPos.set(window.currentWorldData.spawnPos.x, window.currentWorldData.spawnPos.y, window.currentWorldData.spawnPos.z); else playerPos.set(0, window.getNoiseHeight(0,0) + 10, 0); velocity.set(0,0,0); updateHealthUI(); updateHungerUI(); updateBreathUI(); showScreen('hud'); document.getElementById('click-to-play').style.display = 'block'; };
-        
         function getSmeltResult(type) { if(type === 19) return 20; if(type === 10) return 11; if(type === 13) return 3; if(type === 4) return 18; if(type === 2) return 9; if(type === 41) return 42; return null; }
         function getFuelTime(type) { if(type === 18) return 40; if(type === 4 || type === 12) return 15; if(type === 16) return 5; if([22, 26, 29, 44, 47].includes(type)) return 10; return 0; }
         function getToolTier(type) { if([22, 26, 29, 44, 47].includes(type)) return 1; if([23, 27, 30, 45, 48].includes(type)) return 2; if([24, 28, 31, 46, 49].includes(type)) return 3; return 0; }
-        
-        window.getBlockHardnessAndDrop = function(type, toolType) {
+        function getBlockHardnessAndDrop(type, toolType) {
             const tier = getToolTier(toolType); let base = 0.5; let reqTier = 0; let isPickaxeBlock = false;
             if (type === 7) return {time: Infinity, drop: null};
             if (type === 3 || type === 13 || type === 25 || type === 39 || type === 21) { base = 1.5; reqTier = 1; isPickaxeBlock = true; }
@@ -765,21 +819,176 @@
             let drop = type; if (type === 3 && tier >= reqTier) drop = 13; if (type === 3 && tier < reqTier) drop = null; if (isPickaxeBlock && tier < reqTier) drop = null;
             if (type === 17 && tier >= reqTier) drop = 18; if (type === 11 || type === 50) drop = null; 
             return { time: time, drop: drop };
+        }
+
+        window.toggleRenderDist = () => { renderDist = renderDist === 2 ? 3 : (renderDist === 3 ? 4 : 2); document.getElementById('toggle-render-dist').innerText = `視距: ${renderDist} 區塊`; };
+
+        window.addEventListener('load', () => {
+            try { const localData = localStorage.getItem('mc_local_worlds'); if(localData) { window.worldsCache = JSON.parse(localData).map(w => { w.storageType = ['本機']; return w; }); window.worldsCache.sort((a,b) => b.updatedAt - a.updatedAt); } } catch(e) {}
+            let profile = { name: "Steve" }; try { const savedProfile = localStorage.getItem('mc_player_profile'); if(savedProfile) profile = JSON.parse(savedProfile); } catch(e) {}
+            const wName = document.getElementById('welcome-player-name'); if(wName) wName.value = profile.name;
+            const pName = document.getElementById('profile-player-name'); if(pName) pName.value = profile.name;
+            applyLanguage(); showScreen('screen-welcome'); initGameSystem();
+        });
+
+        async function initGameSystem() {
+            document.getElementById('sso-ui').innerHTML = '<button class="btn" style="width:auto; margin:0; padding:5px 10px; font-size:1rem; border-color:#000;" onclick="window.location.href=\'https://pandapanda6666.github.io/login-hub/?require=1&from=\'+encodeURIComponent(window.location.href)">登入/註冊</button>';
+            const urlParams = new URLSearchParams(window.location.search);
+            let serverUrl = urlParams.get('server');
+            if (!serverUrl) { try { const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt'); if(!res.ok) throw new Error(); serverUrl = (await res.text()).trim(); } catch (e) { initPreview(); return; } }
+
+            try {
+                if(typeof io !== 'undefined') {
+                    socket = io(serverUrl, { transports: ['websocket'] });
+                    socket.on('connect', () => {
+                        socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                        if (urlParams.get('auth') === 'true') { const user = urlParams.get('user'); if (user) socket.emit('requestProfile', { username: user }); window.history.replaceState({}, document.title, window.location.pathname); }
+                    });
+                    socket.on('profileData', (data) => { ssoProfile = data; document.getElementById('sso-ui').innerHTML = `<img src="${data.avatar || ''}" style="width:32px; height:32px; border-radius:50%; border:2px solid #fff;"><div style="display:flex; flex-direction:column; font-size:0.8rem; line-height:1.2;"><span>${data.nickname || '玩家'}</span><span style="color:#f1c40f;">P幣: ${data.pCoin || 0}</span></div>`; document.getElementById('sso-ui').onclick = () => { window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href); }; socket.emit('getAppData', { appId: appId }, (res) => { if (res && res.worlds) mergeCloudWorlds(res.worlds); }); });
+                    socket.on('playerJoined', handleNetworkPlayerJoined); socket.on('playerStateUpdated', handleNetworkPlayerState); socket.on('playerLeft', handleNetworkPlayerLeft); socket.on('appData', handleAppDataEvent);
+                }
+            } catch(e) {}
+            initPreview();
+        }
+
+        window.startSingleplayer = () => { currentRoomId = appId + '_single_' + Date.now(); isHost = true; showScreen('screen-worlds'); };
+
+        window.createMultiplayerRoom = () => {
+            const code = Math.floor(1000 + Math.random() * 9000).toString(); currentRoomId = appId + '_' + code; isHost = true;
+            showCustomModal("房間已建立", "您的房間代碼為：\n" + code + "\n\n請將此代碼分享給您的朋友！", false, () => { showScreen('screen-worlds'); });
         };
 
+        window.joinMultiplayerRoom = () => {
+            const code = document.getElementById('join-room-code').value.trim();
+            if(!code) return showCustomModal("錯誤", "請輸入房間代碼", false, null);
+            currentRoomId = appId + '_' + code; isHost = false;
+            showScreen('screen-loading'); document.getElementById('loading-title').innerText = '連線中...'; document.getElementById('loading-text').innerText = '正在等待主機同步世界資料...';
+            
+            if(socket && socket.connected) {
+                let pName = "玩家"; try { pName = JSON.parse(localStorage.getItem('mc_player_profile')).name; } catch(e) {}
+                socket.emit('joinGameRoom', { room: currentRoomId, characterData: { skinUrl: localPlayerSkin, name: pName } });
+                socket.emit('appData', { room: currentRoomId, action: 'requestWorldSync' });
+            } else { showCustomModal("連線失敗", "您目前處於離線狀態，無法加入多人房間。", false, () => showScreen('screen-multiplayer')); }
+            
+            setTimeout(() => { if(!gameLoopActive && !isHost) { showCustomModal("連線逾時", "無法取得主機世界資料，主機可能不存在或已離線。", false, () => showScreen('screen-multiplayer')); } }, 10000);
+        };
+
+        function mergeCloudWorlds(cloudWorlds) {
+            let localUpdated = false; const localWorldsMap = new Map(); window.worldsCache.forEach(w => localWorldsMap.set(w.id, w));
+            cloudWorlds.forEach(cloudW => {
+                if(localWorldsMap.has(cloudW.id)) {
+                    let localW = localWorldsMap.get(cloudW.id);
+                    if(cloudW.updatedAt > localW.updatedAt) { cloudW.storageType = ['雲端', '本機']; localWorldsMap.set(cloudW.id, cloudW); localUpdated = true; } 
+                    else if (localW.updatedAt > cloudW.updatedAt) { localW.storageType = ['本機', '雲端']; uploadToCloud(localW); } else { localW.storageType = ['本機', '雲端']; }
+                } else { cloudW.storageType = ['雲端', '本機']; localWorldsMap.set(cloudW.id, cloudW); localUpdated = true; }
+            });
+            window.worldsCache = Array.from(localWorldsMap.values()); window.worldsCache.sort((a,b) => b.updatedAt - a.updatedAt);
+            if(localUpdated) { const cleanCache = JSON.parse(JSON.stringify(window.worldsCache)); cleanCache.forEach(w => delete w.storageType); localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache)); }
+            if(!document.getElementById('screen-worlds').classList.contains('hidden')) renderWorldList();
+        }
+
+        function uploadToCloud(worldObj) { if(socket && socket.connected && ssoProfile && isHost) { const cleanCache = JSON.parse(JSON.stringify(window.worldsCache)); cleanCache.forEach(w => delete w.storageType); socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); } }
+
+        function saveToLocal(worldObj) {
+            if(!isHost) return; 
+            try {
+                let localWorlds = JSON.parse(localStorage.getItem('mc_local_worlds') || '[]'); const lIdx = localWorlds.findIndex(w => w.id === worldObj.id);
+                let cleanObj = JSON.parse(JSON.stringify(worldObj)); delete cleanObj.storageType;
+                if(lIdx !== -1) localWorlds[lIdx] = cleanObj; else localWorlds.push(cleanObj); localStorage.setItem('mc_local_worlds', JSON.stringify(localWorlds));
+                const cIdx = window.worldsCache.findIndex(w => w.id === worldObj.id); worldObj.storageType = (socket && socket.connected && ssoProfile) ? ['本機', '雲端同步中'] : ['本機'];
+                if(cIdx !== -1) window.worldsCache[cIdx] = worldObj; else window.worldsCache.push(worldObj); window.worldsCache.sort((a,b) => b.updatedAt - a.updatedAt);
+            } catch(e) {}
+        }
+
+        function saveWorldToBothSync(worldObj) {
+            if(!isHost) return; worldObj.updatedAt = Date.now(); saveToLocal(worldObj); uploadToCloud(worldObj);
+            setTimeout(() => { const cIdx = window.worldsCache.findIndex(w => w.id === worldObj.id); if(cIdx !== -1 && socket && socket.connected && ssoProfile) { window.worldsCache[cIdx].storageType = ['本機', '雲端']; if(!document.getElementById('screen-worlds').classList.contains('hidden')) renderWorldList(); } }, 1000);
+        }
+
+        window.deleteSelectedWorld = () => {
+            if(!window.selectedWorldId) return;
+            showCustomModal("刪除世界", "確定要刪除這個世界嗎？此操作無法還原！", true, () => {
+                window.worldsCache = window.worldsCache.filter(w => w.id !== window.selectedWorldId); const cleanCache = JSON.parse(JSON.stringify(window.worldsCache)); cleanCache.forEach(w => delete w.storageType); localStorage.setItem('mc_local_worlds', JSON.stringify(cleanCache));
+                if (socket && socket.connected && ssoProfile) { socket.emit('saveAppData', { appId: appId, data: { worlds: cleanCache } }); socket.emit('logAppMessage', { appId: appId, message: '刪除世界: ' + window.selectedWorldId, type: 'warning' }); }
+                window.selectedWorldId = null; renderWorldList();
+            });
+        };
+
+        window.exportSelectedWorld = () => {
+            if(!window.selectedWorldId) return; const w = window.worldsCache.find(w => w.id === window.selectedWorldId); if(!w) return;
+            let cleanObj = JSON.parse(JSON.stringify(w)); delete cleanObj.storageType; const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(cleanObj));
+            const downloadAnchorNode = document.createElement('a'); downloadAnchorNode.setAttribute("href", dataStr); downloadAnchorNode.setAttribute("download", cleanObj.name + "_backup.json"); document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
+        };
+
+        window.importWorldData = async (event) => {
+            const file = event.target.files[0]; if (!file) return; const reader = new FileReader();
+            reader.onload = async (e) => {
+                try { const importedWorld = JSON.parse(e.target.result); if(!importedWorld.id || !importedWorld.name) throw new Error("無效的存檔格式"); importedWorld.id = "imported_" + Date.now().toString(); saveWorldToBothSync(importedWorld); window.selectedWorldId = importedWorld.id; showCustomModal("成功", "世界匯入成功！已優先寫入本機。", false, null); } catch(err) { showCustomModal("錯誤", "匯入失敗：" + err.message, false, null); } event.target.value = '';
+            }; reader.readAsText(file);
+        };
+
+        const createConfig = { mode: ['生存', '創造', '冒險'], modeIdx: 0, difficulty: ['和平', '簡單', '普通', '困難', '超困難'], diffIdx: 2, type: ['普通', '超巨大', '超平坦'], typeIdx: 0, structures: ['開', '關'], structIdx: 0, chest: ['關', '開'], chestIdx: 0 };
+        window.toggleSetting = (key) => {
+            if(key === 'mode') { createConfig.modeIdx = (createConfig.modeIdx + 1) % createConfig.mode.length; document.getElementById('toggle-mode').innerText = '遊戲模式: ' + createConfig.mode[createConfig.modeIdx]; }
+            if(key === 'difficulty') { createConfig.diffIdx = (createConfig.diffIdx + 1) % createConfig.difficulty.length; document.getElementById('toggle-diff').innerText = '難易度: ' + createConfig.difficulty[createConfig.diffIdx]; }
+            if(key === 'type') { createConfig.typeIdx = (createConfig.typeIdx + 1) % createConfig.type.length; document.getElementById('toggle-type').innerText = '地圖類型: ' + createConfig.type[createConfig.typeIdx]; }
+            if(key === 'structures') { createConfig.structIdx = (createConfig.structIdx + 1) % createConfig.structures.length; document.getElementById('toggle-struct').innerText = '生成建築: ' + createConfig.structures[createConfig.structIdx]; }
+            if(key === 'chest') { createConfig.chestIdx = (createConfig.chestIdx + 1) % createConfig.chest.length; document.getElementById('toggle-chest').innerText = '獎勵箱: ' + createConfig.chest[createConfig.chestIdx]; }
+        };
+
+        window.createNewWorld = () => {
+            const modeText = document.getElementById('toggle-mode').innerText; const typeText = document.getElementById('toggle-type').innerText; const structText = document.getElementById('toggle-struct').innerText; const chestText = document.getElementById('toggle-chest').innerText;
+            const newWorld = {
+                id: Date.now().toString(), name: document.getElementById('new-world-name').value || '新的世界',
+                mode: modeText.split(': ')[1], type: typeText.split(': ')[1],
+                structures: structText.includes('開'), chest: chestText.includes('開'),
+                timeOfDay: 0, modifiedBlocks: {}, inventory: new Array(36).fill(null), chests: {}, furnaceData: {},
+                rules: { keepInventory: false, doDaylightCycle: true }, seed: Math.random() * 10000 
+            };
+            if(newWorld.mode === '創造') { newWorld.inventory[0] = {type:1, count:64}; newWorld.inventory[1] = {type:2, count:64}; newWorld.inventory[2] = {type:3, count:64}; newWorld.inventory[3] = {type:4, count:64}; newWorld.inventory[4] = {type:12, count:64}; newWorld.inventory[5] = {type:15, count:64}; newWorld.inventory[6] = {type:21, count:64}; newWorld.inventory[7] = {type:24, count:1}; }
+            saveWorldToBothSync(newWorld); window.selectedWorldId = newWorld.id; window.playSelectedWorld();
+        };
+
+        window.playSelectedWorld = () => { if(!window.selectedWorldId && window.worldsCache.length>0) window.selectedWorldId = window.worldsCache[0].id; window.currentWorldData = window.worldsCache.find(w => w.id === window.selectedWorldId); if(window.currentWorldData) startGame(); };
+
+        window.saveAndQuit = () => { 
+            if(window.currentWorldData) { window.currentWorldData.inventory = playerInventory; window.currentWorldData.playerPos = {x: playerPos.x, y: playerPos.y, z: playerPos.z}; if(camera) window.currentWorldData.playerRot = camera.rotation.y; saveWorldToBothSync(window.currentWorldData); } 
+            if(controls) controls.unlock(); gameLoopActive = false; showScreen('screen-main'); 
+        };
+
+        window.resumeGameFromPause = () => { window.clearCraftingGrids(); showScreen('hud'); renderAllInventoryUIs(); document.getElementById('click-to-play').style.display = 'block'; };
+
+        function renderWorldList() {
+            const container = document.getElementById('world-list-container'); container.innerHTML = '';
+            if(window.worldsCache.length === 0) container.innerHTML = '<div style="padding:10px;text-align:center;color:#888;">尚未建立任何世界</div>';
+            else window.worldsCache.forEach(w => {
+                const div = document.createElement('div'); div.className = 'world-item ' + (w.id === window.selectedWorldId ? 'selected' : '');
+                let tagHtml = '';
+                if(w.storageType) { if(w.storageType.includes('雲端') && w.storageType.includes('本機')) tagHtml = '<span style="color:#2ecc71;">[雲+機]</span>'; else if(w.storageType.includes('雲端同步中')) tagHtml = '<span style="color:#f39c12;">[同步中]</span>'; else if(w.storageType.includes('雲端')) tagHtml = '<span style="color:#3498db;">[雲端]</span>'; else tagHtml = '<span style="color:#f1c40f;">[本機]</span>'; }
+                div.innerHTML = `<strong>${tagHtml} ${w.name}</strong><br><span style="font-size:0.8rem;color:#aaa;">${w.mode} | ${w.type}</span>`;
+                div.onclick = () => { window.selectedWorldId = w.id; renderWorldList(); }; container.appendChild(div);
+            });
+        }
+
+        function updateHealthUI() { const hb = document.getElementById('health-bar'); if (window.currentWorldData && window.currentWorldData.mode === '創造') { hb.innerHTML = ''; return; } hb.innerHTML = ''; for(let i=0; i<10; i++) { const heart = document.createElement('div'); heart.className = 'heart'; if(playerHealth >= (i+1)*2) heart.innerText = '❤️'; else if(playerHealth === (i+1)*2 - 1) heart.innerText = '💔'; else heart.innerText = '🖤'; hb.appendChild(heart); } }
+        function updateHungerUI() { const hb = document.getElementById('hunger-bar'); if (window.currentWorldData && window.currentWorldData.mode === '創造') { hb.innerHTML = ''; return; } hb.innerHTML = ''; for(let i=0; i<10; i++) { const icon = document.createElement('div'); icon.className = 'hunger-icon'; if(playerHunger >= (i+1)*2) icon.innerText = '🍗'; else if(playerHunger === (i+1)*2 - 1) icon.innerText = '🍖'; else icon.innerText = '🦴'; hb.appendChild(icon); } }
+        function updateBreathUI() { const bb = document.getElementById('breath-bar'); if (window.currentWorldData && window.currentWorldData.mode === '創造') { bb.innerHTML = ''; return; } bb.innerHTML = ''; if (playerBreath < 10) { for(let i=0; i<10; i++) { const icon = document.createElement('div'); icon.className = 'bubble'; if(playerBreath >= i+1) icon.innerText = '🫧'; else icon.innerText = ''; bb.appendChild(icon); } } }
+        
+        window.respawn = () => { playerHealth = 20; playerHunger = 20; playerBreath = 10; if(window.currentWorldData.spawnPos) playerPos.set(window.currentWorldData.spawnPos.x, window.currentWorldData.spawnPos.y, window.currentWorldData.spawnPos.z); else playerPos.set(0, window.getNoiseHeight(0,0) + 10, 0); velocity.set(0,0,0); updateHealthUI(); updateHungerUI(); updateBreathUI(); showScreen('hud'); document.getElementById('click-to-play').style.display = 'block'; };
+        
         function takeDamage(amt, reason = 'unknown') { 
             if(window.currentWorldData.mode === '創造') return; playerHealth -= amt; updateHealthUI(); 
             if(playerHealth <= 0) { 
                 let rules = window.currentWorldData.rules || { keepInventory: false, doDaylightCycle: true };
                 if (!rules.keepInventory) { for(let i=0; i<36; i++) { if(playerInventory[i]) { spawnDroppedItem(playerPos.x, playerPos.y, playerPos.z, playerInventory[i].type, playerInventory[i].count); playerInventory[i] = null; } } renderAllInventoryUIs(); }
-                let msg = '你死亡了！';
-                if (reason === 'fall') msg = '落地過猛'; else if (reason === 'drown') msg = '淹死了'; else if (reason === 'starve') msg = '餓死了'; else if (reason === 'void') msg = '掉出世界外了'; else if (reason === 'lava') msg = '試圖在岩漿裡游泳'; else if (reason === 'cactus') msg = '被仙人掌刺死了'; else if (reason === 'suffocate') msg = '在牆裡窒息了'; else if (reason === 'suicide') msg = '自殺了'; else if (reason === 'explosion') msg = '被苦力怕炸死了'; else if (reason === 'mob') msg = '被怪物殺死了';
+                let msg = '你死亡了！'; if (reason === 'fall') msg = '落地過猛'; else if (reason === 'drown') msg = '淹死了'; else if (reason === 'starve') msg = '餓死了'; else if (reason === 'void') msg = '掉出世界外了'; else if (reason === 'lava') msg = '試圖在岩漿裡游泳'; else if (reason === 'cactus') msg = '被仙人掌刺死了'; else if (reason === 'suffocate') msg = '在牆裡窒息了'; else if (reason === 'suicide') msg = '自殺了'; else if (reason === 'mob') msg = '被怪物擊殺了'; else if (reason === 'explosion') msg = '被炸死了';
                 document.getElementById('death-title').innerText = msg; if(controls) controls.unlock(); showScreen('screen-death'); 
             } 
         }
 
         // === 聊天與指令系統 ===
         function closeChat() { isChatting = false; document.getElementById('chat-input').style.display = 'none'; document.getElementById('chat-input').value = ''; setTimeout(() => { if (playerHealth > 0) { try { controls.lock(); } catch(e) {} } }, 10); }
+
         function addChatMessage(msg, color = 'white') { const chatBox = document.getElementById('chat-messages'); const el = document.createElement('div'); el.style.color = color; el.innerText = msg; chatBox.appendChild(el); chatBox.scrollTop = chatBox.scrollHeight; document.getElementById('chat-container').classList.remove('hidden'); setTimeout(() => { if(!isChatting) document.getElementById('chat-container').classList.add('hidden'); }, 5000); }
 
         function handleChatCommand(text) {
@@ -789,8 +998,7 @@
                 if (cmd === 'tp') {
                     if (args.length === 4) { 
                         const parseC = (s, cur) => s.startsWith('~') ? cur + (s.length>1?parseFloat(s.substring(1)):0) : parseFloat(s);
-                        playerPos.set(parseC(args[1], playerPos.x), parseC(args[2], playerPos.y), parseC(args[3], playerPos.z));
-                        addChatMessage(`已將你傳送到 ${playerPos.x.toFixed(1)}, ${playerPos.y.toFixed(1)}, ${playerPos.z.toFixed(1)}`, '#2ecc71');
+                        playerPos.set(parseC(args[1], playerPos.x), parseC(args[2], playerPos.y), parseC(args[3], playerPos.z)); addChatMessage(`已將你傳送到 ${playerPos.x.toFixed(1)}, ${playerPos.y.toFixed(1)}, ${playerPos.z.toFixed(1)}`, '#2ecc71');
                     } else if (args.length === 2) { 
                         let targetName = args[1]; let found = false;
                         for(let id in networkPlayers) { if (networkPlayers[id].name === targetName) { playerPos.copy(networkPlayers[id].targetPos); addChatMessage(`已傳送到 ${targetName} 身邊`, '#2ecc71'); found = true; break; } }
@@ -820,15 +1028,9 @@
             for (let id in allP) { 
                 if(id !== socket.id && !networkPlayers[id]) { 
                     const p = createDummyPlayer(); scene.add(p.mesh); networkPlayers[id] = p; 
-                    if(allP[id].characterData) { 
-                        if(allP[id].characterData.skinUrl) applySkinToGroup(p.mesh, allP[id].characterData.skinUrl); 
-                        p.name = allP[id].characterData.name || "玩家";
-                    }
+                    if(allP[id].characterData) { if(allP[id].characterData.skinUrl) applySkinToGroup(p.mesh, allP[id].characterData.skinUrl); p.name = allP[id].characterData.name || "玩家"; }
                 } else if (id !== socket.id && networkPlayers[id]) {
-                    if(allP[id].characterData) { 
-                        if(allP[id].characterData.skinUrl) applySkinToGroup(networkPlayers[id].mesh, allP[id].characterData.skinUrl); 
-                        networkPlayers[id].name = allP[id].characterData.name || "玩家";
-                    }
+                    if(allP[id].characterData) { if(allP[id].characterData.skinUrl) applySkinToGroup(networkPlayers[id].mesh, allP[id].characterData.skinUrl); networkPlayers[id].name = allP[id].characterData.name || "玩家"; }
                 }
                 currentIds.delete(id); 
             }
@@ -837,10 +1039,7 @@
         
         function handleNetworkPlayerState(data) { 
             if(networkPlayers[data.id]) { networkPlayers[data.id].targetPos.set(data.x, data.y, data.z); networkPlayers[data.id].targetRot = data.rot; if(data.pitch !== undefined) networkPlayers[data.id].mesh.children[0].rotation.x = data.pitch; }
-            else if (data.id && data.id !== socket.id) {
-                const p = createDummyPlayer(); scene.add(p.mesh); networkPlayers[data.id] = p;
-                p.targetPos.set(data.x, data.y, data.z); p.targetRot = data.rot; p.mesh.position.set(data.x, data.y, data.z);
-            }
+            else if (data.id && data.id !== socket.id) { const p = createDummyPlayer(); scene.add(p.mesh); networkPlayers[data.id] = p; p.targetPos.set(data.x, data.y, data.z); p.targetRot = data.rot; p.mesh.position.set(data.x, data.y, data.z); }
         }
         function handleNetworkPlayerLeft(data) { if(networkPlayers[data.id]) { scene.remove(networkPlayers[data.id].mesh); delete networkPlayers[data.id]; } }
         function handleAppDataEvent(data) { 
@@ -849,128 +1048,62 @@
             if(data.action === 'hostWorldSync' && !isHost && !gameLoopActive) { window.currentWorldData = data.worldData; startGame(); }
         }
 
-        // === 核心遊戲啟動與物理迴圈 ===
-        function spawnDroppedItem(x, y, z, type, count) {
-            let geom, mesh; if (blockTypes[type] && blockTypes[type].isItem) { geom = new THREE.BoxGeometry(0.3, 0.3, 0.02); } else { geom = new THREE.BoxGeometry(0.25, 0.25, 0.25); }
-            mesh = new THREE.Mesh(geom, materials[type]); mesh.position.set(x + Math.random()*0.4 - 0.2, y + 0.5, z + Math.random()*0.4 - 0.2); mesh.castShadow = true; scene.add(mesh);
-            droppedItems.push({ mesh: mesh, type: type, count: count, vel: new THREE.Vector3((Math.random()-0.5)*2, 2, (Math.random()-0.5)*2), age: 0, isItem: (blockTypes[type] && blockTypes[type].isItem) });
-        }
-        
-        function spawnAnimal(x, y, z, aType) {
-            let group = new THREE.Group(); let body, head, fl, fr, bl, br, legL, legR, armL, armR;
-            if (['pig', 'sheep', 'cow', 'chicken'].includes(aType)) {
-                let colors = { 'pig': { b: 0xf8a5c2, l: 0xf8a5c2 }, 'sheep': { b: 0xecf0f1, l: 0xeec0a0 }, 'cow': { b: 0x5d4037, l: 0x222222 }, 'chicken': { b: 0xffffff, l: 0xf1c40f } };
-                let bMat = new THREE.MeshLambertMaterial({color: colors[aType].b}); let lMat = new THREE.MeshLambertMaterial({color: colors[aType].l});
-                let hMats = [bMat, bMat, bMat, bMat, getMat(aType+'_face'), bMat];
-                body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.8), bMat); body.position.y = 0.5; group.add(body);
-                head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), hMats); head.position.set(0, 0.6, 0.5); group.add(head);
-                let lGeom = new THREE.BoxGeometry(0.2, 0.3, 0.2);
-                fl = new THREE.Mesh(lGeom, lMat); fl.position.set(0.2, 0.15, 0.3); group.add(fl); fr = new THREE.Mesh(lGeom, lMat); fr.position.set(-0.2, 0.15, 0.3); group.add(fr);
-                bl = new THREE.Mesh(lGeom, lMat); bl.position.set(0.2, 0.15, -0.3); group.add(bl); br = new THREE.Mesh(lGeom, lMat); br.position.set(-0.2, 0.15, -0.3); group.add(br);
-                if(aType === 'chicken') group.scale.set(0.5, 0.5, 0.5);
-                animalEntities.push({ mesh: group, type: aType, hp: 10, vel: new THREE.Vector3(), timer: 0, head: head, legs: [fl, fr, bl, br], isBiped: false, hostile: false });
-            } else if (['zombie', 'skeleton', 'creeper'].includes(aType)) {
-                let colors = { 'zombie': { b: 0x3498db, l: 0x2c3e50, a: 0x2ecc71 }, 'skeleton': { b: 0xbdc3c7, l: 0xbdc3c7, a: 0xbdc3c7 }, 'creeper': { b: 0x27ae60, l: 0x27ae60, a: 0x27ae60 } };
-                let bMat = new THREE.MeshLambertMaterial({color: colors[aType].b}); let lMat = new THREE.MeshLambertMaterial({color: colors[aType].l}); let aMat = new THREE.MeshLambertMaterial({color: colors[aType].a});
-                let hMats = [aMat, aMat, aMat, aMat, getMat(aType+'_face'), aMat];
-                body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.25), bMat); body.position.y = 1.125; group.add(body);
-                let hGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5); hGeom.translate(0, 0.25, 0); head = new THREE.Mesh(hGeom, hMats); head.position.y = 1.5; group.add(head);
-                let legGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); legGeom.translate(0, -0.375, 0);
-                legL = new THREE.Mesh(legGeom, lMat); legL.position.set(0.125, 0.75, 0); group.add(legL); legR = new THREE.Mesh(legGeom, lMat); legR.position.set(-0.125, 0.75, 0); group.add(legR);
-                if (aType !== 'creeper') {
-                    let armGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); armGeom.translate(0, -0.375, 0);
-                    armL = new THREE.Mesh(armGeom, aMat); armL.position.set(0.375, 1.5, 0); group.add(armL); armR = new THREE.Mesh(armGeom, aMat); armR.position.set(-0.375, 1.5, 0); group.add(armR);
-                    if(aType === 'zombie') { armL.rotation.x = Math.PI/2; armR.rotation.x = Math.PI/2; }
-                }
-                animalEntities.push({ mesh: group, type: aType, hp: 20, vel: new THREE.Vector3(), timer: 0, head: head, legs: [legL, legR], arms: (aType !== 'creeper') ? [armL, armR] : null, isBiped: true, hostile: true });
-            } else if (aType === 'spider') {
-                let bMat = new THREE.MeshLambertMaterial({color: 0x222222}); let hMats = [bMat, bMat, bMat, bMat, getMat('spider_face'), bMat];
-                body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.8), bMat); body.position.y = 0.2; group.add(body);
-                head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), hMats); head.position.set(0, 0.2, 0.6); group.add(head);
-                animalEntities.push({ mesh: group, type: aType, hp: 16, vel: new THREE.Vector3(), timer: 0, head: head, legs: [], isBiped: false, hostile: true });
-            }
-            group.position.set(x, y, z); scene.add(group);
-        }
-
-        function giveItemToPlayer(type, count) {
-            for(let i=0; i<36; i++) { if(playerInventory[i] && playerInventory[i].type === type && playerInventory[i].count < 64) { const space = 64 - playerInventory[i].count; const add = Math.min(space, count); playerInventory[i].count += add; count -= add; if(count <= 0) { renderAllInventoryUIs(); return 0; } } }
-            for(let i=0; i<36; i++) { if(!playerInventory[i]) { playerInventory[i] = {type: type, count: count}; renderAllInventoryUIs(); return 0; } }
-            return count;
-        }
-
-        function getCollidingBlocks(minX, maxX, minY, maxY, minZ, maxZ) {
-            let hits = []; const startX = Math.floor(minX + 0.5), endX = Math.floor(maxX + 0.5); const startY = Math.floor(minY + 0.5), endY = Math.floor(maxY + 0.5); const startZ = Math.floor(minZ + 0.5), endZ = Math.floor(maxZ + 0.5);
-            for(let x = startX; x <= endX; x++) for(let y = startY; y <= endY; y++) for(let z = startZ; z <= endZ; z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 36 && t !== 50 && !blockTypes[t].isItem) hits.push({x, y, z, type: t}); }
-            return hits;
-        }
-
-        function updateDroppedItems(delta) {
-            for(let i = droppedItems.length - 1; i >= 0; i--) {
-                const item = droppedItems[i]; item.age += delta; item.vel.y -= 15.0 * delta; 
-                let nextY = item.mesh.position.y + item.vel.y * delta;
-                let hitsY = getCollidingBlocks(item.mesh.position.x-0.1, item.mesh.position.x+0.1, nextY-0.125, nextY+0.125, item.mesh.position.z-0.1, item.mesh.position.z+0.1);
-                if(hitsY.length > 0) { let highestY = -999; for(let b of hitsY) if(b.y > highestY) highestY = b.y; item.mesh.position.y = highestY + 0.5 + 0.125; item.vel.y = 0; item.vel.x *= 0.5; item.vel.z *= 0.5; } else { item.mesh.position.y = nextY; }
-                item.mesh.position.x += item.vel.x * delta; item.mesh.position.z += item.vel.z * delta; item.mesh.rotation.y += 2 * delta; 
-                if(item.age > 0.5 && item.mesh.position.distanceTo(playerPos) < 1.5) { const leftovers = giveItemToPlayer(item.type, item.count); if(leftovers === 0) { scene.remove(item.mesh); droppedItems.splice(i, 1); continue; } else { item.count = leftovers; } }
-                if(item.age > 300) { scene.remove(item.mesh); droppedItems.splice(i, 1); }
-            }
-        }
-        
-        function updateAnimals(delta, time) {
-            for(let i = animalEntities.length - 1; i >= 0; i--) {
-                const animal = animalEntities[i]; animal.timer += delta;
-                let speedMult = animal.hostile ? 2.5 : 1.5;
-                if (animal.hostile && (window.currentWorldData.mode === '生存' || window.currentWorldData.mode === '冒險')) {
-                    let dist = animal.mesh.position.distanceTo(playerPos);
-                    if (dist < 16) {
-                        let dx = playerPos.x - animal.mesh.position.x; let dz = playerPos.z - animal.mesh.position.z; let angle = Math.atan2(dx, dz);
-                        animal.vel.x = Math.sin(angle) * speedMult; animal.vel.z = Math.cos(angle) * speedMult; animal.mesh.rotation.y = angle;
-                        if (dist < 1.5 && animal.timer > 1.0) { if(animal.type === 'creeper') { takeDamage(10, 'explosion'); animal.hp = 0; } else { takeDamage(2, 'mob'); } animal.timer = 0; }
-                    } else if (animal.timer > 3) { animal.timer = 0; if(Math.random() > 0.3) { const angle = Math.random() * Math.PI * 2; animal.vel.x = Math.sin(angle) * speedMult; animal.vel.z = Math.cos(angle) * speedMult; animal.mesh.rotation.y = angle; } else { animal.vel.x = 0; animal.vel.z = 0; } }
-                } else { if(animal.timer > 3) { animal.timer = 0; if(Math.random() > 0.3) { const angle = Math.random() * Math.PI * 2; animal.vel.x = Math.sin(angle) * speedMult; animal.vel.z = Math.cos(angle) * speedMult; animal.mesh.rotation.y = angle; } else { animal.vel.x = 0; animal.vel.z = 0; } } }
-                
-                animal.vel.y -= 15.0 * delta;
-                let nextY = animal.mesh.position.y + animal.vel.y * delta;
-                let hitsY = getCollidingBlocks(animal.mesh.position.x-0.3, animal.mesh.position.x+0.3, nextY, nextY+(animal.isBiped?1.8:0.8), animal.mesh.position.z-0.4, animal.mesh.position.z+0.4);
-                if(hitsY.length > 0) { let highestY = -999; for(let b of hitsY) if(b.y > highestY) highestY = b.y; animal.mesh.position.y = highestY + 0.5; animal.vel.y = 0; } else { animal.mesh.position.y = nextY; }
-                
-                let nextX = animal.mesh.position.x + animal.vel.x * delta;
-                let hitsX = getCollidingBlocks(nextX-0.3, nextX+0.3, animal.mesh.position.y+0.1, animal.mesh.position.y+(animal.isBiped?1.7:0.7), animal.mesh.position.z-0.4, animal.mesh.position.z+0.4);
-                if(hitsX.length > 0) { animal.vel.x = 0; animal.timer = 3; } else { animal.mesh.position.x = nextX; }
-                
-                let nextZ = animal.mesh.position.z + animal.vel.z * delta;
-                let hitsZ = getCollidingBlocks(animal.mesh.position.x-0.3, animal.mesh.position.x+0.3, animal.mesh.position.y+0.1, animal.mesh.position.y+(animal.isBiped?1.7:0.7), nextZ-0.4, nextZ+0.4);
-                if(hitsZ.length > 0) { animal.vel.z = 0; animal.timer = 3; } else { animal.mesh.position.z = nextZ; }
-                
-                if(Math.abs(animal.vel.x) > 0 || Math.abs(animal.vel.z) > 0) {
-                    const walkTime = time * 0.01;
-                    if(animal.isBiped) { animal.legs[0].rotation.x = Math.sin(walkTime) * 0.5; animal.legs[1].rotation.x = -Math.sin(walkTime) * 0.5; if(animal.arms) { animal.arms[0].rotation.x = -Math.sin(walkTime) * 0.5; animal.arms[1].rotation.x = Math.sin(walkTime) * 0.5; } } 
-                    else if(animal.legs.length === 4) { animal.legs[0].rotation.x = Math.sin(walkTime) * 0.5; animal.legs[1].rotation.x = -Math.sin(walkTime) * 0.5; animal.legs[2].rotation.x = -Math.sin(walkTime) * 0.5; animal.legs[3].rotation.x = Math.sin(walkTime) * 0.5; }
-                } else { if(animal.legs) animal.legs.forEach(leg => leg.rotation.x = 0); if(animal.arms) animal.arms.forEach(arm => arm.rotation.x = 0); }
-                
-                if(animal.hp <= 0) {
-                    scene.remove(animal.mesh);
-                    if(animal.type === 'pig') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 2);
-                    if(animal.type === 'cow') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 3);
-                    if(animal.type === 'chicken') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 1);
-                    if(animal.type === 'sheep') { spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 32, 1); spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 1); }
-                    animalEntities.splice(i, 1);
-                }
-            }
-        }
+        // === 核心地形邏輯與生態系 ===
+        function getBiome(x, z) { let n = pseudoNoise(x/150, z/150); if (n < 0.35) return 'desert'; if (n > 0.65) return 'jungle'; return 'plains'; }
 
         window.getChunkKey = (cx, cz) => `${cx},${cz}`; window.getBlockKey = (x, y, z) => `${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`;
         function pseudoHash(x, z) { let s = window.currentWorldData && window.currentWorldData.seed ? window.currentWorldData.seed : 0; let h = Math.sin(x * 12.9898 + z * 78.233 + s) * 43758.5453123; return h - Math.floor(h); }
         function pseudoNoise(x, z) { const ix = Math.floor(x), iz = Math.floor(z); const fx = x - ix, fz = z - iz; const a = pseudoHash(ix, iz), b = pseudoHash(ix+1, iz), c = pseudoHash(ix, iz+1), d = pseudoHash(ix+1, iz+1); const ux = fx * fx * (3 - 2 * fx), uz = fz * fz * (3 - 2 * fz); return a + (b - a)*ux + (c - a)*uz + (a - b - c + d)*ux*uz; }
-        window.getNoiseHeight = (x, z) => { if(window.currentWorldData.type === '超平坦') return 4; const scale = window.currentWorldData.type === '超巨大' ? 50 : 25; let n = pseudoNoise(x/scale, z/scale) * (window.currentWorldData.type === '超巨大' ? 24 : 12) + pseudoNoise(x/(scale/2), z/(scale/2)) * 6; return Math.floor(n) + 5; };
-        function getTreeBlock(x, y, z, terrainH) {
-            if (window.currentWorldData.type === '超平坦' || terrainH < 6) return null;
+        
+        window.getNoiseHeight = (x, z) => { 
+            if(window.currentWorldData.type === '超平坦') return 4; 
+            const biome = getBiome(x, z); const scale = window.currentWorldData.type === '超巨大' ? 50 : 25; 
+            let base = pseudoNoise(x/scale, z/scale) * (window.currentWorldData.type === '超巨大' ? 24 : 12); let detail = pseudoNoise(x/(scale/2), z/(scale/2)) * 6; 
+            if (biome === 'desert') base = base * 0.5; else if (biome === 'jungle') base = base * 1.5; 
+            let riverNoise = Math.abs(pseudoNoise(x/40 + 100, z/40 + 100) - 0.5) * 2; let riverDrop = 0; if (riverNoise < 0.15) riverDrop = (0.15 - riverNoise) * 40; 
+            let finalH = Math.floor(base + detail - riverDrop) + 12; if (finalH < 1) finalH = 1; return finalH; 
+        };
+
+        function isCave(x, y, z) {
+            if (y > window.getNoiseHeight(x, z) - 3) return false;
+            let cx = x * 0.05, cy = y * 0.1, cz = z * 0.05;
+            let n1 = Math.sin(cx * 10 + cy * 5 + cz * 10); let n2 = Math.cos(cx * 8 - cy * 7 + cz * 8); let noise = pseudoNoise(x/20, z/20);
+            return (n1 * n2) + noise > 0.8;
+        }
+
+        function getStructureBlock(x, y, z, terrainH, biome) {
+            if (window.currentWorldData.structures === false) return null;
+            let cx = Math.floor(x / 32) * 32; let cz = Math.floor(z / 32) * 32; let h = pseudoHash(cx, cz);
+            if (h > 0.95) { 
+                let sx = cx + 16; let sz = cz + 16; let sy = window.getNoiseHeight(sx, sz);
+                if (sy < 10) return null; let dx = x - sx; let dy = y - sy; let dz = z - sz;
+                if (biome === 'desert') {
+                    if (dx >= -4 && dx <= 4 && dz >= -4 && dz <= 4 && dy >= 0 && dy < 6) {
+                        if (dy === 0) return 25; 
+                        if (dx === -4 || dx === 4 || dz === -4 || dz === 4) { if (dy === 1 && dx === 0 && dz === 4) return -1; return 10; }
+                        if (dy === 5 && dx >= -3 && dx <= 3 && dz >= -3 && dz <= 3) return 10;
+                        if (dx === 0 && dz === 0 && dy === 1) return 8; return -1; 
+                    }
+                } else {
+                    if (dx >= -3 && dx <= 3 && dz >= -3 && dz <= 3 && dy >= 0 && dy < 5) {
+                        if (dy === 0) return 13;
+                        if (dx === -3 || dx === 3 || dz === -3 || dz === 3) { if (Math.abs(dx) === 3 && Math.abs(dz) === 3) return 4; if (dy === 1 && dx === 0 && dz === 3) return -1; if (dy === 2 && (dx === 0 || dz === 0)) return 11; return 12; }
+                        if (dy === 4) return 12; if (dx === 2 && dz === -2 && dy === 1) return 8; if (dx === -2 && dz === -2 && dy === 1) return 15; return -1; 
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getTreeBlock(x, y, z, terrainH, biome) {
+            if (window.currentWorldData.type === '超平坦' || terrainH < 10 || biome === 'desert') return null;
+            let density = biome === 'jungle' ? 0.85 : 0.98;
             for (let dx = -2; dx <= 2; dx++) { for (let dz = -2; dz <= 2; dz++) {
                     const tx = x + dx; const tz = z + dz; const th = window.getNoiseHeight(tx, tz);
-                    if (th >= 6 && pseudoHash(tx, tz) > 0.98) {
-                        const tHeight = 4 + Math.floor(pseudoHash(tx+1, tz)*3); 
+                    if (th >= 10 && pseudoHash(tx, tz) > density) {
+                        let baseHeight = biome === 'jungle' ? 7 : 4; const tHeight = baseHeight + Math.floor(pseudoHash(tx+1, tz)*4); 
                         if (dx === 0 && dz === 0 && y > th && y <= th + tHeight) return 4; 
-                        if (y >= th + tHeight - 1 && y <= th + tHeight + 2) {
+                        if (y >= th + tHeight - 2 && y <= th + tHeight + 2) {
                             if (Math.abs(dx) <= 2 && Math.abs(dz) <= 2) { if (Math.abs(dx) === 2 && Math.abs(dz) === 2 && y >= th + tHeight) continue; if (dx === 0 && dz === 0 && y <= th + tHeight) continue; return 5; }
                         }
                     }
@@ -979,10 +1112,20 @@
 
         function getBlock(x, y, z) {
             const key = window.getBlockKey(x,y,z); if(window.currentWorldData.modifiedBlocks[key] !== undefined) return window.currentWorldData.modifiedBlocks[key];
-            if(y === 0) return 7; const h = window.getNoiseHeight(x, z);
-            if(y > h) { const tree = getTreeBlock(x, y, z, h); if (tree) return tree; if(y === h + 1 && h >= 5 && pseudoHash(x+10, z-10) > 0.99) return 32; if(h < 8 && y <= 8 && y > 0) return 6; return null; }
-            if(y === h) return window.currentWorldData.type === '超平坦' ? 1 : (h <= 8 ? 10 : 1);
-            if(y > h - 3) return 2; 
+            if(y === 0) return 7; 
+            
+            const biome = getBiome(x, z); const h = window.getNoiseHeight(x, z);
+            let struct = getStructureBlock(x, y, z, h, biome); if (struct === -1) return null; if (struct !== null) return struct;
+            
+            if(y > h) { 
+                const tree = getTreeBlock(x, y, z, h, biome); if (tree) return tree; 
+                if(h < 10 && y <= 10 && y > 0) return 6; 
+                if (biome === 'desert' && y === h + 1 && pseudoHash(x*3, z*3) > 0.99 && y > 10) { let cHeight = 1 + Math.floor(pseudoHash(x*4, z*4)*3); if (y <= h + cHeight) return 51; }
+                return null; 
+            }
+            if (isCave(x, y, z)) { if (y <= 4) return 50; return null; }
+            if(y === h) { if (h < 10) return 10; if (biome === 'desert') return 10; if (biome === 'jungle') return 1; return window.currentWorldData.type === '超平坦' ? 1 : 1; }
+            if(y > h - 3) { if (biome === 'desert') return 10; return 2; }
             let hash = pseudoHash(x*1.5, z*1.5 + y*2.0); if (hash > 0.95 && y < h - 5) return 14; if (hash < 0.08 && y < h - 4) return 19; if (hash > 0.45 && hash < 0.5 && y < h - 3) return 17; 
             return 3;
         }
@@ -1000,8 +1143,8 @@
                             if(type !== 6 && type !== 5 && type !== 11 && type !== 36 && type !== 40 && type !== 51) { if(t&&b&&l&&r&&f&&bk && t!==6&&b!==6&&l!==6&&r!==6&&f!==6&&bk!==6 && t!==5&&b!==5&&l!==5&&r!==5&&f!==5&&bk!==5 && t!==36&&b!==36&&l!==36&&r!==36&&f!==36&&bk!==36 && t!==40&&b!==40&&l!==40&&r!==40&&f!==40&&bk!==40 && t!==51&&b!==51&&l!==51&&r!==51&&f!==51&&bk!==51) continue; }
                             const geom = (type === 6) ? waterGeometry : blockGeometry; const mesh = new THREE.Mesh(geom, materials[type]);
                             mesh.position.set(x, y, z); mesh.castShadow = (type !== 6 && type !== 11 && type !== 36 && type !== 40 && type !== 51); mesh.receiveShadow = true; mesh.userData = {type, x, y, z}; group.add(mesh);
-                            if(type === 1 && Math.random() < 0.005 && animalEntities.length < 20) { const animals = ['pig', 'sheep', 'cow', 'chicken']; spawnAnimal(x, y+1.5, z, animals[Math.floor(Math.random()*animals.length)]); }
-                            if(y < h && Math.random() < 0.002 && animalEntities.length < 20) { const mobs = ['zombie', 'skeleton', 'creeper', 'spider']; spawnAnimal(x, y+1.5, z, mobs[Math.floor(Math.random()*mobs.length)]); }
+                            if(y === h && Math.random() < 0.005 && animalEntities.length < 20 && type !== 6 && type !== 50) { const animals = ['pig', 'sheep', 'cow', 'chicken']; spawnAnimal(x, y+1.5, z, animals[Math.floor(Math.random()*animals.length)]); }
+                            if(y < h && Math.random() < 0.002 && animalEntities.length < 20 && type !== 50) { const mobs = ['zombie', 'skeleton', 'creeper', 'spider']; spawnAnimal(x, y+1.5, z, mobs[Math.floor(Math.random()*mobs.length)]); }
                         }
                     }
                 }
@@ -1025,11 +1168,118 @@
             if(!isRemote && socket && socket.connected) socket.emit('appData', { room: currentRoomId, action: 'setBlock', worldId: window.currentWorldData.id, x: x, y: y, z: z, type: type });
         };
 
+        function spawnDroppedItem(x, y, z, type, count) {
+            let geom, mesh; if (blockTypes[type] && blockTypes[type].isItem) { geom = new THREE.BoxGeometry(0.3, 0.3, 0.02); } else { geom = new THREE.BoxGeometry(0.25, 0.25, 0.25); }
+            mesh = new THREE.Mesh(geom, materials[type]); mesh.position.set(x + Math.random()*0.4 - 0.2, y + 0.5, z + Math.random()*0.4 - 0.2); mesh.castShadow = true; scene.add(mesh);
+            droppedItems.push({ mesh: mesh, type: type, count: count, vel: new THREE.Vector3((Math.random()-0.5)*2, 2, (Math.random()-0.5)*2), age: 0, isItem: (blockTypes[type] && blockTypes[type].isItem) });
+        }
+        
+        function spawnAnimal(x, y, z, aType) {
+            let group = new THREE.Group(); let body, head, fl, fr, bl, br, legL, legR, armL, armR;
+            if (['pig', 'sheep', 'cow', 'chicken'].includes(aType)) {
+                let colors = { 'pig': { b: 0xf8a5c2, l: 0xf8a5c2 }, 'sheep': { b: 0xecf0f1, l: 0xeec0a0 }, 'cow': { b: 0x5d4037, l: 0x222222 }, 'chicken': { b: 0xffffff, l: 0xf1c40f } };
+                let bMat = new THREE.MeshLambertMaterial({color: colors[aType].b}); let lMat = new THREE.MeshLambertMaterial({color: colors[aType].l});
+                let hMats = [bMat, bMat, bMat, bMat, getMat(aType+'_face'), bMat];
+                body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.8), bMat); body.position.y = 0.5; group.add(body);
+                head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), hMats); head.position.set(0, 0.6, 0.5); group.add(head);
+                let lGeom = new THREE.BoxGeometry(0.2, 0.3, 0.2);
+                fl = new THREE.Mesh(lGeom, lMat); fl.position.set(0.2, 0.15, 0.3); group.add(fl);
+                fr = new THREE.Mesh(lGeom, lMat); fr.position.set(-0.2, 0.15, 0.3); group.add(fr);
+                bl = new THREE.Mesh(lGeom, lMat); bl.position.set(0.2, 0.15, -0.3); group.add(bl);
+                br = new THREE.Mesh(lGeom, lMat); br.position.set(-0.2, 0.15, -0.3); group.add(br);
+                if(aType === 'chicken') group.scale.set(0.5, 0.5, 0.5);
+                animalEntities.push({ mesh: group, type: aType, hp: 10, vel: new THREE.Vector3(), timer: 0, head: head, legs: [fl, fr, bl, br], isBiped: false, hostile: false });
+            } else if (['zombie', 'skeleton', 'creeper'].includes(aType)) {
+                let colors = { 'zombie': { b: 0x3498db, l: 0x2c3e50, a: 0x2ecc71 }, 'skeleton': { b: 0xbdc3c7, l: 0xbdc3c7, a: 0xbdc3c7 }, 'creeper': { b: 0x27ae60, l: 0x27ae60, a: 0x27ae60 } };
+                let bMat = new THREE.MeshLambertMaterial({color: colors[aType].b}); let lMat = new THREE.MeshLambertMaterial({color: colors[aType].l}); let aMat = new THREE.MeshLambertMaterial({color: colors[aType].a});
+                let hMats = [aMat, aMat, aMat, aMat, getMat(aType+'_face'), aMat];
+                body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.75, 0.25), bMat); body.position.y = 1.125; group.add(body);
+                let hGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5); hGeom.translate(0, 0.25, 0); head = new THREE.Mesh(hGeom, hMats); head.position.y = 1.5; group.add(head);
+                let legGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); legGeom.translate(0, -0.375, 0);
+                legL = new THREE.Mesh(legGeom, lMat); legL.position.set(0.125, 0.75, 0); group.add(legL);
+                legR = new THREE.Mesh(legGeom, lMat); legR.position.set(-0.125, 0.75, 0); group.add(legR);
+                if (aType !== 'creeper') {
+                    let armGeom = new THREE.BoxGeometry(0.25, 0.75, 0.25); armGeom.translate(0, -0.375, 0);
+                    armL = new THREE.Mesh(armGeom, aMat); armL.position.set(0.375, 1.5, 0); group.add(armL);
+                    armR = new THREE.Mesh(armGeom, aMat); armR.position.set(-0.375, 1.5, 0); group.add(armR);
+                    if(aType === 'zombie') { armL.rotation.x = Math.PI/2; armR.rotation.x = Math.PI/2; }
+                }
+                animalEntities.push({ mesh: group, type: aType, hp: 20, vel: new THREE.Vector3(), timer: 0, head: head, legs: [legL, legR], arms: (aType==='creeper'?[]:[armL, armR]), isBiped: true, hostile: true });
+            } else if (aType === 'spider') {
+                let bMat = new THREE.MeshLambertMaterial({color: 0x222222}); let hMats = [bMat, bMat, bMat, bMat, getMat('spider_face'), bMat];
+                body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 0.8), bMat); body.position.y = 0.2; group.add(body);
+                head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), hMats); head.position.set(0, 0.2, 0.6); group.add(head);
+                animalEntities.push({ mesh: group, type: aType, hp: 16, vel: new THREE.Vector3(), timer: 0, head: head, legs: [], isBiped: false, hostile: true });
+            }
+            group.position.set(x, y, z); scene.add(group);
+        }
+
+        function getCollidingBlocks(minX, maxX, minY, maxY, minZ, maxZ) {
+            let hits = [];
+            const startX = Math.floor(minX + 0.5), endX = Math.floor(maxX + 0.5); const startY = Math.floor(minY + 0.5), endY = Math.floor(maxY + 0.5); const startZ = Math.floor(minZ + 0.5), endZ = Math.floor(maxZ + 0.5);
+            for(let x = startX; x <= endX; x++) for(let y = startY; y <= endY; y++) for(let z = startZ; z <= endZ; z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 36 && t !== 50 && !blockTypes[t].isItem) hits.push({x, y, z, type: t}); }
+            return hits;
+        }
+
+        function updateDroppedItems(delta) {
+            for(let i = droppedItems.length - 1; i >= 0; i--) {
+                const item = droppedItems[i]; item.age += delta; item.vel.y -= 15.0 * delta; 
+                let nextY = item.mesh.position.y + item.vel.y * delta;
+                let hitsY = getCollidingBlocks(item.mesh.position.x-0.1, item.mesh.position.x+0.1, nextY-0.125, nextY+0.125, item.mesh.position.z-0.1, item.mesh.position.z+0.1);
+                if(hitsY.length > 0) { let highestY = -999; for(let b of hitsY) if(b.y > highestY) highestY = b.y; item.mesh.position.y = highestY + 0.5 + 0.125; item.vel.y = 0; item.vel.x *= 0.5; item.vel.z *= 0.5; } else { item.mesh.position.y = nextY; }
+                item.mesh.position.x += item.vel.x * delta; item.mesh.position.z += item.vel.z * delta; item.mesh.rotation.y += 2 * delta; 
+                if(item.age > 0.5 && item.mesh.position.distanceTo(playerPos) < 1.5) { const leftovers = giveItemToPlayer(item.type, item.count); if(leftovers === 0) { scene.remove(item.mesh); droppedItems.splice(i, 1); continue; } else { item.count = leftovers; } }
+                if(item.age > 300) { scene.remove(item.mesh); droppedItems.splice(i, 1); }
+            }
+        }
+        
+        function updateAnimals(delta, time) {
+            for(let i = animalEntities.length - 1; i >= 0; i--) {
+                const animal = animalEntities[i]; animal.timer += delta;
+                let speedMult = animal.hostile ? 2.5 : 1.5;
+                if (animal.hostile && (window.currentWorldData.mode === '生存' || window.currentWorldData.mode === '冒險')) {
+                    let dist = animal.mesh.position.distanceTo(playerPos);
+                    if (dist < 16) {
+                        let dx = playerPos.x - animal.mesh.position.x; let dz = playerPos.z - animal.mesh.position.z;
+                        let angle = Math.atan2(dx, dz); animal.vel.x = Math.sin(angle) * speedMult; animal.vel.z = Math.cos(angle) * speedMult; animal.mesh.rotation.y = angle;
+                        if (dist < 1.5 && animal.timer > 1.0) { if(animal.type === 'creeper') { takeDamage(10, 'explosion'); animal.hp = 0; } else { takeDamage(2, 'mob'); } animal.timer = 0; }
+                    } else if (animal.timer > 3) { animal.timer = 0; if(Math.random() > 0.3) { const angle = Math.random() * Math.PI * 2; animal.vel.x = Math.sin(angle) * speedMult; animal.vel.z = Math.cos(angle) * speedMult; animal.mesh.rotation.y = angle; } else { animal.vel.x = 0; animal.vel.z = 0; } }
+                } else { if(animal.timer > 3) { animal.timer = 0; if(Math.random() > 0.3) { const angle = Math.random() * Math.PI * 2; animal.vel.x = Math.sin(angle) * speedMult; animal.vel.z = Math.cos(angle) * speedMult; animal.mesh.rotation.y = angle; } else { animal.vel.x = 0; animal.vel.z = 0; } } }
+                
+                animal.vel.y -= 15.0 * delta; let nextY = animal.mesh.position.y + animal.vel.y * delta;
+                let hitsY = getCollidingBlocks(animal.mesh.position.x-0.3, animal.mesh.position.x+0.3, nextY, nextY+(animal.isBiped?1.8:0.8), animal.mesh.position.z-0.4, animal.mesh.position.z+0.4);
+                if(hitsY.length > 0) { let highestY = -999; for(let b of hitsY) if(b.y > highestY) highestY = b.y; animal.mesh.position.y = highestY + 0.5; animal.vel.y = 0; } else { animal.mesh.position.y = nextY; }
+                
+                let nextX = animal.mesh.position.x + animal.vel.x * delta;
+                let hitsX = getCollidingBlocks(nextX-0.3, nextX+0.3, animal.mesh.position.y+0.1, animal.mesh.position.y+(animal.isBiped?1.7:0.7), animal.mesh.position.z-0.4, animal.mesh.position.z+0.4);
+                if(hitsX.length > 0) { animal.vel.x = 0; animal.timer = 3; } else { animal.mesh.position.x = nextX; }
+                
+                let nextZ = animal.mesh.position.z + animal.vel.z * delta;
+                let hitsZ = getCollidingBlocks(animal.mesh.position.x-0.3, animal.mesh.position.x+0.3, animal.mesh.position.y+0.1, animal.mesh.position.y+(animal.isBiped?1.7:0.7), nextZ-0.4, nextZ+0.4);
+                if(hitsZ.length > 0) { animal.vel.z = 0; animal.timer = 3; } else { animal.mesh.position.z = nextZ; }
+                
+                if(Math.abs(animal.vel.x) > 0 || Math.abs(animal.vel.z) > 0) {
+                    const walkTime = time * 0.01;
+                    if(animal.isBiped) { animal.legs[0].rotation.x = Math.sin(walkTime) * 0.5; animal.legs[1].rotation.x = -Math.sin(walkTime) * 0.5; if(animal.arms && animal.type !== 'zombie') { animal.arms[0].rotation.x = -Math.sin(walkTime) * 0.5; animal.arms[1].rotation.x = Math.sin(walkTime) * 0.5; } } 
+                    else if(animal.legs.length === 4) { animal.legs[0].rotation.x = Math.sin(walkTime) * 0.5; animal.legs[1].rotation.x = -Math.sin(walkTime) * 0.5; animal.legs[2].rotation.x = -Math.sin(walkTime) * 0.5; animal.legs[3].rotation.x = Math.sin(walkTime) * 0.5; }
+                } else { if(animal.legs) animal.legs.forEach(leg => leg.rotation.x = 0); if(animal.arms && animal.type !== 'zombie') animal.arms.forEach(arm => arm.rotation.x = 0); }
+                
+                if(animal.hp <= 0) {
+                    scene.remove(animal.mesh);
+                    if(animal.type === 'pig') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 2);
+                    if(animal.type === 'cow') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 3);
+                    if(animal.type === 'chicken') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 1);
+                    if(animal.type === 'sheep') { spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 32, 1); spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 41, 1); }
+                    if(animal.type === 'spider') spawnDroppedItem(animal.mesh.position.x, animal.mesh.position.y, animal.mesh.position.z, 16, 1);
+                    animalEntities.splice(i, 1);
+                }
+            }
+        }
+
         function startGame() {
             playerInventory = window.currentWorldData.inventory || new Array(36).fill(null);
             if(!window.currentWorldData.furnaceData) window.currentWorldData.furnaceData = {};
             if(!window.currentWorldData.rules) window.currentWorldData.rules = { keepInventory: false, doDaylightCycle: true };
-            if(isNaN(window.currentWorldData.timeOfDay)) window.currentWorldData.timeOfDay = 0;
             renderAllInventoryUIs(); updateHealthUI(); updateHungerUI(); updateBreathUI(); showScreen('hud');
             
             if(!isHost || currentRoomId.includes('_single_')) { document.getElementById('room-code-display').innerText = ''; } else { document.getElementById('room-code-display').innerText = '房間代碼: ' + currentRoomId.split('_').pop(); }
@@ -1050,10 +1300,7 @@
                 controls = new THREE.PointerLockControls(camera, document.body); 
                 scene.add(controls.getObject());
                 
-                document.getElementById('hud').addEventListener('mousedown', (e) => { 
-                    if(!controls.isLocked && playerHealth > 0 && e.target.id === 'click-to-play') { controls.lock(); }
-                });
-                
+                document.getElementById('hud').addEventListener('mousedown', (e) => { if(!controls.isLocked && playerHealth > 0 && e.target.id === 'click-to-play') { try{controls.lock();}catch(err){} } });
                 controls.addEventListener('lock', () => { if(playerHealth > 0) { showScreen('hud'); document.getElementById('click-to-play').style.display = 'none'; } });
                 controls.addEventListener('unlock', () => { 
                     if(menuJustClosed) return; 
@@ -1071,14 +1318,7 @@
             for (let id in networkPlayers) { scene.remove(networkPlayers[id].mesh); } networkPlayers = {};
             
             if(Object.keys(window.currentWorldData.modifiedBlocks).length === 0) {
-                if(window.currentWorldData.structures) {
-                    const sy = window.getNoiseHeight(5,5);
-                    for(let bx=3; bx<=7; bx++) for(let bz=3; bz<=7; bz++) for(let by=sy; by<sy+4; by++) {
-                        if(bx===3||bx===7||bz===3||bz===7||by===sy+3) { if(!(bx===5&&bz===3&&by<sy+2)) window.currentWorldData.modifiedBlocks[window.getBlockKey(bx,by,bz)] = 12; }
-                        else window.currentWorldData.modifiedBlocks[window.getBlockKey(bx,by,bz)] = null;
-                    }
-                }
-                if(window.currentWorldData.chest) { const cy = window.getNoiseHeight(-3,-3); window.currentWorldData.modifiedBlocks[window.getBlockKey(-3,cy,-3)] = 8; }
+                if(window.currentWorldData.chest) { const cy = window.getNoiseHeight(0,0); window.currentWorldData.modifiedBlocks[window.getBlockKey(2,cy,0)] = 8; }
             }
 
             playerHealth = 20; fallHighestY = 0; 
@@ -1087,20 +1327,8 @@
             velocity.set(0,0,0); gameLoopActive = true; prevTime = performance.now();
             document.getElementById('click-to-play').style.display = 'block'; 
             
-            if (socket && socket.connected) { 
-                let pName = "玩家"; try { pName = JSON.parse(localStorage.getItem('mc_player_profile')).name; } catch(e) {}
-                socket.emit('joinGameRoom', { room: currentRoomId, characterData: { skinUrl: localPlayerSkin, name: pName } }); 
-            }
+            if (socket && socket.connected) { let pName = "玩家"; try { pName = JSON.parse(localStorage.getItem('mc_player_profile')).name; } catch(e) {} socket.emit('joinGameRoom', { room: currentRoomId, characterData: { skinUrl: localPlayerSkin, name: pName } }); }
             animate();
-        }
-
-        function checkCollisionBox(minX, maxX, minY, maxY, minZ, maxZ) {
-            const ix = Math.floor(minX), ax = Math.floor(maxX), iy = Math.floor(minY), ay = Math.floor(maxY), iz = Math.floor(minZ), az = Math.floor(maxZ);
-            for(let x=ix; x<=ax; x++) for(let y=iy; y<=ay; y++) for(let z=iz; z<=az; z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 11 && t !== 36 && t !== 40 && !blockTypes[t].isItem) return true; }
-            return false;
-        }
-        function getHitBlockType(minX, maxX, minY, maxY, minZ, maxZ) {
-            for(let x=Math.floor(minX); x<=Math.floor(maxX); x++) for(let y=Math.floor(minY); y<=Math.floor(maxY); y++) for(let z=Math.floor(minZ); z<=Math.floor(maxZ); z++) { let t = getBlock(x,y,z); if(t && t !== 6 && t !== 11 && t !== 36 && t !== 40 && !blockTypes[t].isItem) return t; } return null;
         }
 
         function animate() {
@@ -1138,20 +1366,16 @@
             const feetType = getBlock(pFloorX, Math.floor(playerPos.y), pFloorZ);
             const lowerBodyType = getBlock(pFloorX, Math.floor(playerPos.y + 0.5), pFloorZ);
 
-            const inWater = lowerBodyType === 6 || feetType === 6;
-            const headInWater = headType === 6;
-            const headInLava = headType === 50;
-            const inLava = lowerBodyType === 50 || feetType === 50;
+            const inWater = lowerBodyType === 6 || feetType === 6; const headInWater = headType === 6;
+            const headInLava = headType === 50; const inLava = lowerBodyType === 50 || feetType === 50;
             const onLadder = feetType === 36 || lowerBodyType === 36;
             const isSuffocating = headType && headType !== 6 && headType !== 36 && headType !== 50 && headType !== 51 && !blockTypes[headType].isItem;
 
             const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir); 
             const pitch = -Math.asin(Math.max(-1, Math.min(1, camDir.y)));
             
-            camDir.y = 0; 
-            if (camDir.lengthSq() < 0.000001) { const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion); camDir.set(camUp.x, 0, camUp.z); if (camDir.lengthSq() < 0.000001) camDir.set(0, 0, -1); }
-            camDir.normalize(); 
-            const camRight = new THREE.Vector3().crossVectors(camDir, new THREE.Vector3(0,1,0)).normalize();
+            camDir.y = 0; if (camDir.lengthSq() < 0.000001) { const camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion); camDir.set(camUp.x, 0, camUp.z); if (camDir.lengthSq() < 0.000001) camDir.set(0, 0, -1); }
+            camDir.normalize(); const camRight = new THREE.Vector3().crossVectors(camDir, new THREE.Vector3(0,1,0)).normalize();
 
             if (controls.isLocked) {
                 let inputZ = Number(moveState.b) - Number(moveState.f); let inputX = Number(moveState.r) - Number(moveState.l); if (inputX !== 0 && inputZ !== 0) { const l = Math.sqrt(inputX*inputX + inputZ*inputZ); inputX /= l; inputZ /= l; }
@@ -1163,26 +1387,28 @@
                 else if (onLadder) { velocity.y = 0; if(moveState.up) velocity.y = 4; else if(moveState.f || moveState.b || moveState.l || moveState.r) velocity.y = -1; canJump = true; fallHighestY = playerPos.y; }
                 else { velocity.y -= 25.0 * delta; if(moveState.up && canJump) { velocity.y = 8.5; canJump = false; } }
 
-                let hw = playerAABB.width / 2; let yBase = playerPos.y + 0.05; let yTop = playerPos.y + 1.75;
-                
+                let hw = playerAABB.width / 2;
                 let nextX = playerPos.x + velocity.x * delta;
-                if(checkCollisionBox(nextX-hw, nextX+hw, yBase, yTop, playerPos.z-hw, playerPos.z+hw)) { 
-                    let hitTypeX = getHitBlockType(nextX-hw, nextX+hw, yBase, yTop, playerPos.z-hw, playerPos.z+hw);
-                    if ((hitTypeX === 38 || hitTypeX === 39) && !checkCollisionBox(nextX-hw, nextX+hw, playerPos.y+1.05, playerPos.y+1.8, playerPos.z-hw, playerPos.z+hw)) { playerPos.y += 1.0; playerPos.x = nextX; } 
-                    else { if(velocity.x > 0) playerPos.x = Math.floor(nextX+hw)-hw-0.001; else if(velocity.x < 0) playerPos.x = Math.floor(nextX-hw)+1+hw+0.001; velocity.x = 0; }
+                let hitsX = getCollidingBlocks(nextX-hw, nextX+hw, playerPos.y+0.05, playerPos.y+1.75, playerPos.z-hw, playerPos.z+hw);
+                if(hitsX.length > 0) { 
+                    if (hitsX.every(b => b.type === 38 || b.type === 39) && getCollidingBlocks(nextX-hw, nextX+hw, playerPos.y+1.05, playerPos.y+1.8, playerPos.z-hw, playerPos.z+hw).length === 0) { playerPos.y += 1.0; playerPos.x = nextX; } 
+                    else { if (velocity.x > 0) { let hit = false, minX_hit = Infinity; for (let b of hitsX) { if (b.x > playerPos.x) { if (b.x < minX_hit) minX_hit = b.x; hit = true; } } if (hit) { playerPos.x = minX_hit - 0.5 - hw - 0.001; velocity.x = 0; } else playerPos.x = nextX; } 
+                    else if (velocity.x < 0) { let hit = false, maxX_hit = -Infinity; for (let b of hitsX) { if (b.x < playerPos.x) { if (b.x > maxX_hit) maxX_hit = b.x; hit = true; } } if (hit) { playerPos.x = maxX_hit + 0.5 + hw + 0.001; velocity.x = 0; } else playerPos.x = nextX; } else playerPos.x = nextX; }
                 } else playerPos.x = nextX;
 
                 let nextY = playerPos.y + velocity.y * delta;
-                if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, nextY, nextY+playerAABB.height, playerPos.z-hw, playerPos.z+hw)) {
-                    if(velocity.y > 0) playerPos.y = Math.floor(nextY+playerAABB.height)-playerAABB.height-0.001;
-                    else if(velocity.y < 0) { playerPos.y = Math.floor(nextY)+1; canJump = true; const fallDist = fallHighestY - playerPos.y; if(fallDist > 3.5 && window.currentWorldData.mode === '生存') takeDamage(Math.floor(fallDist - 3), 'fall'); fallHighestY = playerPos.y; } velocity.y = 0;
+                let hitsY = getCollidingBlocks(playerPos.x-hw, playerPos.x+hw, nextY, nextY+playerAABB.height, playerPos.z-hw, playerPos.z+hw);
+                if(hitsY.length > 0) {
+                    if(velocity.y > 0) { let hit = false, minY_hit = Infinity; for (let b of hitsY) { if (b.y > playerPos.y) { if (b.y < minY_hit) minY_hit = b.y; hit = true; } } if (hit) { playerPos.y = minY_hit - 0.5 - playerAABB.height - 0.001; velocity.y = 0; } else playerPos.y = nextY; }
+                    else if(velocity.y < 0) { let hit = false, maxY_hit = -Infinity; for (let b of hitsY) { if (b.y <= playerPos.y + 0.5) { if (b.y > maxY_hit) maxY_hit = b.y; hit = true; } } if (hit) { playerPos.y = maxY_hit + 0.5; canJump = true; const fallDist = fallHighestY - playerPos.y; if(fallDist > 3.5 && window.currentWorldData.mode === '生存') takeDamage(Math.floor(fallDist - 3), 'fall'); fallHighestY = playerPos.y; velocity.y = 0; } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; } } else playerPos.y = nextY;
                 } else { playerPos.y = nextY; canJump = false; if(playerPos.y > fallHighestY) fallHighestY = playerPos.y; }
 
                 let nextZ = playerPos.z + velocity.z * delta;
-                if(checkCollisionBox(playerPos.x-hw, playerPos.x+hw, yBase, yTop, nextZ-hw, nextZ+hw)) { 
-                    let hitTypeZ = getHitBlockType(playerPos.x-hw, playerPos.x+hw, yBase, yTop, nextZ-hw, nextZ+hw);
-                    if ((hitTypeZ === 38 || hitTypeZ === 39) && !checkCollisionBox(playerPos.x-hw, playerPos.x+hw, playerPos.y+1.05, playerPos.y+1.8, nextZ-hw, nextZ+hw)) { playerPos.y += 1.0; playerPos.z = nextZ; } 
-                    else { if(velocity.z > 0) playerPos.z = Math.floor(nextZ+hw)-hw-0.001; else if(velocity.z < 0) playerPos.z = Math.floor(nextZ-hw)+1+hw+0.001; velocity.z = 0; }
+                let hitsZ = getCollidingBlocks(playerPos.x-hw, playerPos.x+hw, playerPos.y+0.05, playerPos.y+1.75, nextZ-hw, nextZ+hw);
+                if(hitsZ.length > 0) { 
+                    if (hitsZ.every(b => b.type === 38 || b.type === 39) && getCollidingBlocks(playerPos.x-hw, playerPos.x+hw, playerPos.y+1.05, playerPos.y+1.8, nextZ-hw, nextZ+hw).length === 0) { playerPos.y += 1.0; playerPos.z = nextZ; } 
+                    else { if (velocity.z > 0) { let hit = false, minZ_hit = Infinity; for (let b of hitsZ) { if (b.z > playerPos.z) { if (b.z < minZ_hit) minZ_hit = b.z; hit = true; } } if (hit) { playerPos.z = minZ_hit - 0.5 - hw - 0.001; velocity.z = 0; } else playerPos.z = nextZ; } 
+                    else if (velocity.z < 0) { let hit = false, maxZ_hit = -Infinity; for (let b of hitsZ) { if (b.z < playerPos.z) { if (b.z > maxZ_hit) maxZ_hit = b.z; hit = true; } } if (hit) { playerPos.z = maxZ_hit + 0.5 + hw + 0.001; velocity.z = 0; } else playerPos.z = nextZ; } else playerPos.z = nextZ; }
                 } else playerPos.z = nextZ;
 
                 if (playerPos.y < -20) { takeDamage(20, 'void'); }
@@ -1194,42 +1420,27 @@
                 if (touchingCactus) { cactusTimer += delta; if (cactusTimer > 0.5) { takeDamage(1, 'cactus'); cactusTimer = 0; } } else { cactusTimer = 0; }
 
                 if (window.currentWorldData.mode === '生存' || window.currentWorldData.mode === '冒險') {
-                    if (headInWater) { playerBreath -= delta * 0.5; if (playerBreath <= 0) { drownTimer += delta; if (drownTimer > 1.0) { takeDamage(2, 'drown'); drownTimer = 0; } } } 
-                    else { playerBreath = Math.min(10, playerBreath + delta * 5); }
-                    updateBreathUI();
-                    
+                    if (headInWater) { playerBreath -= delta * 0.5; if (playerBreath <= 0) { drownTimer += delta; if (drownTimer > 1.0) { takeDamage(2, 'drown'); drownTimer = 0; } } } else { playerBreath = Math.min(10, playerBreath + delta * 5); } updateBreathUI();
                     let drainRate = 0.005 * delta; if (moveState.up && canJump) drainRate += 0.02; if (inWater && (inputX !== 0 || inputZ !== 0)) drainRate += 0.01 * delta; if (isMining) drainRate += 0.005 * delta;
                     hungerTimer += drainRate; if (hungerTimer >= 1.0) { hungerTimer = 0; playerHunger = Math.max(0, playerHunger - 1); updateHungerUI(); }
-                    if (playerHunger <= 0) { starveTimer += delta; if (starveTimer > 4.0) { takeDamage(1, 'starve'); starveTimer = 0; } } 
-                    else if (playerHunger >= 18 && playerHealth < 20) { regenTimer += delta; if (regenTimer > 4.0) { playerHealth++; updateHealthUI(); playerHunger--; updateHungerUI(); regenTimer = 0; } }
+                    if (playerHunger <= 0) { starveTimer += delta; if (starveTimer > 4.0) { takeDamage(1, 'starve'); starveTimer = 0; } } else if (playerHunger >= 18 && playerHealth < 20) { regenTimer += delta; if (regenTimer > 4.0) { playerHealth++; updateHealthUI(); playerHunger--; updateHungerUI(); regenTimer = 0; } }
                 }
             }
 
-            playerGroup.position.copy(playerPos);
-            const horSpeed = Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z);
+            playerGroup.position.copy(playerPos); const horSpeed = Math.sqrt(velocity.x*velocity.x + velocity.z*velocity.z);
             if (inWater || inLava) {
-                playerGroup.rotation.x = -Math.PI / 2; playerGroup.position.y -= 0.5;
-                const swimTime = time * 0.01;
+                playerGroup.rotation.x = -Math.PI / 2; playerGroup.position.y -= 0.5; const swimTime = time * 0.01;
                 playerGroup.children[2].rotation.x = Math.PI + Math.sin(swimTime) * 0.2; playerGroup.children[3].rotation.x = Math.PI - Math.sin(swimTime) * 0.2;
-                playerGroup.children[4].rotation.x = Math.sin(swimTime * 2) * 0.5; playerGroup.children[5].rotation.x = -Math.sin(swimTime * 2) * 0.5;
-                playerGroup.children[0].rotation.x = 0; 
+                playerGroup.children[4].rotation.x = Math.sin(swimTime * 2) * 0.5; playerGroup.children[5].rotation.x = -Math.sin(swimTime * 2) * 0.5; playerGroup.children[0].rotation.x = -pitch;
             } else {
                 playerGroup.rotation.x = 0;
-                if(horSpeed > 0.5 && !onLadder) { 
-                    const swing = Math.sin(time * 0.01) * 0.5; 
-                    playerGroup.children[2].rotation.x = swing; playerGroup.children[3].rotation.x = -swing; 
-                    playerGroup.children[4].rotation.x = -swing; playerGroup.children[5].rotation.x = swing; 
-                } else { 
-                    playerGroup.children[2].rotation.x = 0; playerGroup.children[3].rotation.x = 0; 
-                    playerGroup.children[4].rotation.x = 0; playerGroup.children[5].rotation.x = 0; 
-                }
-                playerGroup.children[0].rotation.x = pitch; 
+                if(horSpeed > 0.5 && !onLadder) { const swing = Math.sin(time * 0.01) * 0.5; playerGroup.children[2].rotation.x = swing; playerGroup.children[3].rotation.x = -swing; playerGroup.children[4].rotation.x = -swing; playerGroup.children[5].rotation.x = swing; } 
+                else { playerGroup.children[2].rotation.x = 0; playerGroup.children[3].rotation.x = 0; playerGroup.children[4].rotation.x = 0; playerGroup.children[5].rotation.x = 0; }
+                playerGroup.children[0].rotation.x = pitch;
             }
             
             const yRotation = Math.atan2(camDir.x, camDir.z); playerGroup.rotation.y = yRotation;
-
-            camera.position.copy(playerPos); camera.position.y += 1.6;
-            renderCamera.position.copy(camera.position); renderCamera.quaternion.copy(camera.quaternion);
+            camera.position.copy(playerPos); camera.position.y += 1.6; renderCamera.position.copy(camera.position); renderCamera.quaternion.copy(camera.quaternion);
             
             if (cameraMode === 1) { playerGroup.visible = true; const offset = new THREE.Vector3(0, 0, 4).applyQuaternion(camera.quaternion); renderCamera.position.add(offset); } 
             else if (cameraMode === 2) { playerGroup.visible = true; const offset = new THREE.Vector3(0, 0, -4).applyQuaternion(camera.quaternion); renderCamera.position.add(offset); renderCamera.rotateY(Math.PI); } 
@@ -1247,10 +1458,7 @@
                 if (intersects.length > 0 && intersects[0].distance < 6) {
                     if (intersects[0].object.parent && animalEntities.find(a => a.mesh === intersects[0].object.parent)) {
                         miningTimer += delta;
-                        if(miningTimer > 0.5) {
-                            let animal = animalEntities.find(a => a.mesh === intersects[0].object.parent);
-                            if(animal) { animal.hp -= 2; animal.vel.y = 5; animal.vel.x = camDir.x * 5; animal.vel.z = camDir.z * 5; } miningTimer = 0;
-                        }
+                        if(miningTimer > 0.5) { let animal = animalEntities.find(a => a.mesh === intersects[0].object.parent); if(animal) { animal.hp -= 2; animal.vel.y = 5; animal.vel.x = camDir.x * 5; animal.vel.z = camDir.z * 5; } miningTimer = 0; }
                     } else {
                         const p = intersects[0].object.userData; const key = window.getBlockKey(p.x, p.y, p.z);
                         if (miningTargetKey !== key) { miningTargetKey = key; miningTimer = 0; } 
@@ -1264,18 +1472,23 @@
                 } else { miningTimer = 0; miningTargetKey = null; document.getElementById('mining-progress-container').style.display = 'none'; }
             }
             
-            for (let id in networkPlayers) {
-                let p = networkPlayers[id]; p.mesh.position.lerp(p.targetPos, 0.2); let dr = p.targetRot - p.mesh.rotation.y; while(dr > Math.PI) dr -= Math.PI*2; while(dr < -Math.PI) dr += Math.PI*2; p.mesh.rotation.y += dr * 0.2; let dist = p.mesh.position.distanceTo(p.lastPos);
-                if (dist > 0.05) { let swing = Math.sin(time * 0.01) * 0.5; p.armL.rotation.x = swing; p.armR.rotation.x = -swing; p.legL.rotation.x = -swing; p.legR.rotation.x = swing; } else { p.armL.rotation.x = 0; p.armR.rotation.x = 0; p.legL.rotation.x = 0; p.legR.rotation.x = 0; } p.lastPos.copy(p.mesh.position);
-            }
+            for (let id in networkPlayers) { let p = networkPlayers[id]; p.mesh.position.lerp(p.targetPos, 0.2); let dr = p.targetRot - p.mesh.rotation.y; while(dr > Math.PI) dr -= Math.PI*2; while(dr < -Math.PI) dr += Math.PI*2; p.mesh.rotation.y += dr * 0.2; let dist = p.mesh.position.distanceTo(p.lastPos); if (dist > 0.05) { let swing = Math.sin(time * 0.01) * 0.5; p.armL.rotation.x = swing; p.armR.rotation.x = -swing; p.legL.rotation.x = -swing; p.legR.rotation.x = swing; } else { p.armL.rotation.x = 0; p.armR.rotation.x = 0; p.legL.rotation.x = 0; p.legR.rotation.x = 0; } p.lastPos.copy(p.mesh.position); }
             renderer.render(scene, renderCamera); 
         }
 
         function setupInput() {
             document.addEventListener('keydown', e => {
-                if(!controls.isLocked && !isChatting) { const invHidden = document.getElementById('screen-inventory').classList.contains('hidden'); const craftHidden = document.getElementById('screen-crafting-table').classList.contains('hidden'); const chestHidden = document.getElementById('screen-chest').classList.contains('hidden'); const furnHidden = document.getElementById('screen-furnace').classList.contains('hidden'); if(e.code === 'KeyE' && !invHidden) window.closeAllMenus(); if(e.code === 'Escape' && (!invHidden || !craftHidden || !chestHidden || !furnHidden)) { window.closeAllMenus(); return; } return; }
+                if(!controls.isLocked && !isChatting) {
+                    const invHidden = document.getElementById('screen-inventory').classList.contains('hidden'); const craftHidden = document.getElementById('screen-crafting-table').classList.contains('hidden'); const chestHidden = document.getElementById('screen-chest').classList.contains('hidden'); const furnHidden = document.getElementById('screen-furnace').classList.contains('hidden');
+                    if(e.code === 'KeyE' && !invHidden) window.closeAllMenus();
+                    if(e.code === 'Escape' && (!invHidden || !craftHidden || !chestHidden || !furnHidden)) { window.closeAllMenus(); return; } return;
+                }
                 if (isChatting) { if (e.code === 'Enter') { handleChatCommand(document.getElementById('chat-input').value); closeChat(); } else if (e.code === 'Escape') { closeChat(); } return; }
-                switch(e.code) { case 'KeyW': moveState.f = true; break; case 'KeyA': moveState.l = true; break; case 'KeyS': moveState.b = true; break; case 'KeyD': moveState.r = true; break; case 'Space': moveState.up = true; break; case 'KeyV': cameraMode = (cameraMode + 1) % 3; break; case 'KeyE': window.openInventory(); break; case 'KeyT': case 'Slash': e.preventDefault(); isChatting = true; controls.unlock(); document.getElementById('chat-input').style.display = 'block'; if(e.code === 'Slash') document.getElementById('chat-input').value = '/'; setTimeout(() => document.getElementById('chat-input').focus(), 50); break; }
+                switch(e.code) {
+                    case 'KeyW': moveState.f = true; break; case 'KeyA': moveState.l = true; break; case 'KeyS': moveState.b = true; break; case 'KeyD': moveState.r = true; break; case 'Space': moveState.up = true; break;
+                    case 'KeyV': cameraMode = (cameraMode + 1) % 3; break; case 'KeyE': window.openInventory(); break;
+                    case 'KeyT': case 'Slash': e.preventDefault(); isChatting = true; controls.unlock(); document.getElementById('chat-input').style.display = 'block'; if(e.code === 'Slash') document.getElementById('chat-input').value = '/'; setTimeout(() => document.getElementById('chat-input').focus(), 50); break;
+                }
                 if(e.key >= '1' && e.key <= '9') { selectedSlot = parseInt(e.key) - 1; renderAllInventoryUIs(); }
             });
             document.addEventListener('keyup', e => { if(!isChatting) { switch(e.code) { case 'KeyW': moveState.f = false; break; case 'KeyA': moveState.l = false; break; case 'KeyS': moveState.b = false; break; case 'KeyD': moveState.r = false; break; case 'Space': moveState.up = false; break; } }});
@@ -1290,8 +1503,7 @@
                     if (intersects.length > 0 && intersects[0].distance < 6) {
                         const p = intersects[0].object.userData;
                         if(p.type === 15) { window.openCraftingTable(); return; } if(p.type === 8 || p.type === 43) { window.openChest(window.getBlockKey(p.x, p.y, p.z)); return; } if(p.type === 21) { window.openFurnace(window.getBlockKey(p.x, p.y, p.z)); return; } if(p.type === 33) { window.currentWorldData.spawnPos = {x: p.x, y: p.y+1, z: p.z}; showToast(getLang('spawn_set')||"已重設重生點！"); return; }
-                        if(window.currentWorldData.mode === '冒險') return; 
-                        if(!selItem || selItem.count <= 0) return; 
+                        if(window.currentWorldData.mode === '冒險') return; if(!selItem || selItem.count <= 0) return; 
                         if(selItem.type >= 100 && selItem.type <= 107) { const n = intersects[0].face.normal; const nx = Math.round(p.x + n.x), ny = Math.round(p.y + n.y), nz = Math.round(p.z + n.z); spawnAnimal(nx, ny, nz, blockTypes[selItem.type].entity); if(window.currentWorldData.mode === '生存') { selItem.count--; if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); } return; }
                         if(selItem.type === 34 && p.type === 6) { window.setBlock(p.x, p.y, p.z, null); selItem.count--; giveItemToPlayer(35, 1); if(selItem.count <= 0) playerInventory[selectedSlot] = null; renderAllInventoryUIs(); return; }
                         const n = intersects[0].face.normal; const nx = Math.round(p.x + n.x), ny = Math.round(p.y + n.y), nz = Math.round(p.z + n.z);
