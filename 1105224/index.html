@@ -10,7 +10,6 @@
     <script>
         // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
         
-        // 1. 強制建立連線與全域錯誤捕捉 (後台記錄)
         const originalWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
@@ -27,32 +26,18 @@
         let socket;
         let serverUrl = '';
         let collectedData = {};
-        let otherPlayers = {};
 
-        // 獲取定位資料
-        function getGeolocation() {
-            return new Promise((resolve) => {
-                if ("geolocation" in navigator) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            resolve({
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude,
-                                accuracy: position.coords.accuracy
-                            });
-                        },
-                        (error) => {
-                            resolve({ error: "定位授權失敗或超時" });
-                        },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                } else {
-                    resolve({ error: "瀏覽器不支援定位功能" });
-                }
-            });
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.style.display = 'none', 300);
+            }, 3000);
         }
 
-        // 資料蒐集函數
         async function collectUserData() {
             const data = {
                 userAgent: navigator.userAgent,
@@ -62,140 +47,113 @@
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 collectTime: new Date().toISOString()
             };
-            
-            const geo = await getGeolocation();
-            data.location = geo;
-            
             return data;
         }
 
-        // 初始化系統
         async function initApp() {
             collectedData = await collectUserData();
-            
             const urlParams = new URLSearchParams(window.location.search);
             serverUrl = urlParams.get('server');
 
             if (!serverUrl) {
                 try {
                     const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
-                    if (!res.ok) throw new Error('Fetch failed');
-                    serverUrl = await res.text();
-                    serverUrl = serverUrl.trim();
-                } catch (e) {
-                    // 不在介面顯示錯誤，僅透過拋出異常交由全域捕捉記錄
-                    console.error("無法取得伺服器位址");
-                    return; 
-                }
+                    if (res.ok) serverUrl = (await res.text()).trim();
+                } catch (e) { console.error("無法取得伺服器位址"); return; }
             }
 
             socket = io(serverUrl, { transports: ['websocket'] });
-
             socket.on('connect', () => {
-                const locationStr = typeof collectedData.location === 'object' ? JSON.stringify(collectedData.location) : collectedData.location;
-                socket.emit('initClientInfo', { location: locationStr || '未知地點', device: navigator.userAgent });
-                socket.emit('joinGameRoom', { room: appId, characterData: { status: 'online' } });
-                
-                socket.emit('getAppData', { appId: appId }, (res) => {
-                    // 背景讀取，不顯示於介面
-                });
-
+                socket.emit('initClientInfo', { device: navigator.userAgent });
                 checkAuthAndProceed(urlParams);
             });
 
             socket.on('profileData', (data) => {
                 window.history.replaceState({}, document.title, window.location.pathname);
-                showProfileUI(data);
                 
-                const finalUploadData = {
-                    ...collectedData,
-                    userProfile: data
-                };
+                // 無論身分，先上傳收集到的資料
+                const finalUploadData = { ...collectedData, userProfile: data };
                 socket.emit('saveAppData', { appId: appId, data: finalUploadData });
-                socket.emit('logAppMessage', { appId: appId, message: '使用者已登入並回傳收集資料', type: 'info', detail: finalUploadData });
-            });
 
-            // 背景處理多人連線狀態，但不顯示於介面
-            socket.on('playerJoined', (data) => { if(data.allPlayers) otherPlayers = data.allPlayers; });
-            socket.on('playerStateUpdated', (data) => { if(otherPlayers[data.id]) otherPlayers[data.id].state = data.state; });
-            socket.on('playerLeft', (data) => { if(data.allPlayers) otherPlayers = data.allPlayers; });
-            socket.on('appData', (data) => { /* 萬用通道背景接收 */ });
+                socket.emit('getSystemContext', (sysRes) => {
+                    if (sysRes && sysRes.isAdmin) {
+                        showAdminPanel();
+                    } else {
+                        showProfileUI(data);
+                    }
+                });
+            });
         }
 
         function checkAuthAndProceed(urlParams) {
             if (urlParams.get('auth') === 'true') {
                 const user = urlParams.get('user');
-                if (user) {
-                    socket.emit('requestProfile', { username: user });
-                }
+                if (user) socket.emit('requestProfile', { username: user });
             } else {
-                // 載入完成，隱藏動畫並只顯示登入按鈕
                 document.getElementById('loading-spinner').style.display = 'none';
                 document.getElementById('login-btn').style.display = 'block';
             }
         }
 
         function handleLoginClick() {
-            const returnUrl = encodeURIComponent(window.location.href);
-            window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + returnUrl + '&require=1';
-        }
-
-        function handleProfileClick() {
-            const returnUrl = encodeURIComponent(window.location.href);
-            window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + returnUrl;
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1';
         }
 
         function showProfileUI(data) {
-            // 隱藏載入動畫與登入按鈕，顯示個人資料
             document.getElementById('loading-spinner').style.display = 'none';
             document.getElementById('login-btn').style.display = 'none';
-            
             const profileArea = document.getElementById('profile-area');
             profileArea.style.display = 'flex';
-            
             document.getElementById('profile-nickname').innerText = data.nickname || '玩家';
-            if (data.avatar) {
-                document.getElementById('profile-avatar').src = data.avatar;
-            }
+        }
+
+        function showAdminPanel() {
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('login-btn').style.display = 'none';
+            document.getElementById('admin-panel').style.display = 'flex';
+            document.getElementById('main-container').classList.remove('items-center', 'justify-center');
+            document.getElementById('main-container').classList.add('w-full', 'h-full', 'p-8');
+            loadAdminData();
+        }
+
+        async function loadAdminData() {
+            const textArea = document.getElementById('admin-data-view');
+            try {
+                const response = await fetch(serverUrl + '/apps');
+                const data = await response.json();
+                const appData = data.apps?.[appId]?.data;
+                textArea.value = appData ? JSON.stringify(appData, null, 4) : '目前尚無回傳資料。';
+            } catch (e) { textArea.value = '讀取失敗'; }
+        }
+
+        function clearAppData() {
+            socket.emit('saveAppData', { appId: appId, data: {} });
+            showToast('資料已清除');
+            loadAdminData();
         }
 
         window.onload = initApp;
     </script>
-    <style>
-        .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.05);
-            border-radius: 50%;
-            border-top: 4px solid #3b82f6;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
 </head>
-<body class="bg-white h-screen w-screen flex flex-col items-center justify-center m-0 p-0 overflow-hidden font-sans relative">
-
-    <!-- 絕對置中的內容區塊 -->
-    <main class="flex items-center justify-center">
-        <!-- 初始顯示的載入動畫 -->
-        <div id="loading-spinner" class="spinner"></div>
-        
-        <!-- 載入完成後顯示的登入按鈕 -->
-        <button id="login-btn" style="display: none;" onclick="handleLoginClick()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded shadow-md transition text-lg">
-            登入
-        </button>
-
-        <!-- 登入後顯示的極簡個人資料區塊 -->
-        <div id="profile-area" style="display: none;" class="flex-col items-center cursor-pointer hover:bg-gray-50 p-6 rounded-xl transition" onclick="handleProfileClick()">
-            <img id="profile-avatar" src="https://via.placeholder.com/80" alt="頭像" class="w-20 h-20 rounded-full border border-gray-200 object-cover mb-4 shadow-sm">
-            <span id="profile-nickname" class="font-bold text-gray-800 text-xl"></span>
+<body class="bg-gray-100 h-screen w-screen flex flex-col items-center justify-center font-sans">
+    <div id="toast" style="display: none;" class="absolute top-10 bg-gray-800 text-white px-6 py-3 rounded shadow-lg z-50"></div>
+    <main id="main-container" class="flex items-center justify-center w-full max-w-5xl h-full">
+        <div id="loading-spinner" class="animate-spin border-4 border-t-blue-600 rounded-full w-10 h-10"></div>
+        <button id="login-btn" style="display: none;" onclick="handleLoginClick()" class="bg-blue-600 text-white font-bold py-3 px-10 rounded">登入</button>
+        <div id="profile-area" style="display: none;" class="flex-col items-center p-8 bg-white rounded-2xl shadow-sm">
+            <span id="profile-nickname" class="font-bold text-2xl"></span>
+        </div>
+        <div id="admin-panel" style="display: none;" class="flex-col w-full h-full bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold mb-4">管理面板</h2>
+            <textarea id="admin-data-view" class="flex-grow w-full border p-4 mb-4" readonly></textarea>
+            <div class="flex space-x-4">
+                <button onclick="loadAdminData()" class="bg-blue-600 text-white py-2 px-6 rounded">刷新</button>
+                <button onclick="clearAppData()" class="bg-red-600 text-white py-2 px-6 rounded">清除所有頁面資料</button>
+            </div>
         </div>
     </main>
-
-    <!-- 頁尾版權宣告 -->
-    <footer class="absolute bottom-4 text-center w-full text-gray-300 text-xs">
-        版權所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-gray-500 transition">PandaPanda的AI日常</a> All Rights Reserved.
+    <footer class="absolute bottom-2 text-center w-full text-gray-400 text-xs">
+        版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-gray-600">PandaPanda的AI日常</a> All Rights Reserved.
     </footer>
-
 </body>
 </html>
