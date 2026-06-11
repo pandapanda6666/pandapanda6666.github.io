@@ -810,8 +810,19 @@
             // 擷取無 UI 純淨畫布影像訊號 (每秒 15 幀，更順暢不卡頓)
             const stream = canvas.captureStream(15);
             
+            // 高位元率高畫質無損設定：鎖定高位元率 (10 Mbps) 避免被瀏覽器默認壓縮劣化畫質
+            let options = { videoBitsPerSecond: 10000000 }; 
+            
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                options.mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                options.mimeType = 'video/webm;codecs=vp8';
+            } else {
+                options.mimeType = 'video/webm';
+            }
+
             try {
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                mediaRecorder = new MediaRecorder(stream, options);
             } catch(e) {
                 showErrorToast('您的瀏覽器不支援 WebM 影像錄製。');
                 return;
