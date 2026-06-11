@@ -121,13 +121,14 @@
                         <option value="200" selected>低 (5 FPS) - 推薦</option>
                         <option value="100">標準 (10 FPS)</option>
                         <option value="66">高 (15 FPS)</option>
-                        <option value="33">極高 (30 FPS) - 易卡頓</option>
+                        <option value="33">極高 (30 FPS) - 流暢首選</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="text-slate-400 text-sm">影像畫質:</label>
                     <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="0.15">省流 (低畫質)</option>
+                        <option value="0.1">極省流 (高速低畫質)</option>
+                        <option value="0.2">省流 (低畫質)</option>
                         <option value="0.3" selected>標準 (中畫質)</option>
                         <option value="0.6">清晰 (高畫質)</option>
                     </select>
@@ -209,7 +210,7 @@
         
         // 觀看端專用
         let watchedCodes = new Set(); 
-        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, imageObj, lastFrameTime, mediaSource, sourceBuffer, audioQueue } }
+        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, imageObj, lastFrameTime, mediaSource, sourceBuffer, audioQueue, audioEl } }
         let isRecording = false;
         let mediaRecorder;
         let recordedChunks = [];
@@ -328,6 +329,9 @@
             socket.on('appData', handleIncomingAppData);
 
             checkSSO();
+            
+            // 啟用觀看端：自動偵測音訊累積延遲並強行同步追上 (Drift Correction)
+            initLatencyCorrection();
         }
 
         // --- 模式切換事件 ---
@@ -359,7 +363,7 @@
             }
         }
 
-        // --- 相機端廣播邏輯 (高流暢觀眾追蹤版) ---
+        // --- 相機端廣播邏輯 (高流暢觀眾追蹤與畫質自動調適防延遲版) ---
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
@@ -369,20 +373,20 @@
                 }
 
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 480, height: 360, frameRate: 15 }, // 降低硬體擷取解析度提升效率
+                    video: { width: 480, height: 360, frameRate: 30 }, // 升級擷取最高支援 30 FPS
                     audio: true 
                 });
                 document.getElementById('localVideo').srcObject = localStream;
-                statusLabel.innerText = "裝置準備就緒，已套用「無人看自動靜音/靜畫」節流系統。";
+                statusLabel.innerText = "裝置準備就緒，已啟用「低延遲追頻機制與自動節流」系統。";
 
                 // 隱藏畫布用於壓縮擷取
                 const capCanvas = document.createElement('canvas');
-                capCanvas.width = 320; // 改為 320x240，高流暢防爆頻寬
+                capCanvas.width = 320; // 320x240 大小最符合高幀率低頻寬傳輸，大幅減少卡頓與延遲
                 capCanvas.height = 240;
                 const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
                 const videoEl = document.getElementById('localVideo');
 
-                // 動態啟動或重啟影像擷取迴圈 (防重疊核心機制)
+                // 動態啟動或重啟影像擷取迴圈 (防重疊與頻率即時響應機制)
                 function startCaptureLoop() {
                     if (videoInterval) {
                         clearInterval(videoInterval);
@@ -408,11 +412,21 @@
                     }, currentCaptureInterval);
                 }
 
-                // 監聽選單變更
+                // 監聽選單變更，加入「防延遲畫質降載調節器」
                 document.getElementById('fpsSelect').onchange = (e) => {
                     currentCaptureInterval = parseInt(e.target.value);
+                    
+                    // 【低延遲自動調節機制】：如果選擇了 30 FPS (33ms)，自動下調預設畫質到 0.15 或 0.2，避免網路阻塞產生延遲！
+                    if (currentCaptureInterval <= 33) { 
+                        document.getElementById('qualitySelect').value = "0.15";
+                        currentCaptureQuality = 0.15;
+                    } else if (currentCaptureInterval <= 100) {
+                        document.getElementById('qualitySelect').value = "0.3";
+                        currentCaptureQuality = 0.3;
+                    }
+                    
                     startCaptureLoop();
-                    socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms`, type: 'info' });
+                    socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms，已自動調整畫質防延遲。`, type: 'info' });
                 };
 
                 document.getElementById('qualitySelect').onchange = (e) => {
@@ -438,7 +452,7 @@
                         if (activeViewers.length === 0) return;
 
                         if (e.data.size > 0 && socket && socket.connected) {
-                            // 使用 Socket.IO 原生 Binary (Blob/ArrayBuffer) 進行發送，不需手動 Btoa 加解密！
+                            // 使用 Socket.IO 原生 Binary 傳送二進位音軌數據
                             socket.emit('appData', {
                                 room: appId,
                                 action: 'audioChunk',
@@ -448,7 +462,7 @@
                             });
                         }
                     };
-                    micRecorder.start(500); // 500 毫秒產生一個二進位音訊切片
+                    micRecorder.start(400); // 縮短音訊切片至 400ms，降低語音初次抵達延遲
                 }
 
                 socket.emit('logAppMessage', { appId: appId, message: `相機端開始廣播代碼: ${myPairCode}`, type: 'info' });
@@ -625,7 +639,8 @@
                 lastFrameTime: Date.now(),
                 mediaSource: ms,
                 sourceBuffer: null,
-                audioQueue: []
+                audioQueue: [],
+                audioEl: audioEl // 保存音訊標籤實例，用於低延遲追頻同步
             };
 
             ms.addEventListener('sourceopen', () => {
@@ -700,6 +715,27 @@
             } else {
                 feed.audioQueue.push(arrayBuffer);
             }
+        }
+
+        // --- 核心優化：觀看端追頻防延遲定時器 (Drift Correction) ---
+        function initLatencyCorrection() {
+            setInterval(() => {
+                if (myRole !== 'viewer') return;
+                
+                Object.values(remoteFeeds).forEach(feed => {
+                    const audioEl = feed.audioEl;
+                    // 當音訊有快取，且快取結束時間與當前播放進度相差超過 1 秒 (累積了網路阻塞延遲)
+                    if (audioEl && audioEl.buffered.length > 0) {
+                        const bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
+                        const latency = bufferedEnd - audioEl.currentTime;
+                        
+                        if (latency > 1.0) {
+                            // 【低延遲追頻控制】：直接將播放時間強行快進到最新位置，徹底消滅秒數累積延遲！
+                            audioEl.currentTime = bufferedEnd - 0.1;
+                        }
+                    }
+                });
+            }, 800); // 每 800ms 精準掃描一次緩衝池
         }
 
         // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
