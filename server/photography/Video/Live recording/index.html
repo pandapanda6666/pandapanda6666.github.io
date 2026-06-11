@@ -34,7 +34,7 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
         .video-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; background: #000; border-radius: 0.5rem; overflow: hidden; border: 1px solid #333; }
-        video { width: 100%; height: auto; display: block; min-height: 200px; background-color: #111; }
+        video, img.remote-img { width: 100%; height: auto; display: block; min-height: 200px; background-color: #111; object-fit: contain; }
         .camera-pin { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; font-size: 0.9rem; }
         .grid-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
         .viewer-count { position: absolute; top: 10px; left: 10px; background: rgba(0,100,200,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; font-size: 0.9rem; }
@@ -57,27 +57,11 @@
         let localStream = null;
         let currentMode = null; 
         let myPin = null;
-        const peers = {}; 
         const watchedPins = []; 
-        let viewerCount = 0;
-
-        // 請在此處填寫您專屬的 TURN 伺服器資料
-        const MY_TURN_SERVER = "turn:您的伺服器IP或網域:3478"; 
-        const MY_TURN_USER = "您的帳號";
-        const MY_TURN_PASS = "您的密碼";
-
-        const iceServers = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:global.stun.twilio.com:3478' },
-                {
-                    urls: MY_TURN_SERVER,
-                    username: MY_TURN_USER,
-                    credential: MY_TURN_PASS
-                }
-            ]
-        };
+        let activeViewers = [];
+        
+        let sendFrameInterval = null;
+        let lastFrameTimes = {};
 
         function writeDebugLog(msg) {
             const logEl = document.getElementById('debug-log');
@@ -86,7 +70,7 @@
                 logEl.innerHTML += `[${time}] ${msg}<br>`;
                 logEl.scrollTop = logEl.scrollHeight;
             }
-            console.log(`[WebRTC Debug] ${msg}`);
+            console.log(`[Socket Debug] ${msg}`);
         }
 
         async function initConnection() {
@@ -120,18 +104,19 @@
             socket = io(serverUrl);
 
             socket.on('connect', () => {
-                showSystemMessage('信令伺服器連線成功', false);
+                showSystemMessage('伺服器連線成功', false);
                 writeDebugLog(`Socket.IO 連線成功，Session: ${socket.id}`);
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
                 writeDebugLog(`已送出加入房間請求: ${appId}`);
                 checkAuth();
-                setupWebRTCListeners();
+                setupSocketListeners();
             });
 
             socket.on('disconnect', () => {
                 showSystemMessage('已與伺服器斷線，嘗試重連中...', true);
                 writeDebugLog('Socket.IO 斷線');
+                if (sendFrameInterval) clearInterval(sendFrameInterval);
             });
         }
 
@@ -221,19 +206,12 @@
                     statusEl.className = 'text-xs ml-2 text-green-400';
                 }
             }
-            writeDebugLog(`狀態更新 (頻道 ${pin}): ${msg}`);
         }
 
         function updateCameraViewerCount() {
             const countEl = document.getElementById('camera-viewer-count');
             if(countEl) {
-                let activeCount = 0;
-                Object.values(peers).forEach(peerObj => {
-                    if(peerObj.pc && (peerObj.pc.iceConnectionState === 'connected' || peerObj.pc.iceConnectionState === 'completed')) {
-                        activeCount++;
-                    }
-                });
-                countEl.textContent = `觀看人數: ${activeCount}`;
+                countEl.textContent = `觀看人數: ${activeViewers.length}`;
             }
         }
 
@@ -257,7 +235,7 @@
             }
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
                 const videoEl = document.getElementById('local-video');
                 videoEl.srcObject = localStream;
                 
@@ -266,13 +244,42 @@
                 writeDebugLog(`相機已啟動，您的對外監看代碼: ${myPin}`);
 
                 socket.emit('logAppMessage', { appId: appId, message: '開啟被監看模式，代碼:' + myPin, type: 'info' });
+
+                startSendingFrames();
+
             } catch (err) {
                 let errMsg = err.message;
-                if (err.name === 'NotAllowedError') errMsg = '您拒絕了權限，請點擊 Chrome 網址列左側的鎖頭圖示來允許存取相機與麥克風。';
+                if (err.name === 'NotAllowedError') errMsg = '您拒絕了權限，請點擊 Chrome 網址列左側的鎖頭圖示來允許存取相機。';
                 if (err.name === 'NotFoundError') errMsg = '找不到相機設備，請確認鏡頭是否正常。';
                 showSystemMessage('無法取得相機權限: ' + errMsg, true);
                 writeDebugLog(`獲取相機權限失敗: ${err.name}`);
             }
+        }
+
+        function startSendingFrames() {
+            const videoEl = document.getElementById('local-video');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+            sendFrameInterval = setInterval(() => {
+                if (activeViewers.length === 0) return; 
+
+                if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
+                    canvas.width = 320; 
+                    canvas.height = (canvas.width / videoEl.videoWidth) * videoEl.videoHeight;
+                    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                    
+                    const frameData = canvas.toDataURL('image/jpeg', 0.4);
+
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'socket_video_frame',
+                        pin: myPin,
+                        frame: frameData
+                    });
+                }
+            }, 100); 
+            writeDebugLog(`已啟動伺服器影像截圖轉發機制 (10FPS)`);
         }
 
         function watchNewCamera() {
@@ -306,10 +313,7 @@
             wrapper.className = 'video-container shadow-lg flex justify-center items-center';
             wrapper.innerHTML = `
                 <div class="camera-pin">監看代碼: ${pin} <span id="status-${pin}" class="text-yellow-400 text-xs ml-2">等待操作...</span></div>
-                <video id="remote-video-${pin}" playsinline controls></video>
-                <button id="play-btn-${pin}" onclick="document.getElementById('remote-video-${pin}').play(); this.style.display='none'; document.getElementById('status-${pin}').textContent='接收影像中...';" class="absolute bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded z-20" style="display:none;">
-                    點擊播放畫面 (瀏覽器限制)
-                </button>
+                <img id="remote-video-${pin}" class="remote-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="等待影像...">
                 <div class="absolute bottom-2 right-2 flex space-x-2 z-10">
                     <button onclick="requestCameraStream('${pin}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">重連</button>
                     <button onclick="removeWatcher('${pin}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">移除</button>
@@ -327,212 +331,81 @@
             const wrapper = document.getElementById('video-wrapper-' + pin);
             if (wrapper) wrapper.remove();
             
-            Object.keys(peers).forEach(peerId => {
-                if (peers[peerId].pin === pin) {
-                    if (peers[peerId].pc) peers[peerId].pc.close();
-                    delete peers[peerId];
-                }
+            socket.emit('appData', {
+                room: appId,
+                action: 'stop_stream',
+                pin: pin,
+                requesterId: myClientId
             });
             writeDebugLog(`已移除監看頻道: ${pin}`);
         }
 
         function requestCameraStream(pin) {
-            updateWatcherStatus(pin, '發送尋找裝置請求...');
-            
-            const signalPayload = { type: 'request_stream', pin: pin, requesterId: myClientId };
+            updateWatcherStatus(pin, '透過伺服器呼叫中...');
             
             socket.emit('appData', {
                 room: appId,
-                action: 'webrtc_signal',
-                signalData: signalPayload
+                action: 'request_socket_stream',
+                pin: pin,
+                requesterId: myClientId
             });
             
-            writeDebugLog(`==> 廣播信令發送: 請求頻道 ${pin}，我的ID: ${myClientId}`);
+            writeDebugLog(`==> 要求頻道 ${pin} 開始轉發影像`);
             
             setTimeout(() => {
                 const statusEl = document.getElementById('status-' + pin);
-                if(statusEl && (statusEl.textContent.includes('尋找裝置') || statusEl.textContent.includes('發送'))) {
-                    updateWatcherStatus(pin, '對方未上線、代碼錯誤或防火牆阻擋', true);
+                if(statusEl && (statusEl.textContent.includes('呼叫中') || statusEl.textContent.includes('等待'))) {
+                    updateWatcherStatus(pin, '對方未上線或代碼錯誤', true);
                 }
-            }, 15000);
+            }, 5000);
         }
 
-        async function processIceCandidateQueue(peer) {
-            if (peer.candidatesQueue && peer.candidatesQueue.length > 0) {
-                writeDebugLog(`處理佇列中的 ${peer.candidatesQueue.length} 個 ICE 候選者`);
-                for (const candidate of peer.candidatesQueue) {
-                    try {
-                        await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
-                    } catch (e) {
-                        console.error('延遲加入 ICE 失敗', e);
-                    }
-                }
-                peer.candidatesQueue = [];
-            }
-        }
-
-        function setupWebRTCListeners() {
+        function setupSocketListeners() {
             socket.on('appData', (data) => {
-                writeDebugLog(`<== 收到房間原始廣播封包, Action: ${data.action}`);
                 
-                if (data.action !== 'webrtc_signal') return;
-                
-                const signal = data.signalData;
-                writeDebugLog(`解析信令: 類型=${signal.type}, 目標ID=${signal.targetId || '無特定目標'}`);
-
-                if (currentMode === 'camera' && signal.type === 'request_stream' && signal.pin === myPin) {
-                    const peerId = signal.requesterId;
-                    writeDebugLog(`確認為合法觀看請求，準備對客戶端 ${peerId} 建立連線`);
-                    
-                    const pc = new RTCPeerConnection(iceServers);
-                    peers[peerId] = { pc: pc, candidatesQueue: [], pin: myPin };
-
-                    if (localStream) {
-                        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-                    } else {
-                        writeDebugLog('警告：無本地影像串流可供發送');
-                    }
-
-                    pc.onicecandidate = event => {
-                        if (event.candidate) {
-                            socket.emit('appData', {
-                                room: appId, action: 'webrtc_signal',
-                                signalData: { type: 'candidate', targetId: peerId, senderId: myClientId, candidate: event.candidate, pin: myPin }
-                            });
-                            writeDebugLog(`發送 ICE Candidate 給 ${peerId}`);
-                        }
-                    };
-
-                    pc.oniceconnectionstatechange = () => {
-                        writeDebugLog(`對端 ${peerId} ICE狀態: ${pc.iceConnectionState}`);
+                if (currentMode === 'camera' && data.action === 'request_socket_stream' && data.pin === myPin) {
+                    const requesterId = data.requesterId;
+                    if (!activeViewers.includes(requesterId)) {
+                        activeViewers.push(requesterId);
                         updateCameraViewerCount();
-                    };
-
-                    (async () => {
-                        try {
-                            const offer = await pc.createOffer();
-                            await pc.setLocalDescription(offer);
-                            socket.emit('appData', {
-                                room: appId, action: 'webrtc_signal',
-                                signalData: { type: 'offer', targetId: peerId, senderId: myClientId, sdp: offer, pin: myPin }
-                            });
-                            writeDebugLog(`==> 已回傳 Offer 影片描述給客戶端: ${peerId}`);
-                        } catch (e) {
-                            writeDebugLog(`產生 Offer 錯誤: ${e}`);
-                        }
-                    })();
-                }
-
-                if (signal.targetId && signal.targetId !== myClientId) return; 
-
-                if (currentMode === 'watcher' && signal.type === 'offer') {
-                    const peerId = signal.senderId;
-                    const pin = signal.pin;
-                    
-                    updateWatcherStatus(pin, '接收到影像交握(Offer)...');
-                    writeDebugLog(`處理來自 ${peerId} 的 Offer...`);
-                    
-                    const pc = new RTCPeerConnection(iceServers);
-                    peers[peerId] = { pc: pc, candidatesQueue: [], pin: pin };
-
-                    pc.onicecandidate = event => {
-                        if (event.candidate) {
-                            socket.emit('appData', {
-                                room: appId, action: 'webrtc_signal',
-                                signalData: { type: 'candidate', targetId: peerId, senderId: myClientId, candidate: event.candidate }
-                            });
-                            writeDebugLog(`發送 ICE Candidate 回覆給 ${peerId}`);
-                        }
-                    };
-
-                    pc.ontrack = event => {
-                        const videoEl = document.getElementById('remote-video-' + pin);
-                        writeDebugLog(`!!! 成功獲取影音軌道 !!!`);
-                        if (videoEl && videoEl.srcObject !== event.streams[0]) {
-                            videoEl.srcObject = event.streams[0];
-                            videoEl.onloadedmetadata = () => {
-                                const playPromise = videoEl.play();
-                                if (playPromise !== undefined) {
-                                    playPromise.then(() => {
-                                        updateWatcherStatus(pin, '接收影像中...');
-                                    }).catch(e => {
-                                        writeDebugLog(`播放受限: ${e}`);
-                                        const playBtn = document.getElementById('play-btn-' + pin);
-                                        if (playBtn) playBtn.style.display = 'block';
-                                        updateWatcherStatus(pin, '請點擊畫面播放', true);
-                                    });
-                                }
-                            };
-                        }
-                    };
-
-                    pc.oniceconnectionstatechange = () => {
-                        const state = pc.iceConnectionState;
-                        writeDebugLog(`頻道 ${pin} 底層狀態: ${state}`);
-                        if(state === 'checking') updateWatcherStatus(pin, '嘗試建立 P2P 直連中...');
-                        else if(state === 'connected' || state === 'completed') updateWatcherStatus(pin, '連線建立成功，載入中...');
-                        else if(state === 'disconnected') updateWatcherStatus(pin, '網路不穩，斷線中', true);
-                        else if(state === 'failed') updateWatcherStatus(pin, 'P2P直連失敗 (防火牆阻擋)', true);
-                        else if(state === 'closed') updateWatcherStatus(pin, '連線已關閉', true);
-                    };
-
-                    (async () => {
-                        try {
-                            await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                            writeDebugLog(`設定遠端描述成功，處理排隊中的 Candidate...`);
-                            await processIceCandidateQueue(peers[peerId]);
-                            
-                            const answer = await pc.createAnswer();
-                            await pc.setLocalDescription(answer);
-
-                            socket.emit('appData', {
-                                room: appId, action: 'webrtc_signal',
-                                signalData: { type: 'answer', targetId: peerId, senderId: myClientId, sdp: answer }
-                            });
-                            writeDebugLog(`==> 已發送 Answer 回覆給: ${peerId}`);
-                        } catch (e) {
-                            updateWatcherStatus(pin, '信令處理失敗', true);
-                            writeDebugLog(`處理 Offer 異常: ${e}`);
-                        }
-                    })();
-                }
-
-                if (currentMode === 'camera' && signal.type === 'answer') {
-                    const peerId = signal.senderId;
-                    const peer = peers[peerId];
-                    if (peer) {
-                        (async () => {
-                            try {
-                                writeDebugLog(`處理來自 ${peerId} 的 Answer...`);
-                                await peer.pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                                writeDebugLog(`設定遠端 Answer 成功，處理排隊中的 Candidate...`);
-                                await processIceCandidateQueue(peer);
-                            } catch (e) {
-                                writeDebugLog(`設定 Answer 異常: ${e}`);
-                            }
-                        })();
+                        writeDebugLog(`客戶端 ${requesterId} 開始接收影像`);
                     }
                 }
 
-                if (signal.type === 'candidate') {
-                    const peerId = signal.senderId;
-                    const peer = peers[peerId];
-                    if (peer) {
-                        (async () => {
-                            try {
-                                if (peer.pc.remoteDescription && peer.pc.remoteDescription.type) {
-                                    await peer.pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
-                                } else {
-                                    peer.candidatesQueue.push(signal.candidate);
-                                    writeDebugLog(`將提早到達的 Candidate 放入佇列`);
-                                }
-                            } catch (e) {
-                                writeDebugLog(`加入 Candidate 異常: ${e}`);
+                if (currentMode === 'camera' && data.action === 'stop_stream' && data.pin === myPin) {
+                    const requesterId = data.requesterId;
+                    activeViewers = activeViewers.filter(id => id !== requesterId);
+                    updateCameraViewerCount();
+                    writeDebugLog(`客戶端 ${requesterId} 停止接收影像`);
+                }
+
+                if (currentMode === 'watcher' && data.action === 'socket_video_frame') {
+                    const pin = data.pin;
+                    if (watchedPins.includes(pin)) {
+                        const imgEl = document.getElementById(`remote-video-${pin}`);
+                        if (imgEl) {
+                            imgEl.src = data.frame;
+                            
+                            const now = Date.now();
+                            if (!lastFrameTimes[pin] || now - lastFrameTimes[pin] > 2000) {
+                                updateWatcherStatus(pin, '接收影像中...');
                             }
-                        })();
+                            lastFrameTimes[pin] = now;
+                        }
                     }
                 }
             });
+
+            if (currentMode === 'watcher') {
+                setInterval(() => {
+                    const now = Date.now();
+                    watchedPins.forEach(pin => {
+                        if (lastFrameTimes[pin] && now - lastFrameTimes[pin] > 3000) {
+                            updateWatcherStatus(pin, '連線不穩或對方已離線', true);
+                        }
+                    });
+                }, 3000);
+            }
         }
 
         window.onload = initConnection;
@@ -562,7 +435,7 @@
         </div>
 
         <div id="camera-mode-ui" style="display: none;" class="text-center">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">被監看模式 (發送中)</h2>
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">被監看模式 (伺服器轉發中)</h2>
             <div class="video-container shadow-xl">
                 <div id="camera-viewer-count" class="viewer-count">觀看人數: 0</div>
                 <div id="camera-pin-display" class="camera-pin">代碼: 產生中...</div>
