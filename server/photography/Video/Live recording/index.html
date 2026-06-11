@@ -424,9 +424,11 @@
 
                         if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                             ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                            const base64Frame = capCanvas.toDataURL('image/jpeg', currentCaptureQuality); 
+                            // 終極防延遲：改用 webp 壓縮，體積比 jpeg 小 30%，傳輸更快
+                            const base64Frame = capCanvas.toDataURL('image/webp', currentCaptureQuality); 
                             
-                            socket.emit('appData', {
+                            // 終極防延遲：使用 volatile 發送，若網路塞車則自動丟棄舊幀，絕不排隊累積延遲！
+                            socket.volatile.emit('appData', {
                                 room: appId,
                                 action: 'videoFrame',
                                 pairCode: myPairCode,
@@ -471,7 +473,8 @@
                         if (activeViewers.length === 0) return;
 
                         if (e.data.size > 0 && socket && socket.connected) {
-                            socket.emit('appData', {
+                            // 終極防延遲：音訊也採用 volatile 傳送，避免 TCP 排隊
+                            socket.volatile.emit('appData', {
                                 room: appId,
                                 action: 'audioChunk',
                                 pairCode: myPairCode,
@@ -519,8 +522,8 @@
                 if (activeViewers.length === 0) return;
                 if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                     ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                    const base64Frame = capCanvas.toDataURL('image/jpeg', currentCaptureQuality); 
-                    socket.emit('appData', {
+                    const base64Frame = capCanvas.toDataURL('image/webp', currentCaptureQuality); 
+                    socket.volatile.emit('appData', {
                         room: appId,
                         action: 'videoFrame',
                         pairCode: myPairCode,
@@ -533,7 +536,7 @@
             // 2. 音訊重啟
             if (micRecorder && micRecorder.state === 'inactive') {
                 try {
-                    micRecorder.start(400); 
+                    micRecorder.start(250); // 縮短至 250ms 切片，極大降低聲音初次抵達與排隊緩衝時間
                 } catch(e) {}
             }
         }
@@ -834,18 +837,18 @@
                 
                 Object.values(remoteFeeds).forEach(feed => {
                     const audioEl = feed.audioEl;
-                    // 當音訊有快取，且快取結束時間與當前播放進度相差超過 1 秒 (累積了網路阻塞延遲)
+                    // 當音訊有快取，且快取結束時間與當前播放進度相差超過 0.5 秒 (更積極的防延遲)
                     if (audioEl && audioEl.buffered.length > 0) {
                         const bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
                         const latency = bufferedEnd - audioEl.currentTime;
                         
-                        if (latency > 1.0) {
-                            // 【低延遲追頻控制】：直接將播放時間強行快進到最新位置，徹底消滅秒數累積延遲！
-                            audioEl.currentTime = bufferedEnd - 0.1;
+                        if (latency > 0.5) {
+                            // 【低延遲追頻控制】：直接將播放時間強行快進到最新位置，容忍值縮小到 0.5s！
+                            audioEl.currentTime = bufferedEnd - 0.05;
                         }
                     }
                 });
-            }, 800); // 每 800ms 精準掃描一次緩衝池
+            }, 500); // 掃描頻率加快至 500ms
         }
 
         // --- 核心優化：離線自動偵測與徹底關閉清掃器 (Drift Correction) ---
