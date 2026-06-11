@@ -61,7 +61,12 @@
         let activeViewers = [];
         
         let sendFrameInterval = null;
+        let audioRecorder = null;
         let lastFrameTimes = {};
+
+        const audioQueues = {};
+        const sourceBuffers = {};
+        const mediaSources = {};
 
         function writeDebugLog(msg) {
             const logEl = document.getElementById('debug-log');
@@ -117,6 +122,7 @@
                 showSystemMessage('已與伺服器斷線，嘗試重連中...', true);
                 writeDebugLog('Socket.IO 斷線');
                 if (sendFrameInterval) clearInterval(sendFrameInterval);
+                if (audioRecorder && audioRecorder.state !== 'inactive') audioRecorder.stop();
             });
         }
 
@@ -231,28 +237,29 @@
 
         async function startCameraMode() {
             if (!window.isSecureContext) {
-                showSystemMessage('警告：您的瀏覽器環境非安全連線 (HTTPS)，可能無法開啟相機權限！', true);
+                showSystemMessage('警告：您的瀏覽器環境非安全連線 (HTTPS)，可能無法開啟相機與麥克風權限！', true);
             }
 
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const videoEl = document.getElementById('local-video');
                 videoEl.srcObject = localStream;
                 
                 myPin = Math.floor(100000 + Math.random() * 900000).toString();
                 document.getElementById('camera-pin-display').textContent = '代碼: ' + myPin;
-                writeDebugLog(`相機已啟動，您的對外監看代碼: ${myPin}`);
+                writeDebugLog(`相機與麥克風已啟動，您的對外監看代碼: ${myPin}`);
 
                 socket.emit('logAppMessage', { appId: appId, message: '開啟被監看模式，代碼:' + myPin, type: 'info' });
 
                 startSendingFrames();
+                startSendingAudio();
 
             } catch (err) {
                 let errMsg = err.message;
-                if (err.name === 'NotAllowedError') errMsg = '您拒絕了權限，請點擊 Chrome 網址列左側的鎖頭圖示來允許存取相機。';
-                if (err.name === 'NotFoundError') errMsg = '找不到相機設備，請確認鏡頭是否正常。';
-                showSystemMessage('無法取得相機權限: ' + errMsg, true);
-                writeDebugLog(`獲取相機權限失敗: ${err.name}`);
+                if (err.name === 'NotAllowedError') errMsg = '您拒絕了權限，請點擊 Chrome 網址列左側的鎖頭圖示來允許存取。';
+                if (err.name === 'NotFoundError') errMsg = '找不到相機或麥克風設備，請確認硬體是否正常。';
+                showSystemMessage('無法取得影音權限: ' + errMsg, true);
+                writeDebugLog(`獲取影音權限失敗: ${err.name}`);
             }
         }
 
@@ -279,7 +286,28 @@
                     });
                 }
             }, 100); 
-            writeDebugLog(`已啟動伺服器影像截圖轉發機制 (10FPS)`);
+            writeDebugLog(`已啟動影像截圖轉發機制 (10FPS)`);
+        }
+
+        function startSendingAudio() {
+            if (!localStream) return;
+            try {
+                audioRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm; codecs=opus' });
+                audioRecorder.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0 && activeViewers.length > 0) {
+                        socket.emit('appData', {
+                            room: appId,
+                            action: 'socket_audio_chunk',
+                            pin: myPin,
+                            chunk: event.data
+                        });
+                    }
+                };
+                audioRecorder.start(500); 
+                writeDebugLog(`已啟動麥克風音軌分片轉發機制 (500ms)`);
+            } catch(e) {
+                writeDebugLog(`麥克風分片轉發啟動失敗: ${e}`);
+            }
         }
 
         function watchNewCamera() {
@@ -291,6 +319,7 @@
             if (!watchedPins.includes(pinInput)) {
                 watchedPins.push(pinInput);
                 addWatcherVideoPlaceholder(pinInput);
+                initAudioReceiver(pinInput);
                 saveCloudData();
                 socket.emit('logAppMessage', { appId: appId, message: '嘗試監看代碼:' + pinInput, type: 'info' });
             }
@@ -314,12 +343,56 @@
             wrapper.innerHTML = `
                 <div class="camera-pin">監看代碼: ${pin} <span id="status-${pin}" class="text-yellow-400 text-xs ml-2">等待操作...</span></div>
                 <img id="remote-video-${pin}" class="remote-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="等待影像...">
+                <audio id="remote-audio-${pin}" autoplay></audio>
+                <button id="play-btn-${pin}" onclick="playMedia('${pin}')" class="absolute bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded z-20">
+                    點擊接收影音
+                </button>
                 <div class="absolute bottom-2 right-2 flex space-x-2 z-10">
                     <button onclick="requestCameraStream('${pin}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">重連</button>
                     <button onclick="removeWatcher('${pin}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">移除</button>
                 </div>
             `;
             container.appendChild(wrapper);
+        }
+
+        function playMedia(pin) {
+            const playBtn = document.getElementById('play-btn-' + pin);
+            if (playBtn) playBtn.style.display = 'none';
+            const audioEl = document.getElementById('remote-audio-' + pin);
+            if (audioEl) {
+                audioEl.play().catch(e => writeDebugLog(`解除靜音失敗: ${e}`));
+            }
+            const statusEl = document.getElementById('status-' + pin);
+            if (statusEl) statusEl.textContent = '接收影像與聲音中...';
+        }
+
+        function initAudioReceiver(pin) {
+            const audioEl = document.getElementById('remote-audio-' + pin);
+            if (!audioEl) return;
+
+            try {
+                const ms = new MediaSource();
+                audioEl.src = URL.createObjectURL(ms);
+                mediaSources[pin] = ms;
+                audioQueues[pin] = [];
+
+                ms.addEventListener('sourceopen', () => {
+                    try {
+                        const sb = ms.addSourceBuffer('audio/webm; codecs=opus');
+                        sourceBuffers[pin] = sb;
+
+                        sb.addEventListener('updateend', () => {
+                            if (audioQueues[pin].length > 0 && !sb.updating) {
+                                sb.appendBuffer(audioQueues[pin].shift());
+                            }
+                        });
+                    } catch (e) {
+                        writeDebugLog(`建立音軌緩衝區失敗: ${e}`);
+                    }
+                });
+            } catch(e) {
+                writeDebugLog(`初始化 MediaSource 失敗 (可能是蘋果裝置不支援): ${e}`);
+            }
         }
 
         function removeWatcher(pin) {
@@ -331,6 +404,13 @@
             const wrapper = document.getElementById('video-wrapper-' + pin);
             if (wrapper) wrapper.remove();
             
+            if (mediaSources[pin] && mediaSources[pin].readyState === 'open') {
+                mediaSources[pin].endOfStream();
+            }
+            delete sourceBuffers[pin];
+            delete mediaSources[pin];
+            delete audioQueues[pin];
+
             socket.emit('appData', {
                 room: appId,
                 action: 'stop_stream',
@@ -350,7 +430,7 @@
                 requesterId: myClientId
             });
             
-            writeDebugLog(`==> 要求頻道 ${pin} 開始轉發影像`);
+            writeDebugLog(`==> 要求頻道 ${pin} 開始轉發影音`);
             
             setTimeout(() => {
                 const statusEl = document.getElementById('status-' + pin);
@@ -368,7 +448,7 @@
                     if (!activeViewers.includes(requesterId)) {
                         activeViewers.push(requesterId);
                         updateCameraViewerCount();
-                        writeDebugLog(`客戶端 ${requesterId} 開始接收影像`);
+                        writeDebugLog(`客戶端 ${requesterId} 開始接收影音`);
                     }
                 }
 
@@ -376,7 +456,7 @@
                     const requesterId = data.requesterId;
                     activeViewers = activeViewers.filter(id => id !== requesterId);
                     updateCameraViewerCount();
-                    writeDebugLog(`客戶端 ${requesterId} 停止接收影像`);
+                    writeDebugLog(`客戶端 ${requesterId} 停止接收影音`);
                 }
 
                 if (currentMode === 'watcher' && data.action === 'socket_video_frame') {
@@ -388,9 +468,30 @@
                             
                             const now = Date.now();
                             if (!lastFrameTimes[pin] || now - lastFrameTimes[pin] > 2000) {
-                                updateWatcherStatus(pin, '接收影像中...');
+                                const btn = document.getElementById('play-btn-' + pin);
+                                if (!btn || btn.style.display === 'none') {
+                                    updateWatcherStatus(pin, '接收影像與聲音中...');
+                                }
                             }
                             lastFrameTimes[pin] = now;
+                        }
+                    }
+                }
+
+                if (currentMode === 'watcher' && data.action === 'socket_audio_chunk') {
+                    const pin = data.pin;
+                    if (watchedPins.includes(pin) && sourceBuffers[pin]) {
+                        const sb = sourceBuffers[pin];
+                        const chunk = data.chunk; 
+                        
+                        if (!sb.updating && audioQueues[pin].length === 0) {
+                            try {
+                                sb.appendBuffer(chunk);
+                            } catch(e) {
+                                writeDebugLog(`寫入音軌緩衝異常: ${e}`);
+                            }
+                        } else {
+                            audioQueues[pin].push(chunk);
                         }
                     }
                 }
