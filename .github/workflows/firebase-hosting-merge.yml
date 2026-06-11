@@ -10,50 +10,73 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Auto Generate Local list.json in Every Single Directory
+      - name: Auto Inject Fetch Interceptor and Generate list.json
         run: |
+          # 💡 這段超強 Node.js 腳本會巡邏 200 個資料夾，自動建立 list.json，並在所有 index.html 裡注入全自動攔截晶片！
           node -e "
             const fs = require('fs');
             const path = require('path');
             
-            function traverseAndGenerate(dirPath) {
+            // 萬用攔截晶片：全自動在瀏覽器端把 fetch('./') 或 fetch('') 偷偷轉彎成 fetch('./list.json')，免改 200 個原始檔
+            const interceptorCode = \`<script>
+              (function() {
+                const originalFetch = window.fetch;
+                window.fetch = function(input, init) {
+                  if (typeof input === 'string' && (input === './' || input === '.' || input === '' || input.endsWith('/'))) {
+                    const cleanInput = input.endsWith('/') ? input + 'list.json' : input + '/list.json';
+                    console.log('--- 🚀 Firebase 萬用晶片已成功將目錄讀取修正為: ' + cleanInput + ' ---');
+                    return originalFetch(cleanInput, init);
+                  }
+                  return originalFetch(input, init);
+                };
+              })();
+            </script>\`;
+
+            function traverseAndProcess(dirPath) {
               const files = fs.readdirSync(dirPath).filter(f => !f.startsWith('.'));
+              
+              // 1. 全自動在當前目錄生出正確的專案清單檔案
               fs.writeFileSync(path.join(dirPath, 'list.json'), JSON.stringify(files, null, 2));
+              
+              // 2. 巡邏 index.html，全自動在 <head> 最前方塞入攔截晶片
+              const htmlPath = path.join(dirPath, 'index.html');
+              if (fs.existsSync(htmlPath)) {
+                let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+                if (!htmlContent.includes('Firebase 萬用晶片')) {
+                  htmlContent = htmlContent.replace('<head>', '<head>' + interceptorCode);
+                  fs.writeFileSync(htmlPath, htmlContent);
+                  console.log('成功在網頁注入萬用晶片: ' + htmlPath);
+                }
+              }
               
               files.forEach(file => {
                 const fullPath = path.join(dirPath, file);
                 if (fs.statSync(fullPath).isDirectory()) {
-                  traverseAndGenerate(fullPath);
+                  traverseAndProcess(fullPath);
                 }
               });
             }
             
+            // 執行全域批量自動處理
             const rootFiles = fs.readdirSync('.').filter(f => !f.startsWith('.') && f !== 'firebase.json');
             rootFiles.forEach(file => {
               if (fs.statSync(file).isDirectory()) {
-                traverseAndGenerate(file);
+                traverseAndProcess(file);
               }
             });
-            console.log('🎉 所有子目錄的專屬清單批量生成完畢！');
+            console.log('🎉 全站 200+ 檔案已完美全自動通關改造完畢！');
           "
 
       - name: Generate Perfect Clean firebase.json in Memory
         run: |
+          # 💡 恢復最乾淨的配置，Firebase 只做純粹的高速託管，不再被任何古板的伺服器重寫規則干涉
           cat << 'EOF' > firebase.json
           {
             "hosting": [
               {
                 "site": "pandapandaai",
                 "public": ".",
-                "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-                "cleanUrls": false,
-                "trailingSlash": true,
-                "rewrites": [
-                  {
-                    "source": "**/",
-                    "destination": "/list.json"
-                  }
-                ]
+                "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
               }
             ]
           }
