@@ -12,16 +12,12 @@ jobs:
 
       - name: Auto Generate Local list.json in Every Single Directory
         run: |
-          # 💡 這段 Node.js 腳本會深度巡邏您所有的資料夾
-          # 並全自動在每一個資料夾底下，各自生出一個專屬的 list.json，內含該資料夾下的檔案名稱！
           node -e "
             const fs = require('fs');
             const path = require('path');
             
             function traverseAndGenerate(dirPath) {
               const files = fs.readdirSync(dirPath).filter(f => !f.startsWith('.'));
-              
-              // 在當前資料夾寫入專屬的 list.json
               fs.writeFileSync(path.join(dirPath, 'list.json'), JSON.stringify(files, null, 2));
               
               files.forEach(file => {
@@ -32,26 +28,32 @@ jobs:
               });
             }
             
-            // 💡 排除 .git 和 .github，其餘所有資料夾全部自動批量派發！
             const rootFiles = fs.readdirSync('.').filter(f => !f.startsWith('.') && f !== 'firebase.json');
             rootFiles.forEach(file => {
               if (fs.statSync(file).isDirectory()) {
                 traverseAndGenerate(file);
               }
             });
-            console.log('🎉 200+ 個資料夾的專屬 list.json 已批量全自動生成完畢！');
+            console.log('🎉 所有子目錄的專屬清單批量生成完畢！');
           "
 
       - name: Generate Perfect Clean firebase.json in Memory
         run: |
-          # 💡 主網站設定恢復最純淨的靜態託管配置，絕不攔截或洗掉您任何資料夾的首頁 (index.html)
           cat << 'EOF' > firebase.json
           {
             "hosting": [
               {
                 "site": "pandapandaai",
                 "public": ".",
-                "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+                "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+                "cleanUrls": false,
+                "trailingSlash": true,
+                "rewrites": [
+                  {
+                    "source": "**/",
+                    "destination": "/list.json"
+                  }
+                ]
               }
             ]
           }
