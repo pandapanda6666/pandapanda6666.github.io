@@ -10,51 +10,20 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Auto Generate list.json and Hard Replace Directory Fetching
+      - name: Deep Recursion Unlock web.app Hostname in All Pages
         run: |
-          # 💡 1. 深度巡邏 200 個資料夾，全自動在每一個資料夾底下生成專屬的 list.json 清單
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            
-            function traverseAndGenerate(dirPath) {
-              const files = fs.readdirSync(dirPath).filter(f => !f.startsWith('.'));
-              fs.writeFileSync(path.join(dirPath, 'list.json'), JSON.stringify(files, null, 2));
-              
-              files.forEach(file => {
-                const fullPath = path.join(dirPath, file);
-                if (fs.statSync(fullPath).isDirectory()) {
-                  traverseAndGenerate(fullPath);
-                }
-              });
-            }
-            
-            const rootFiles = fs.readdirSync('.').filter(f => !f.startsWith('.') && f !== 'firebase.json');
-            rootFiles.forEach(file => {
-              if (fs.statSync(file).isDirectory()) {
-                traverseAndGenerate(file);
-              }
-            });
-            console.log('🎉 所有子目錄的專屬 list.json 批量生成完畢！');
-          "
-
-          # 💡 2. 終極殺手鐧：全自動掃描全站所有的網頁檔案，將所有讀取目錄的代碼特徵，在發布前強制替換為讀取 list.json
-          # 這樣不管您原本是用 fetch、XMLHttpRequest 還是 axios，全數都會被硬更新，免去手動修改 200 次！
-          find . -name "*.html" -o -name "*.js" | while read file; do
+          # 💡 終極深度解鎖：強制深度搜尋全站所有子目錄下的 index.html 檔案，全自動將 web.app 網域加入白名單！
+          find . -type f -name "index.html" | while read file; do
             if [ "$file" != "./.github/workflows/firebase-hosting-merge.yml" ]; then
-              # 替換常見的讀取當前目錄特徵 (支援單雙引號與結尾斜線)
-              sed -i "s|'./'|'./list.json'|g" "$file"
-              sed -i 's|"./"|"./list.json"|g' "$file"
-              sed -i "s|'./\?'|'./list.json'|g" "$file"
-              sed -i "s|'\.'|'./list.json'|g" "$file"
-              sed -i 's|"\."|"./list.json"|g' "$file"
+              # 精準捕捉並替換您的第 117 行防呆機制，讓 Firebase 的 web.app 也能通過 getRepoInfo 的驗證
+              sed -i "s|!hostname.includes('github.io')|(!hostname.includes('github.io') \&\& !hostname.includes('web.app'))|g" "$file"
             fi
           done
-          echo "🚀 全站 200+ 個網頁原始碼文字硬替換完畢，徹底解鎖目錄讀取！"
+          echo "🚀 全站 200+ 個子目錄的 Firebase 網域相容性已「深度递归解鎖」完畢！"
 
       - name: Generate Perfect Clean firebase.json in Memory
         run: |
-          # 💡 保持最乾淨的配置，Firebase 只做純粹的高速託管
+          # 💡 保持最純淨的配置，Firebase 只做純粹的高速靜態託管，絕不攔截您的 index.html 網頁
           cat << 'EOF' > firebase.json
           {
             "hosting": [
