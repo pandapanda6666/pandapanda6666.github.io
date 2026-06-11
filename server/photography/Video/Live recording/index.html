@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>遠端監看與錄製系統</title>
     <!-- 消除 Favicon 404 報錯 -->
-    <link rel="icon" href="data:,">
+    <link class="favicon" rel="icon" href="data:,">
     
     <!-- 全域錯誤攔截器與環境變數設定 -->
     <script>
@@ -112,14 +112,14 @@
                 </div>
             </div>
             
-            <!-- 新增：傳輸頻率與畫質控制區 -->
+            <!-- 傳輸頻率與畫質控制區 -->
             <div class="mt-4 flex flex-wrap items-center justify-center gap-4 bg-slate-900 rounded-xl p-3 border border-slate-700">
                 <div class="flex items-center gap-2">
                     <label class="text-slate-400 text-sm">傳輸頻率:</label>
                     <select id="fpsSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
                         <option value="500">極低 (2 FPS) - 最省流</option>
-                        <option value="200">低 (5 FPS)</option>
-                        <option value="100" selected>標準 (10 FPS)</option>
+                        <option value="200" selected>低 (5 FPS) - 推薦</option>
+                        <option value="100">標準 (10 FPS)</option>
                         <option value="66">高 (15 FPS)</option>
                         <option value="33">極高 (30 FPS) - 易卡頓</option>
                     </select>
@@ -127,9 +127,9 @@
                 <div class="flex items-center gap-2">
                     <label class="text-slate-400 text-sm">影像畫質:</label>
                     <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="0.2">省流 (低畫質)</option>
-                        <option value="0.4" selected>標準 (中畫質)</option>
-                        <option value="0.7">清晰 (高畫質)</option>
+                        <option value="0.15">省流 (低畫質)</option>
+                        <option value="0.3" selected>標準 (中畫質)</option>
+                        <option value="0.6">清晰 (高畫質)</option>
                     </select>
                 </div>
             </div>
@@ -213,14 +213,14 @@
         let isRecording = false;
         let mediaRecorder;
         let recordedChunks = [];
-        let canvasRenderLoopId;
+        let canvasRenderLoopId = null;
 
-        // 相機端專用
-        let localStream;
-        let videoInterval;
-        let micRecorder;
-        let currentCaptureInterval = 100; // 預設 100ms (10 FPS)
-        let currentCaptureQuality = 0.4;  // 預設畫質 0.4
+        // 相機端專用 (整合防重疊機制)
+        let localStream = null;
+        let videoInterval = null;
+        let micRecorder = null;
+        let currentCaptureInterval = 200; // 預設改成 200ms (5 FPS) 兼顧順暢與流暢
+        let currentCaptureQuality = 0.3;  // 預設畫質下調至 0.3 (標準畫質)
 
         // --- SSO 與登入驗證處理 ---
         function checkSSO() {
@@ -322,7 +322,8 @@
                 });
             });
 
-            // 監聽轉發過來的萬用 appData 封包
+            // 綁定前先清除舊的監聽器，嚴防重複連線重複綁定監聽！
+            socket.off('appData');
             socket.on('appData', handleIncomingAppData);
 
             checkSSO();
@@ -344,27 +345,36 @@
             startOffscreenCompositor(); // 啟用 Canvas 合成
         };
 
-        // --- 相機端廣播邏輯 ---
+        // --- 相機端廣播邏輯 (防重複連線重構) ---
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
+                // 如果已經有舊的串流，先徹底關閉
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 640, height: 480, frameRate: 15 }, 
+                    video: { width: 480, height: 360, frameRate: 15 }, // 降低硬體擷取解析度提升效率
                     audio: true 
                 });
                 document.getElementById('localVideo').srcObject = localStream;
-                statusLabel.innerText = "裝置準備就緒，畫面高速廣播傳輸中...";
+                statusLabel.innerText = "裝置準備就緒，畫面傳輸廣播中...";
 
                 // 隱藏畫布用於壓縮擷取
                 const capCanvas = document.createElement('canvas');
-                capCanvas.width = 480;
-                capCanvas.height = 360;
+                capCanvas.width = 320; // 改為 320x240，頻寬耗損減少 50%
+                capCanvas.height = 240;
                 const ctx = capCanvas.getContext('2d');
                 const videoEl = document.getElementById('localVideo');
 
-                // 動態啟動或重啟影像擷取迴圈
+                // 動態啟動或重啟影像擷取迴圈 (防重疊核心機制)
                 function startCaptureLoop() {
-                    if (videoInterval) clearInterval(videoInterval);
+                    if (videoInterval) {
+                        clearInterval(videoInterval);
+                        videoInterval = null;
+                    }
+                    
                     videoInterval = setInterval(() => {
                         if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                             ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
@@ -393,10 +403,14 @@
                     socket.emit('logAppMessage', { appId: appId, message: `更改畫質為: ${e.target.value}`, type: 'info' });
                 };
 
-                // 啟動迴圈
+                // 啟動單一迴圈
                 startCaptureLoop();
 
                 // 麥克風音訊切片發送
+                if (micRecorder && micRecorder.state !== 'inactive') {
+                    micRecorder.stop();
+                }
+
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length > 0) {
                     const micStream = new MediaStream([audioTracks[0]]);
@@ -416,7 +430,7 @@
                             });
                         }
                     };
-                    micRecorder.start(500); // 每 500 毫秒產生一個音訊切片
+                    micRecorder.start(600); // 稍微放寬音訊切片頻率
                 }
 
                 // 記錄操作日誌
@@ -595,6 +609,10 @@
             canvas.width = 1280;
             canvas.height = 720;
 
+            if (canvasRenderLoopId) {
+                cancelAnimationFrame(canvasRenderLoopId);
+            }
+
             function render() {
                 if (myRole !== 'viewer') return;
 
@@ -602,7 +620,6 @@
                 const activeFeeds = Object.entries(remoteFeeds).filter(([id, feed]) => {
                     const alive = (Date.now() - feed.lastFrameTime) < 3000;
                     if (!alive) {
-                        // 畫面上淡出離線提示或直接移除
                         feed.imgElement.classList.add('opacity-40');
                     } else {
                         feed.imgElement.classList.remove('opacity-40');
@@ -616,7 +633,6 @@
 
                 const count = activeFeeds.length;
                 if (count > 0) {
-                    // 動態計算網格分配
                     let cols = Math.ceil(Math.sqrt(count));
                     let rows = Math.ceil(count / cols);
                     let w = canvas.width / cols;
@@ -633,7 +649,6 @@
                         }
                     });
                 } else if (isRecording) {
-                    // 若在錄影中但無任何畫面，錄入黑色底圖與文字提示
                     ctx.fillStyle = "white";
                     ctx.font = "30px Arial";
                     ctx.textAlign = "center";
@@ -649,8 +664,8 @@
         document.getElementById('btnStartRecord').onclick = () => {
             const canvas = document.getElementById('hiddenCanvas');
             
-            // 擷取無 UI 純淨畫布影像訊號 (每秒 25 幀)
-            const stream = canvas.captureStream(25);
+            // 擷取無 UI 純淨畫布影像訊號 (每秒 15 幀，更順暢不卡頓)
+            const stream = canvas.captureStream(15);
             
             try {
                 mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
