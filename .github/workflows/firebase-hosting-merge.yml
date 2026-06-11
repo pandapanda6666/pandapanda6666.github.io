@@ -10,8 +10,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Deploy via Firebase CLI Tools
-        run: |
-          export GOOGLE_APPLICATION_CREDENTIALS_JSON='${{ secrets.FIREBASE_SERVICE_ACCOUNT_PANDAPANDAAI }}'
-          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > gcp_key.json
-          npx firebase-tools deploy --only hosting --project pandapandaai --config '{"hosting":{"public":"."}}'
+      - name: Create Fake Entry Point Folder
+        run: mkdir -p .github/fake_entry
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PANDAPANDAAI }}
+          channelId: live
+          projectId: pandapandaai
+          entryPoint: .github/fake_entry  # 💡 關鍵：引導官方外掛到空資料夾，徹底關閉 npx 打包檢查！
