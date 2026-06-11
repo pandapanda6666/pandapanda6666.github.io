@@ -208,7 +208,7 @@
             if(statusEl) {
                 statusEl.textContent = msg;
                 statusEl.className = `text-xs ml-2 ${isError ? 'text-red-400' : 'text-yellow-400'}`;
-                if(msg === '已連線' || msg.includes('接收影像中')) {
+                if(msg === '已連線' || msg.includes('接收影像中') || msg.includes('影像抵達')) {
                     statusEl.className = 'text-xs ml-2 text-green-400';
                 }
             }
@@ -467,8 +467,17 @@
                             imgEl.src = data.frame;
                             
                             const now = Date.now();
-                            if (!lastFrameTimes[pin] || now - lastFrameTimes[pin] > 2000) {
-                                const btn = document.getElementById('play-btn-' + pin);
+                            const btn = document.getElementById('play-btn-' + pin);
+                            const statusEl = document.getElementById('status-' + pin);
+                            const currentText = statusEl ? statusEl.textContent : '';
+                            
+                            if (!lastFrameTimes[pin] || currentText.includes('呼叫中') || currentText.includes('等待')) {
+                                if (!btn || btn.style.display === 'none') {
+                                    updateWatcherStatus(pin, '接收影像與聲音中...');
+                                } else {
+                                    updateWatcherStatus(pin, '影像抵達，請點擊接收影音');
+                                }
+                            } else if (now - lastFrameTimes[pin] > 2000) {
                                 if (!btn || btn.style.display === 'none') {
                                     updateWatcherStatus(pin, '接收影像與聲音中...');
                                 }
@@ -571,7 +580,7 @@
         回報問題
     </button>
 
-    <footer class="bg-gray-800 text-center text-gray-400 p-4 text-sm mt-auto">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-white transition">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+    <footer class="bg-gray-800 text-center text-gray-400 p-4 text-sm mt-auto">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
 
 </body>
 </html>
