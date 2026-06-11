@@ -5,17 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>遠端監看系統</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
-        .video-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; background: #000; border-radius: 0.5rem; overflow: hidden; }
-        video { width: 100%; height: auto; display: block; }
-        .camera-pin { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; }
-        .grid-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col">
+    
+    <link rel="icon" href="data:,">
 
     <script>
         const originalWarn = console.warn;
@@ -23,13 +14,39 @@
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
             originalWarn.apply(console, args);
         };
+        
         window.onerror = function(msg, url, line) { 
             if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
         };
+        
         window.addEventListener('unhandledrejection', function(event) {
-            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
-        });
+            const reasonMsg = event.reason ? (event.reason.message || event.reason) : '未知錯誤';
+            
+            if (typeof reasonMsg === 'string' && reasonMsg.includes('message channel closed before a response was received')) {
+                return;
+            }
 
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('logError', { errorMsg: 'Promise異常: ' + reasonMsg, url: window.location.href, line: 0 });
+            }
+        });
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
+        .video-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; background: #000; border-radius: 0.5rem; overflow: hidden; border: 1px solid #333; }
+        video { width: 100%; height: auto; display: block; min-height: 200px; background-color: #111; }
+        .camera-pin { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; font-size: 0.9rem; }
+        .grid-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .viewer-count { position: absolute; top: 10px; left: 10px; background: rgba(0,100,200,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; font-size: 0.9rem; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <script>
         const appId = window.location.hostname + window.location.pathname;
         let socket;
         let currentUser = null;
@@ -39,9 +56,12 @@
         let myPin = null;
         const peers = {}; 
         const watchedPins = []; 
+        let viewerCount = 0;
+
         const iceServers = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
                 { urls: 'stun:global.stun.twilio.com:3478' }
             ]
         };
@@ -73,6 +93,7 @@
             socket = io(serverUrl, { transports: ['websocket'] });
 
             socket.on('connect', () => {
+                showSystemMessage('信令伺服器連線成功', false);
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
                 checkAuth();
@@ -80,7 +101,7 @@
             });
 
             socket.on('disconnect', () => {
-                showSystemMessage('已與伺服器斷線，嘗試重連中...', false);
+                showSystemMessage('已與伺服器斷線，嘗試重連中...', true);
             });
         }
 
@@ -149,12 +170,40 @@
             window.location.href = ssoUrl;
         }
 
+        function reportIssue() {
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+        }
+
         function showSystemMessage(msg, isError = false) {
             const msgDiv = document.getElementById('system-message');
             msgDiv.textContent = msg;
-            msgDiv.className = `p-3 mb-4 rounded ${isError ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`;
+            msgDiv.className = `p-3 mb-4 rounded ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
             msgDiv.style.display = 'block';
             setTimeout(() => { msgDiv.style.display = 'none'; }, 5000);
+        }
+
+        function updateWatcherStatus(pin, msg, isError = false) {
+            const statusEl = document.getElementById('status-' + pin);
+            if(statusEl) {
+                statusEl.textContent = msg;
+                statusEl.className = `text-xs ml-2 ${isError ? 'text-red-400' : 'text-yellow-400'}`;
+                if(msg === '已連線' || msg.includes('成功')) {
+                    statusEl.className = 'text-xs ml-2 text-green-400';
+                }
+            }
+        }
+
+        function updateCameraViewerCount() {
+            const countEl = document.getElementById('camera-viewer-count');
+            if(countEl) {
+                let activeCount = 0;
+                Object.values(peers).forEach(peerObj => {
+                    if(peerObj.pc.iceConnectionState === 'connected' || peerObj.pc.iceConnectionState === 'completed') {
+                        activeCount++;
+                    }
+                });
+                countEl.textContent = `觀看人數: ${activeCount}`;
+            }
         }
 
         function setMode(mode) {
@@ -172,6 +221,10 @@
         }
 
         async function startCameraMode() {
+            if (!window.isSecureContext) {
+                showSystemMessage('警告：您的瀏覽器環境非安全連線 (HTTPS)，可能無法開啟相機權限！', true);
+            }
+
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 const videoEl = document.getElementById('local-video');
@@ -182,7 +235,10 @@
 
                 socket.emit('logAppMessage', { appId: appId, message: '開啟被監看模式，代碼:' + myPin, type: 'info' });
             } catch (err) {
-                showSystemMessage('無法取得相機權限: ' + err.message, true);
+                let errMsg = err.message;
+                if (err.name === 'NotAllowedError') errMsg = '您拒絕了相機與麥克風的權限。';
+                if (err.name === 'NotFoundError') errMsg = '找不到相機設備，請確認筆電鏡頭是否正常。';
+                showSystemMessage('無法取得相機權限: ' + errMsg, true);
             }
         }
 
@@ -216,9 +272,12 @@
             wrapper.id = 'video-wrapper-' + pin;
             wrapper.className = 'video-container shadow-lg';
             wrapper.innerHTML = `
-                <div class="camera-pin">監看代碼: ${pin} <span id="status-${pin}" class="text-yellow-400 text-xs ml-2">連線中...</span></div>
+                <div class="camera-pin">監看代碼: ${pin} <span id="status-${pin}" class="text-yellow-400 text-xs ml-2">等待操作...</span></div>
                 <video id="remote-video-${pin}" autoplay playsinline controls></video>
-                <button onclick="removeWatcher('${pin}')" class="absolute bottom-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs z-10">移除</button>
+                <div class="absolute bottom-2 right-2 flex space-x-2 z-10">
+                    <button onclick="requestCameraStream('${pin}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs">重連</button>
+                    <button onclick="removeWatcher('${pin}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">移除</button>
+                </div>
             `;
             container.appendChild(wrapper);
         }
@@ -241,11 +300,19 @@
         }
 
         function requestCameraStream(pin) {
+            updateWatcherStatus(pin, '尋找裝置中...');
             socket.emit('appData', {
                 room: appId,
                 action: 'webrtc_signal',
                 signalData: { type: 'request_stream', pin: pin, requesterId: socket.id }
             });
+            
+            setTimeout(() => {
+                const statusEl = document.getElementById('status-' + pin);
+                if(statusEl && statusEl.textContent === '尋找裝置中...') {
+                    updateWatcherStatus(pin, '對方未上線或代碼錯誤', true);
+                }
+            }, 10000);
         }
 
         function setupWebRTCListeners() {
@@ -258,7 +325,11 @@
                     const pc = new RTCPeerConnection(iceServers);
                     peers[peerId] = { pc: pc };
 
-                    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                    if (localStream) {
+                        localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+                    } else {
+                        showSystemMessage('警告：尚未獲取到本地影像，無法發送串流', true);
+                    }
 
                     pc.onicecandidate = event => {
                         if (event.candidate) {
@@ -269,12 +340,20 @@
                         }
                     };
 
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    socket.emit('appData', {
-                        room: appId, action: 'webrtc_signal',
-                        signalData: { type: 'offer', targetId: peerId, senderId: socket.id, sdp: offer, pin: myPin }
-                    });
+                    pc.oniceconnectionstatechange = () => {
+                        updateCameraViewerCount();
+                    };
+
+                    try {
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+                        socket.emit('appData', {
+                            room: appId, action: 'webrtc_signal',
+                            signalData: { type: 'offer', targetId: peerId, senderId: socket.id, sdp: offer, pin: myPin }
+                        });
+                    } catch (e) {
+                        console.error('創建 Offer 失敗:', e);
+                    }
                 }
 
                 if (signal.targetId !== socket.id) return; 
@@ -282,6 +361,9 @@
                 if (currentMode === 'watcher' && signal.type === 'offer') {
                     const peerId = signal.senderId;
                     const pin = signal.pin;
+                    
+                    updateWatcherStatus(pin, '交換信令中...');
+                    
                     const pc = new RTCPeerConnection(iceServers);
                     peers[peerId] = { pc: pc, pin: pin };
 
@@ -296,38 +378,47 @@
 
                     pc.ontrack = event => {
                         const videoEl = document.getElementById('remote-video-' + pin);
-                        const statusEl = document.getElementById('status-' + pin);
-                        if (videoEl) {
+                        if (videoEl && videoEl.srcObject !== event.streams[0]) {
                             videoEl.srcObject = event.streams[0];
-                            if(statusEl) statusEl.textContent = '已連線';
-                            if(statusEl) statusEl.className = 'text-green-400 text-xs ml-2';
+                            videoEl.onloadedmetadata = () => {
+                                videoEl.play().catch(e => console.error('自動播放被瀏覽器阻擋:', e));
+                            };
+                            updateWatcherStatus(pin, '接收影像中...');
                         }
                     };
 
                     pc.oniceconnectionstatechange = () => {
-                        const statusEl = document.getElementById('status-' + pin);
-                        if(pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-                            if(statusEl) {
-                                statusEl.textContent = '連線中斷';
-                                statusEl.className = 'text-red-400 text-xs ml-2';
-                            }
-                        }
+                        const state = pc.iceConnectionState;
+                        if(state === 'checking') updateWatcherStatus(pin, '網路打洞中(STUN)...');
+                        else if(state === 'connected' || state === 'completed') updateWatcherStatus(pin, 'P2P連線成功');
+                        else if(state === 'disconnected') updateWatcherStatus(pin, '網路不穩，斷線中', true);
+                        else if(state === 'failed') updateWatcherStatus(pin, '防火牆阻擋，連線失敗', true);
+                        else if(state === 'closed') updateWatcherStatus(pin, '連線已關閉', true);
                     };
 
-                    await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
+                    try {
+                        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
 
-                    socket.emit('appData', {
-                        room: appId, action: 'webrtc_signal',
-                        signalData: { type: 'answer', targetId: peerId, senderId: socket.id, sdp: answer }
-                    });
+                        socket.emit('appData', {
+                            room: appId, action: 'webrtc_signal',
+                            signalData: { type: 'answer', targetId: peerId, senderId: socket.id, sdp: answer }
+                        });
+                    } catch (e) {
+                        updateWatcherStatus(pin, '信令處理失敗', true);
+                        console.error('處理 Offer 失敗:', e);
+                    }
                 }
 
                 if (currentMode === 'camera' && signal.type === 'answer') {
                     const peerId = signal.senderId;
                     if (peers[peerId]) {
-                        await peers[peerId].pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                        try {
+                            await peers[peerId].pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+                        } catch (e) {
+                            console.error('設定 Remote Answer 失敗:', e);
+                        }
                     }
                 }
 
@@ -337,7 +428,7 @@
                         try {
                             await peers[peerId].pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
                         } catch (e) {
-                            console.error('Error adding received ice candidate', e);
+                            console.error('加入 ICE Candidate 失敗', e);
                         }
                     }
                 }
@@ -373,6 +464,7 @@
         <div id="camera-mode-ui" style="display: none;" class="text-center">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">被監看模式 (發送中)</h2>
             <div class="video-container shadow-xl">
+                <div id="camera-viewer-count" class="viewer-count">觀看人數: 0</div>
                 <div id="camera-pin-display" class="camera-pin">代碼: 產生中...</div>
                 <video id="local-video" autoplay playsinline muted></video>
             </div>
@@ -396,6 +488,11 @@
             </div>
         </div>
     </main>
+
+    <!-- 浮動回報問題按鈕 -->
+    <button onclick="reportIssue()" class="fixed bottom-16 right-6 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-5 rounded-full shadow-lg transition duration-200 z-50 flex items-center border-2 border-white">
+        回報問題
+    </button>
 
     <footer class="bg-gray-800 text-center text-gray-400 p-4 text-sm mt-auto">
         版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-white transition">PandaPanda的AI日常</a> All Rights Reserved.
