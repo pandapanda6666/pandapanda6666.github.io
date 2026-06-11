@@ -1,13 +1,13 @@
-<!-- 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved. -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遠端監看系統</title>
-    
+    <title>遠端監看與錄製系統</title>
+    <!-- 消除 Favicon 404 報錯 -->
     <link rel="icon" href="data:,">
-
+    
+    <!-- 全域錯誤攔截器與環境變數設定 -->
     <script>
         const originalWarn = console.warn;
         console.warn = function(...args) {
@@ -16,571 +16,648 @@
         };
         
         window.onerror = function(msg, url, line) { 
-            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+            if (typeof socket !== 'undefined' && socket.connected) {
+                socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+            }
         };
         
         window.addEventListener('unhandledrejection', function(event) {
-            const reasonMsg = event.reason ? (event.reason.message || event.reason) : '未知錯誤';
-            if (typeof reasonMsg === 'string' && reasonMsg.includes('message channel closed before a response was received')) return;
+            const errorMsg = event.reason ? event.reason.message || event.reason : '未知錯誤';
+            // 過濾瀏覽器插件產生的已知 Promise 錯誤
+            if (typeof errorMsg === 'string' && errorMsg.includes('A listener indicated an asynchronous response')) return;
             if (typeof socket !== 'undefined' && socket.connected) {
-                socket.emit('logError', { errorMsg: 'Promise異常: ' + reasonMsg, url: window.location.href, line: 0 });
+                socket.emit('logError', { errorMsg: 'Promise異常: ' + errorMsg, url: window.location.href, line: 0 });
             }
         });
-    </script>
 
+        // 專屬應用識別碼 (排除 index.html 造成的平行時空問題)
+        const appId = window.location.hostname + window.location.pathname.replace('index.html', '');
+    </script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; }
-        .video-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; background: #000; border-radius: 0.5rem; overflow: hidden; border: 1px solid #333; }
-        video, img.remote-img { width: 100%; height: auto; display: block; min-height: 200px; background-color: #111; object-fit: contain; }
-        .camera-pin { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; font-size: 0.9rem; }
-        .grid-videos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-        .viewer-count { position: absolute; top: 10px; left: 10px; background: rgba(0,100,200,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; z-index: 10; font-size: 0.9rem; }
-        #debug-log { background: #111; color: #0f0; font-family: monospace; padding: 10px; height: 150px; overflow-y: auto; font-size: 0.8rem; margin-top: 20px; border-radius: 5px; }
-    </style>
 </head>
-<body class="min-h-screen flex flex-col relative">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
 
-    <script>
-        let path = window.location.pathname;
-        if (path.endsWith('index.html')) path = path.slice(0, -10);
-        if (path.endsWith('/')) path = path.slice(0, -1);
-        const appId = window.location.hostname + path;
-
-        const myClientId = Math.random().toString(36).substring(2, 15);
-
-        let socket;
-        let currentUser = null;
-
-        let localStream = null;
-        let currentMode = null; 
-        let myPin = null;
-        const watchedPins = []; 
-        let activeViewers = [];
-        
-        let sendFrameInterval = null;
-        let audioRecorder = null;
-        let lastFrameTimes = {};
-
-        const audioQueues = {};
-        const sourceBuffers = {};
-        const mediaSources = {};
-
-        function writeDebugLog(msg) {
-            const logEl = document.getElementById('debug-log');
-            if(logEl) {
-                const time = new Date().toLocaleTimeString();
-                logEl.innerHTML += `[${time}] ${msg}<br>`;
-                logEl.scrollTop = logEl.scrollHeight;
-            }
-            console.log(`[Socket Debug] ${msg}`);
-        }
-
-        async function initConnection() {
-            writeDebugLog(`系統初始化，專屬房間ID: ${appId}`);
-            writeDebugLog(`本地客戶端識別碼: ${myClientId}`);
-
-            let serverUrl = '';
-            const urlParams = new URLSearchParams(window.location.search);
-            const serverParam = urlParams.get('server');
-
-            if (serverParam) {
-                serverUrl = serverParam;
-            } else {
-                try {
-                    const response = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    serverUrl = await response.text();
-                    serverUrl = serverUrl.trim();
-                } catch (error) {
-                    showSystemMessage('伺服器網址讀取失敗，請稍後再試', true);
-                    return;
-                }
-            }
-
-            if (!serverUrl) {
-                showSystemMessage('伺服器網址為空，無法連線', true);
-                return;
-            }
-
-            writeDebugLog(`準備連線至信令伺服器: ${serverUrl}`);
-            socket = io(serverUrl);
-
-            socket.on('connect', () => {
-                showSystemMessage('伺服器連線成功', false);
-                writeDebugLog(`Socket.IO 連線成功，Session: ${socket.id}`);
-                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
-                socket.emit('joinGameRoom', { room: appId, characterData: {} });
-                writeDebugLog(`已送出加入房間請求: ${appId}`);
-                checkAuth();
-                setupSocketListeners();
-            });
-
-            socket.on('disconnect', () => {
-                showSystemMessage('已與伺服器斷線，嘗試重連中...', true);
-                writeDebugLog('Socket.IO 斷線');
-                if (sendFrameInterval) clearInterval(sendFrameInterval);
-                if (audioRecorder && audioRecorder.state !== 'inactive') audioRecorder.stop();
-            });
-        }
-
-        function checkAuth() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const auth = urlParams.get('auth');
-            const user = urlParams.get('user');
-
-            const headerContainer = document.getElementById('header-container');
-
-            if (auth === 'true' && user) {
-                socket.emit('requestProfile', { username: user });
-                socket.on('profileData', (data) => {
-                    currentUser = data;
-                    renderUserProfile(data);
-                    
-                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                    window.history.replaceState({path: newUrl}, '', newUrl);
-
-                    socket.emit('getAppData', { appId: appId }, (res) => {
-                        if (res && res.watchedPins) {
-                            res.watchedPins.forEach(pin => {
-                                if(!watchedPins.includes(pin)) {
-                                    watchedPins.push(pin);
-                                    addWatcherVideoPlaceholder(pin);
-                                    if(currentMode === 'watcher') {
-                                        requestCameraStream(pin);
-                                    }
-                                }
-                            });
-                        }
-                    });
-                });
-            } else {
-                renderGuestLogin();
-            }
-        }
-
-        function renderUserProfile(data) {
-            const headerContainer = document.getElementById('header-container');
-            headerContainer.innerHTML = `
-                <div class="flex items-center space-x-3 cursor-pointer bg-white p-2 rounded-lg shadow-sm hover:shadow-md transition" onclick="goToSSO()">
-                    <img src="${data.avatar || 'https://via.placeholder.com/40'}" alt="頭像" class="w-10 h-10 rounded-full border border-gray-200">
-                    <div>
-                        <div class="font-bold text-gray-800 text-sm">${data.nickname || '玩家'} <span class="text-xs text-blue-500">Lv.${data.level || 1}</span></div>
-                        <div class="text-xs text-yellow-600 font-semibold">P幣: ${data.pCoin || 0}</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderGuestLogin() {
-            const headerContainer = document.getElementById('header-container');
-            headerContainer.innerHTML = `
-                <button onclick="goToSSO(true)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded shadow">
-                    登入 / 註冊
+    <!-- 頂部導覽列與 SSO 個人資料區 -->
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="h-3 w-3 bg-red-500 rounded-full animate-ping"></div>
+                <h1 class="text-xl font-bold tracking-wider text-white">Panda Live 遠端監看系統</h1>
+            </div>
+            
+            <div id="authContainer">
+                <button id="loginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-lg transition duration-200 transform hover:scale-105">
+                    登入 / 註冊 SSO
                 </button>
-            `;
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
+        
+        <!-- 連線狀態提示 (非 Alert 彈窗) -->
+        <div id="alertToast" class="hidden mb-6 p-4 rounded-xl border flex items-center gap-3 bg-red-950/80 border-red-800 text-red-200 shadow-xl transition-all duration-300">
+            <svg class="h-6 w-6 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+            <span id="alertToastText" class="text-sm font-medium"></span>
+        </div>
+
+        <!-- 模式切換大廳 -->
+        <div id="lobbySection" class="bg-slate-800 rounded-2xl p-8 border border-slate-700 max-w-2xl mx-auto text-center shadow-2xl mt-10">
+            <h2 class="text-2xl font-extrabold text-white mb-3">選擇您的連線模式</h2>
+            <p class="text-slate-400 mb-8 text-sm">此版本支援純伺服器轉發影像與音訊，免除一切防火牆與連線干擾。</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button id="modeCamera" class="flex flex-col items-center justify-center p-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg transition duration-300 group hover:-translate-y-1">
+                    <svg class="h-10 w-10 mb-3 text-emerald-100 group-hover:scale-110 transition" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+                    <span class="text-lg font-bold">被監看模式 (相機端)</span>
+                    <span class="text-xs text-emerald-200 mt-1">產生配對碼並開始廣播畫面</span>
+                </button>
+                
+                <button id="modeViewer" class="flex flex-col items-center justify-center p-6 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-lg transition duration-300 group hover:-translate-y-1">
+                    <svg class="h-10 w-10 mb-3 text-indigo-100 group-hover:scale-110 transition" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <span class="text-lg font-bold">監看模式 (觀看端)</span>
+                    <span class="text-xs text-indigo-200 mt-1">觀看多端影像並提供錄影</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 相機端介面 -->
+        <div id="cameraUI" class="hidden bg-slate-800 rounded-2xl p-6 border border-slate-700 max-w-2xl mx-auto shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span class="h-2.5 w-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    相機端廣播中
+                </h2>
+                <button onclick="window.location.reload()" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
+            </div>
+            
+            <div class="bg-slate-900 rounded-xl p-5 border border-slate-700 text-center mb-6">
+                <p class="text-xs text-slate-400 uppercase tracking-widest mb-1">您的專屬監看配對代碼</p>
+                <div id="pairCodeDisplay" class="text-4xl font-mono font-extrabold text-emerald-400 tracking-wider">------</div>
+                <p class="text-xs text-slate-500 mt-2">請在觀看端輸入此 6 位數代碼來開始監看</p>
+            </div>
+
+            <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden shadow-inner border border-slate-800">
+                <video id="localVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+                <div class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-slate-300 flex items-center gap-2">
+                    <span class="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+                    即時影像串流傳輸中
+                </div>
+            </div>
+            <div id="cameraStatus" class="text-xs text-slate-400 text-center mt-3">正在初始化硬體裝置...</div>
+        </div>
+
+        <!-- 觀看端介面 -->
+        <div id="viewerUI" class="hidden bg-slate-800 rounded-2xl p-6 border border-slate-700 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                    <span class="h-2.5 w-2.5 bg-indigo-500 rounded-full"></span>
+                    主控監看台
+                </h2>
+                <button onclick="window.location.reload()" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
+            </div>
+
+            <!-- 頻道添加與控制區 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="md:col-span-2 flex gap-2">
+                    <input type="text" id="inputPairCode" placeholder="輸入6位數相機配對碼" class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono tracking-widest text-center text-lg">
+                    <button id="btnConnect" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl transition shadow-lg shrink-0">加入頻道</button>
+                </div>
+                
+                <!-- 錄影控制區 -->
+                <div class="flex gap-2">
+                    <button id="btnStartRecord" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                        <span class="h-3 w-3 bg-white rounded-full animate-pulse"></span>
+                        錄製全螢幕
+                    </button>
+                    <button id="btnStopRecord" class="hidden w-full bg-slate-100 hover:bg-white text-slate-900 font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 animate-bounce">
+                        <span class="h-3 w-3 bg-red-600 rounded-full"></span>
+                        停止並匯出
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/50 rounded-xl p-4 border border-slate-700 mb-6 flex flex-wrap justify-between items-center gap-3">
+                <div class="flex items-center gap-2 text-sm text-slate-300">
+                    <span class="font-semibold">目前連線頻道：</span>
+                    <span id="activeCodesList" class="font-mono text-indigo-400">尚無連線</span>
+                </div>
+                <div id="viewerStatus" class="text-xs text-slate-400">請在上方輸入配對碼連線。</div>
+            </div>
+
+            <!-- 頻道多分割視窗網格 -->
+            <div id="feedContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 這裡會動態產生各頻道的視窗 -->
+            </div>
+
+            <!-- 隱藏的 Canvas 用於合併與無 UI 乾淨錄影 -->
+            <canvas id="hiddenCanvas" class="hidden"></canvas>
+        </div>
+
+    </main>
+
+    <!-- 底部資訊與版權 -->
+    <footer class="bg-slate-950 border-t border-slate-900 py-6 text-center text-xs text-slate-500 flex flex-col gap-2">
+        <div>
+            <a href="https://pandapanda6666.github.io" class="hover:text-indigo-400 transition font-medium">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+        </div>
+    </footer>
+
+    <!-- 右下角回報問題浮動按鈕 -->
+    <button onclick="reportIssue()" class="fixed bottom-6 right-6 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 px-5 rounded-full shadow-2xl z-50 flex items-center gap-2 transition duration-300 transform hover:scale-105 active:scale-95">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+        回報問題
+    </button>
+
+    <!-- 核心運作腳本 -->
+    <script>
+        // --- 核心狀態管理與變數 ---
+        let socket;
+        let myRole = ''; // 'camera' 或者是 'viewer'
+        let myPairCode = Math.floor(100000 + Math.random() * 900000).toString(); // 六位數代碼
+        let myUuid = crypto.randomUUID();
+        
+        // 觀看端專用
+        let watchedCodes = new Set(); 
+        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, imageObj, lastFrameTime, audioContext, sourceNode, bufferQueue } }
+        let isRecording = false;
+        let mediaRecorder;
+        let recordedChunks = [];
+        let canvasRenderLoopId;
+
+        // 相機端專用
+        let localStream;
+        let videoInterval;
+        let micRecorder;
+
+        // --- SSO 與登入驗證處理 ---
+        function checkSSO() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('auth') === 'true') {
+                const user = params.get('user');
+                
+                // 向 Socket 請求資料
+                const emitProfileRequest = () => {
+                    if (socket && socket.connected) {
+                        socket.emit('requestProfile', { username: user });
+                    } else {
+                        setTimeout(emitProfileRequest, 500);
+                    }
+                };
+                emitProfileRequest();
+
+                // 接收個人資料
+                socket.on('profileData', (data) => {
+                    if (data) {
+                        const container = document.getElementById('authContainer');
+                        container.innerHTML = `
+                            <div onclick="goToLoginHub()" class="flex items-center gap-3 bg-slate-800 border border-slate-700 py-1.5 px-4 rounded-full cursor-pointer hover:bg-slate-700 transition shadow-inner">
+                                <img src="${data.avatar || 'https://via.placeholder.com/40'}" class="w-9 h-9 rounded-full border-2 border-indigo-500 object-cover" onerror="this.src='https://via.placeholder.com/40'">
+                                <div class="flex flex-col text-left">
+                                    <span class="text-xs font-bold text-slate-100">${data.nickname || user}</span>
+                                    <span class="text-[10px] text-yellow-500 font-semibold">🪙 ${data.pCoin || 0} P幣</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                // 清除網址列參數避免重新整理造成重複驗證
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+            } else {
+                document.getElementById('loginBtn').onclick = () => {
+                    window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
+                };
+            }
         }
 
-        function goToSSO(requireAuth = false) {
-            let ssoUrl = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href);
-            if (requireAuth) {
-                ssoUrl += '&require=1';
-            }
-            window.location.href = ssoUrl;
+        function goToLoginHub() {
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href);
         }
 
         function reportIssue() {
             window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
         }
 
-        function showSystemMessage(msg, isError = false) {
-            const msgDiv = document.getElementById('system-message');
-            msgDiv.textContent = msg;
-            msgDiv.className = `p-3 mb-4 rounded ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
-            msgDiv.style.display = 'block';
-            setTimeout(() => { msgDiv.style.display = 'none'; }, 8000);
+        // --- 錯誤提示 UI ---
+        function showErrorToast(message) {
+            const toast = document.getElementById('alertToast');
+            const text = document.getElementById('alertToastText');
+            text.innerText = message;
+            toast.classList.remove('hidden');
         }
 
-        function updateWatcherStatus(pin, msg, isError = false) {
-            const statusEl = document.getElementById('status-' + pin);
-            if(statusEl) {
-                statusEl.textContent = msg;
-                statusEl.className = `text-xs ml-2 ${isError ? 'text-red-400' : 'text-yellow-400'}`;
-                if(msg === '已連線' || msg.includes('接收影像中') || msg.includes('影像抵達')) {
-                    statusEl.className = 'text-xs ml-2 text-green-400';
-                }
-            }
-        }
-
-        function updateCameraViewerCount() {
-            const countEl = document.getElementById('camera-viewer-count');
-            if(countEl) {
-                countEl.textContent = `觀看人數: ${activeViewers.length}`;
-            }
-        }
-
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('mode-selection').style.display = 'none';
-            if (mode === 'camera') {
-                document.getElementById('camera-mode-ui').style.display = 'block';
-                startCameraMode();
-            } else {
-                document.getElementById('watcher-mode-ui').style.display = 'block';
-                if(watchedPins.length > 0) {
-                    watchedPins.forEach(pin => requestCameraStream(pin));
-                }
-            }
-        }
-
-        async function startCameraMode() {
-            if (!window.isSecureContext) {
-                showSystemMessage('警告：您的瀏覽器環境非安全連線 (HTTPS)，可能無法開啟相機與麥克風權限！', true);
-            }
-
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                const videoEl = document.getElementById('local-video');
-                videoEl.srcObject = localStream;
-                
-                myPin = Math.floor(100000 + Math.random() * 900000).toString();
-                document.getElementById('camera-pin-display').textContent = '代碼: ' + myPin;
-                writeDebugLog(`相機與麥克風已啟動，您的對外監看代碼: ${myPin}`);
-
-                socket.emit('logAppMessage', { appId: appId, message: '開啟被監看模式，代碼:' + myPin, type: 'info' });
-
-                startSendingFrames();
-                startSendingAudio();
-
-            } catch (err) {
-                let errMsg = err.message;
-                if (err.name === 'NotAllowedError') errMsg = '您拒絕了權限，請點擊 Chrome 網址列左側的鎖頭圖示來允許存取。';
-                if (err.name === 'NotFoundError') errMsg = '找不到相機或麥克風設備，請確認硬體是否正常。';
-                showSystemMessage('無法取得影音權限: ' + errMsg, true);
-                writeDebugLog(`獲取影音權限失敗: ${err.name}`);
-            }
-        }
-
-        function startSendingFrames() {
-            const videoEl = document.getElementById('local-video');
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-            sendFrameInterval = setInterval(() => {
-                if (activeViewers.length === 0) return; 
-
-                if (videoEl.videoWidth > 0 && videoEl.videoHeight > 0) {
-                    canvas.width = 320; 
-                    canvas.height = (canvas.width / videoEl.videoWidth) * videoEl.videoHeight;
-                    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-                    
-                    const frameData = canvas.toDataURL('image/jpeg', 0.4);
-
-                    socket.emit('appData', {
-                        room: appId,
-                        action: 'socket_video_frame',
-                        pin: myPin,
-                        frame: frameData
-                    });
-                }
-            }, 100); 
-            writeDebugLog(`已啟動影像截圖轉發機制 (10FPS)`);
-        }
-
-        function startSendingAudio() {
-            if (!localStream) return;
-            try {
-                audioRecorder = new MediaRecorder(localStream, { mimeType: 'audio/webm; codecs=opus' });
-                audioRecorder.ondataavailable = (event) => {
-                    if (event.data && event.data.size > 0 && activeViewers.length > 0) {
-                        socket.emit('appData', {
-                            room: appId,
-                            action: 'socket_audio_chunk',
-                            pin: myPin,
-                            chunk: event.data
-                        });
+        // --- 核心連線邏輯 ---
+        async function initSocketConnection() {
+            let serverUrl = new URLSearchParams(window.location.search).get('server');
+            
+            if (!serverUrl) {
+                try {
+                    const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                    if (res.ok) {
+                        serverUrl = (await res.text()).trim();
+                    } else {
+                        throw new Error('無法取得 server_url.txt 文件');
                     }
-                };
-                audioRecorder.start(500); 
-                writeDebugLog(`已啟動麥克風音軌分片轉發機制 (500ms)`);
-            } catch(e) {
-                writeDebugLog(`麥克風分片轉發啟動失敗: ${e}`);
+                } catch (e) {
+                    showErrorToast('伺服器連線失敗，請稍後再試。');
+                    return;
+                }
             }
-        }
 
-        function watchNewCamera() {
-            const pinInput = document.getElementById('watch-pin-input').value.trim();
-            if (pinInput.length !== 6) {
-                alert('請輸入6位數代碼');
+            // 確保不是 localhost
+            if (serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) {
+                showErrorToast('伺服器連線失敗，嚴禁連線至本地端伺服器！');
                 return;
             }
-            if (!watchedPins.includes(pinInput)) {
-                watchedPins.push(pinInput);
-                addWatcherVideoPlaceholder(pinInput);
-                initAudioReceiver(pinInput);
-                saveCloudData();
-                socket.emit('logAppMessage', { appId: appId, message: '嘗試監看代碼:' + pinInput, type: 'info' });
-            }
-            requestCameraStream(pinInput);
-            document.getElementById('watch-pin-input').value = '';
-        }
 
-        function saveCloudData() {
-            if (currentUser) {
-                socket.emit('saveAppData', { appId: appId, data: { watchedPins: watchedPins } });
-            }
-        }
+            // 建立 Socket 連線
+            socket = io(serverUrl);
 
-        function addWatcherVideoPlaceholder(pin) {
-            const container = document.getElementById('remote-videos-container');
-            if (document.getElementById('video-wrapper-' + pin)) return;
-
-            const wrapper = document.createElement('div');
-            wrapper.id = 'video-wrapper-' + pin;
-            wrapper.className = 'video-container shadow-lg flex justify-center items-center';
-            wrapper.innerHTML = `
-                <div class="camera-pin">監看代碼: ${pin} <span id="status-${pin}" class="text-yellow-400 text-xs ml-2">等待操作...</span></div>
-                <img id="remote-video-${pin}" class="remote-img" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="等待影像...">
-                <audio id="remote-audio-${pin}" autoplay></audio>
-                <button id="play-btn-${pin}" onclick="playMedia('${pin}')" class="absolute bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded z-20">
-                    點擊接收影音
-                </button>
-                <div class="absolute bottom-2 right-2 flex space-x-2 z-10">
-                    <button onclick="requestCameraStream('${pin}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">重連</button>
-                    <button onclick="removeWatcher('${pin}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">移除</button>
-                </div>
-            `;
-            container.appendChild(wrapper);
-        }
-
-        function playMedia(pin) {
-            const playBtn = document.getElementById('play-btn-' + pin);
-            if (playBtn) playBtn.style.display = 'none';
-            const audioEl = document.getElementById('remote-audio-' + pin);
-            if (audioEl) {
-                audioEl.play().catch(e => writeDebugLog(`解除靜音失敗: ${e}`));
-            }
-            const statusEl = document.getElementById('status-' + pin);
-            if (statusEl) statusEl.textContent = '接收影像與聲音中...';
-        }
-
-        function initAudioReceiver(pin) {
-            const audioEl = document.getElementById('remote-audio-' + pin);
-            if (!audioEl) return;
-
-            try {
-                const ms = new MediaSource();
-                audioEl.src = URL.createObjectURL(ms);
-                mediaSources[pin] = ms;
-                audioQueues[pin] = [];
-
-                ms.addEventListener('sourceopen', () => {
-                    try {
-                        const sb = ms.addSourceBuffer('audio/webm; codecs=opus');
-                        sourceBuffers[pin] = sb;
-
-                        sb.addEventListener('updateend', () => {
-                            if (audioQueues[pin].length > 0 && !sb.updating) {
-                                sb.appendBuffer(audioQueues[pin].shift());
-                            }
-                        });
-                    } catch (e) {
-                        writeDebugLog(`建立音軌緩衝區失敗: ${e}`);
+            socket.on('connect', () => {
+                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                
+                // 雲端歷史觀看紀錄讀取
+                socket.emit('getAppData', { appId: appId }, (res) => {
+                    if (res && res.data && res.data.lastWatchedCodes) {
+                        const saved = res.data.lastWatchedCodes;
+                        if (saved.length > 0) {
+                            document.getElementById('inputPairCode').value = saved.join(', ');
+                        }
                     }
                 });
-            } catch(e) {
-                writeDebugLog(`初始化 MediaSource 失敗 (可能是蘋果裝置不支援): ${e}`);
-            }
-        }
-
-        function removeWatcher(pin) {
-            const index = watchedPins.indexOf(pin);
-            if (index > -1) {
-                watchedPins.splice(index, 1);
-                saveCloudData();
-            }
-            const wrapper = document.getElementById('video-wrapper-' + pin);
-            if (wrapper) wrapper.remove();
-            
-            if (mediaSources[pin] && mediaSources[pin].readyState === 'open') {
-                mediaSources[pin].endOfStream();
-            }
-            delete sourceBuffers[pin];
-            delete mediaSources[pin];
-            delete audioQueues[pin];
-
-            socket.emit('appData', {
-                room: appId,
-                action: 'stop_stream',
-                pin: pin,
-                requesterId: myClientId
             });
-            writeDebugLog(`已移除監看頻道: ${pin}`);
+
+            // 監聽轉發過來的萬用 appData 封包
+            socket.on('appData', handleIncomingAppData);
+
+            checkSSO();
         }
 
-        function requestCameraStream(pin) {
-            updateWatcherStatus(pin, '透過伺服器呼叫中...');
-            
-            socket.emit('appData', {
-                room: appId,
-                action: 'request_socket_stream',
-                pin: pin,
-                requesterId: myClientId
-            });
-            
-            writeDebugLog(`==> 要求頻道 ${pin} 開始轉發影音`);
-            
-            setTimeout(() => {
-                const statusEl = document.getElementById('status-' + pin);
-                if(statusEl && (statusEl.textContent.includes('呼叫中') || statusEl.textContent.includes('等待'))) {
-                    updateWatcherStatus(pin, '對方未上線或代碼錯誤', true);
-                }
-            }, 5000);
-        }
+        // --- 模式切換事件 ---
+        document.getElementById('modeCamera').onclick = async () => {
+            myRole = 'camera';
+            document.getElementById('lobbySection').classList.add('hidden');
+            document.getElementById('cameraUI').classList.remove('hidden');
+            document.getElementById('pairCodeDisplay').innerText = myPairCode;
+            await initCameraBroadcaster();
+        };
 
-        function setupSocketListeners() {
-            socket.on('appData', (data) => {
-                
-                if (currentMode === 'camera' && data.action === 'request_socket_stream' && data.pin === myPin) {
-                    const requesterId = data.requesterId;
-                    if (!activeViewers.includes(requesterId)) {
-                        activeViewers.push(requesterId);
-                        updateCameraViewerCount();
-                        writeDebugLog(`客戶端 ${requesterId} 開始接收影音`);
-                    }
-                }
+        document.getElementById('modeViewer').onclick = () => {
+            myRole = 'viewer';
+            document.getElementById('lobbySection').classList.add('hidden');
+            document.getElementById('viewerUI').classList.remove('hidden');
+            startOffscreenCompositor(); // 啟用 Canvas 合成
+        };
 
-                if (currentMode === 'camera' && data.action === 'stop_stream' && data.pin === myPin) {
-                    const requesterId = data.requesterId;
-                    activeViewers = activeViewers.filter(id => id !== requesterId);
-                    updateCameraViewerCount();
-                    writeDebugLog(`客戶端 ${requesterId} 停止接收影音`);
-                }
+        // --- 相機端廣播邏輯 ---
+        async function initCameraBroadcaster() {
+            const statusLabel = document.getElementById('cameraStatus');
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: 640, height: 480, frameRate: 15 }, 
+                    audio: true 
+                });
+                document.getElementById('localVideo').srcObject = localStream;
+                statusLabel.innerText = "裝置準備就緒，畫面高速廣播傳輸中...";
 
-                if (currentMode === 'watcher' && data.action === 'socket_video_frame') {
-                    const pin = data.pin;
-                    if (watchedPins.includes(pin)) {
-                        const imgEl = document.getElementById(`remote-video-${pin}`);
-                        if (imgEl) {
-                            imgEl.src = data.frame;
-                            
-                            const now = Date.now();
-                            const btn = document.getElementById('play-btn-' + pin);
-                            const statusEl = document.getElementById('status-' + pin);
-                            const currentText = statusEl ? statusEl.textContent : '';
-                            
-                            if (!lastFrameTimes[pin] || currentText.includes('呼叫中') || currentText.includes('等待')) {
-                                if (!btn || btn.style.display === 'none') {
-                                    updateWatcherStatus(pin, '接收影像與聲音中...');
-                                } else {
-                                    updateWatcherStatus(pin, '影像抵達，請點擊接收影音');
-                                }
-                            } else if (now - lastFrameTimes[pin] > 2000) {
-                                if (!btn || btn.style.display === 'none') {
-                                    updateWatcherStatus(pin, '接收影像與聲音中...');
-                                }
-                            }
-                            lastFrameTimes[pin] = now;
-                        }
-                    }
-                }
+                // 隱藏畫布用於壓縮擷取
+                const capCanvas = document.createElement('canvas');
+                capCanvas.width = 480;
+                capCanvas.height = 360;
+                const ctx = capCanvas.getContext('2d');
+                const videoEl = document.getElementById('localVideo');
 
-                if (currentMode === 'watcher' && data.action === 'socket_audio_chunk') {
-                    const pin = data.pin;
-                    if (watchedPins.includes(pin) && sourceBuffers[pin]) {
-                        const sb = sourceBuffers[pin];
-                        const chunk = data.chunk; 
+                // 影像擷取迴圈 (100ms 一幀，高頻率純轉發)
+                videoInterval = setInterval(() => {
+                    if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                        ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
+                        const base64Frame = capCanvas.toDataURL('image/jpeg', 0.4); // 品質設為 0.4 兼顧頻寬與效能
                         
-                        if (!sb.updating && audioQueues[pin].length === 0) {
-                            try {
-                                sb.appendBuffer(chunk);
-                            } catch(e) {
-                                writeDebugLog(`寫入音軌緩衝異常: ${e}`);
-                            }
-                        } else {
-                            audioQueues[pin].push(chunk);
-                        }
+                        socket.emit('appData', {
+                            room: appId,
+                            action: 'videoFrame',
+                            pairCode: myPairCode,
+                            senderId: myUuid,
+                            image: base64Frame
+                        });
                     }
+                }, 100);
+
+                // 麥克風音訊切片發送
+                const audioTracks = localStream.getAudioTracks();
+                if (audioTracks.length > 0) {
+                    const micStream = new MediaStream([audioTracks[0]]);
+                    micRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm;codecs=opus' });
+                    
+                    micRecorder.ondataavailable = async (e) => {
+                        if (e.data.size > 0 && socket && socket.connected) {
+                            const arrayBuffer = await e.data.arrayBuffer();
+                            const base64Audio = btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+                            
+                            socket.emit('appData', {
+                                room: appId,
+                                action: 'audioChunk',
+                                pairCode: myPairCode,
+                                senderId: myUuid,
+                                chunk: base64Audio
+                            });
+                        }
+                    };
+                    micRecorder.start(500); // 每 500 毫秒產生一個音訊切片
                 }
+
+                // 記錄操作日誌
+                socket.emit('logAppMessage', { appId: appId, message: `相機端開始廣播代碼: ${myPairCode}`, type: 'info' });
+
+            } catch (err) {
+                console.error(err);
+                statusLabel.innerText = "權限授權失敗或本機無可用視訊音訊裝置！";
+                showErrorToast("無法存取相機，請點選 Chrome 網址列左側圖示確認權限設定。");
+            }
+        }
+
+        // --- 觀看端：頻道添加連線 ---
+        document.getElementById('btnConnect').onclick = () => {
+            const codeInput = document.getElementById('inputPairCode').value.trim();
+            if (!codeInput) return;
+
+            // 支援批次輸入, 用逗號分隔
+            const codes = codeInput.split(/[\s,]+/).map(c => c.trim()).filter(c => c.length === 6);
+            if (codes.length === 0) {
+                document.getElementById('viewerStatus').innerText = "輸入代碼格式有誤，必須為 6 位數字";
+                return;
+            }
+
+            codes.forEach(code => watchedCodes.add(code));
+            
+            // 更新 UI 頻道清單
+            document.getElementById('activeCodesList').innerText = Array.from(watchedCodes).join(', ');
+            document.getElementById('viewerStatus').innerText = "開始監聽頻道串流資料...";
+
+            // 備份紀錄到雲端
+            socket.emit('saveAppData', { 
+                appId: appId, 
+                data: { lastWatchedCodes: Array.from(watchedCodes) } 
             });
 
-            if (currentMode === 'watcher') {
-                setInterval(() => {
-                    const now = Date.now();
-                    watchedPins.forEach(pin => {
-                        if (lastFrameTimes[pin] && now - lastFrameTimes[pin] > 3000) {
-                            updateWatcherStatus(pin, '連線不穩或對方已離線', true);
+            socket.emit('logAppMessage', { appId: appId, message: `觀看端加入頻道: ${codes.join(', ')}`, type: 'info' });
+        };
+
+        // --- 觀看端接收轉發數據 ---
+        function handleIncomingAppData(data) {
+            if (myRole !== 'viewer' || !watchedCodes.has(data.pairCode)) return;
+
+            const senderId = data.senderId;
+
+            // 如果該相機來源尚未建立視窗，自動建立
+            if (!remoteFeeds[senderId]) {
+                createVideoFeedTile(senderId, data.pairCode);
+            }
+
+            const feed = remoteFeeds[senderId];
+            feed.lastFrameTime = Date.now();
+
+            if (data.action === 'videoFrame') {
+                // 更新畫面的 Image 標籤
+                feed.imgElement.src = data.image;
+                // 更新後台 Canvas 繪圖專用的 Image 物件
+                feed.imageObj.src = data.image;
+                
+                document.getElementById('viewerStatus').innerText = "即時影像同步中...";
+            } 
+            else if (data.action === 'audioChunk') {
+                playIncomingAudio(senderId, data.chunk);
+            }
+        }
+
+        // 建立頻道分割畫面區塊
+        function createVideoFeedTile(senderId, pairCode) {
+            const container = document.getElementById('feedContainer');
+            
+            const tile = document.createElement('div');
+            tile.className = "relative bg-slate-950 rounded-xl overflow-hidden aspect-video border border-slate-700 shadow-lg group";
+            tile.id = `tile_${senderId}`;
+
+            const img = document.createElement('img');
+            img.className = "w-full h-full object-cover";
+            img.alt = "正在等待首影格...";
+
+            const overlay = document.createElement('div');
+            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300";
+            overlay.innerHTML = `
+                <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
+                <span>頻道: ${pairCode}</span>
+            `;
+
+            const closeBtn = document.createElement('button');
+            closeBtn.className = "absolute top-3 right-3 bg-red-600/90 hover:bg-red-500 p-1.5 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md";
+            closeBtn.innerHTML = `
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            `;
+            closeBtn.onclick = () => {
+                removeFeed(senderId, pairCode);
+            };
+
+            tile.appendChild(img);
+            tile.appendChild(overlay);
+            tile.appendChild(closeBtn);
+            container.appendChild(tile);
+
+            // 初始化遠端 feed 資料結構
+            remoteFeeds[senderId] = {
+                pairCode: pairCode,
+                imgElement: img,
+                imageObj: new Image(),
+                lastFrameTime: Date.now(),
+                audioContext: null,
+                audioQueue: [],
+                isAudioDecoding: false
+            };
+        }
+
+        // 移除連線頻道
+        function removeFeed(senderId, pairCode) {
+            const tile = document.getElementById(`tile_${senderId}`);
+            if (tile) tile.remove();
+            
+            if (remoteFeeds[senderId] && remoteFeeds[senderId].audioContext) {
+                remoteFeeds[senderId].audioContext.close();
+            }
+            delete remoteFeeds[senderId];
+
+            // 檢查是否還有該配對碼的其他廣播，沒有的話從 watchedCodes 中移除
+            const stillHas = Object.values(remoteFeeds).some(feed => feed.pairCode === pairCode);
+            if (!stillHas) {
+                watchedCodes.delete(pairCode);
+                document.getElementById('activeCodesList').innerText = Array.from(watchedCodes).join(', ') || '尚無連線';
+            }
+        }
+
+        // 音訊串流解碼播放
+        async function playIncomingAudio(senderId, base64Audio) {
+            const feed = remoteFeeds[senderId];
+            if (!feed) return;
+
+            // 延遲載入 AudioContext 確保突破自動播放限制
+            if (!feed.audioContext) {
+                feed.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            // 將 Base64 轉換成 ArrayBuffer
+            const binary = atob(base64Audio);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+
+            feed.audioQueue.push(bytes.buffer);
+            processAudioQueue(feed);
+        }
+
+        async function processAudioQueue(feed) {
+            if (feed.isAudioDecoding || feed.audioQueue.length === 0) return;
+            feed.isAudioDecoding = true;
+
+            const nextBuffer = feed.audioQueue.shift();
+            try {
+                const audioBuffer = await feed.audioContext.decodeAudioData(nextBuffer);
+                const source = feed.audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(feed.audioContext.destination);
+                source.start(0);
+            } catch (err) {
+                // 忽略非 WebM/Opus 標準音訊的解碼失敗警報
+            }
+
+            feed.isAudioDecoding = false;
+            processAudioQueue(feed);
+        }
+
+        // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
+        function startOffscreenCompositor() {
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 影像輸出的固定高畫質格率解析度 1280x720
+            canvas.width = 1280;
+            canvas.height = 720;
+
+            function render() {
+                if (myRole !== 'viewer') return;
+
+                // 排除 3 秒鐘內沒有發送新畫面（判定離線/訊號不穩）的裝置
+                const activeFeeds = Object.entries(remoteFeeds).filter(([id, feed]) => {
+                    const alive = (Date.now() - feed.lastFrameTime) < 3000;
+                    if (!alive) {
+                        // 畫面上淡出離線提示或直接移除
+                        feed.imgElement.classList.add('opacity-40');
+                    } else {
+                        feed.imgElement.classList.remove('opacity-40');
+                    }
+                    return alive;
+                });
+
+                // 背景塗成純黑
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const count = activeFeeds.length;
+                if (count > 0) {
+                    // 動態計算網格分配
+                    let cols = Math.ceil(Math.sqrt(count));
+                    let rows = Math.ceil(count / cols);
+                    let w = canvas.width / cols;
+                    let h = canvas.height / rows;
+
+                    activeFeeds.forEach(([id, feed], index) => {
+                        const img = feed.imageObj;
+                        if (img.complete && img.src) {
+                            let col = index % cols;
+                            let row = Math.floor(index / cols);
+                            let x = col * w;
+                            let y = row * h;
+                            ctx.drawImage(img, x, y, w, h);
                         }
                     });
-                }, 3000);
+                } else if (isRecording) {
+                    // 若在錄影中但無任何畫面，錄入黑色底圖與文字提示
+                    ctx.fillStyle = "white";
+                    ctx.font = "30px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("正在等待遠端影像串流...", canvas.width / 2, canvas.height / 2);
+                }
+
+                canvasRenderLoopId = requestAnimationFrame(render);
             }
+            render();
         }
 
-        window.onload = initConnection;
+        // --- 純淨 Canvas 影像錄製與匯出模組 ---
+        document.getElementById('btnStartRecord').onclick = () => {
+            const canvas = document.getElementById('hiddenCanvas');
+            
+            // 擷取無 UI 純淨畫布影像訊號 (每秒 25 幀)
+            const stream = canvas.captureStream(25);
+            
+            try {
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+            } catch(e) {
+                showErrorToast('您的瀏覽器不支援 WebM 影像錄製。');
+                return;
+            }
+
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                
+                // 強制觸發瀏覽器下載
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `Panda遠端監視錄製_${new Date().toISOString().slice(0,10)}_${Math.floor(100+Math.random()*900)}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            };
+
+            mediaRecorder.start();
+            isRecording = true;
+
+            document.getElementById('btnStartRecord').classList.add('hidden');
+            document.getElementById('btnStopRecord').classList.remove('hidden');
+
+            socket.emit('logAppMessage', { appId: appId, message: '開啟多頻道純淨影像畫布錄製', type: 'info' });
+        };
+
+        document.getElementById('btnStopRecord').onclick = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+
+            document.getElementById('btnStartRecord').classList.remove('hidden');
+            document.getElementById('btnStopRecord').classList.add('hidden');
+        };
+
+        // --- 載入時初始化 ---
+        window.onload = initSocketConnection;
     </script>
-
-    <header class="bg-gray-800 p-4 flex justify-between items-center text-white shadow-md">
-        <h1 class="text-xl font-bold tracking-wider">即時遠端監看系統</h1>
-        <div id="header-container">
-            <span class="text-sm text-gray-400">載入中...</span>
-        </div>
-    </header>
-
-    <main class="flex-grow p-4 md:p-8">
-        <div id="system-message" style="display:none;"></div>
-
-        <div id="mode-selection" class="max-w-md mx-auto mt-10 bg-white p-8 rounded-xl shadow-lg text-center">
-            <h2 class="text-2xl font-bold mb-6 text-gray-800">請選擇您的裝置模式</h2>
-            <div class="space-y-4">
-                <button onclick="setMode('camera')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow">
-                    視為被監看端 (相機模式)
-                </button>
-                <button onclick="setMode('watcher')" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow">
-                    視為觀看端 (監看模式)
-                </button>
-            </div>
-            <p class="mt-4 text-sm text-gray-500">提示：系統已自動連接雲端伺服器，資料即時同步。</p>
-        </div>
-
-        <div id="camera-mode-ui" style="display: none;" class="text-center">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800">被監看模式 (伺服器轉發中)</h2>
-            <div class="video-container shadow-xl">
-                <div id="camera-viewer-count" class="viewer-count">觀看人數: 0</div>
-                <div id="camera-pin-display" class="camera-pin">代碼: 產生中...</div>
-                <video id="local-video" autoplay playsinline muted></video>
-            </div>
-            <p class="mt-4 text-gray-600">請在另一台裝置輸入上方代碼以進行監看</p>
-            <button onclick="location.reload()" class="mt-4 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded">返回重新選擇</button>
-            <div class="max-w-md mx-auto text-left mt-8">
-                <h3 class="text-sm font-bold text-gray-700">進階連線診斷日誌：</h3>
-                <div id="debug-log"></div>
-            </div>
-        </div>
-
-        <div id="watcher-mode-ui" style="display: none;">
-            <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-md mb-8">
-                <h2 class="text-xl font-bold mb-4 text-gray-800">新增監看頻道</h2>
-                <div class="flex space-x-2">
-                    <input type="text" id="watch-pin-input" placeholder="請輸入6位數代碼" class="flex-grow border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500" maxlength="6">
-                    <button onclick="watchNewCamera()" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-6 rounded transition">連線</button>
-                </div>
-            </div>
-
-            <div id="remote-videos-container" class="grid-videos max-w-6xl mx-auto">
-            </div>
-            <div class="text-center mt-8">
-                <button onclick="location.reload()" class="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded">返回重新選擇</button>
-            </div>
-        </div>
-    </main>
-
-    <button onclick="reportIssue()" class="fixed bottom-16 right-6 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-5 rounded-full shadow-lg transition duration-200 z-50 flex items-center border-2 border-white">
-        回報問題
-    </button>
-
-    <footer class="bg-gray-800 text-center text-gray-400 p-4 text-sm mt-auto">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
-
 </body>
 </html>
