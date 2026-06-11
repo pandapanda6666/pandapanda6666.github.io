@@ -10,27 +10,52 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Deep Recursion Unlock web.app Hostname in All Pages
+      - name: Auto Generate Local list.json in Every Single Directory
         run: |
-          # 💡 終極深度解鎖：強制深度搜尋全站所有子目錄下的 index.html 檔案，全自動將 web.app 網域加入白名單！
-          find . -type f -name "index.html" | while read file; do
-            if [ "$file" != "./.github/workflows/firebase-hosting-merge.yml" ]; then
-              # 精準捕捉並替換您的第 117 行防呆機制，讓 Firebase 的 web.app 也能通過 getRepoInfo 的驗證
-              sed -i "s|!hostname.includes('github.io')|(!hostname.includes('github.io') \&\& !hostname.includes('web.app'))|g" "$file"
-            fi
-          done
-          echo "🚀 全站 200+ 個子目錄的 Firebase 網域相容性已「深度递归解鎖」完畢！"
+          # 💡 深度掃描全站所有的子目錄，在每一個資料夾底下各自長出一個專屬的 list.json
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+            
+            function traverseAndGenerate(dirPath) {
+              const files = fs.readdirSync(dirPath).filter(f => !f.startsWith('.'));
+              fs.writeFileSync(path.join(dirPath, 'list.json'), JSON.stringify(files, null, 2));
+              
+              files.forEach(file => {
+                const fullPath = path.join(dirPath, file);
+                if (fs.statSync(fullPath).isDirectory()) {
+                  traverseAndGenerate(fullPath);
+                }
+              });
+            }
+            
+            const rootFiles = fs.readdirSync('.').filter(f => !f.startsWith('.') && f !== 'firebase.json');
+            rootFiles.forEach(file => {
+              if (fs.statSync(file).isDirectory()) {
+                traverseAndGenerate(file);
+              }
+            });
+            console.log('🎉 200+ 個資料夾的專屬 list.json 批量全自動生成完畢！');
+          "
 
       - name: Generate Perfect Clean firebase.json in Memory
         run: |
-          # 💡 保持最純淨的配置，Firebase 只做純粹的高速靜態託管，絕不攔截您的 index.html 網頁
+          # 💡 核心黑科技：開啟原生多站點靜態映射，告訴 Firebase 當遇到讀取目錄的結尾斜線請求時，自動在背景把當前目錄下的 list.json 塞給它！
           cat << 'EOF' > firebase.json
           {
             "hosting": [
               {
                 "site": "pandapandaai",
                 "public": ".",
-                "ignore": ["firebase.json", "**/.*", "**/node_modules/**"]
+                "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+                "cleanUrls": false,
+                "trailingSlash": true,
+                "rewrites": [
+                  {
+                    "source": "**/",
+                    "destination": "list.json"
+                  }
+                ]
               }
             ]
           }
