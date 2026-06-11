@@ -179,7 +179,7 @@
             msgDiv.textContent = msg;
             msgDiv.className = `p-3 mb-4 rounded ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
             msgDiv.style.display = 'block';
-            setTimeout(() => { msgDiv.style.display = 'none'; }, 5000);
+            setTimeout(() => { msgDiv.style.display = 'none'; }, 8000);
         }
 
         function updateWatcherStatus(pin, msg, isError = false) {
@@ -187,7 +187,7 @@
             if(statusEl) {
                 statusEl.textContent = msg;
                 statusEl.className = `text-xs ml-2 ${isError ? 'text-red-400' : 'text-yellow-400'}`;
-                if(msg === '已連線' || msg.includes('成功')) {
+                if(msg === '已連線' || msg.includes('接收影像中')) {
                     statusEl.className = 'text-xs ml-2 text-green-400';
                 }
             }
@@ -236,8 +236,8 @@
                 socket.emit('logAppMessage', { appId: appId, message: '開啟被監看模式，代碼:' + myPin, type: 'info' });
             } catch (err) {
                 let errMsg = err.message;
-                if (err.name === 'NotAllowedError') errMsg = '您拒絕了相機與麥克風的權限。';
-                if (err.name === 'NotFoundError') errMsg = '找不到相機設備，請確認筆電鏡頭是否正常。';
+                if (err.name === 'NotAllowedError') errMsg = '您拒絕了權限，請點擊 Chrome 網址列左側的鎖頭圖示來允許存取相機與麥克風。';
+                if (err.name === 'NotFoundError') errMsg = '找不到相機設備，請確認 Chromebook 鏡頭是否正常。';
                 showSystemMessage('無法取得相機權限: ' + errMsg, true);
             }
         }
@@ -270,13 +270,16 @@
 
             const wrapper = document.createElement('div');
             wrapper.id = 'video-wrapper-' + pin;
-            wrapper.className = 'video-container shadow-lg';
+            wrapper.className = 'video-container shadow-lg flex justify-center items-center';
             wrapper.innerHTML = `
                 <div class="camera-pin">監看代碼: ${pin} <span id="status-${pin}" class="text-yellow-400 text-xs ml-2">等待操作...</span></div>
-                <video id="remote-video-${pin}" autoplay playsinline controls></video>
+                <video id="remote-video-${pin}" playsinline controls></video>
+                <button id="play-btn-${pin}" onclick="document.getElementById('remote-video-${pin}').play(); this.style.display='none'; document.getElementById('status-${pin}').textContent='接收影像中...';" class="absolute bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded z-20" style="display:none;">
+                    點擊播放畫面 (瀏覽器限制)
+                </button>
                 <div class="absolute bottom-2 right-2 flex space-x-2 z-10">
-                    <button onclick="requestCameraStream('${pin}')" class="bg-blue-600 text-white px-2 py-1 rounded text-xs">重連</button>
-                    <button onclick="removeWatcher('${pin}')" class="bg-red-600 text-white px-2 py-1 rounded text-xs">移除</button>
+                    <button onclick="requestCameraStream('${pin}')" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs">重連</button>
+                    <button onclick="removeWatcher('${pin}')" class="bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs">移除</button>
                 </div>
             `;
             container.appendChild(wrapper);
@@ -380,19 +383,29 @@
                         const videoEl = document.getElementById('remote-video-' + pin);
                         if (videoEl && videoEl.srcObject !== event.streams[0]) {
                             videoEl.srcObject = event.streams[0];
+                            
                             videoEl.onloadedmetadata = () => {
-                                videoEl.play().catch(e => console.error('自動播放被瀏覽器阻擋:', e));
+                                const playPromise = videoEl.play();
+                                if (playPromise !== undefined) {
+                                    playPromise.then(() => {
+                                        updateWatcherStatus(pin, '接收影像中...');
+                                    }).catch(e => {
+                                        console.error('自動播放被瀏覽器阻擋:', e);
+                                        const playBtn = document.getElementById('play-btn-' + pin);
+                                        if (playBtn) playBtn.style.display = 'block';
+                                        updateWatcherStatus(pin, '需點擊畫面播放 (瀏覽器限制)', true);
+                                    });
+                                }
                             };
-                            updateWatcherStatus(pin, '接收影像中...');
                         }
                     };
 
                     pc.oniceconnectionstatechange = () => {
                         const state = pc.iceConnectionState;
                         if(state === 'checking') updateWatcherStatus(pin, '網路打洞中(STUN)...');
-                        else if(state === 'connected' || state === 'completed') updateWatcherStatus(pin, 'P2P連線成功');
+                        else if(state === 'connected' || state === 'completed') updateWatcherStatus(pin, '連線建立成功，載入中...');
                         else if(state === 'disconnected') updateWatcherStatus(pin, '網路不穩，斷線中', true);
-                        else if(state === 'failed') updateWatcherStatus(pin, '防火牆阻擋，連線失敗', true);
+                        else if(state === 'failed') updateWatcherStatus(pin, '防火牆阻擋 (學校/企業網路限制)', true);
                         else if(state === 'closed') updateWatcherStatus(pin, '連線已關閉', true);
                     };
 
@@ -489,14 +502,11 @@
         </div>
     </main>
 
-    <!-- 浮動回報問題按鈕 -->
     <button onclick="reportIssue()" class="fixed bottom-16 right-6 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-5 rounded-full shadow-lg transition duration-200 z-50 flex items-center border-2 border-white">
         回報問題
     </button>
 
-    <footer class="bg-gray-800 text-center text-gray-400 p-4 text-sm mt-auto">
-        版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-white transition">PandaPanda的AI日常</a> All Rights Reserved.
-    </footer>
+    <footer class="bg-gray-800 text-center text-gray-400 p-4 text-sm mt-auto">版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-white transition">PandaPanda的AI日常</a> All Rights Reserved.</footer>
 
 </body>
 </html>
