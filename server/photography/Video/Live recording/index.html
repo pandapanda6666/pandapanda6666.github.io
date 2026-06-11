@@ -24,7 +24,7 @@
         window.addEventListener('unhandledrejection', function(event) {
             const errorMsg = event.reason ? event.reason.message || event.reason : '未知錯誤';
             // 過濾瀏覽器插件產生的已知 Promise 錯誤
-            if (typeof errorMsg === 'string' && errorMsg.includes('A listener indicated an asynchronous response')) return;
+            if (typeof errorMsg === 'string' && errorMsg.includes('message channel closed before a response was received')) return;
             if (typeof socket !== 'undefined' && socket.connected) {
                 socket.emit('logError', { errorMsg: 'Promise異常: ' + errorMsg, url: window.location.href, line: 0 });
             }
@@ -111,6 +111,24 @@
                     <span id="indicatorText">靜止待機中 (無人連線不佔頻寬)</span>
                 </div>
             </div>
+
+            <!-- 本地高清錄影控制區 -->
+            <div class="mt-4 bg-slate-900 rounded-xl p-3 border border-slate-700 flex justify-between items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="h-2 w-2 bg-slate-400 rounded-full transition-all duration-300" id="cameraRecordDot"></span>
+                    <span class="text-xs font-semibold text-slate-300" id="cameraRecordStatusText">本地錄影未啟動</span>
+                </div>
+                <div class="flex gap-2">
+                    <button id="btnCameraStartRecord" class="bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-2 px-4 rounded-xl shadow-lg transition flex items-center gap-1.5">
+                        <span class="h-2 w-2 bg-white rounded-full animate-pulse"></span>
+                        錄製本端畫面
+                    </button>
+                    <button id="btnCameraStopRecord" class="hidden bg-slate-100 hover:bg-white text-slate-900 text-xs font-bold py-2 px-4 rounded-xl shadow-lg transition flex items-center gap-1.5 animate-bounce">
+                        <span class="h-2 w-2 bg-red-600 rounded-full"></span>
+                        停止並匯出
+                    </button>
+                </div>
+            </div>
             
             <!-- 傳輸頻率與畫質控制區 -->
             <div class="mt-4 flex flex-wrap items-center justify-center gap-4 bg-slate-900 rounded-xl p-3 border border-slate-700">
@@ -118,16 +136,16 @@
                     <label class="text-slate-400 text-sm">傳輸頻率:</label>
                     <select id="fpsSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
                         <option value="500">極低 (2 FPS) - 最省流</option>
-                        <option value="200" selected>低 (5 FPS) - 推薦</option>
-                        <option value="100">標準 (10 FPS)</option>
+                        <option value="200">低 (5 FPS)</option>
+                        <option value="100" selected>標準 (10 FPS) - 推薦</option>
                         <option value="66">高 (15 FPS)</option>
-                        <option value="33">極高 (30 FPS) - 流暢首選</option>
+                        <option value="33">極高 (30 FPS) - 高流暢</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="text-slate-400 text-sm">影像畫質:</label>
                     <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="0.1">極省流 (高速低畫質)</option>
+                        <option value="0.1">極省流 (低頻寬需求)</option>
                         <option value="0.2">省流 (低畫質)</option>
                         <option value="0.3" selected>標準 (中畫質)</option>
                         <option value="0.6">清晰 (高畫質)</option>
@@ -210,7 +228,7 @@
         
         // 觀看端專用
         let watchedCodes = new Set(); 
-        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, imageObj, lastFrameTime, mediaSource, sourceBuffer, audioQueue, audioEl } }
+        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, lastFrameTime, mediaSource, sourceBuffer, audioQueue, audioEl } }
         let isRecording = false;
         let mediaRecorder;
         let recordedChunks = [];
@@ -221,8 +239,13 @@
         let videoInterval = null;
         let micRecorder = null;
         let activeViewers = []; // 線上正在觀看本機的觀眾 uuid 陣列
-        let currentCaptureInterval = 200; // 預設 200ms (5 FPS) 兼顧頻寬與效能
+        let currentCaptureInterval = 100; // 預設 100ms (10 FPS)
         let currentCaptureQuality = 0.3;  // 預設中畫質 0.3
+
+        // 新增相機本地高清錄影專用變數
+        let cameraRecorder = null;
+        let cameraRecordedChunks = [];
+        let isCameraRecording = false;
 
         // --- SSO 與登入驗證處理 ---
         function checkSSO() {
@@ -280,6 +303,9 @@
             const text = document.getElementById('alertToastText');
             text.innerText = message;
             toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 4000);
         }
 
         // --- 核心連線邏輯 ---
@@ -332,6 +358,9 @@
             
             // 啟用觀看端：自動偵測音訊累積延遲並強行同步追上 (Drift Correction)
             initLatencyCorrection();
+
+            // 啟用觀看端：離線檢測清掃器
+            initOfflineCleaner();
         }
 
         // --- 模式切換事件 ---
@@ -347,7 +376,6 @@
             myRole = 'viewer';
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('viewerUI').classList.remove('hidden');
-            startOffscreenCompositor(); // 啟用 Canvas 合成
         };
 
         // --- 更新相機端的廣播狀態燈 ---
@@ -373,28 +401,25 @@
                 }
 
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 480, height: 360, frameRate: 30 }, // 升級擷取最高支援 30 FPS
+                    video: { width: 480, height: 360, frameRate: 30 }, // 升級最高支援 30 FPS
                     audio: true 
                 });
                 document.getElementById('localVideo').srcObject = localStream;
-                statusLabel.innerText = "裝置準備就緒，已啟用「低延遲追頻機制與自動節流」系統。";
+                statusLabel.innerText = "裝置準備就緒，已啟用「低延遲追頻機制與無人看自動休眠」系統。";
 
                 // 隱藏畫布用於壓縮擷取
                 const capCanvas = document.createElement('canvas');
-                capCanvas.width = 320; // 320x240 大小最符合高幀率低頻寬傳輸，大幅減少卡頓與延遲
+                capCanvas.width = 320; 
                 capCanvas.height = 240;
                 const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
                 const videoEl = document.getElementById('localVideo');
 
                 // 動態啟動或重啟影像擷取迴圈 (防重疊與頻率即時響應機制)
                 function startCaptureLoop() {
-                    if (videoInterval) {
-                        clearInterval(videoInterval);
-                        videoInterval = null;
-                    }
+                    stopCaptureLoop();
                     
                     videoInterval = setInterval(() => {
-                        // 核心優化：如果沒有觀眾，直接跳過不截圖不發送！
+                        // 核心優化：如果沒有觀眾，直接跳過不發送！
                         if (activeViewers.length === 0) return;
 
                         if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
@@ -418,14 +443,16 @@
                     
                     // 【低延遲自動調節機制】：如果選擇了 30 FPS (33ms)，自動下調預設畫質到 0.15 或 0.2，避免網路阻塞產生延遲！
                     if (currentCaptureInterval <= 33) { 
-                        document.getElementById('qualitySelect').value = "0.15";
-                        currentCaptureQuality = 0.15;
+                        document.getElementById('qualitySelect').value = "0.1";
+                        currentCaptureQuality = 0.1;
                     } else if (currentCaptureInterval <= 100) {
                         document.getElementById('qualitySelect').value = "0.3";
                         currentCaptureQuality = 0.3;
                     }
                     
-                    startCaptureLoop();
+                    if (activeViewers.length > 0) {
+                        startCaptureLoop();
+                    }
                     socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms，已自動調整畫質防延遲。`, type: 'info' });
                 };
 
@@ -434,25 +461,16 @@
                     socket.emit('logAppMessage', { appId: appId, message: `更改畫質為: ${e.target.value}`, type: 'info' });
                 };
 
-                // 啟動影像轉發迴圈
-                startCaptureLoop();
-
-                // 麥克風音訊切片發送
-                if (micRecorder && micRecorder.state !== 'inactive') {
-                    micRecorder.stop();
-                }
-
+                // 建立麥克風音訊切片發送實例 (先不啟動，等待觀眾觸發)
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length > 0) {
                     const micStream = new MediaStream([audioTracks[0]]);
                     micRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm;codecs=opus' });
                     
                     micRecorder.ondataavailable = async (e) => {
-                        // 核心優化：如果沒有觀眾看，直接跳過不發送聲音
                         if (activeViewers.length === 0) return;
 
                         if (e.data.size > 0 && socket && socket.connected) {
-                            // 使用 Socket.IO 原生 Binary 傳送二進位音軌數據
                             socket.emit('appData', {
                                 room: appId,
                                 action: 'audioChunk',
@@ -462,7 +480,6 @@
                             });
                         }
                     };
-                    micRecorder.start(400); // 縮短音訊切片至 400ms，降低語音初次抵達延遲
                 }
 
                 socket.emit('logAppMessage', { appId: appId, message: `相機端開始廣播代碼: ${myPairCode}`, type: 'info' });
@@ -471,6 +488,65 @@
                 console.error(err);
                 statusLabel.innerText = "權限授權失敗或本機無可用視訊音訊裝置！";
                 showErrorToast("無法存取相機，請點選 Chrome 網址列左側圖示確認權限設定。");
+            }
+        }
+
+        // --- 相機端動態傳輸開關控制 (0% 閒置損耗防線) ---
+        function stopCaptureLoop() {
+            if (videoInterval) {
+                clearInterval(videoInterval);
+                videoInterval = null;
+            }
+        }
+
+        function startBroadcasting() {
+            // 觀眾加入，重新啟動影像與聲音擷取
+            const statusLabel = document.getElementById('cameraStatus');
+            statusLabel.innerText = "觀眾已進入！影像與音訊全速廣播傳輸中...";
+            
+            // 1. 影像重啟
+            const fpsVal = parseInt(document.getElementById('fpsSelect').value);
+            currentCaptureInterval = fpsVal;
+            
+            if (videoInterval) clearInterval(videoInterval);
+            const videoEl = document.getElementById('localVideo');
+            const capCanvas = document.createElement('canvas');
+            capCanvas.width = 320;
+            capCanvas.height = 240;
+            const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
+
+            videoInterval = setInterval(() => {
+                if (activeViewers.length === 0) return;
+                if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                    ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
+                    const base64Frame = capCanvas.toDataURL('image/jpeg', currentCaptureQuality); 
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'videoFrame',
+                        pairCode: myPairCode,
+                        senderId: myUuid,
+                        image: base64Frame
+                    });
+                }
+            }, currentCaptureInterval);
+
+            // 2. 音訊重啟
+            if (micRecorder && micRecorder.state === 'inactive') {
+                try {
+                    micRecorder.start(400); 
+                } catch(e) {}
+            }
+        }
+
+        function stopBroadcasting() {
+            // 觀眾清零，完全暫停擷取，讓硬體徹底休息
+            const statusLabel = document.getElementById('cameraStatus');
+            statusLabel.innerText = "無人觀看中。影像與音訊已暫停傳送以節省流量。";
+            stopCaptureLoop();
+            if (micRecorder && micRecorder.state !== 'inactive') {
+                try {
+                    micRecorder.stop();
+                } catch(e) {}
             }
         }
 
@@ -521,12 +597,22 @@
                         activeViewers.push(data.requesterId);
                         document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${activeViewers.length} 人`;
                         updateCameraStatusIndicator();
+                        
+                        // 當第一位觀眾進來時，開啟實時截圖與音訊錄製
+                        if (activeViewers.length === 1) {
+                            startBroadcasting();
+                        }
                     }
                 }
                 else if (data.action === 'stop_stream') {
                     activeViewers = activeViewers.filter(id => id !== data.requesterId);
                     document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${activeViewers.length} 人`;
                     updateCameraStatusIndicator();
+                    
+                    // 當最後一位觀眾離開時，自動完全暫停
+                    if (activeViewers.length === 0) {
+                        stopBroadcasting();
+                    }
                 }
                 return;
             }
@@ -547,8 +633,6 @@
             if (data.action === 'videoFrame') {
                 // 更新畫面的 Image 標籤
                 feed.imgElement.src = data.image;
-                // 更新後台 Canvas 繪圖專用的 Image 物件
-                feed.imageObj.src = data.image;
                 
                 // 強制覆寫狀態文字
                 const playBtn = document.getElementById('play-btn-' + senderId);
@@ -573,7 +657,7 @@
             const container = document.getElementById('feedContainer');
             
             const tile = document.createElement('div');
-            tile.className = "relative bg-slate-950 rounded-xl overflow-hidden aspect-video border border-slate-700 shadow-lg group";
+            tile.className = "relative bg-slate-950 rounded-xl overflow-hidden aspect-video border border-slate-700 shadow-lg group transition-all duration-300";
             tile.id = `tile_${senderId}`;
 
             const img = document.createElement('img');
@@ -582,7 +666,7 @@
             img.alt = "正在等待首影格...";
 
             const overlay = document.createElement('div');
-            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300 z-10";
+            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300 z-10 transition-opacity duration-300 group-hover:opacity-30";
             overlay.innerHTML = `
                 <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
                 <span>頻道: ${pairCode}</span>
@@ -612,8 +696,24 @@
                 }
             };
 
+            // 全螢幕按鈕
+            const fullscreenBtn = document.createElement('button');
+            fullscreenBtn.className = "absolute top-3 left-3 bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md z-30";
+            fullscreenBtn.innerHTML = `
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
+            `;
+            fullscreenBtn.onclick = () => {
+                if (!document.fullscreenElement) {
+                    tile.requestFullscreen().catch(err => {
+                        showErrorToast(`無法進入全螢幕: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            };
+
             const closeBtn = document.createElement('button');
-            closeBtn.className = "absolute top-3 right-3 bg-red-600/90 hover:bg-red-500 p-1.5 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md z-30";
+            closeBtn.className = "absolute top-3 right-3 bg-red-600/90 hover:bg-red-500 p-2 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md z-30";
             closeBtn.innerHTML = `
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             `;
@@ -625,22 +725,22 @@
             tile.appendChild(overlay);
             tile.appendChild(audioEl);
             tile.appendChild(playBtn);
+            tile.appendChild(fullscreenBtn);
             tile.appendChild(closeBtn);
             container.appendChild(tile);
 
-            // 建立 MediaSource 音訊緩衝拼接架構 (不使用 AudioContext)
+            // 建立 MediaSource 音訊緩衝拼接架構
             const ms = new MediaSource();
             audioEl.src = URL.createObjectURL(ms);
 
             remoteFeeds[senderId] = {
                 pairCode: pairCode,
                 imgElement: img,
-                imageObj: new Image(),
                 lastFrameTime: Date.now(),
                 mediaSource: ms,
                 sourceBuffer: null,
                 audioQueue: [],
-                audioEl: audioEl // 保存音訊標籤實例，用於低延遲追頻同步
+                audioEl: audioEl 
             };
 
             ms.addEventListener('sourceopen', () => {
@@ -665,10 +765,17 @@
             const tile = document.getElementById(`tile_${senderId}`);
             if (tile) tile.remove();
             
-            delete remoteFeeds[senderId];
+            const feed = remoteFeeds[senderId];
+            if (feed) {
+                if (feed.audioEl) {
+                    feed.audioEl.pause();
+                    URL.revokeObjectURL(feed.audioEl.src);
+                }
+                delete remoteFeeds[senderId];
+            }
 
             // 檢查是否還有該配對碼的其他廣播，沒有的話從 watchedCodes 中移除
-            const stillHas = Object.values(remoteFeeds).some(feed => feed.pairCode === pairCode);
+            const stillHas = Object.values(remoteFeeds).some(f => f.pairCode === pairCode);
             if (!stillHas) {
                 watchedCodes.delete(pairCode);
                 document.getElementById('activeCodesList').innerText = Array.from(watchedCodes).join(', ') || '尚無連線';
@@ -695,7 +802,7 @@
             } else if (binaryChunk instanceof Blob) {
                 arrayBuffer = await binaryChunk.arrayBuffer();
             } else if (typeof binaryChunk === 'string') {
-                // 回退 Base64 轉換 (極少發生，僅作安全防護)
+                // 回退 Base64 轉換 (極少發生)
                 const binary = atob(binaryChunk);
                 const bytes = new Uint8Array(binary.length);
                 for (let i = 0; i < binary.length; i++) {
@@ -703,7 +810,6 @@
                 }
                 arrayBuffer = bytes.buffer;
             } else {
-                // 預期為 Socket.IO 自動解析出來的二進位對象
                 arrayBuffer = binaryChunk;
             }
 
@@ -714,6 +820,10 @@
                 } catch(e) {}
             } else {
                 feed.audioQueue.push(arrayBuffer);
+                // 防溢出快取控制
+                if (feed.audioQueue.length > 5) {
+                    feed.audioQueue.shift(); // 丟棄過老音訊，確保低延遲
+                }
             }
         }
 
@@ -738,38 +848,42 @@
             }, 800); // 每 800ms 精準掃描一次緩衝池
         }
 
+        // --- 核心優化：離線自動偵測與徹底關閉清掃器 (Drift Correction) ---
+        function initOfflineCleaner() {
+            setInterval(() => {
+                if (myRole !== 'viewer') return;
+                const now = Date.now();
+                Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
+                    // 超過 5 秒未收到任何影像更新，判定對方已離線或斷網
+                    if (now - feed.lastFrameTime > 5000) {
+                        removeFeed(senderId, feed.pairCode);
+                        showErrorToast(`頻道代碼 ${feed.pairCode} 偵測到離線，已自動關閉其連接。`);
+                    }
+                });
+            }, 2000); // 每 2 秒清掃一次死頻道
+        }
+
         // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
         function startOffscreenCompositor() {
+            if (!isRecording) {
+                if (canvasRenderLoopId) {
+                    cancelAnimationFrame(canvasRenderLoopId);
+                    canvasRenderLoopId = null;
+                }
+                return;
+            }
+
             const canvas = document.getElementById('hiddenCanvas');
             const ctx = canvas.getContext('2d');
             
-            // 影像輸出的固定高畫質格率解析度 1280x720
+            // 錄製視訊解析度固定 1280x720
             canvas.width = 1280;
             canvas.height = 720;
 
-            if (canvasRenderLoopId) {
-                cancelAnimationFrame(canvasRenderLoopId);
-            }
-
             function render() {
-                if (myRole !== 'viewer') return;
+                if (myRole !== 'viewer' || !isRecording) return;
 
-                // 排除 3 秒鐘內沒有發送新畫面（判定離線/訊號不穩）的裝置
-                const activeFeeds = Object.entries(remoteFeeds).filter(([id, feed]) => {
-                    const alive = (Date.now() - feed.lastFrameTime) < 3000;
-                    if (!alive) {
-                        feed.imgElement.classList.add('opacity-40');
-                        const statusEl = document.getElementById('status-' + id);
-                        if (statusEl) {
-                            statusEl.innerText = '連線不穩或對方已離線';
-                            statusEl.className = 'text-xs ml-2 text-red-400';
-                        }
-                    } else {
-                        feed.imgElement.classList.remove('opacity-40');
-                    }
-                    return alive;
-                });
-
+                const activeFeeds = Object.entries(remoteFeeds);
                 // 背景塗成純黑
                 ctx.fillStyle = "#000000";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -782,8 +896,9 @@
                     let h = canvas.height / rows;
 
                     activeFeeds.forEach(([id, feed], index) => {
-                        const img = feed.imageObj;
-                        if (img.complete && img.src) {
+                        // 💡 終極優化：直接將 HTMLImageElement 渲染上畫布，避開二次解碼 Image 的效能損耗！
+                        const img = feed.imgElement;
+                        if (img && img.complete && img.naturalWidth > 0) {
                             let col = index % cols;
                             let row = Math.floor(index / cols);
                             let x = col * w;
@@ -791,7 +906,7 @@
                             ctx.drawImage(img, x, y, w, h);
                         }
                     });
-                } else if (isRecording) {
+                } else {
                     ctx.fillStyle = "white";
                     ctx.font = "30px Arial";
                     ctx.textAlign = "center";
@@ -805,9 +920,12 @@
 
         // --- 純淨 Canvas 影像錄製與匯出模組 ---
         document.getElementById('btnStartRecord').onclick = () => {
+            isRecording = true;
+            startOffscreenCompositor(); // 僅在錄影開啟時，動態啟動 Canvas 拼圖迴圈，平時 0 效能負擔
+
             const canvas = document.getElementById('hiddenCanvas');
             
-            // 擷取無 UI 純淨畫布影像訊號 (每秒 15 幀，更順暢不卡頓)
+            // 擷取無 UI 純淨畫布影像訊號 (每秒 15 幀，順暢不卡頓)
             const stream = canvas.captureStream(15);
             
             // 高位元率高畫質無損設定：鎖定高位元率 (10 Mbps) 避免被瀏覽器默認壓縮劣化畫質
@@ -854,7 +972,6 @@
             };
 
             mediaRecorder.start();
-            isRecording = true;
 
             document.getElementById('btnStartRecord').classList.add('hidden');
             document.getElementById('btnStopRecord').classList.remove('hidden');
@@ -867,9 +984,85 @@
                 mediaRecorder.stop();
             }
             isRecording = false;
+            startOffscreenCompositor(); // 錄製停止，完全關閉背景 Canvas 渲染，減少硬體耗損
 
             document.getElementById('btnStartRecord').classList.remove('hidden');
             document.getElementById('btnStopRecord').classList.add('hidden');
+        };
+
+        // --- 相機端（本地）錄影控制邏輯 ---
+        document.getElementById('btnCameraStartRecord').onclick = () => {
+            if (!localStream) {
+                showErrorToast("相機裝置尚未就緒，無法錄影！");
+                return;
+            }
+
+            cameraRecordedChunks = [];
+            let options = { videoBitsPerSecond: 10000000 }; // 本地高清錄影 10 Mbps 畫質不打折
+            
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                options.mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                options.mimeType = 'video/webm;codecs=vp8';
+            } else {
+                options.mimeType = 'video/webm';
+            }
+
+            try {
+                cameraRecorder = new MediaRecorder(localStream, options);
+            } catch (e) {
+                cameraRecorder = new MediaRecorder(localStream);
+            }
+
+            cameraRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    cameraRecordedChunks.push(e.data);
+                }
+            };
+
+            cameraRecorder.onstop = () => {
+                const blob = new Blob(cameraRecordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `Panda相機端本地錄製_${new Date().toISOString().slice(0,10)}_${Math.floor(100+Math.random()*900)}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+
+                // 重設相機端錄影指示燈狀態
+                document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full";
+                document.getElementById('cameraRecordStatusText').innerText = "本地錄影未啟動";
+            };
+
+            cameraRecorder.start();
+            isCameraRecording = true;
+
+            document.getElementById('btnCameraStartRecord').classList.add('hidden');
+            document.getElementById('btnCameraStopRecord').classList.remove('hidden');
+            
+            document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-red-500 rounded-full animate-ping";
+            document.getElementById('cameraRecordStatusText').innerText = "本地錄影中...";
+            
+            if (socket && socket.connected) {
+                socket.emit('logAppMessage', { appId: appId, message: '相機端開啟本地高清錄影', type: 'info' });
+            }
+        };
+
+        document.getElementById('btnCameraStopRecord').onclick = () => {
+            if (cameraRecorder && cameraRecorder.state !== 'inactive') {
+                cameraRecorder.stop();
+            }
+            isCameraRecording = false;
+
+            document.getElementById('btnCameraStartRecord').classList.remove('hidden');
+            document.getElementById('btnCameraStopRecord').classList.add('hidden');
         };
 
         // --- 載入時初始化 ---
