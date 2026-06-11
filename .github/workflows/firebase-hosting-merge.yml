@@ -10,14 +10,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Create Fake Entry Point Folder
-        run: mkdir -p .github/fake_entry
-
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PANDAPANDAAI }}
-          channelId: live
-          projectId: pandapandaai
-          entryPoint: .github/fake_entry  # 💡 關鍵：引導官方外掛到空資料夾，徹底關閉 npx 打包檢查！
+      - name: Deploy via Firebase CLI Native
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PANDAPANDAAI }}
+        run: |
+          npx --yes firebase-tools deploy --only hosting --project pandapandaai --token "$FIREBASE_TOKEN"
