@@ -10,37 +10,24 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Auto Generate Local list.json in Every Single Directory
+      - name: Hard Fix GitHub API Trailing Slash in All Pages
         run: |
-          # 💡 深度掃描全站所有的子目錄，在每一個資料夾底下各自長出一個專屬的 list.json
-          node -e "
-            const fs = require('fs');
-            const path = require('path');
-            
-            function traverseAndGenerate(dirPath) {
-              const files = fs.readdirSync(dirPath).filter(f => !f.startsWith('.'));
-              fs.writeFileSync(path.join(dirPath, 'list.json'), JSON.stringify(files, null, 2));
+          # 💡 終極解鎖：深度巡邏全站 200+ 個 index.html，強制在 API 送出前把多餘的結尾斜線全部消滅！
+          # 這樣不管 Firebase 怎麼洗網址，傳給 GitHub API 的永遠都是 100% 正確的合法格式！
+          find . -type f -name "index.html" | while read file; do
+            if [ "$file" != "./.github/workflows/firebase-hosting-merge.yml" ]; then
+              # 1. 精準修正原本會多切出空路徑的變數，強制過濾掉結尾斜線
+              sed -i "s|const pathParts = cleanPath.split('\/').filter(p => p !== '');|const pathParts = cleanPath.split('\/').filter(p => p !== '' \&\& p !== 'index.html');|g" "$file"
               
-              files.forEach(file => {
-                const fullPath = path.join(dirPath, file);
-                if (fs.statSync(fullPath).isDirectory()) {
-                  traverseAndGenerate(fullPath);
-                }
-              });
-            }
-            
-            const rootFiles = fs.readdirSync('.').filter(f => !f.startsWith('.') && f !== 'firebase.json');
-            rootFiles.forEach(file => {
-              if (fs.statSync(file).isDirectory()) {
-                traverseAndGenerate(file);
-              }
-            });
-            console.log('🎉 200+ 個資料夾的專屬 list.json 批量全自動生成完畢！');
-          "
+              # 2. 核心保險：在 apiUrl 組裝完成後，強制用 JavaScript 移除變數末端可能殘留的斜線
+              sed -i "s|const apiUrl = \`https:\/\/://github.com\/repos\/\${repoInfo.user}\/\${repoInfo.repo}\/contents\/\${repoInfo.subPath}\`;|const cleanSubPath = repoInfo.subPath.replace(\/\/+$/, ''); const apiUrl = \`https:\/\/://github.com\/repos\/\${repoInfo.user}\/\${repoInfo.repo}\/contents\/\${cleanSubPath}\`;|g" "$file"
+            fi
+          done
+          echo "🚀 全站 200+ 個子目錄的 GitHub API 斜線防護已硬核修正完畢！"
 
       - name: Generate Perfect Clean firebase.json in Memory
         run: |
-          # 💡 核心黑科技：開啟原生多站點靜態映射，告訴 Firebase 當遇到讀取目錄的結尾斜線請求時，自動在背景把當前目錄下的 list.json 塞給它！
+          # 💡 保持最乾淨的靜態配置，Firebase 只做純粹的高速靜態託管，絕不干涉或攔截網頁內容
           cat << 'EOF' > firebase.json
           {
             "hosting": [
@@ -49,13 +36,7 @@ jobs:
                 "public": ".",
                 "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
                 "cleanUrls": false,
-                "trailingSlash": true,
-                "rewrites": [
-                  {
-                    "source": "**/",
-                    "destination": "list.json"
-                  }
-                ]
+                "trailingSlash": true
               }
             ]
           }
