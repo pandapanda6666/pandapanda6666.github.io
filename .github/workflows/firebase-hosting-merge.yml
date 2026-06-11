@@ -10,24 +10,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Hard Fix GitHub API Trailing Slash in All Pages
-        run: |
-          # 💡 終極解鎖：深度巡邏全站 200+ 個 index.html，強制在 API 送出前把多餘的結尾斜線全部消滅！
-          # 這樣不管 Firebase 怎麼洗網址，傳給 GitHub API 的永遠都是 100% 正確的合法格式！
-          find . -type f -name "index.html" | while read file; do
-            if [ "$file" != "./.github/workflows/firebase-hosting-merge.yml" ]; then
-              # 1. 精準修正原本會多切出空路徑的變數，強制過濾掉結尾斜線
-              sed -i "s|const pathParts = cleanPath.split('\/').filter(p => p !== '');|const pathParts = cleanPath.split('\/').filter(p => p !== '' \&\& p !== 'index.html');|g" "$file"
-              
-              # 2. 核心保險：在 apiUrl 組裝完成後，強制用 JavaScript 移除變數末端可能殘留的斜線
-              sed -i "s|const apiUrl = \`https:\/\/://github.com\/repos\/\${repoInfo.user}\/\${repoInfo.repo}\/contents\/\${repoInfo.subPath}\`;|const cleanSubPath = repoInfo.subPath.replace(\/\/+$/, ''); const apiUrl = \`https:\/\/://github.com\/repos\/\${repoInfo.user}\/\${repoInfo.repo}\/contents\/\${cleanSubPath}\`;|g" "$file"
-            fi
-          done
-          echo "🚀 全站 200+ 個子目錄的 GitHub API 斜線防護已硬核修正完畢！"
-
       - name: Generate Perfect Clean firebase.json in Memory
         run: |
-          # 💡 保持最乾淨的靜態配置，Firebase 只做純粹的高速靜態託管，絕不干涉或攔截網頁內容
+          # 💡 建立最乾淨的配置，並自動將剛才建立的 sw.js 晶片註冊到全站的 Service-Worker-Allowed 權限中
           cat << 'EOF' > firebase.json
           {
             "hosting": [
@@ -36,7 +21,13 @@ jobs:
                 "public": ".",
                 "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
                 "cleanUrls": false,
-                "trailingSlash": true
+                "trailingSlash": true,
+                "headers": [
+                  {
+                    "source": "/sw.js",
+                    "headers": [{ "key": "Service-Worker-Allowed", "value": "/" }]
+                  }
+                ]
               }
             ]
           }
