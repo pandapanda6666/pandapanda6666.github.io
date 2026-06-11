@@ -30,6 +30,10 @@
             }
         });
 
+        // 屏蔽不必要的控制台輸出，避免大量代碼刷屏
+        console.log = function() {};
+        console.info = function() {};
+
         // 專屬應用識別碼 (排除 index.html 造成的平行時空問題)
         const appId = window.location.hostname + window.location.pathname.replace('index.html', '');
     </script>
@@ -107,7 +111,30 @@
                     即時影像串流傳輸中
                 </div>
             </div>
-            <div id="cameraStatus" class="text-xs text-slate-400 text-center mt-3">正在初始化硬體裝置...</div>
+            
+            <!-- 新增：傳輸頻率與畫質控制區 -->
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-4 bg-slate-900 rounded-xl p-3 border border-slate-700">
+                <div class="flex items-center gap-2">
+                    <label class="text-slate-400 text-sm">傳輸頻率:</label>
+                    <select id="fpsSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
+                        <option value="500">極低 (2 FPS) - 最省流</option>
+                        <option value="200">低 (5 FPS)</option>
+                        <option value="100" selected>標準 (10 FPS)</option>
+                        <option value="66">高 (15 FPS)</option>
+                        <option value="33">極高 (30 FPS) - 易卡頓</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-slate-400 text-sm">影像畫質:</label>
+                    <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
+                        <option value="0.2">省流 (低畫質)</option>
+                        <option value="0.4" selected>標準 (中畫質)</option>
+                        <option value="0.7">清晰 (高畫質)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="cameraStatus" class="text-xs text-slate-400 text-center mt-4">正在初始化硬體裝置...</div>
         </div>
 
         <!-- 觀看端介面 -->
@@ -192,6 +219,8 @@
         let localStream;
         let videoInterval;
         let micRecorder;
+        let currentCaptureInterval = 100; // 預設 100ms (10 FPS)
+        let currentCaptureQuality = 0.4;  // 預設畫質 0.4
 
         // --- SSO 與登入驗證處理 ---
         function checkSSO() {
@@ -333,21 +362,39 @@
                 const ctx = capCanvas.getContext('2d');
                 const videoEl = document.getElementById('localVideo');
 
-                // 影像擷取迴圈 (100ms 一幀，高頻率純轉發)
-                videoInterval = setInterval(() => {
-                    if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
-                        ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                        const base64Frame = capCanvas.toDataURL('image/jpeg', 0.4); // 品質設為 0.4 兼顧頻寬與效能
-                        
-                        socket.emit('appData', {
-                            room: appId,
-                            action: 'videoFrame',
-                            pairCode: myPairCode,
-                            senderId: myUuid,
-                            image: base64Frame
-                        });
-                    }
-                }, 100);
+                // 動態啟動或重啟影像擷取迴圈
+                function startCaptureLoop() {
+                    if (videoInterval) clearInterval(videoInterval);
+                    videoInterval = setInterval(() => {
+                        if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
+                            ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
+                            const base64Frame = capCanvas.toDataURL('image/jpeg', currentCaptureQuality); 
+                            
+                            socket.emit('appData', {
+                                room: appId,
+                                action: 'videoFrame',
+                                pairCode: myPairCode,
+                                senderId: myUuid,
+                                image: base64Frame
+                            });
+                        }
+                    }, currentCaptureInterval);
+                }
+
+                // 監聽選單變更
+                document.getElementById('fpsSelect').onchange = (e) => {
+                    currentCaptureInterval = parseInt(e.target.value);
+                    startCaptureLoop();
+                    socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms`, type: 'info' });
+                };
+
+                document.getElementById('qualitySelect').onchange = (e) => {
+                    currentCaptureQuality = parseFloat(e.target.value);
+                    socket.emit('logAppMessage', { appId: appId, message: `更改畫質為: ${e.target.value}`, type: 'info' });
+                };
+
+                // 啟動迴圈
+                startCaptureLoop();
 
                 // 麥克風音訊切片發送
                 const audioTracks = localStream.getAudioTracks();
