@@ -101,14 +101,14 @@
             <div class="bg-slate-900 rounded-xl p-5 border border-slate-700 text-center mb-6">
                 <p class="text-xs text-slate-400 uppercase tracking-widest mb-1">您的專屬監看配對代碼</p>
                 <div id="pairCodeDisplay" class="text-4xl font-mono font-extrabold text-emerald-400 tracking-wider">------</div>
-                <p class="text-xs text-slate-500 mt-2">請在觀看端輸入此 6 位數代碼來開始監看</p>
+                <div id="camera-viewer-count" class="text-xs text-indigo-400 font-semibold mt-2">線上觀看人數: 0 人</div>
             </div>
 
             <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden shadow-inner border border-slate-800">
                 <video id="localVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                <div class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-slate-300 flex items-center gap-2">
-                    <span class="h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
-                    即時影像串流傳輸中
+                <div id="broadcastStatusIndicator" class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-slate-300 flex items-center gap-2">
+                    <span id="indicatorDot" class="h-2 w-2 bg-slate-500 rounded-full"></span>
+                    <span id="indicatorText">靜止待機中 (無人連線不佔頻寬)</span>
                 </div>
             </div>
             
@@ -209,18 +209,19 @@
         
         // 觀看端專用
         let watchedCodes = new Set(); 
-        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, imageObj, lastFrameTime, audioContext, sourceNode, bufferQueue } }
+        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, imageObj, lastFrameTime, mediaSource, sourceBuffer, audioQueue } }
         let isRecording = false;
         let mediaRecorder;
         let recordedChunks = [];
         let canvasRenderLoopId = null;
 
-        // 相機端專用 (整合防重疊機制)
+        // 相機端專用 (整合防重疊與觀眾追蹤機制)
         let localStream = null;
         let videoInterval = null;
         let micRecorder = null;
-        let currentCaptureInterval = 200; // 預設改成 200ms (5 FPS) 兼顧順暢與流暢
-        let currentCaptureQuality = 0.3;  // 預設畫質下調至 0.3 (標準畫質)
+        let activeViewers = []; // 線上正在觀看本機的觀眾 uuid 陣列
+        let currentCaptureInterval = 200; // 預設 200ms (5 FPS) 兼顧頻寬與效能
+        let currentCaptureQuality = 0.3;  // 預設中畫質 0.3
 
         // --- SSO 與登入驗證處理 ---
         function checkSSO() {
@@ -345,7 +346,20 @@
             startOffscreenCompositor(); // 啟用 Canvas 合成
         };
 
-        // --- 相機端廣播邏輯 (防重複連線重構) ---
+        // --- 更新相機端的廣播狀態燈 ---
+        function updateCameraStatusIndicator() {
+            const dot = document.getElementById('indicatorDot');
+            const txt = document.getElementById('indicatorText');
+            if (activeViewers.length > 0) {
+                dot.className = "h-2 w-2 bg-red-500 rounded-full animate-pulse";
+                txt.innerText = `畫面串流廣播中 (${activeViewers.length} 人正在觀看)`;
+            } else {
+                dot.className = "h-2 w-2 bg-slate-500 rounded-full";
+                txt.innerText = "靜止待機中 (無人連線不佔頻寬)";
+            }
+        }
+
+        // --- 相機端廣播邏輯 (高流暢觀眾追蹤版) ---
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
@@ -359,13 +373,13 @@
                     audio: true 
                 });
                 document.getElementById('localVideo').srcObject = localStream;
-                statusLabel.innerText = "裝置準備就緒，畫面傳輸廣播中...";
+                statusLabel.innerText = "裝置準備就緒，已套用「無人看自動靜音/靜畫」節流系統。";
 
                 // 隱藏畫布用於壓縮擷取
                 const capCanvas = document.createElement('canvas');
-                capCanvas.width = 320; // 改為 320x240，頻寬耗損減少 50%
+                capCanvas.width = 320; // 改為 320x240，高流暢防爆頻寬
                 capCanvas.height = 240;
-                const ctx = capCanvas.getContext('2d');
+                const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
                 const videoEl = document.getElementById('localVideo');
 
                 // 動態啟動或重啟影像擷取迴圈 (防重疊核心機制)
@@ -376,6 +390,9 @@
                     }
                     
                     videoInterval = setInterval(() => {
+                        // 核心優化：如果沒有觀眾，直接跳過不截圖不發送！
+                        if (activeViewers.length === 0) return;
+
                         if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                             ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
                             const base64Frame = capCanvas.toDataURL('image/jpeg', currentCaptureQuality); 
@@ -403,7 +420,7 @@
                     socket.emit('logAppMessage', { appId: appId, message: `更改畫質為: ${e.target.value}`, type: 'info' });
                 };
 
-                // 啟動單一迴圈
+                // 啟動影像轉發迴圈
                 startCaptureLoop();
 
                 // 麥克風音訊切片發送
@@ -417,23 +434,23 @@
                     micRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm;codecs=opus' });
                     
                     micRecorder.ondataavailable = async (e) => {
+                        // 核心優化：如果沒有觀眾看，直接跳過不發送聲音
+                        if (activeViewers.length === 0) return;
+
                         if (e.data.size > 0 && socket && socket.connected) {
-                            const arrayBuffer = await e.data.arrayBuffer();
-                            const base64Audio = btoa(new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
-                            
+                            // 使用 Socket.IO 原生 Binary (Blob/ArrayBuffer) 進行發送，不需手動 Btoa 加解密！
                             socket.emit('appData', {
                                 room: appId,
                                 action: 'audioChunk',
                                 pairCode: myPairCode,
                                 senderId: myUuid,
-                                chunk: base64Audio
+                                chunk: e.data
                             });
                         }
                     };
-                    micRecorder.start(600); // 稍微放寬音訊切片頻率
+                    micRecorder.start(500); // 500 毫秒產生一個二進位音訊切片
                 }
 
-                // 記錄操作日誌
                 socket.emit('logAppMessage', { appId: appId, message: `相機端開始廣播代碼: ${myPairCode}`, type: 'info' });
 
             } catch (err) {
@@ -448,18 +465,29 @@
             const codeInput = document.getElementById('inputPairCode').value.trim();
             if (!codeInput) return;
 
-            // 支援批次輸入, 用逗號分隔
+            // 支援批次輸入, 用逗號或空格分隔
             const codes = codeInput.split(/[\s,]+/).map(c => c.trim()).filter(c => c.length === 6);
             if (codes.length === 0) {
                 document.getElementById('viewerStatus').innerText = "輸入代碼格式有誤，必須為 6 位數字";
                 return;
             }
 
-            codes.forEach(code => watchedCodes.add(code));
+            codes.forEach(code => {
+                if (!watchedCodes.has(code)) {
+                    watchedCodes.add(code);
+                    // 向相機廣播端通知：有人開始監看您了！
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'request_socket_stream',
+                        pin: code,
+                        requesterId: myUuid
+                    });
+                }
+            });
             
             // 更新 UI 頻道清單
             document.getElementById('activeCodesList').innerText = Array.from(watchedCodes).join(', ');
-            document.getElementById('viewerStatus').innerText = "開始監聽頻道串流資料...";
+            document.getElementById('viewerStatus').innerText = "開始連線並監聽頻道串流...";
 
             // 備份紀錄到雲端
             socket.emit('saveAppData', { 
@@ -472,6 +500,24 @@
 
         // --- 觀看端接收轉發數據 ---
         function handleIncomingAppData(data) {
+            // A. 當我們是相機端時，需要聽有沒有觀眾加入或離開
+            if (myRole === 'camera' && data.pin === myPairCode) {
+                if (data.action === 'request_socket_stream') {
+                    if (!activeViewers.includes(data.requesterId)) {
+                        activeViewers.push(data.requesterId);
+                        document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${activeViewers.length} 人`;
+                        updateCameraStatusIndicator();
+                    }
+                }
+                else if (data.action === 'stop_stream') {
+                    activeViewers = activeViewers.filter(id => id !== data.requesterId);
+                    document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${activeViewers.length} 人`;
+                    updateCameraStatusIndicator();
+                }
+                return;
+            }
+
+            // B. 當我們是觀看端時，需要聽視訊影音串流
             if (myRole !== 'viewer' || !watchedCodes.has(data.pairCode)) return;
 
             const senderId = data.senderId;
@@ -490,7 +536,18 @@
                 // 更新後台 Canvas 繪圖專用的 Image 物件
                 feed.imageObj.src = data.image;
                 
-                document.getElementById('viewerStatus').innerText = "即時影像同步中...";
+                // 強制覆寫狀態文字
+                const playBtn = document.getElementById('play-btn-' + senderId);
+                const statusEl = document.getElementById('status-' + senderId);
+                if (statusEl) {
+                    if (!playBtn || playBtn.style.display === 'none') {
+                        statusEl.innerText = '接收影音中';
+                        statusEl.className = 'text-xs ml-2 text-green-400';
+                    } else {
+                        statusEl.innerText = '影像抵達，請點擊接收影音';
+                        statusEl.className = 'text-xs ml-2 text-yellow-400 animate-pulse';
+                    }
+                }
             } 
             else if (data.action === 'audioChunk') {
                 playIncomingAudio(senderId, data.chunk);
@@ -507,17 +564,42 @@
 
             const img = document.createElement('img');
             img.className = "w-full h-full object-cover";
+            img.id = `remote-video-${senderId}`;
             img.alt = "正在等待首影格...";
 
             const overlay = document.createElement('div');
-            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300";
+            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300 z-10";
             overlay.innerHTML = `
                 <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
                 <span>頻道: ${pairCode}</span>
+                <span id="status-${senderId}" class="text-xs ml-2 text-yellow-400">連線中...</span>
             `;
 
+            const audioEl = document.createElement('audio');
+            audioEl.autoplay = true;
+            audioEl.id = `remote-audio-${senderId}`;
+            audioEl.className = "hidden";
+
+            // 破解瀏覽器自動播放音軌的點擊覆蓋按鈕
+            const playBtn = document.createElement('button');
+            playBtn.id = `play-btn-${senderId}`;
+            playBtn.className = "absolute inset-0 m-auto h-12 w-44 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-2xl z-20 transition transform hover:scale-105 active:scale-95 text-xs tracking-wider flex items-center justify-center gap-2";
+            playBtn.innerHTML = `
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                點擊接收音訊
+            `;
+            playBtn.onclick = () => {
+                playBtn.style.display = 'none';
+                audioEl.play().catch(e => console.warn("解除靜音失敗:", e));
+                const statusEl = document.getElementById('status-' + senderId);
+                if (statusEl) {
+                    statusEl.innerText = '接收影音中';
+                    statusEl.className = 'text-xs ml-2 text-green-400';
+                }
+            };
+
             const closeBtn = document.createElement('button');
-            closeBtn.className = "absolute top-3 right-3 bg-red-600/90 hover:bg-red-500 p-1.5 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md";
+            closeBtn.className = "absolute top-3 right-3 bg-red-600/90 hover:bg-red-500 p-1.5 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md z-30";
             closeBtn.innerHTML = `
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             `;
@@ -527,19 +609,40 @@
 
             tile.appendChild(img);
             tile.appendChild(overlay);
+            tile.appendChild(audioEl);
+            tile.appendChild(playBtn);
             tile.appendChild(closeBtn);
             container.appendChild(tile);
 
-            // 初始化遠端 feed 資料結構
+            // 建立 MediaSource 音訊緩衝拼接架構 (不使用 AudioContext)
+            const ms = new MediaSource();
+            audioEl.src = URL.createObjectURL(ms);
+
             remoteFeeds[senderId] = {
                 pairCode: pairCode,
                 imgElement: img,
                 imageObj: new Image(),
                 lastFrameTime: Date.now(),
-                audioContext: null,
-                audioQueue: [],
-                isAudioDecoding: false
+                mediaSource: ms,
+                sourceBuffer: null,
+                audioQueue: []
             };
+
+            ms.addEventListener('sourceopen', () => {
+                try {
+                    const sb = ms.addSourceBuffer('audio/webm; codecs=opus');
+                    remoteFeeds[senderId].sourceBuffer = sb;
+
+                    sb.addEventListener('updateend', () => {
+                        const feed = remoteFeeds[senderId];
+                        if (feed && feed.audioQueue.length > 0 && !sb.updating) {
+                            sb.appendBuffer(feed.audioQueue.shift());
+                        }
+                    });
+                } catch(e) {
+                    console.warn("建立音訊緩衝失敗，瀏覽器可能不支援 WebM/Opus");
+                }
+            });
         }
 
         // 移除連線頻道
@@ -547,9 +650,6 @@
             const tile = document.getElementById(`tile_${senderId}`);
             if (tile) tile.remove();
             
-            if (remoteFeeds[senderId] && remoteFeeds[senderId].audioContext) {
-                remoteFeeds[senderId].audioContext.close();
-            }
             delete remoteFeeds[senderId];
 
             // 檢查是否還有該配對碼的其他廣播，沒有的話從 watchedCodes 中移除
@@ -558,46 +658,48 @@
                 watchedCodes.delete(pairCode);
                 document.getElementById('activeCodesList').innerText = Array.from(watchedCodes).join(', ') || '尚無連線';
             }
+
+            // 通知相機端：我們不再觀看您了，如果沒有人看請關閉廣播節省流量！
+            socket.emit('appData', {
+                room: appId,
+                action: 'stop_stream',
+                pin: pairCode,
+                requesterId: myUuid
+            });
         }
 
-        // 音訊串流解碼播放
-        async function playIncomingAudio(senderId, base64Audio) {
+        // 音訊串流硬體加速解碼播放 (二進位 ArrayBuffer)
+        async function playIncomingAudio(senderId, binaryChunk) {
             const feed = remoteFeeds[senderId];
-            if (!feed) return;
+            if (!feed || !feed.sourceBuffer) return;
 
-            // 延遲載入 AudioContext 確保突破自動播放限制
-            if (!feed.audioContext) {
-                feed.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            // 判定並轉換二進位數據 (相容 ArrayBuffer 或 Blob)
+            let arrayBuffer;
+            if (binaryChunk instanceof ArrayBuffer) {
+                arrayBuffer = binaryChunk;
+            } else if (binaryChunk instanceof Blob) {
+                arrayBuffer = await binaryChunk.arrayBuffer();
+            } else if (typeof binaryChunk === 'string') {
+                // 回退 Base64 轉換 (極少發生，僅作安全防護)
+                const binary = atob(binaryChunk);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                arrayBuffer = bytes.buffer;
+            } else {
+                // 預期為 Socket.IO 自動解析出來的二進位對象
+                arrayBuffer = binaryChunk;
             }
 
-            // 將 Base64 轉換成 ArrayBuffer
-            const binary = atob(base64Audio);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-                bytes[i] = binary.charCodeAt(i);
+            const sb = feed.sourceBuffer;
+            if (!sb.updating && feed.audioQueue.length === 0) {
+                try {
+                    sb.appendBuffer(arrayBuffer);
+                } catch(e) {}
+            } else {
+                feed.audioQueue.push(arrayBuffer);
             }
-
-            feed.audioQueue.push(bytes.buffer);
-            processAudioQueue(feed);
-        }
-
-        async function processAudioQueue(feed) {
-            if (feed.isAudioDecoding || feed.audioQueue.length === 0) return;
-            feed.isAudioDecoding = true;
-
-            const nextBuffer = feed.audioQueue.shift();
-            try {
-                const audioBuffer = await feed.audioContext.decodeAudioData(nextBuffer);
-                const source = feed.audioContext.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(feed.audioContext.destination);
-                source.start(0);
-            } catch (err) {
-                // 忽略非 WebM/Opus 標準音訊的解碼失敗警報
-            }
-
-            feed.isAudioDecoding = false;
-            processAudioQueue(feed);
         }
 
         // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
@@ -621,6 +723,11 @@
                     const alive = (Date.now() - feed.lastFrameTime) < 3000;
                     if (!alive) {
                         feed.imgElement.classList.add('opacity-40');
+                        const statusEl = document.getElementById('status-' + id);
+                        if (statusEl) {
+                            statusEl.innerText = '連線不穩或對方已離線';
+                            statusEl.className = 'text-xs ml-2 text-red-400';
+                        }
                     } else {
                         feed.imgElement.classList.remove('opacity-40');
                     }
