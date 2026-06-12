@@ -11,6 +11,7 @@
             color: #f3f4f6;
             user-select: none;
             overflow: hidden;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
         canvas {
             image-rendering: pixelated;
@@ -24,209 +25,462 @@
             box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
             border: 1px solid rgba(16, 185, 129, 0.6);
         }
+        .neon-text-title {
+            text-shadow: 0 0 10px rgba(34, 211, 238, 0.8), 0 0 20px rgba(34, 211, 238, 0.5);
+        }
+        /* 滾動條美化 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
     </style>
 </head>
-<body class="h-screen flex flex-col justify-between font-sans">
+<body class="h-screen w-screen relative">
 
-    <!-- 頂部資訊列 -->
-    <header class="bg-gray-950/90 border-b border-gray-800 p-4 flex justify-between items-center shrink-0">
-        <div class="flex items-center gap-3">
-            <span class="text-3xl">⏳</span>
-            <div>
-                <h1 class="text-lg font-black tracking-widest text-cyan-400">CHRONO-CORE</h1>
-                <p class="text-[10px] text-gray-500 font-mono">SECTOR RECONNAISSANCE ENGINE</p>
-            </div>
-        </div>
+    <!-- ========================================== -->
+    <!-- 遊戲首頁選單 (Main Menu) -->
+    <!-- ========================================== -->
+    <div id="mainMenu" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-cover bg-center transition-opacity duration-700" 
+         style="background-image: url('icon/front page.png'); background-color: #020617; background-blend-mode: overlay;">
         
-        <!-- 任務與關卡 -->
-        <div class="flex items-center gap-6">
-            <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
-                <span class="text-gray-400">目前區域:</span>
-                <span id="levelDisplay" class="font-bold text-cyan-400 ml-1">Sector 1/10</span>
-            </div>
-            <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs max-w-xs truncate">
-                <span class="text-amber-400 font-bold">★ 主線:</span>
-                <span id="mainQuestDisplay" class="text-gray-300 ml-1">清除所有威脅以解鎖下一區域</span>
-            </div>
-            <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs max-w-xs truncate">
-                <span class="text-cyan-400 font-bold">⚓ 支線:</span>
-                <span id="sideQuestDisplay" class="text-gray-300 ml-1">收集加密日誌晶體 (0/3)</span>
+        <!-- 背景覆蓋層 (確保文字清晰) -->
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-900/60 to-slate-950/95 -z-10"></div>
+
+        <!-- 遊戲標題 -->
+        <div class="text-center mb-16 z-10">
+            <h1 class="text-7xl font-black text-cyan-400 neon-text-title tracking-widest mb-2">時空核心</h1>
+            <h2 class="text-4xl font-bold text-cyan-200 tracking-[0.3em]">永恆之迴響</h2>
+            <div class="mt-4 flex items-center justify-center gap-4">
+                <div class="h-px w-16 bg-gradient-to-r from-transparent to-cyan-500"></div>
+                <p class="text-sm text-cyan-500 font-mono tracking-widest">TIME-LOOP RECONNAISSANCE</p>
+                <div class="h-px w-16 bg-gradient-to-l from-transparent to-cyan-500"></div>
             </div>
         </div>
 
-        <div class="flex gap-2">
-            <button id="btnSave" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded border border-slate-700 font-bold transition-all">💾 存檔</button>
-            <button id="btnLoad" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded border border-slate-700 font-bold transition-all">📂 讀檔</button>
+        <!-- 第一階段：按空白鍵提示 -->
+        <div id="pressSpaceHint" class="mb-12 cursor-pointer z-10 animate-pulse">
+            <p class="text-2xl font-bold text-amber-400 tracking-widest drop-shadow-[0_0_10px_rgba(251,191,36,0.8)]">▶ 按 [空白鍵] 開始 ◀</p>
         </div>
-    </header>
 
-    <!-- 遊戲主工作區 -->
-    <main class="flex-1 flex overflow-hidden relative">
-        
-        <!-- 左側 HUD 控制面板 -->
-        <aside class="w-72 bg-gray-950/90 border-r border-gray-800 p-5 flex flex-col gap-6 shrink-0 z-10">
-            <!-- 角色狀態 -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 flex justify-between">
-                    <span>STATUS TERMINAL</span>
-                    <span class="text-cyan-400 font-mono">KAEL [HERO]</span>
-                </h3>
-                <!-- 生命值 -->
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="text-red-400">❤️ 結構生命值 (HP)</span>
-                        <span id="hpText" class="font-mono">100 / 100</span>
+        <!-- 第二階段：選單按鈕 (初始隱藏) -->
+        <div id="menuButtons" class="hidden flex flex-col gap-4 w-64 z-10 transition-all duration-500">
+            <button id="btnMenuStart" class="bg-cyan-600/20 hover:bg-cyan-500/40 border border-cyan-500 text-cyan-300 font-bold py-3 px-6 rounded-lg transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] text-lg tracking-widest">
+                開始遊戲
+            </button>
+            <button id="btnMenuGuide" class="bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600 text-gray-300 font-bold py-3 px-6 rounded-lg transition-all tracking-widest">
+                遊戲說明
+            </button>
+            <button id="btnMenuSettings" class="bg-slate-800/60 hover:bg-slate-700/80 border border-slate-600 text-gray-300 font-bold py-3 px-6 rounded-lg transition-all tracking-widest">
+                設定選項
+            </button>
+        </div>
+
+        <!-- 版權與版本 -->
+        <div class="absolute bottom-6 text-xs text-slate-500 font-mono z-10">
+            v1.0.0 | CHRONO-CORE RECONNAISSANCE ENGINE
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 彈出視窗：遊戲說明 -->
+    <!-- ========================================== -->
+    <div id="modalGuide" class="hidden absolute inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center">
+        <div class="bg-slate-900 border border-cyan-500/50 rounded-xl p-8 max-w-2xl w-full shadow-[0_0_40px_rgba(6,182,212,0.2)]">
+            <h2 class="text-2xl font-bold text-cyan-400 mb-6 border-b border-slate-700 pb-3 tracking-widest">作戰指南 (HOW TO PLAY)</h2>
+            <div class="grid grid-cols-2 gap-6 text-sm text-gray-300 mb-8">
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-slate-800 border border-slate-600 px-2 py-1 rounded font-mono text-white text-center w-16">W A S D</div>
+                        <div>
+                            <p class="font-bold text-emerald-400">裝甲移動</p>
+                            <p class="text-xs text-gray-500">控制 Kael 進行全方位戰術移動。</p>
+                        </div>
                     </div>
-                    <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                        <div id="hpBar" class="bg-gradient-to-r from-red-600 to-rose-400 h-full transition-all duration-100" style="width: 100%;"></div>
+                    <div class="flex items-start gap-3">
+                        <div class="bg-slate-800 border border-slate-600 px-2 py-1 rounded font-mono text-white text-center w-16">滑鼠左鍵</div>
+                        <div>
+                            <p class="font-bold text-red-400">武器開火</p>
+                            <p class="text-xs text-gray-500">朝游標方向射擊，破壞敵方機兵。</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <div class="bg-slate-800 border border-slate-600 px-2 py-1 rounded font-mono text-white text-center w-16">空白鍵</div>
+                        <div>
+                            <p class="font-bold text-cyan-400">量子衝刺 (Dash)</p>
+                            <p class="text-xs text-gray-500">朝移動方向瞬移，期間處於無敵狀態，可用於穿越彈幕。</p>
+                        </div>
                     </div>
                 </div>
-                <!-- 衝刺能量 -->
-                <div>
-                    <div class="flex justify-between text-xs mb-1">
-                        <span class="text-cyan-400">⚡ 衝刺能量 (DASH)</span>
-                        <span id="dashText" class="font-mono">100 / 100</span>
+                <div class="space-y-4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-slate-800 border border-slate-600 px-2 py-1 rounded font-mono text-white text-center w-16">Q / 右鍵</div>
+                        <div>
+                            <p class="font-bold text-amber-400">切換武器</p>
+                            <p class="text-xs text-gray-500">在 [等離子機槍] 與 [重型散彈槍] 間快速切換。</p>
+                        </div>
                     </div>
-                    <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
-                        <div id="dashBar" class="bg-gradient-to-r from-cyan-600 to-blue-400 h-full transition-all" style="width: 100%;"></div>
-                    </div>
-                </div>
-                <!-- 經驗值 -->
-                <div>
-                    <div class="flex justify-between text-[10px] mb-1">
-                        <span class="text-gray-400">EXP LEVEL <span id="levelNum" class="text-emerald-400 font-bold">1</span></span>
-                        <span id="expText" class="font-mono text-gray-400">0 / 100</span>
-                    </div>
-                    <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
-                        <div id="expBar" class="bg-emerald-500 h-full transition-all" style="width: 0%;"></div>
+                    <div class="bg-slate-800/50 p-3 rounded border border-slate-700 mt-2">
+                        <p class="font-bold text-gray-200 mb-1">戰術提示：</p>
+                        <ul class="text-xs text-gray-400 list-disc pl-4 space-y-1">
+                            <li>擊殺敵人可獲得經驗值升級。</li>
+                            <li>收集黃色「核心水晶」可於左側終端升級能力。</li>
+                            <li>尋找掩體躲避敵方遠程單位的攻擊。</li>
+                        </ul>
                     </div>
                 </div>
             </div>
-
-            <!-- 技能終端 & 升級 -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex-1 flex flex-col gap-3">
-                <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 flex justify-between items-center">
-                    <span>UPGRADE TERMINAL</span>
-                    <span id="coresCount" class="text-amber-400 font-bold text-[10px] bg-amber-950/50 px-2 py-0.5 rounded border border-amber-900/50">0 核心水晶</span>
-                </h3>
-                
-                <div class="space-y-2.5 overflow-y-auto flex-1 text-xs">
-                    <button onclick="upgradeSkill('atk')" class="w-full bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center transition-colors group">
-                        <div class="text-left">
-                            <p class="font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">🔥 等離子威力</p>
-                            <p class="text-[9px] text-gray-500">增加所有武器基礎傷害值</p>
-                        </div>
-                        <span id="skillAtkLvl" class="font-mono bg-slate-950 px-2 py-1 rounded text-cyan-400">Lv.1</span>
-                    </button>
-                    <button onclick="upgradeSkill('hp')" class="w-full bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center transition-colors group">
-                        <div class="text-left">
-                            <p class="font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">🛡️ 最大生命上限</p>
-                            <p class="text-[9px] text-gray-500">提升奈米裝甲最大承受值</p>
-                        </div>
-                        <span id="skillHpLvl" class="font-mono bg-slate-950 px-2 py-1 rounded text-cyan-400">Lv.1</span>
-                    </button>
-                    <button onclick="upgradeSkill('dash')" class="w-full bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center transition-colors group">
-                        <div class="text-left">
-                            <p class="font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">⚡ 瞬移引擎優化</p>
-                            <p class="text-[9px] text-gray-500">減少衝刺技能的冷卻時間</p>
-                        </div>
-                        <span id="skillDashLvl" class="font-mono bg-slate-950 px-2 py-1 rounded text-cyan-400">Lv.1</span>
-                    </button>
-                </div>
+            <div class="flex justify-center">
+                <button class="btnCloseModal bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-8 rounded transition-colors">確認返回</button>
             </div>
+        </div>
+    </div>
 
-            <!-- 本地精靈圖狀態檢視 -->
-            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[10px] space-y-1">
-                <p class="font-bold text-cyan-400">📂 本地精靈圖讀取狀態 (icon/Role/):</p>
-                <div class="grid grid-cols-2 gap-1 text-gray-400">
-                    <span id="statusImg1">Kael(主角) : <span class="text-red-500">無/待檢測</span></span>
-                    <span id="statusImg2">Aegis(導師) : <span class="text-red-500">無/待檢測</span></span>
-                    <span id="statusImg3">Guardian : <span class="text-red-500">無/待檢測</span></span>
-                    <span id="statusImg4">Drone : <span class="text-red-500">無/待檢測</span></span>
-                </div>
-                <p class="text-[9px] text-gray-600 leading-tight pt-1">提示：若檢測不到，會自動啟動 Glowing 霓虹向量引擎繪製，保證 Preview 正常運作！</p>
-            </div>
-        </aside>
-
-        <!-- 遊戲主 Canvas 容器 -->
-        <div class="flex-1 h-full relative" id="gameContainer">
-            <canvas id="gameCanvas" class="w-full h-full block bg-[#040914]"></canvas>
+    <!-- ========================================== -->
+    <!-- 彈出視窗：設定選項 -->
+    <!-- ========================================== -->
+    <div id="modalSettings" class="hidden absolute inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center">
+        <div class="bg-slate-900 border border-slate-600 rounded-xl p-8 max-w-md w-full shadow-2xl">
+            <h2 class="text-2xl font-bold text-gray-200 mb-6 border-b border-slate-700 pb-3 tracking-widest">系統設定 (SETTINGS)</h2>
             
-            <!-- 任務完成 / 死亡 / 關卡轉換覆蓋窗 -->
-            <div id="overlay" class="hidden absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 z-20">
-                <h2 id="overlayTitle" class="text-4xl font-black tracking-widest text-red-500 mb-4">SYSTEM DOWN</h2>
-                <p id="overlayDesc" class="text-gray-400 max-w-md mb-8">Kael 裝甲結構已崩解。時空核心防禦線已破，世界陷入永恆迴圈。</p>
-                <button id="overlayBtn" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 px-8 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all">重新初始化核心</button>
-            </div>
-        </div>
+            <div class="space-y-6 mb-8 text-sm">
+                <!-- 語言設定 -->
+                <div>
+                    <label class="block text-gray-400 font-bold mb-2">顯示語言 (Language)</label>
+                    <select id="langSelect" class="w-full bg-slate-800 border border-slate-600 text-white rounded p-2 focus:outline-none focus:border-cyan-500 transition-colors">
+                        <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
+                        <option value="en-US">English (英文)</option>
+                        <option value="ja-JP">日本語 (日文)</option>
+                    </select>
+                </div>
 
-        <!-- 右側戰術小地圖與對話窗 -->
-        <aside class="w-72 bg-gray-950/90 border-l border-gray-800 p-5 flex flex-col gap-5 shrink-0 z-10">
-            <!-- 戰術小地圖 -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
-                <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 w-full text-center mb-3">TACTICAL MINIMAP</h3>
-                <div class="w-44 h-44 border border-cyan-500/30 rounded-lg overflow-hidden bg-slate-950 relative">
-                    <canvas id="minimapCanvas" class="w-full h-full"></canvas>
+                <!-- 音量設定 -->
+                <div>
+                    <label class="flex justify-between text-gray-400 font-bold mb-2">
+                        <span>主音量 (Master Volume)</span>
+                        <span id="volText" class="text-cyan-400">100%</span>
+                    </label>
+                    <input type="range" id="volSlider" min="0" max="100" value="100" class="w-full accent-cyan-500">
+                </div>
+
+                <!-- 效能設定 -->
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 font-bold">啟用螢幕震動 (Screen Shake)</span>
+                    <input type="checkbox" id="shakeToggle" checked class="w-5 h-5 accent-cyan-500">
                 </div>
             </div>
 
-            <!-- 戰地語音通訊窗 (AEGIS AI 劇情對話) -->
-            <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex-1 flex flex-col">
-                <h3 class="text-xs font-bold text-emerald-400 border-b border-gray-800 pb-1.5 flex justify-between items-center">
-                    <span>📡 AEGIS HOLOGRAPHIC</span>
-                    <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping"></span>
-                </h3>
-                <div class="flex-1 flex flex-col justify-between py-3">
-                    <div id="dialogueBox" class="text-xs text-gray-300 font-mono leading-relaxed space-y-2">
-                        <p class="text-emerald-400 font-bold">[AEGIS]:</p>
-                        <p id="dialogueText">Kael，我的系統掃描到前方的時空核心結構發生了不穩定扭曲。你必須排除所有受汙染的防衛哨兵，下載加密代碼！</p>
+            <div class="flex justify-center">
+                <button class="btnCloseModal bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-8 rounded transition-colors shadow-lg">套用並返回</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 遊戲主體 UI (Game Interface) -->
+    <!-- ========================================== -->
+    <div id="gameUI" class="hidden h-full flex flex-col justify-between">
+        <!-- 頂部資訊列 -->
+        <header class="bg-gray-950/90 border-b border-gray-800 p-4 flex justify-between items-center shrink-0 shadow-md">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-cyan-900 border border-cyan-500 flex items-center justify-center text-cyan-300 font-bold">⏳</div>
+                <div>
+                    <h1 class="text-lg font-black tracking-widest text-cyan-400 leading-tight">CHRONO-CORE</h1>
+                    <p class="text-[10px] text-gray-500 font-mono">SECTOR RECONNAISSANCE ENGINE</p>
+                </div>
+            </div>
+            
+            <!-- 任務與關卡 -->
+            <div class="flex items-center gap-6">
+                <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs">
+                    <span class="text-gray-400">目前區域:</span>
+                    <span id="levelDisplay" class="font-bold text-cyan-400 ml-1">Sector 1/10</span>
+                </div>
+                <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs max-w-xs truncate">
+                    <span class="text-amber-400 font-bold">◆ 主線:</span>
+                    <span id="mainQuestDisplay" class="text-gray-300 ml-1">清除所有威脅以解鎖下一區域</span>
+                </div>
+                <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 text-xs max-w-xs truncate hidden md:block">
+                    <span class="text-emerald-400 font-bold">◇ 支線:</span>
+                    <span id="sideQuestDisplay" class="text-gray-300 ml-1">收集加密日誌晶體 (0/3)</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <button id="btnReturnMenu" class="bg-slate-800 hover:bg-red-900/50 text-xs px-3 py-1.5 rounded border border-slate-700 hover:border-red-500/50 text-gray-400 hover:text-white font-bold transition-all">離開遊戲</button>
+                <button id="btnSave" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded border border-slate-700 font-bold transition-all">💾 存檔</button>
+                <button id="btnLoad" class="bg-slate-800 hover:bg-slate-700 text-xs px-3 py-1.5 rounded border border-slate-700 font-bold transition-all">📂 讀檔</button>
+            </div>
+        </header>
+
+        <!-- 遊戲主工作區 -->
+        <main class="flex-1 flex overflow-hidden relative">
+            
+            <!-- 左側 HUD 控制面板 -->
+            <aside class="w-72 bg-gray-950/90 border-r border-gray-800 p-5 flex flex-col gap-6 shrink-0 z-10 overflow-y-auto">
+                <!-- 角色狀態 -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 flex justify-between">
+                        <span>STATUS TERMINAL</span>
+                        <span class="text-cyan-400 font-mono">KAEL [HERO]</span>
+                    </h3>
+                    <!-- 生命值 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-red-400">STRUCTURAL HP</span>
+                            <span id="hpText" class="font-mono text-gray-200">100 / 100</span>
+                        </div>
+                        <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                            <div id="hpBar" class="bg-gradient-to-r from-red-600 to-rose-400 h-full transition-all duration-100" style="width: 100%;"></div>
+                        </div>
                     </div>
-                    <p class="text-[9px] text-gray-500 font-mono text-right border-t border-gray-800/60 pt-2">SECURE LINE 104-B</p>
+                    <!-- 衝刺能量 -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="text-cyan-400">DASH ENGINE</span>
+                            <span id="dashText" class="font-mono text-gray-200">READY</span>
+                        </div>
+                        <div class="w-full bg-slate-950 h-2.5 rounded-full overflow-hidden border border-slate-800">
+                            <div id="dashBar" class="bg-gradient-to-r from-cyan-600 to-blue-400 h-full transition-all" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                    <!-- 經驗值 -->
+                    <div>
+                        <div class="flex justify-between text-[10px] mb-1 mt-3">
+                            <span class="text-gray-400">EXP LEVEL <span id="levelNum" class="text-emerald-400 font-bold text-xs ml-1">1</span></span>
+                            <span id="expText" class="font-mono text-gray-400">0 / 100</span>
+                        </div>
+                        <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden">
+                            <div id="expBar" class="bg-emerald-500 h-full transition-all" style="width: 0%;"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </main>
 
-    <!-- 底部裝備武器控制 -->
-    <footer class="bg-gray-950 border-t border-gray-800 p-4 flex justify-between items-center shrink-0 z-10">
-        <div class="flex items-center gap-4">
-            <span class="text-xs text-gray-500">熱鍵: [WASD] 移動 | [SPACE] 衝刺閃避 | [滑鼠] 瞄準發射 | [Q / 右鍵] 切換武器</span>
-        </div>
-        
-        <div class="flex gap-4">
-            <!-- 機槍 -->
-            <div id="wpn0" class="neon-glow-blue bg-cyan-950/30 px-5 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-200">
-                <span class="text-2xl">🔫</span>
-                <div>
-                    <p class="text-xs font-bold text-cyan-400">等離子機槍 (Plasma Blaster)</p>
-                    <p class="text-[10px] text-gray-400 font-mono">無限彈藥 / 快速射擊 [HEAT: OK]</p>
+                <!-- 技能終端 & 升級 -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex-1 flex flex-col gap-3">
+                    <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 flex justify-between items-center">
+                        <span>UPGRADE TERMINAL</span>
+                        <span id="coresCount" class="text-amber-400 font-bold text-[10px] bg-amber-950/50 px-2 py-0.5 rounded border border-amber-900/50">0 核心水晶</span>
+                    </h3>
+                    
+                    <div class="space-y-2.5 flex-1 text-xs">
+                        <button onclick="upgradeSkill('atk')" class="w-full bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center transition-colors group">
+                            <div class="text-left">
+                                <p class="font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">等離子威力</p>
+                                <p class="text-[9px] text-gray-500">增加武器基礎傷害值</p>
+                            </div>
+                            <span id="skillAtkLvl" class="font-mono bg-slate-950 px-2 py-1 rounded border border-slate-700 text-cyan-400">Lv.1</span>
+                        </button>
+                        <button onclick="upgradeSkill('hp')" class="w-full bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center transition-colors group">
+                            <div class="text-left">
+                                <p class="font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">生命值上限</p>
+                                <p class="text-[9px] text-gray-500">提升裝甲最大承受值</p>
+                            </div>
+                            <span id="skillHpLvl" class="font-mono bg-slate-950 px-2 py-1 rounded border border-slate-700 text-cyan-400">Lv.1</span>
+                        </button>
+                        <button onclick="upgradeSkill('dash')" class="w-full bg-slate-800 hover:bg-slate-700 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center transition-colors group">
+                            <div class="text-left">
+                                <p class="font-bold text-gray-200 group-hover:text-cyan-400 transition-colors">瞬移優化</p>
+                                <p class="text-[9px] text-gray-500">減少衝刺技能冷卻</p>
+                            </div>
+                            <span id="skillDashLvl" class="font-mono bg-slate-950 px-2 py-1 rounded border border-slate-700 text-cyan-400">Lv.1</span>
+                        </button>
+                    </div>
                 </div>
-            </div>
-            <!-- 散彈槍 -->
-            <div id="wpn1" class="opacity-40 bg-slate-900 px-5 py-2.5 rounded-xl flex items-center gap-3 border border-slate-800 transition-all duration-200">
-                <span class="text-2xl">💥</span>
-                <div>
-                    <p class="text-xs font-bold text-gray-300">重型散射槍 (Shock Shotgun)</p>
-                    <p class="text-[10px] text-gray-400 font-mono">5發廣角散射 / 高威力 [1.2s 冷卻]</p>
-                </div>
-            </div>
-        </div>
-    </footer>
 
+                <!-- 本地精靈圖狀態檢視 -->
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-[10px] space-y-1">
+                    <p class="font-bold text-cyan-400">系統資產載入模組 (icon/Role/):</p>
+                    <div class="grid grid-cols-2 gap-1 text-gray-400 mt-1">
+                        <span id="statusImg1">Kael : <span class="text-red-500 text-[9px]">未連接</span></span>
+                        <span id="statusImg2">Aegis: <span class="text-red-500 text-[9px]">未連接</span></span>
+                        <span id="statusImg3">Guard: <span class="text-red-500 text-[9px]">未連接</span></span>
+                        <span id="statusImg4">Drone: <span class="text-red-500 text-[9px]">未連接</span></span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 遊戲主 Canvas 容器 -->
+            <div class="flex-1 h-full relative" id="gameContainer">
+                <canvas id="gameCanvas" class="w-full h-full block bg-[#040914]"></canvas>
+                
+                <!-- 任務完成 / 死亡 覆蓋窗 -->
+                <div id="overlay" class="hidden absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center text-center p-8 z-20">
+                    <h2 id="overlayTitle" class="text-5xl font-black tracking-widest text-red-500 mb-4 drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]">SYSTEM DOWN</h2>
+                    <p id="overlayDesc" class="text-gray-300 max-w-md mb-8 text-lg">Kael 裝甲結構已崩解。時空核心防禦線已破，世界陷入永恆迴圈。</p>
+                    <button id="overlayBtn" class="bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold py-3 px-10 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all text-lg tracking-widest border border-cyan-400">重新初始化核心</button>
+                </div>
+            </div>
+
+            <!-- 右側戰術小地圖與對話窗 -->
+            <aside class="w-72 bg-gray-950/90 border-l border-gray-800 p-5 flex flex-col gap-5 shrink-0 z-10 hidden lg:flex">
+                <!-- 戰術小地圖 -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex flex-col items-center">
+                    <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 w-full text-center mb-3">TACTICAL MINIMAP</h3>
+                    <div class="w-48 h-48 border border-cyan-500/30 rounded-lg overflow-hidden bg-slate-950 relative shadow-inner">
+                        <canvas id="minimapCanvas" class="w-full h-full"></canvas>
+                    </div>
+                </div>
+
+                <!-- 戰地語音通訊窗 -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex-1 flex flex-col">
+                    <h3 class="text-xs font-bold text-emerald-400 border-b border-gray-800 pb-1.5 flex justify-between items-center">
+                        <span>📡 AEGIS HOLOGRAPHIC</span>
+                        <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                    </h3>
+                    <div class="flex-1 flex flex-col justify-between py-3">
+                        <div id="dialogueBox" class="text-xs text-gray-300 font-mono leading-relaxed space-y-2">
+                            <p class="text-emerald-400 font-bold">[AEGIS]:</p>
+                            <p id="dialogueText">Kael，掃描到前方的時空核心發生不穩定扭曲。你必須排除受汙染的哨兵，下載加密代碼！</p>
+                        </div>
+                        <p class="text-[9px] text-gray-600 font-mono text-right border-t border-gray-800/60 pt-2">SECURE LINE 104-B</p>
+                    </div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 底部裝備武器控制 -->
+        <footer class="bg-gray-950 border-t border-gray-800 p-4 flex justify-between items-center shrink-0 z-10">
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-gray-500 font-mono hidden md:inline">CONTROLS: [WASD] MOVE | [SPACE] DASH | [MOUSE] AIM/FIRE | [Q / RMB] SWITCH WPN</span>
+            </div>
+            
+            <div class="flex gap-4">
+                <!-- 機槍 -->
+                <div id="wpn0" class="neon-glow-blue bg-cyan-950/40 px-5 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-200 min-w-[200px]">
+                    <div class="w-8 h-8 flex items-center justify-center bg-cyan-900 rounded border border-cyan-500 text-cyan-200">1</div>
+                    <div>
+                        <p class="text-xs font-bold text-cyan-400">等離子機槍</p>
+                        <p class="text-[10px] text-gray-400 font-mono">無限連發 [HEAT: OK]</p>
+                    </div>
+                </div>
+                <!-- 散彈槍 -->
+                <div id="wpn1" class="opacity-50 bg-slate-900 px-5 py-2.5 rounded-xl flex items-center gap-3 border border-slate-700 transition-all duration-200 min-w-[200px]">
+                    <div class="w-8 h-8 flex items-center justify-center bg-slate-800 rounded border border-slate-600 text-gray-400">2</div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-300">重型散射槍</p>
+                        <p class="text-[10px] text-gray-500 font-mono">近戰爆發 [1.2s CD]</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 遊戲核心引擎腳本 -->
+    <!-- ========================================== -->
     <script>
+        // --- 狀態機控制 ---
+        let gameState = 'MENU'; // 'MENU', 'PLAYING', 'PAUSED'
+        let menuState = 'SPLASH'; // 'SPLASH' (封面階段), 'MAIN' (首頁選單)
+        let enableShake = true;
+        let masterVolume = 1.0;
+
+        // UI 綁定
+        const uiMainMenu = document.getElementById('mainMenu');
+        const uiGame = document.getElementById('gameUI');
+        const uiModalGuide = document.getElementById('modalGuide');
+        const uiModalSettings = document.getElementById('modalSettings');
+
+        const pressSpaceHint = document.getElementById('pressSpaceHint');
+        const menuButtons = document.getElementById('menuButtons');
+
+        // 第一階段點擊提示（亦可觸發進入首頁）
+        pressSpaceHint.addEventListener('click', transitionToMainMenu);
+
+        // 第二階段：首頁選單按鈕事件
+        document.getElementById('btnMenuStart').addEventListener('click', startGame);
+        document.getElementById('btnMenuGuide').addEventListener('click', () => {
+            uiModalGuide.classList.remove('hidden');
+        });
+        document.getElementById('btnMenuSettings').addEventListener('click', () => {
+            uiModalSettings.classList.remove('hidden');
+        });
+
+        // 關閉 Modal 按鈕
+        document.querySelectorAll('.btnCloseModal').forEach(btn => {
+            btn.addEventListener('click', () => {
+                uiModalGuide.classList.add('hidden');
+                uiModalSettings.classList.add('hidden');
+            });
+        });
+
+        // 設定面板邏輯
+        document.getElementById('volSlider').addEventListener('input', (e) => {
+            const val = e.target.value;
+            document.getElementById('volText').innerText = val + '%';
+            masterVolume = val / 100;
+        });
+        document.getElementById('shakeToggle').addEventListener('change', (e) => {
+            enableShake = e.target.checked;
+        });
+        document.getElementById('langSelect').addEventListener('change', (e) => {
+            spawnFloatingText(`系統語系切換至: ${e.target.value}`, player.x, player.y - 30, '#34d399');
+        });
+
+        // 返回選單按鈕
+        document.getElementById('btnReturnMenu').addEventListener('click', () => {
+            if(confirm("確定要離開目前進度並返回主選單嗎？未儲存的進度將會遺失。")) {
+                gameState = 'MENU';
+                menuState = 'SPLASH';
+                
+                // 恢復第一階段狀態 (只顯示按空白鍵提示)
+                pressSpaceHint.classList.remove('hidden');
+                menuButtons.classList.add('hidden');
+                
+                uiGame.classList.add('hidden');
+                uiMainMenu.classList.remove('opacity-0', 'pointer-events-none');
+            }
+        });
+
+        // 進入首頁選單
+        function transitionToMainMenu() {
+            if (menuState !== 'SPLASH') return;
+            menuState = 'MAIN';
+            sfx.playPickup();
+            
+            // 隱藏空白鍵提示，顯示按鈕選單
+            pressSpaceHint.classList.add('hidden');
+            menuButtons.classList.remove('hidden');
+        }
+
+        // 啟動遊戲
+        function startGame() {
+            if (gameState === 'PLAYING') return;
+            
+            // UI 轉場
+            uiMainMenu.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                uiGame.classList.remove('hidden');
+                resizeCanvas();
+                
+                // 重置並初始化遊戲
+                gameState = 'PLAYING';
+                initLevel(1);
+                player.hp = player.maxHp;
+                player.cores = 0;
+                player.exp = 0;
+                player.level = 1;
+                player.skills = { atk: 1, hp: 1, dash: 1 };
+                updateCoresDisplay();
+                document.getElementById('skillAtkLvl').innerText = `Lv.1`;
+                document.getElementById('skillHpLvl').innerText = `Lv.1`;
+                document.getElementById('skillDashLvl').innerText = `Lv.1`;
+                document.getElementById('overlay').classList.add('hidden');
+
+            }, 500); // 等待 CSS 淡出動畫
+        }
+
+
         // ==========================================
         // 1. 本地角色精靈圖動態加載管理
         // ==========================================
         class SpriteAssetLoader {
             constructor() {
-                this.sprites = {}; // 鍵值 format: "charIdx-frameIdx"
-                this.loaded = {};  // 記錄是否加載成功
+                this.sprites = {}; 
+                this.loaded = {};  
                 this.detectAndLoad();
             }
 
             detectAndLoad() {
-                // 為我們在圖表切出來的 6 個角色、每個角色 6 動作進行預加載
-                // 1=主角(Kael), 2=導師AI(Aegis), 3=重型綠兵(Guardian), 4=突擊兵(Striker)...
                 for (let char = 1; char <= 6; char++) {
                     for (let frame = 1; frame <= 6; frame++) {
                         const key = `${char}-${frame}`;
@@ -251,23 +505,22 @@
                 const el = document.getElementById(`statusImg${char}`);
                 if (!el) return;
                 if (success) {
-                    el.innerHTML = `${this.getCharName(char)}: <span class="text-emerald-400 font-bold">● 已讀取</span>`;
+                    el.innerHTML = `${this.getCharName(char)}: <span class="text-emerald-400 font-bold text-[10px]">● 已讀取</span>`;
                 } else {
-                    el.innerHTML = `${this.getCharName(char)}: <span class="text-amber-500">○ 預設向量</span>`;
+                    el.innerHTML = `${this.getCharName(char)}: <span class="text-amber-500 text-[10px]">○ 預設裝甲</span>`;
                 }
             }
 
             getCharName(char) {
                 switch(char) {
-                    case 1: return "Kael(主角)";
-                    case 2: return "Aegis(導師)";
-                    case 3: return "Guardian";
+                    case 1: return "Kael";
+                    case 2: return "Aegis";
+                    case 3: return "Guard";
                     case 4: return "Drone";
                     default: return "Boss";
                 }
             }
 
-            // 繪製函數：若加載成功繪製 PNG，失敗則自動降級使用 glowingProceduralDraw 繪製！
             draw(ctx, charIdx, frameIdx, x, y, width, height, flipX = false, color = '#06b6d4') {
                 const key = `${charIdx}-${frameIdx}`;
                 if (this.loaded[key] && this.sprites[key]) {
@@ -280,19 +533,15 @@
                         ctx.drawImage(this.sprites[key], x, y, width, height);
                     }
                     ctx.restore();
-                    return true; // PNG 讀取繪製成功
+                    return true;
                 }
                 
-                // 降級回報：使用 GlowingProceduralDraw 繪製
                 this.glowingProceduralDraw(ctx, charIdx, frameIdx, x, y, width, height, flipX, color);
                 return false;
             }
 
-            // Glowing Procedural Draw: 沒有讀到本地圖時的高級科幻繪圖方案
             glowingProceduralDraw(ctx, charIdx, frameIdx, x, y, w, h, flipX, color) {
                 ctx.save();
-                
-                // 外圍發光
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 12;
                 ctx.strokeStyle = color;
@@ -302,146 +551,95 @@
                 const cx = x + w/2;
                 const cy = y + h/2;
 
-                // 根據角色 index 繪製不同科幻圖案
-                if (charIdx === 1) {
-                    // 主角 Kael: 穿戴發光面罩、手持光槍的戰士
-                    // 身體
+                if (charIdx === 1) { // Kael
                     ctx.beginPath();
                     ctx.arc(cx, cy - 4, 12, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // 面罩
+                    ctx.fill(); ctx.stroke();
                     ctx.fillStyle = "#22d3ee";
                     ctx.fillRect(flipX ? cx - 10 : cx + 2, cy - 8, 8, 4);
 
-                    // 步行動畫 (動態擺腿)
                     const swing = Math.sin(frameIdx * 1.2) * 5;
                     ctx.beginPath();
-                    ctx.moveTo(cx - 4, cy + 8);
-                    ctx.lineTo(cx - 4 + swing, cy + 18);
-                    ctx.moveTo(cx + 4, cy + 8);
-                    ctx.lineTo(cx + 4 - swing, cy + 18);
+                    ctx.moveTo(cx - 4, cy + 8); ctx.lineTo(cx - 4 + swing, cy + 18);
+                    ctx.moveTo(cx + 4, cy + 8); ctx.lineTo(cx + 4 - swing, cy + 18);
                     ctx.stroke();
 
-                } else if (charIdx === 3) {
-                    // Guardian Mech 重型裝甲：高大的發光正方形重兵
+                } else if (charIdx === 3) { // Guardian
                     ctx.fillStyle = "rgba(16, 185, 129, 0.3)";
                     ctx.strokeStyle = "#10b981";
                     ctx.beginPath();
                     ctx.rect(x + 4, y + 2, w - 8, h - 8);
-                    ctx.fill();
-                    ctx.stroke();
-
-                    // 發光核心
+                    ctx.fill(); ctx.stroke();
                     ctx.fillStyle = "#34d399";
                     ctx.beginPath();
                     ctx.arc(cx, cy, 6, 0, Math.PI * 2);
                     ctx.fill();
 
-                } else if (charIdx === 4) {
-                    // Hovering Drone 飛行兵：橢圓旋轉的核心
-                    ctx.strokeStyle = "#f97316"; // 橙色
+                } else if (charIdx === 4) { // Drone
+                    ctx.strokeStyle = "#f97316";
                     ctx.fillStyle = "rgba(249, 115, 22, 0.2)";
                     ctx.beginPath();
                     ctx.ellipse(cx, cy, 14, 8, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.stroke();
+                    ctx.fill(); ctx.stroke();
 
-                    // 左右旋轉翼
                     const spin = frameIdx * 0.5;
                     ctx.beginPath();
-                    ctx.moveTo(cx - 18, cy + Math.sin(spin) * 6);
-                    ctx.lineTo(cx - 10, cy);
-                    ctx.moveTo(cx + 18, cy - Math.sin(spin) * 6);
-                    ctx.lineTo(cx + 10, cy);
+                    ctx.moveTo(cx - 18, cy + Math.sin(spin) * 6); ctx.lineTo(cx - 10, cy);
+                    ctx.moveTo(cx + 18, cy - Math.sin(spin) * 6); ctx.lineTo(cx + 10, cy);
                     ctx.stroke();
-                } else {
-                    // 最終 BOSS 或其他
-                    ctx.strokeStyle = "#a855f7"; // 紫色
+                } else { // Boss
+                    ctx.strokeStyle = "#a855f7";
                     ctx.fillStyle = "rgba(168, 85, 247, 0.2)";
                     ctx.beginPath();
-                    ctx.moveTo(cx, y);
-                    ctx.lineTo(x + w, cy);
-                    ctx.lineTo(cx, y + h);
-                    ctx.lineTo(x, cy);
+                    ctx.moveTo(cx, y); ctx.lineTo(x + w, cy);
+                    ctx.lineTo(cx, y + h); ctx.lineTo(x, cy);
                     ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
+                    ctx.fill(); ctx.stroke();
                 }
-
                 ctx.restore();
             }
         }
-
         const spriteLoader = new SpriteAssetLoader();
 
         // ==========================================
         // 2. 復古 Web Audio 音效合成器
         // ==========================================
         class AudioSynth {
-            constructor() {
-                this.ctx = null;
-            }
-            init() {
-                if(!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            playLaser() {
+            constructor() { this.ctx = null; }
+            init() { if(!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+            
+            playTone(type, freqStart, freqEnd, dur, volMultiplier = 1) {
+                if(masterVolume <= 0) return;
                 this.init();
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 0.15);
-                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.15);
+                osc.type = type;
+                osc.frequency.setValueAtTime(freqStart, this.ctx.currentTime);
+                if(freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, this.ctx.currentTime + dur);
+                
+                const finalVol = 0.15 * volMultiplier * masterVolume;
+                gain.gain.setValueAtTime(finalVol, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+                
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + dur);
             }
-            playExplosion() {
-                this.init();
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(180, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(10, this.ctx.currentTime + 0.35);
-                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.35);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.35);
-            }
-            playDash() {
-                this.init();
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(1000, this.ctx.currentTime + 0.1);
-                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.1);
-            }
+            playLaser() { this.playTone('sawtooth', 800, 100, 0.15, 0.8); }
+            playExplosion() { this.playTone('triangle', 180, 10, 0.35, 1.5); }
+            playDash() { this.playTone('sine', 150, 1000, 0.1, 1.2); }
             playPickup() {
+                if(masterVolume <= 0) return;
                 this.init();
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(523, this.ctx.currentTime); // C5
-                osc.frequency.setValueAtTime(659, this.ctx.currentTime + 0.08); // E5
-                osc.frequency.setValueAtTime(784, this.ctx.currentTime + 0.16); // G5
-                gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(523, this.ctx.currentTime); 
+                osc.frequency.setValueAtTime(659, this.ctx.currentTime + 0.08); 
+                osc.frequency.setValueAtTime(784, this.ctx.currentTime + 0.16); 
+                gain.gain.setValueAtTime(0.15 * masterVolume, this.ctx.currentTime);
                 gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.3);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.3);
             }
         }
         const sfx = new AudioSynth();
@@ -454,48 +652,47 @@
         const mapCanvas = document.getElementById('minimapCanvas');
         const mapCtx = mapCanvas.getContext('2d');
 
-        // 世界常數
         const WORLD_W = 2500;
         const WORLD_H = 2500;
 
-        // 玩家狀態
         let player = {
-            x: 100, y: 100,
-            w: 32, h: 48,
-            speed: 5.5,
-            hp: 100, maxHp: 100,
-            dashEnergy: 100,
-            dashCooldown: 0,
-            exp: 0, level: 1, reqExp: 100,
-            cores: 0,
-            currentWeapon: 0, // 0:機槍, 1:散彈槍
-            lastShotTime: 0,
-            isDashing: false,
-            dashTimer: 0,
-            dashDirX: 0, dashDirY: 0,
-            flipX: false,
-            frameIdx: 1,
-            animTimer: 0,
+            x: 100, y: 100, w: 32, h: 48,
+            speed: 5.5, hp: 100, maxHp: 100,
+            dashEnergy: 100, dashCooldown: 0,
+            exp: 0, level: 1, reqExp: 100, cores: 0,
+            currentWeapon: 0, lastShotTime: 0,
+            isDashing: false, dashTimer: 0, dashDirX: 0, dashDirY: 0,
+            flipX: false, frameIdx: 1, animTimer: 0,
             skills: { atk: 1, hp: 1, dash: 1 }
         };
 
         // 鍵盤輸入
         let keysPressed = {};
         window.addEventListener('keydown', (e) => {
-            keysPressed[e.code] = true;
-            if(e.code === 'KeyQ') switchWeapon();
+            // 如果在主選單狀態
+            if (gameState === 'MENU') {
+                if (e.code === 'Space' || e.key === ' ' || e.keyCode === 32) {
+                    if (menuState === 'SPLASH') {
+                        // 第一階段：按空白鍵，過渡到主選單
+                        transitionToMainMenu();
+                    }
+                    return;
+                }
+            }
+            if (gameState === 'PLAYING') {
+                keysPressed[e.code] = true;
+                if(e.code === 'KeyQ') switchWeapon();
+            }
         });
         window.addEventListener('keyup', (e) => {
             keysPressed[e.code] = false;
         });
 
-        // 阻止滑鼠右鍵選單
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-            switchWeapon();
+            if (gameState === 'PLAYING') switchWeapon();
         });
 
-        // 滑鼠發射
         let mouseX = 0, mouseY = 0;
         let isMouseDown = false;
         window.addEventListener('mousemove', (e) => {
@@ -504,32 +701,23 @@
             mouseY = e.clientY - rect.top;
         });
         canvas.addEventListener('mousedown', (e) => {
-            if(e.button === 0) isMouseDown = true;
+            if(e.button === 0 && gameState === 'PLAYING') isMouseDown = true;
         });
         window.addEventListener('mouseup', (e) => {
             if(e.button === 0) isMouseDown = false;
         });
 
-        // 遊戲物件庫
         let sector = 1;
-        let walls = [];
-        let enemies = [];
-        let bullets = [];
-        let particles = [];
-        let lootItems = [];
-        let floatingTexts = [];
-
-        // 攝影機
+        let walls = [], enemies = [], bullets = [], particles = [], lootItems = [], floatingTexts = [];
         let camera = { x: 0, y: 0 };
 
         // ==========================================
-        // 4. 地圖生成演算法 (不同 Sector 有不同地形)
+        // 4. 地圖生成與邏輯
         // ==========================================
         function initLevel(lvl) {
             sector = lvl;
             document.getElementById('levelDisplay').innerText = `Sector ${lvl}/10`;
             
-            // 任務描述
             if (lvl === 10) {
                 document.getElementById('mainQuestDisplay').innerText = "擊敗最終時空核心守護者-VECTOR！";
             } else {
@@ -537,118 +725,68 @@
             }
             document.getElementById('sideQuestDisplay').innerText = `收集加密日誌晶體 (0/3)`;
 
-            // 1. 初始化玩家位置
-            player.x = 100;
-            player.y = 100;
-            player.hp = player.maxHp;
+            player.x = 100; player.y = 100;
+            walls = []; enemies = []; bullets = []; particles = []; lootItems = []; floatingTexts = [];
 
-            // 2. 清空物件
-            walls = [];
-            enemies = [];
-            bullets = [];
-            particles = [];
-            lootItems = [];
-            floatingTexts = [];
-
-            // 邊界實體牆
             walls.push({ x: 0, y: 0, w: WORLD_W, h: 20 });
             walls.push({ x: 0, y: WORLD_H - 20, w: WORLD_W, h: 20 });
             walls.push({ x: 0, y: 0, w: 20, h: WORLD_H });
             walls.push({ x: WORLD_W - 20, y: 0, w: 20, h: WORLD_H });
 
-            // 3. 隨機地形障礙物 (根據關卡提供不同密度)
             const obsCount = 20 + lvl * 5;
             for(let i=0; i < obsCount; i++) {
-                const ox = Math.random() * (WORLD_W - 300) + 150;
-                const oy = Math.random() * (WORLD_H - 300) + 150;
-                const ow = Math.random() * 150 + 50;
-                const oh = Math.random() * 150 + 50;
-                walls.push({ x: ox, y: oy, w: ow, h: oh });
-            }
-
-            // 4. 生成加密日誌晶體 (支線收集任務)
-            for(let i=0; i<3; i++) {
-                lootItems.push({
-                    x: Math.random() * (WORLD_W - 200) + 100,
-                    y: Math.random() * (WORLD_H - 200) + 100,
-                    type: 'diary',
-                    w: 24, h: 24,
-                    color: '#fbbf24'
+                walls.push({ 
+                    x: Math.random() * (WORLD_W - 300) + 150, 
+                    y: Math.random() * (WORLD_H - 300) + 150, 
+                    w: Math.random() * 150 + 50, 
+                    h: Math.random() * 150 + 50 
                 });
             }
 
-            // 5. 生成機兵敵人
+            for(let i=0; i<3; i++) {
+                lootItems.push({
+                    x: Math.random() * (WORLD_W - 200) + 100, y: Math.random() * (WORLD_H - 200) + 100,
+                    type: 'diary', w: 24, h: 24, color: '#fbbf24'
+                });
+            }
+
             const enemyCount = 10 + lvl * 3;
             for(let i=0; i<enemyCount; i++) {
                 const ex = Math.random() * (WORLD_W - 400) + 200;
                 const ey = Math.random() * (WORLD_H - 400) + 200;
-                // 排除出生點附近
                 if(Math.sqrt((ex-100)**2 + (ey-100)**2) < 300) continue;
                 
-                // 敵人型號分類
-                const typeRand = Math.random();
-                let type = 'striker'; // 遠射突擊
-                let maxHp = 50 + lvl * 10;
-                let color = '#f97316';
-                let charIdx = 4;
-
-                if (typeRand > 0.6) {
-                    type = 'guardian'; // 重裝近戰
-                    maxHp = 100 + lvl * 20;
-                    color = '#10b981';
-                    charIdx = 3;
-                }
-
+                const isGuard = Math.random() > 0.6;
                 enemies.push({
-                    x: ex, y: ey,
-                    w: 36, h: 36,
-                    type: type,
-                    hp: maxHp, maxHp: maxHp,
-                    speed: type === 'guardian' ? 2.8 : 3.6,
-                    color: color,
-                    charIdx: charIdx,
-                    shootCooldown: Math.random() * 60,
-                    lastDmgTime: 0
+                    x: ex, y: ey, w: 36, h: 36,
+                    type: isGuard ? 'guardian' : 'striker',
+                    hp: isGuard ? 100 + lvl * 20 : 50 + lvl * 10,
+                    maxHp: isGuard ? 100 + lvl * 20 : 50 + lvl * 10,
+                    speed: isGuard ? 2.8 : 3.6,
+                    color: isGuard ? '#10b981' : '#f97316',
+                    charIdx: isGuard ? 3 : 4,
+                    shootCooldown: Math.random() * 60, lastDmgTime: 0
                 });
             }
 
-            // 6. 最終 BOSS 關 Sector 10
             if (lvl === 10) {
                 enemies.push({
-                    x: WORLD_W / 2, y: WORLD_H / 2,
-                    w: 96, h: 96,
-                    type: 'boss',
-                    hp: 1500, maxHp: 1500,
-                    speed: 2.2,
-                    color: '#a855f7',
-                    charIdx: 5,
-                    shootCooldown: 0,
-                    lastDmgTime: 0
+                    x: WORLD_W / 2, y: WORLD_H / 2, w: 96, h: 96, type: 'boss',
+                    hp: 1500, maxHp: 1500, speed: 2.2, color: '#a855f7',
+                    charIdx: 5, shootCooldown: 0, lastDmgTime: 0
                 });
             }
-
-            // AI 語音更新提示
             triggerDialogue(lvl);
         }
 
-        // 智慧 AI 導師語音對話
         function triggerDialogue(lvl) {
             const el = document.getElementById('dialogueText');
             switch (lvl) {
-                case 1:
-                    el.innerText = "這裡曾是冷卻管線。Kael，你必須摧毀此處的雜訊機兵，解鎖時空通路。滑鼠左鍵可開火！";
-                    break;
-                case 3:
-                    el.innerText = "注意！前方偵測到重型衛兵「GUARDIAN」，他們持有厚重的裝甲，建議切換為 [Q鍵] 散彈槍近戰爆發擊碎！";
-                    break;
-                case 6:
-                    el.innerText = "警告：防線結構受到虛空侵蝕！部分機兵發生了變異，動作極快。別忘了按下 [SPACE鍵] 來閃避致命子彈！";
-                    break;
-                case 10:
-                    el.innerText = "就是這裡了... VECTOR 時空核心守護者就在前方。祝你好運，Kael。我們必須讓這場永恆迴迴響畫下句點！";
-                    break;
-                default:
-                    el.innerText = `已抵達 Sector ${lvl}。數據正在下載中。保持高度戒備！`;
+                case 1: el.innerText = "這裡曾是冷卻管線。Kael，你必須摧毀此處的雜訊機兵。滑鼠左鍵可開火！"; break;
+                case 3: el.innerText = "前方偵測到重型衛兵「GUARDIAN」，建議切換為 [Q鍵] 散彈槍近戰爆發擊碎！"; break;
+                case 6: el.innerText = "部分機兵發生了變異，動作極快。別忘了按下 [SPACE鍵] 來閃避致命子彈！"; break;
+                case 10: el.innerText = "就是這裡了... VECTOR 時空核心守護者就在前方。我們必須讓這場永恆迴響畫下句點！"; break;
+                default: el.innerText = `已抵達 Sector ${lvl}。數據正在下載中。保持高度戒備！`;
             }
         }
 
@@ -657,672 +795,303 @@
         // ==========================================
         function switchWeapon() {
             player.currentWeapon = player.currentWeapon === 0 ? 1 : 0;
-            document.getElementById('wpn0').className = player.currentWeapon === 0 ? "neon-glow-blue bg-cyan-950/30 px-5 py-2.5 rounded-xl flex items-center gap-3 transition-all" : "opacity-40 bg-slate-900 px-5 py-2.5 rounded-xl flex items-center gap-3 border border-slate-800 transition-all";
-            document.getElementById('wpn1').className = player.currentWeapon === 1 ? "neon-glow-blue bg-cyan-950/30 px-5 py-2.5 rounded-xl flex items-center gap-3 transition-all" : "opacity-40 bg-slate-900 px-5 py-2.5 rounded-xl flex items-center gap-3 border border-slate-800 transition-all";
+            document.getElementById('wpn0').className = player.currentWeapon === 0 ? "neon-glow-blue bg-cyan-950/40 px-5 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-200 min-w-[200px]" : "opacity-50 bg-slate-900 px-5 py-2.5 rounded-xl flex items-center gap-3 border border-slate-700 transition-all duration-200 min-w-[200px]";
+            document.getElementById('wpn1').className = player.currentWeapon === 1 ? "neon-glow-blue bg-cyan-950/40 px-5 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-200 min-w-[200px]" : "opacity-50 bg-slate-900 px-5 py-2.5 rounded-xl flex items-center gap-3 border border-slate-700 transition-all duration-200 min-w-[200px]";
         }
 
         function fireWeapon(angle) {
             const now = Date.now();
             if (player.currentWeapon === 0) {
-                // 機槍：高速連發
-                if (now - player.lastShotTime < 130) return; // 射速
+                if (now - player.lastShotTime < 130) return; 
                 player.lastShotTime = now;
                 sfx.playLaser();
-                
-                bullets.push({
-                    x: player.x + player.w/2,
-                    y: player.y + player.h/2,
-                    vx: Math.cos(angle) * 16,
-                    vy: Math.sin(angle) * 16,
-                    fromPlayer: true,
-                    damage: 10 * player.skills.atk,
-                    color: '#22d3ee'
-                });
+                bullets.push({ x: player.x+player.w/2, y: player.y+player.h/2, vx: Math.cos(angle)*16, vy: Math.sin(angle)*16, fromPlayer: true, damage: 10*player.skills.atk, color: '#22d3ee' });
             } else {
-                // 散彈槍：廣角擴散
-                if (now - player.lastShotTime < 900) return; // 冷卻
+                if (now - player.lastShotTime < 900) return; 
                 player.lastShotTime = now;
                 sfx.playExplosion();
-
-                // 產生 5 發擴散子彈
                 for(let i = -2; i <= 2; i++) {
                     const spreadAngle = angle + i * 0.12;
-                    bullets.push({
-                        x: player.x + player.w/2,
-                        y: player.y + player.h/2,
-                        vx: Math.cos(spreadAngle) * 13,
-                        vy: Math.sin(spreadAngle) * 13,
-                        fromPlayer: true,
-                        damage: 16 * player.skills.atk,
-                        color: '#fb7185'
-                    });
+                    bullets.push({ x: player.x+player.w/2, y: player.y+player.h/2, vx: Math.cos(spreadAngle)*13, vy: Math.sin(spreadAngle)*13, fromPlayer: true, damage: 16*player.skills.atk, color: '#fb7185' });
                 }
             }
         }
 
         // ==========================================
-        // 6. 碰撞檢測與物理引擎 (AABB Box)
+        // 6. 物理與更新
         // ==========================================
         function checkCollision(r1, r2) {
-            return r1.x < r2.x + r2.w &&
-                   r1.x + r1.w > r2.x &&
-                   r1.y < r2.y + r2.h &&
-                   r1.y + r1.h > r2.y;
+            return r1.x < r2.x + r2.w && r1.x + r1.w > r2.x && r1.y < r2.y + r2.h && r1.y + r1.h > r2.y;
         }
 
         function moveEntityWithPhysics(ent, dx, dy) {
-            // 先嘗試移動 X
             ent.x += dx;
             for(let wall of walls) {
-                if(checkCollision(ent, wall)) {
-                    if(dx > 0) ent.x = wall.x - ent.w;
-                    else if(dx < 0) ent.x = wall.x + wall.w;
-                }
+                if(checkCollision(ent, wall)) { dx > 0 ? ent.x = wall.x - ent.w : ent.x = wall.x + wall.w; }
             }
-
-            // 再嘗試移動 Y
             ent.y += dy;
             for(let wall of walls) {
-                if(checkCollision(ent, wall)) {
-                    if(dy > 0) ent.y = wall.y - ent.h;
-                    else if(dy < 0) ent.y = wall.y + wall.h;
-                }
+                if(checkCollision(ent, wall)) { dy > 0 ? ent.y = wall.y - ent.h : ent.y = wall.y + wall.h; }
             }
         }
 
-        // ==========================================
-        // 7. 技能升級邏輯
-        // ==========================================
         function upgradeSkill(type) {
-            if (player.cores <= 0) {
-                spawnFloatingText("無水晶核心點數！", player.x, player.y - 10, '#f87171');
-                return;
-            }
+            if(gameState !== 'PLAYING') return;
+            if (player.cores <= 0) { spawnFloatingText("無水晶核心點數！", player.x, player.y - 10, '#f87171'); return; }
+            player.cores--; player.skills[type]++; sfx.playPickup();
 
-            player.cores--;
-            player.skills[type]++;
-            sfx.playPickup();
-
-            if (type === 'atk') {
-                document.getElementById('skillAtkLvl').innerText = `Lv.${player.skills.atk}`;
-                spawnFloatingText("離子威力 UP!", player.x, player.y - 10, '#22d3ee');
-            } else if (type === 'hp') {
-                player.maxHp = 100 + (player.skills.hp - 1) * 20;
-                player.hp = Math.min(player.hp + 20, player.maxHp);
-                document.getElementById('skillHpLvl').innerText = `Lv.${player.skills.hp}`;
-                spawnFloatingText("奈米護盾上限 UP!", player.x, player.y - 10, '#10b981');
-            } else if (type === 'dash') {
-                document.getElementById('skillDashLvl').innerText = `Lv.${player.skills.dash}`;
-                spawnFloatingText("瞬移引擎優化 UP!", player.x, player.y - 10, '#fbbf24');
-            }
-
+            if (type === 'atk') { document.getElementById('skillAtkLvl').innerText = `Lv.${player.skills.atk}`; spawnFloatingText("離子威力 UP!", player.x, player.y - 10, '#22d3ee'); }
+            else if (type === 'hp') { player.maxHp = 100 + (player.skills.hp - 1) * 20; player.hp = Math.min(player.hp + 20, player.maxHp); document.getElementById('skillHpLvl').innerText = `Lv.${player.skills.hp}`; spawnFloatingText("護盾上限 UP!", player.x, player.y - 10, '#10b981'); }
+            else if (type === 'dash') { document.getElementById('skillDashLvl').innerText = `Lv.${player.skills.dash}`; spawnFloatingText("瞬移冷卻減少!", player.x, player.y - 10, '#fbbf24'); }
             updateCoresDisplay();
         }
 
-        function updateCoresDisplay() {
-            document.getElementById('coresCount').innerText = `${player.cores} 核心水晶`;
-        }
+        function updateCoresDisplay() { document.getElementById('coresCount').innerText = `${player.cores} 核心水晶`; }
+        function spawnFloatingText(text, x, y, color) { floatingTexts.push({ text, x, y, color, life: 60 }); }
 
-        function spawnFloatingText(text, x, y, color) {
-            floatingTexts.push({ text, x, y, color, life: 60 });
-        }
-
-        // ==========================================
-        // 8. 遊戲狀態儲存與載入
-        // ==========================================
         document.getElementById('btnSave').addEventListener('click', () => {
-            const saveData = {
-                sector,
-                playerLevel: player.level,
-                playerExp: player.exp,
-                cores: player.cores,
-                skills: player.skills
-            };
-            localStorage.setItem('chrono_core_save', JSON.stringify(saveData));
+            localStorage.setItem('chrono_core_save', JSON.stringify({ sector, playerLevel: player.level, playerExp: player.exp, cores: player.cores, skills: player.skills }));
             spawnFloatingText("💾 記錄點上傳成功", player.x, player.y - 15, '#34d399');
         });
 
         document.getElementById('btnLoad').addEventListener('click', () => {
             const raw = localStorage.getItem('chrono_core_save');
-            if(!raw) {
-                spawnFloatingText("❌ 找不到時空記錄", player.x, player.y - 15, '#f87171');
-                return;
-            }
+            if(!raw) { spawnFloatingText("❌ 找不到時空記錄", player.x, player.y - 15, '#f87171'); return; }
             const data = JSON.parse(raw);
-            sector = data.sector;
-            player.level = data.playerLevel;
-            player.exp = data.playerExp;
-            player.cores = data.cores;
-            player.skills = data.skills;
-            
-            // 更新 UI
+            sector = data.sector; player.level = data.playerLevel; player.exp = data.playerExp; player.cores = data.cores; player.skills = data.skills;
             document.getElementById('skillAtkLvl').innerText = `Lv.${player.skills.atk}`;
             document.getElementById('skillHpLvl').innerText = `Lv.${player.skills.hp}`;
             document.getElementById('skillDashLvl').innerText = `Lv.${player.skills.dash}`;
             player.maxHp = 100 + (player.skills.hp - 1) * 20;
-            
-            initLevel(sector);
-            updateCoresDisplay();
-            spawnFloatingText("📂 時空重組：讀檔成功", player.x, player.y - 15, '#38bdf8');
+            initLevel(sector); updateCoresDisplay();
+            spawnFloatingText("📂 讀檔成功", player.x, player.y - 15, '#38bdf8');
         });
 
-        // ==========================================
-        // 9. 主循環更新引擎
-        // ==========================================
+        // 核心更新
         function update() {
-            // A. 玩家移動與衝刺
-            let dx = 0;
-            let dy = 0;
+            if (gameState !== 'PLAYING') return;
+
+            let dx = 0, dy = 0;
             if (keysPressed['KeyW'] || keysPressed['ArrowUp']) dy = -1;
             if (keysPressed['KeyS'] || keysPressed['ArrowDown']) dy = 1;
             if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) dx = -1;
             if (keysPressed['KeyD'] || keysPressed['ArrowRight']) dx = 1;
+            if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
-            // 歸一化斜移速度
-            if (dx !== 0 && dy !== 0) {
-                dx *= 0.7071;
-                dy *= 0.7071;
-            }
-
-            // 動態翻轉方向
             if(dx < 0) player.flipX = true;
             if(dx > 0) player.flipX = false;
 
-            // 動態動畫幀計數 (走路動畫 1~6 幀)
             if (dx !== 0 || dy !== 0) {
                 player.animTimer++;
-                if(player.animTimer > 6) {
-                    player.frameIdx = (player.frameIdx % 6) + 1;
-                    player.animTimer = 0;
-                }
-            } else {
-                player.frameIdx = 1; // 靜止
-            }
+                if(player.animTimer > 6) { player.frameIdx = (player.frameIdx % 6) + 1; player.animTimer = 0; }
+            } else { player.frameIdx = 1; }
 
-            // 閃避衝刺觸發 Space
             if (keysPressed['Space'] && player.dashCooldown <= 0 && (dx !== 0 || dy !== 0)) {
-                player.isDashing = true;
-                player.dashTimer = 10; // 衝刺 10 幀
-                player.dashCooldown = Math.max(20, 60 - player.skills.dash * 8); // 依等級減少冷卻
-                player.dashDirX = dx;
-                player.dashDirY = dy;
-                sfx.playDash();
-                
-                // 爆發粒子
-                for(let i=0; i<15; i++) {
-                    particles.push({
-                        x: player.x + player.w/2,
-                        y: player.y + player.h/2,
-                        vx: -dx * 5 + (Math.random() - 0.5) * 4,
-                        vy: -dy * 5 + (Math.random() - 0.5) * 4,
-                        color: '#06b6d4',
-                        life: 25
-                    });
-                }
+                player.isDashing = true; player.dashTimer = 10; player.dashCooldown = Math.max(20, 60 - player.skills.dash * 8);
+                player.dashDirX = dx; player.dashDirY = dy; sfx.playDash();
+                for(let i=0; i<15; i++) particles.push({ x: player.x+player.w/2, y: player.y+player.h/2, vx: -dx*5+(Math.random()-0.5)*4, vy: -dy*5+(Math.random()-0.5)*4, color: '#06b6d4', life: 25 });
             }
 
             if (player.isDashing) {
                 moveEntityWithPhysics(player, player.dashDirX * player.speed * 2.2, player.dashDirY * player.speed * 2.2);
-                player.dashTimer--;
-                if(player.dashTimer <= 0) player.isDashing = false;
-            } else {
-                moveEntityWithPhysics(player, dx * player.speed, dy * player.speed);
-            }
+                player.dashTimer--; if(player.dashTimer <= 0) player.isDashing = false;
+            } else { moveEntityWithPhysics(player, dx * player.speed, dy * player.speed); }
 
             if(player.dashCooldown > 0) player.dashCooldown--;
 
-            // B. 武器開火 (滑鼠控制)
             const pCenterX = player.x + player.w/2 - camera.x;
             const pCenterY = player.y + player.h/2 - camera.y;
             const angle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
-            
-            if (isMouseDown && !player.isDashing) {
-                fireWeapon(angle);
-            }
+            if (isMouseDown && !player.isDashing) fireWeapon(angle);
 
-            // C. 子彈飛行與碰撞
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const b = bullets[i];
-                b.x += b.vx;
-                b.y += b.vy;
+                b.x += b.vx; b.y += b.vy;
 
-                // 檢查是否撞到實體牆
                 let hitWall = false;
-                for (let wall of walls) {
-                    if (b.x >= wall.x && b.x <= wall.x + wall.w && b.y >= wall.y && b.y <= wall.y + wall.h) {
-                        hitWall = true;
-                        break;
-                    }
-                }
-
+                for (let wall of walls) { if (b.x >= wall.x && b.x <= wall.x+wall.w && b.y >= wall.y && b.y <= wall.y+wall.h) { hitWall = true; break; } }
                 if (hitWall) {
-                    // 生成破碎微小粒子
-                    for(let p=0; p<4; p++) {
-                        particles.push({
-                            x: b.x, y: b.y,
-                            vx: (Math.random() - 0.5) * 4,
-                            vy: (Math.random() - 0.5) * 4,
-                            color: b.color,
-                            life: 15
-                        });
-                    }
-                    bullets.splice(i, 1);
-                    continue;
+                    for(let p=0; p<4; p++) particles.push({ x: b.x, y: b.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, color: b.color, life: 15 });
+                    bullets.splice(i, 1); continue;
                 }
 
-                // 檢查碰撞敵人
                 if (b.fromPlayer) {
                     for (let enemy of enemies) {
-                        if (b.x >= enemy.x && b.x <= enemy.x + enemy.w && b.y >= enemy.y && b.y <= enemy.y + enemy.h) {
-                            enemy.hp -= b.damage;
-                            enemy.lastDmgTime = 10; // 受傷高亮閃爍 10 幀
-                            spawnFloatingText(`-${Math.round(b.damage)}`, enemy.x + enemy.w/2, enemy.y - 10, '#f43f5e');
-                            
-                            // 擊退
-                            enemy.x += Math.sign(b.vx) * 6;
-                            enemy.y += Math.sign(b.vy) * 6;
-
-                            bullets.splice(i, 1);
-                            break;
+                        if (b.x >= enemy.x && b.x <= enemy.x+enemy.w && b.y >= enemy.y && b.y <= enemy.y+enemy.h) {
+                            enemy.hp -= b.damage; enemy.lastDmgTime = 10;
+                            spawnFloatingText(`-${Math.round(b.damage)}`, enemy.x+enemy.w/2, enemy.y-10, '#f43f5e');
+                            enemy.x += Math.sign(b.vx) * 6; enemy.y += Math.sign(b.vy) * 6;
+                            bullets.splice(i, 1); break;
                         }
                     }
                 } else {
-                    // 敵人子彈撞主角
-                    if (b.x >= player.x && b.x <= player.x + player.w && b.y >= player.y && b.y <= player.y + player.h) {
+                    if (b.x >= player.x && b.x <= player.x+player.w && b.y >= player.y && b.y <= player.y+player.h) {
                         if (!player.isDashing) {
                             player.hp -= b.damage;
-                            spawnFloatingText(`-${Math.round(b.damage)}`, player.x + player.w/2, player.y - 10, '#f87171');
-                            triggerScreenShake(8);
+                            spawnFloatingText(`-${Math.round(b.damage)}`, player.x+player.w/2, player.y-10, '#f87171');
+                            if(enableShake) triggerScreenShake(8);
                         }
                         bullets.splice(i, 1);
                     }
                 }
             }
 
-            // D. 敵人 AI 邏輯
             for (let i = enemies.length - 1; i >= 0; i--) {
                 const enemy = enemies[i];
                 if (enemy.lastDmgTime > 0) enemy.lastDmgTime--;
 
-                // 死亡處理
                 if (enemy.hp <= 0) {
                     sfx.playExplosion();
-                    // 爆裂粒子
-                    for(let p=0; p<20; p++) {
-                        particles.push({
-                            x: enemy.x + enemy.w/2,
-                            y: enemy.y + enemy.h/2,
-                            vx: (Math.random() - 0.5) * 10,
-                            vy: (Math.random() - 0.5) * 10,
-                            color: enemy.color,
-                            life: 40
-                        });
-                    }
-
-                    // 100% 掉落經驗值微粒 / 核心水晶
-                    const isCore = Math.random() < 0.25 || enemy.type === 'boss'; // 25% 掉核心
-                    lootItems.push({
-                        x: enemy.x + enemy.w/4,
-                        y: enemy.y + enemy.h/4,
-                        type: isCore ? 'core' : 'exp',
-                        w: 16, h: 16,
-                        color: isCore ? '#fbbf24' : '#10b981'
-                    });
-
-                    enemies.splice(i, 1);
-                    continue;
+                    for(let p=0; p<20; p++) particles.push({ x: enemy.x+enemy.w/2, y: enemy.y+enemy.h/2, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, color: enemy.color, life: 40 });
+                    
+                    const isCore = Math.random() < 0.25 || enemy.type === 'boss';
+                    lootItems.push({ x: enemy.x+enemy.w/4, y: enemy.y+enemy.h/4, type: isCore ? 'core' : 'exp', w: 16, h: 16, color: isCore ? '#fbbf24' : '#10b981' });
+                    enemies.splice(i, 1); continue;
                 }
 
-                // AI 移動向玩家
-                const dxToPlayer = player.x - enemy.x;
-                const dyToPlayer = player.y - enemy.y;
-                const dist = Math.sqrt(dxToPlayer**2 + dyToPlayer**2);
-
+                const dist = Math.sqrt((player.x - enemy.x)**2 + (player.y - enemy.y)**2);
                 if (dist < 600) {
-                    const vx = (dxToPlayer / dist) * enemy.speed;
-                    const vy = (dyToPlayer / dist) * enemy.speed;
+                    const vx = ((player.x - enemy.x) / dist) * enemy.speed;
+                    const vy = ((player.y - enemy.y) / dist) * enemy.speed;
                     
-                    // 近戰與遠程行為
                     if (enemy.type === 'guardian') {
                         moveEntityWithPhysics(enemy, vx, vy);
-                        // 貼身撞擊傷害
-                        if (checkCollision(enemy, player) && !player.isDashing) {
-                            player.hp -= 0.8; // 每幀持續小額傷害
-                            triggerScreenShake(3);
-                        }
+                        if (checkCollision(enemy, player) && !player.isDashing) { player.hp -= 0.8; if(enableShake) triggerScreenShake(3); }
                     } else if (enemy.type === 'striker') {
-                        // 遠程兵：保持中距離
-                        if (dist > 250) {
-                            moveEntityWithPhysics(enemy, vx, vy);
-                        } else if (dist < 150) {
-                            moveEntityWithPhysics(enemy, -vx * 0.8, -vy * 0.8);
-                        }
-
-                        // 自動瞄準開火
+                        if (dist > 250) moveEntityWithPhysics(enemy, vx, vy);
+                        else if (dist < 150) moveEntityWithPhysics(enemy, -vx * 0.8, -vy * 0.8);
                         enemy.shootCooldown--;
                         if (enemy.shootCooldown <= 0) {
                             enemy.shootCooldown = 70 + Math.random() * 40;
-                            const bulletAngle = Math.atan2(dyToPlayer, dxToPlayer);
-                            bullets.push({
-                                x: enemy.x + enemy.w/2,
-                                y: enemy.y + enemy.h/2,
-                                vx: Math.cos(bulletAngle) * 8,
-                                vy: Math.sin(bulletAngle) * 8,
-                                fromPlayer: false,
-                                damage: 12,
-                                color: '#f97316'
-                            });
+                            const bAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                            bullets.push({ x: enemy.x+enemy.w/2, y: enemy.y+enemy.h/2, vx: Math.cos(bAngle)*8, vy: Math.sin(bAngle)*8, fromPlayer: false, damage: 12, color: '#f97316' });
                         }
                     } else if (enemy.type === 'boss') {
-                        // 最終 Boss VECTOR
                         moveEntityWithPhysics(enemy, vx, vy);
                         enemy.shootCooldown--;
                         if (enemy.shootCooldown <= 0) {
                             enemy.shootCooldown = 50;
-                            // 散彈彈幕
                             for(let j=-3; j<=3; j++) {
-                                const bAngle = Math.atan2(dyToPlayer, dxToPlayer) + j * 0.25;
-                                bullets.push({
-                                    x: enemy.x + enemy.w/2,
-                                    y: enemy.y + enemy.h/2,
-                                    vx: Math.cos(bAngle) * 9,
-                                    vy: Math.sin(bAngle) * 9,
-                                    fromPlayer: false,
-                                    damage: 18,
-                                    color: '#a855f7'
-                                });
+                                const bAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x) + j * 0.25;
+                                bullets.push({ x: enemy.x+enemy.w/2, y: enemy.y+enemy.h/2, vx: Math.cos(bAngle)*9, vy: Math.sin(bAngle)*9, fromPlayer: false, damage: 18, color: '#a855f7' });
                             }
                         }
                     }
                 }
             }
 
-            // E. 掉落物收集
             for (let i = lootItems.length - 1; i >= 0; i--) {
                 const item = lootItems[i];
                 if (checkCollision(player, item)) {
                     sfx.playPickup();
-                    if (item.type === 'exp') {
-                        player.exp += 35;
-                        spawnFloatingText("+35 EXP", player.x, player.y - 10, '#34d399');
-                    } else if (item.type === 'core') {
-                        player.cores++;
-                        updateCoresDisplay();
-                        spawnFloatingText("+1 核心水晶", player.x, player.y - 10, '#fbbf24');
-                    } else if (item.type === 'diary') {
-                        // 支線任務收集
-                        player.exp += 50;
-                        const activeItems = lootItems.filter(l => l.type === 'diary').length;
-                        const gotCount = 3 - activeItems + 1;
-                        document.getElementById('sideQuestDisplay').innerText = `收集加密日誌晶體 (${gotCount}/3)`;
-                        spawnFloatingText(`晶體記錄解密 (${gotCount}/3)`, player.x, player.y - 10, '#fbbf24');
+                    if (item.type === 'exp') { player.exp += 35; spawnFloatingText("+35 EXP", player.x, player.y-10, '#34d399'); }
+                    else if (item.type === 'core') { player.cores++; updateCoresDisplay(); spawnFloatingText("+1 核心水晶", player.x, player.y-10, '#fbbf24'); }
+                    else if (item.type === 'diary') { 
+                        player.exp += 50; const got = 4 - lootItems.filter(l => l.type === 'diary').length;
+                        document.getElementById('sideQuestDisplay').innerText = `收集加密日誌晶體 (${got}/3)`; spawnFloatingText(`晶體解密 (${got}/3)`, player.x, player.y-10, '#fbbf24');
                     }
                     lootItems.splice(i, 1);
                 }
             }
 
-            // F. 升級機制
             if (player.exp >= player.reqExp) {
-                player.exp -= player.reqExp;
-                player.level++;
-                player.reqExp = Math.round(player.reqExp * 1.3);
-                player.cores++; // 升級贈送一顆核心
-                updateCoresDisplay();
-                sfx.playPickup();
-                spawnFloatingText("⏳ 時空極限突破 LEVEL UP!", player.x, player.y - 15, '#fbbf24');
+                player.exp -= player.reqExp; player.level++; player.reqExp = Math.round(player.reqExp * 1.3); player.cores++;
+                updateCoresDisplay(); sfx.playPickup(); spawnFloatingText("LEVEL UP!", player.x, player.y-15, '#fbbf24');
             }
 
-            // G. 粒子生命值
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
+            for (let i = particles.length - 1; i >= 0; i--) { particles[i].x += particles[i].vx; particles[i].y += particles[i].vy; particles[i].life--; if (particles[i].life <= 0) particles.splice(i, 1); }
+            for (let i = floatingTexts.length - 1; i >= 0; i--) { floatingTexts[i].y -= 0.6; floatingTexts[i].life--; if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1); }
 
-            // H. 浮動文字生命
-            for (let i = floatingTexts.length - 1; i >= 0; i--) {
-                const t = floatingTexts[i];
-                t.y -= 0.6; // 上浮
-                t.life--;
-                if (t.life <= 0) floatingTexts.splice(i, 1);
-            }
-
-            // I. 攝影機跟隨
             camera.x = player.x + player.w/2 - canvas.width / 2;
             camera.y = player.y + player.h/2 - canvas.height / 2;
-
-            // 邊界防禦
-            if (camera.x < 0) camera.x = 0;
-            if (camera.y < 0) camera.y = 0;
+            if (camera.x < 0) camera.x = 0; if (camera.y < 0) camera.y = 0;
             if (camera.x > WORLD_W - canvas.width) camera.x = WORLD_W - canvas.width;
             if (camera.y > WORLD_H - canvas.height) camera.y = WORLD_H - canvas.height;
 
-            // 螢幕震動
-            if(shakeTimer > 0) {
-                camera.x += (Math.random() - 0.5) * shakeAmount;
-                camera.y += (Math.random() - 0.5) * shakeAmount;
-                shakeTimer--;
-            }
+            if(shakeTimer > 0) { camera.x += (Math.random()-0.5)*shakeAmount; camera.y += (Math.random()-0.5)*shakeAmount; shakeTimer--; }
 
-            // J. 檢查解鎖下一關 (Sector)
             if (enemies.length === 0) {
-                if (sector < 10) {
-                    sector++;
-                    initLevel(sector);
-                } else {
-                    // VECTOR 擊敗，通關結局！
-                    showOverlay("⏳ TIME-LOOP BROKEN", "時空核心已恢復穩定。Kael，你打破了這場永恆迴響。世界重迎黎明。", '#34d399');
-                }
+                if (sector < 10) { sector++; initLevel(sector); } 
+                else { showOverlay("⏳ TIME-LOOP BROKEN", "時空核心已恢復穩定。你打破了這場永恆迴響。", '#34d399'); }
             }
-
-            // 玩家死亡檢測
-            if (player.hp <= 0) {
-                player.hp = 0;
-                showOverlay("SYSTEM DOWN", "Kael 裝甲結構已崩解。時空核心守禦線已破，世界陷入重置。", '#f87171');
-            }
+            if (player.hp <= 0) { player.hp = 0; showOverlay("SYSTEM DOWN", "Kael 裝甲結構已崩解。時空核心防禦線已破。", '#f87171'); }
         }
 
-        // ==========================================
-        // 10. 螢幕震動機制
-        // ==========================================
-        let shakeTimer = 0;
-        let shakeAmount = 0;
-        function triggerScreenShake(amount) {
-            shakeTimer = 8;
-            shakeAmount = amount;
-        }
+        let shakeTimer = 0; let shakeAmount = 0;
+        function triggerScreenShake(amount) { shakeTimer = 8; shakeAmount = amount; }
 
-        // ==========================================
-        // 11. Canvas 全域渲染
-        // ==========================================
         function draw() {
-            // 清空畫布
-            ctx.fillStyle = "#020617";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (gameState !== 'PLAYING') return;
 
-            ctx.save();
-            // 套用鏡頭位移
-            ctx.translate(-camera.x, -camera.y);
+            ctx.fillStyle = "#020617"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.save(); ctx.translate(-camera.x, -camera.y);
 
-            // A. 繪製精細地板格網 (科技感極高網格)
-            ctx.strokeStyle = "#1e293b";
-            ctx.lineWidth = 1;
-            const gap = 100;
-            for(let x=0; x<WORLD_W; x+=gap) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, WORLD_H);
-                ctx.stroke();
-            }
-            for(let y=0; y<WORLD_H; y+=gap) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(WORLD_W, y);
-                ctx.stroke();
-            }
+            ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 1;
+            for(let x=0; x<WORLD_W; x+=100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); ctx.stroke(); }
+            for(let y=0; y<WORLD_H; y+=100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); ctx.stroke(); }
 
-            // B. 繪製所有障礙牆壁
-            ctx.fillStyle = "#1e293b";
-            ctx.strokeStyle = "#0891b2";
-            ctx.lineWidth = 3;
-            for(let wall of walls) {
-                ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
-                ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
-            }
+            ctx.fillStyle = "#1e293b"; ctx.strokeStyle = "#0891b2"; ctx.lineWidth = 3;
+            for(let wall of walls) { ctx.fillRect(wall.x, wall.y, wall.w, wall.h); ctx.strokeRect(wall.x, wall.y, wall.w, wall.h); }
 
-            // C. 繪製掉落晶體
-            for (let item of lootItems) {
-                ctx.save();
-                ctx.shadowColor = item.color;
-                ctx.shadowBlur = 10;
-                ctx.fillStyle = item.color;
-                ctx.fillRect(item.x, item.y, item.w, item.h);
-                ctx.restore();
-            }
+            for (let item of lootItems) { ctx.save(); ctx.shadowColor = item.color; ctx.shadowBlur = 10; ctx.fillStyle = item.color; ctx.fillRect(item.x, item.y, item.w, item.h); ctx.restore(); }
+            for (let p of particles) { ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4); }
+            for (let b of bullets) { ctx.save(); ctx.shadowColor = b.color; ctx.shadowBlur = 8; ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
 
-            // D. 繪製粒子
-            for (let p of particles) {
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, 4, 4);
-            }
-
-            // E. 繪製子彈
-            for (let b of bullets) {
-                ctx.save();
-                ctx.shadowColor = b.color;
-                ctx.shadowBlur = 8;
-                ctx.fillStyle = b.color;
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-
-            // F. 繪製敵人 (完美讀取本地精靈圖 3 與 4)
             for (let enemy of enemies) {
-                if (enemy.lastDmgTime > 0) {
-                    // 受傷白閃
-                    ctx.save();
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h);
-                    ctx.restore();
-                } else {
-                    // 使用智慧載入器繪製敵人 PNG 或 向量
-                    spriteLoader.draw(ctx, enemy.charIdx, 1, enemy.x, enemy.y, enemy.w, enemy.h, false, enemy.color);
-                }
-
-                // 繪製敵人血條
-                ctx.fillStyle = '#dc2626';
-                ctx.fillRect(enemy.x, enemy.y - 8, enemy.w, 4);
-                ctx.fillStyle = '#10b981';
-                ctx.fillRect(enemy.x, enemy.y - 8, enemy.w * (enemy.hp / enemy.maxHp), 4);
+                if (enemy.lastDmgTime > 0) { ctx.fillStyle = '#ffffff'; ctx.fillRect(enemy.x, enemy.y, enemy.w, enemy.h); } 
+                else { spriteLoader.draw(ctx, enemy.charIdx, 1, enemy.x, enemy.y, enemy.w, enemy.h, false, enemy.color); }
+                ctx.fillStyle = '#dc2626'; ctx.fillRect(enemy.x, enemy.y-8, enemy.w, 4);
+                ctx.fillStyle = '#10b981'; ctx.fillRect(enemy.x, enemy.y-8, enemy.w*(enemy.hp/enemy.maxHp), 4);
             }
 
-            // G. 繪製玩家 KAEL (完美讀取本地精靈圖 1-1 ~ 1-6)
-            if (!player.isDashing) {
-                // 自動使用 Kael 的 PNG (icon/Role/1-frame.png) 繪製
-                spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4');
-            } else {
-                // 衝刺時繪製殘影
-                ctx.save();
-                ctx.globalAlpha = 0.4;
-                spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4');
-                ctx.restore();
-            }
+            if (!player.isDashing) { spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4'); } 
+            else { ctx.save(); ctx.globalAlpha = 0.4; spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4'); ctx.restore(); }
 
-            // H. 繪製浮動傷害數字
-            for (let t of floatingTexts) {
-                ctx.save();
-                ctx.fillStyle = t.color;
-                ctx.font = "bold 13px monospace";
-                ctx.fillText(t.text, t.x, t.y);
-                ctx.restore();
-            }
+            for (let t of floatingTexts) { ctx.save(); ctx.fillStyle = t.color; ctx.font = "bold 13px monospace"; ctx.fillText(t.text, t.x, t.y); ctx.restore(); }
+            ctx.restore();
 
-            ctx.restore(); // 鏡頭位移還原
-
-            // ==========================================
-            // 12. 更新 HUD 文字與進度
-            // ==========================================
             document.getElementById('hpText').innerText = `${Math.round(player.hp)} / ${player.maxHp}`;
-            document.getElementById('hpBar').style.width = `${(player.hp / player.maxHp) * 100}%`;
-            
-            document.getElementById('dashText').innerText = `${player.dashCooldown === 0 ? "ENGINE READY" : "RECHARGING"}`;
-            document.getElementById('dashBar').style.width = `${((60 - player.dashCooldown) / 65) * 100}%`;
-            
+            document.getElementById('hpBar').style.width = `${(player.hp/player.maxHp)*100}%`;
+            document.getElementById('dashText').innerText = `${player.dashCooldown === 0 ? "READY" : "RECHARGING"}`;
+            document.getElementById('dashBar').style.width = `${((60-player.dashCooldown)/65)*100}%`;
             document.getElementById('levelNum').innerText = player.level;
             document.getElementById('expText').innerText = `${player.exp} / ${player.reqExp}`;
-            document.getElementById('expBar').style.width = `${(player.exp / player.reqExp) * 100}%`;
+            document.getElementById('expBar').style.width = `${(player.exp/player.reqExp)*100}%`;
 
-            // ==========================================
-            // 13. 繪製右上角戰術小地圖
-            // ==========================================
-            drawMinimap();
+            mapCtx.fillStyle = '#020617'; mapCtx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+            const msX = mapCanvas.width / WORLD_W, msY = mapCanvas.height / WORLD_H;
+            mapCtx.fillStyle = '#1e293b'; for(let w of walls) mapCtx.fillRect(w.x*msX, w.y*msY, w.w*msX, w.h*msY);
+            mapCtx.fillStyle = '#f43f5e'; for(let e of enemies) mapCtx.fillRect(e.x*msX, e.y*msY, 3, 3);
+            mapCtx.fillStyle = '#22d3ee'; mapCtx.fillRect(player.x*msX, player.y*msY, 5, 5);
         }
 
-        // 戰術小地圖渲染
-        function drawMinimap() {
-            mapCtx.fillStyle = '#020617';
-            mapCtx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
-
-            const mapScaleX = mapCanvas.width / WORLD_W;
-            const mapScaleY = mapCanvas.height / WORLD_H;
-
-            // 畫牆壁
-            mapCtx.fillStyle = '#1e293b';
-            for(let wall of walls) {
-                mapCtx.fillRect(wall.x * mapScaleX, wall.y * mapScaleY, wall.w * mapScaleX, wall.h * mapScaleY);
-            }
-
-            // 畫敵人點 (紅)
-            mapCtx.fillStyle = '#f43f5e';
-            for(let enemy of enemies) {
-                mapCtx.fillRect(enemy.x * mapScaleX, enemy.y * mapScaleY, 3, 3);
-            }
-
-            // 畫玩家點 (亮藍霓虹)
-            mapCtx.fillStyle = '#22d3ee';
-            mapCtx.fillRect(player.x * mapScaleX, player.y * mapScaleY, 5, 5);
-        }
-
-        // ==========================================
-        // 14. 遮罩與通關結局控制
-        // ==========================================
         function showOverlay(title, desc, color) {
+            gameState = 'PAUSED'; // 暫停實體運算
             const el = document.getElementById('overlay');
-            const t = document.getElementById('overlayTitle');
-            const d = document.getElementById('overlayDesc');
-            
-            t.innerText = title;
-            t.style.color = color;
-            d.innerText = desc;
+            document.getElementById('overlayTitle').innerText = title;
+            document.getElementById('overlayTitle').style.color = color;
+            document.getElementById('overlayDesc').innerText = desc;
             el.classList.remove('hidden');
         }
 
         document.getElementById('overlayBtn').addEventListener('click', () => {
             document.getElementById('overlay').classList.add('hidden');
+            gameState = 'PLAYING';
             player.hp = player.maxHp;
-            initLevel(1); // 從 Sector 1 重來
+            initLevel(1);
         });
 
-        // 畫布自適應
         function resizeCanvas() {
+            if (gameState === 'MENU') return;
             const container = document.getElementById('gameContainer');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            if (container) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+            }
         }
         window.addEventListener('resize', resizeCanvas);
 
-        // ==========================================
-        // 15. 啟動遊戲
-        // ==========================================
         window.onload = function() {
-            resizeCanvas();
-            initLevel(1);
-            
-            // 啟動主循環
             function gameLoop() {
                 update();
                 draw();
