@@ -215,12 +215,29 @@
         <main class="flex-1 flex overflow-hidden relative">
             
             <!-- 左側 HUD 控制面板 -->
-            <aside class="w-72 bg-gray-950/90 border-r border-gray-800 p-5 flex flex-col gap-6 shrink-0 z-10 overflow-y-auto">
+            <aside class="w-72 bg-gray-950/90 border-r border-gray-800 p-5 flex flex-col gap-5 shrink-0 z-10 overflow-y-auto">
+                
+                <!-- 玩家全息投影動態頭像 -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center gap-4">
+                    <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-cyan-500/50 bg-slate-950 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                        <canvas id="avatarCanvas" class="w-full h-full"></canvas>
+                        <!-- 掃描線特效 -->
+                        <div class="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/10 to-transparent animate-pulse pointer-events-none"></div>
+                    </div>
+                    <div>
+                        <p class="text-cyan-400 font-black text-sm tracking-wider">KAEL_101</p>
+                        <p class="text-[9px] text-emerald-400 font-mono flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> ONLINE
+                        </p>
+                        <p class="text-[9px] text-gray-500 font-mono mt-0.5">TERRAIN_RECON</p>
+                    </div>
+                </div>
+
                 <!-- 角色狀態 -->
                 <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-3">
-                    <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 flex justify-between">
+                    <h3 class="text-xs font-bold text-gray-400 border-b border-gray-800 pb-1.5 flex justify-between font-mono">
                         <span>STATUS TERMINAL</span>
-                        <span class="text-cyan-400 font-mono">KAEL [HERO]</span>
+                        <span class="text-cyan-400 font-bold">V-UNIT</span>
                     </h3>
                     <!-- 生命值 -->
                     <div>
@@ -383,6 +400,9 @@
         const pressSpaceHint = document.getElementById('pressSpaceHint');
         const menuButtons = document.getElementById('menuButtons');
 
+        const avatarCanvas = document.getElementById('avatarCanvas');
+        const avatarCtx = avatarCanvas ? avatarCanvas.getContext('2d') : null;
+
         // 第一階段點擊提示（亦可觸發進入首頁）
         pressSpaceHint.addEventListener('click', transitionToMainMenu);
 
@@ -459,6 +479,7 @@
                 player.cores = 0;
                 player.exp = 0;
                 player.level = 1;
+                player.lastDmgTime = 0;
                 player.skills = { atk: 1, hp: 1, dash: 1 };
                 updateCoresDisplay();
                 document.getElementById('skillAtkLvl').innerText = `Lv.1`;
@@ -505,7 +526,7 @@
                 const el = document.getElementById(`statusImg${char}`);
                 if (!el) return;
                 if (success) {
-                    el.innerHTML = `${this.getCharName(char)}: <span class="text-emerald-400 font-bold text-[10px]">● 已讀取</span>`;
+                    el.innerHTML = `${this.getCharName(char)}: <span class="text-emerald-400 font-bold text-[10px]">● 已連接</span>`;
                 } else {
                     el.innerHTML = `${this.getCharName(char)}: <span class="text-amber-500 text-[10px]">○ 預設裝甲</span>`;
                 }
@@ -521,80 +542,188 @@
                 }
             }
 
-            draw(ctx, charIdx, frameIdx, x, y, width, height, flipX = false, color = '#06b6d4') {
+            // 完美的鏡像與自適應渲染接口
+            draw(ctx, charIdx, frameIdx, x, y, width, height, flipX = false, color = '#06b6d4', extraData = {}) {
                 const key = `${charIdx}-${frameIdx}`;
-                if (this.loaded[key] && this.sprites[key]) {
-                    ctx.save();
-                    if (flipX) {
-                        ctx.translate(x + width / 2, y + height / 2);
-                        ctx.scale(-1, 1);
-                        ctx.drawImage(this.sprites[key], -width / 2, -height / 2, width, height);
-                    } else {
-                        ctx.drawImage(this.sprites[key], x, y, width, height);
-                    }
-                    ctx.restore();
-                    return true;
-                }
                 
-                this.glowingProceduralDraw(ctx, charIdx, frameIdx, x, y, width, height, flipX, color);
-                return false;
+                ctx.save();
+                
+                // Kael 受傷時抖動與閃爍處理
+                let isPlayerHitFlashing = (charIdx === 1 && player.lastDmgTime > 0);
+                if (isPlayerHitFlashing) {
+                    // 受傷時隨機偏移 1~3 像素 (Glitch 抖動)
+                    x += (Math.random() - 0.5) * 6;
+                    y += (Math.random() - 0.5) * 6;
+                    color = '#ef4444'; // 受傷時向量線變紅色
+                }
+
+                // 全方位水平對稱鏡像：在元件中央建立縮放錨點，確保所有圖像與向量完全同步
+                if (flipX) {
+                    ctx.translate(x + width / 2, y + height / 2);
+                    ctx.scale(-1, 1);
+                    ctx.translate(-(x + width / 2), -(y + height / 2));
+                }
+
+                let rendered = false;
+                if (this.loaded[key] && this.sprites[key]) {
+                    // 若有本地精靈圖則完美繪製
+                    ctx.drawImage(this.sprites[key], x, y, width, height);
+                    
+                    // 如果受傷，在圖片上方覆蓋一層白色半透明閃爍
+                    if (isPlayerHitFlashing && Math.floor(Date.now() / 40) % 2 === 0) {
+                        ctx.save();
+                        ctx.globalCompositeOperation = "source-atop";
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
+                        ctx.fillRect(x, y, width, height);
+                        ctx.restore();
+                    }
+                    rendered = true;
+                } else {
+                    // 若無本地圖片，啟用升級版多肢體動態向量引擎
+                    this.glowingProceduralDraw(ctx, charIdx, frameIdx, x, y, width, height, color, extraData);
+                }
+                ctx.restore();
+                return rendered;
             }
 
-            glowingProceduralDraw(ctx, charIdx, frameIdx, x, y, w, h, flipX, color) {
+            // 升級版：多關節動態向量引擎（讓預設狀態下有生動的肢體、走路、與槍械旋轉動畫）
+            glowingProceduralDraw(ctx, charIdx, frameIdx, x, y, w, h, color, extraData) {
                 ctx.save();
                 ctx.shadowColor = color;
                 ctx.shadowBlur = 12;
                 ctx.strokeStyle = color;
-                ctx.lineWidth = 2;
-                ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+                ctx.lineWidth = 2.5;
+                ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
 
                 const cx = x + w/2;
                 const cy = y + h/2;
 
-                if (charIdx === 1) { // Kael
+                if (charIdx === 1) { // Kael 
+                    // 1. 身體隨奔跑起伏 (Bobbing)
+                    const bobY = (frameIdx % 2 === 0) ? -3 : 2;
+                    
+                    // 2. 繪製精美胸部盔甲
                     ctx.beginPath();
-                    ctx.arc(cx, cy - 4, 12, 0, Math.PI * 2);
+                    ctx.rect(cx - 8, cy - 8 + bobY, 16, 16);
                     ctx.fill(); ctx.stroke();
+
+                    // 核心發光點
                     ctx.fillStyle = "#22d3ee";
-                    ctx.fillRect(flipX ? cx - 10 : cx + 2, cy - 8, 8, 4);
-
-                    const swing = Math.sin(frameIdx * 1.2) * 5;
                     ctx.beginPath();
-                    ctx.moveTo(cx - 4, cy + 8); ctx.lineTo(cx - 4 + swing, cy + 18);
-                    ctx.moveTo(cx + 4, cy + 8); ctx.lineTo(cx + 4 - swing, cy + 18);
-                    ctx.stroke();
-
-                } else if (charIdx === 3) { // Guardian
-                    ctx.fillStyle = "rgba(16, 185, 129, 0.3)";
-                    ctx.strokeStyle = "#10b981";
-                    ctx.beginPath();
-                    ctx.rect(x + 4, y + 2, w - 8, h - 8);
-                    ctx.fill(); ctx.stroke();
-                    ctx.fillStyle = "#34d399";
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                    ctx.arc(cx, cy + bobY, 3, 0, Math.PI * 2);
                     ctx.fill();
 
-                } else if (charIdx === 4) { // Drone
-                    ctx.strokeStyle = "#f97316";
-                    ctx.fillStyle = "rgba(249, 115, 22, 0.2)";
+                    // 3. 繪製精美頭盔
+                    ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
                     ctx.beginPath();
-                    ctx.ellipse(cx, cy, 14, 8, 0, 0, Math.PI * 2);
+                    ctx.arc(cx, cy - 18 + bobY, 8, 0, Math.PI * 2);
+                    ctx.fill(); ctx.stroke();
+                    
+                    // 頭盔全息面罩 (向前方亮起)
+                    ctx.fillStyle = "#22d3ee";
+                    ctx.fillRect(cx, cy - 21 + bobY, 7, 5);
+
+                    // 4. 精細奔跑雙腿 (動態交叉跨步)
+                    const swing = Math.sin(frameIdx * 1.0) * 8;
+                    ctx.beginPath();
+                    // 左腳 (骨關節)
+                    ctx.moveTo(cx - 5, cy + 8 + bobY);
+                    ctx.lineTo(cx - 5 + swing, cy + 18);
+                    // 右腳
+                    ctx.moveTo(cx + 5, cy + 8 + bobY);
+                    ctx.lineTo(cx + 5 - swing, cy + 18);
+                    ctx.stroke();
+
+                    // 5. 滑鼠聯動 360 度旋轉武器槍臂
+                    const armX = cx + 4;
+                    const armY = cy + bobY;
+                    let angle = extraData.angle || 0;
+                    
+                    // 由於畫布已經可能被 flipX 鏡像，這裡需要轉換瞄準角度
+                    if (player.flipX) {
+                        angle = Math.PI - angle;
+                    }
+
+                    ctx.save();
+                    ctx.translate(armX, armY);
+                    ctx.rotate(angle);
+                    
+                    // 繪製前臂與雷射槍
+                    ctx.strokeStyle = color;
+                    ctx.fillStyle = "#1e293b";
+                    ctx.beginPath();
+                    ctx.rect(0, -3, 14, 6); // 手臂
+                    ctx.fill(); ctx.stroke();
+                    
+                    ctx.fillStyle = "#22d3ee";
+                    ctx.fillRect(10, -5, 6, 4); // 槍口
+                    ctx.restore();
+
+                } else if (charIdx === 3) { // Guardian 重裝兵
+                    // 重兵上下震盪
+                    const bobY = Math.sin(Date.now() / 150) * 2;
+                    ctx.fillStyle = "rgba(16, 185, 129, 0.25)";
+                    ctx.strokeStyle = "#10b981";
+                    
+                    // 厚重肩甲
+                    ctx.beginPath();
+                    ctx.rect(x + 2, y + 6 + bobY, w - 4, h - 14);
                     ctx.fill(); ctx.stroke();
 
-                    const spin = frameIdx * 0.5;
+                    // 巨型左盾
+                    ctx.fillStyle = "rgba(16, 185, 129, 0.4)";
                     ctx.beginPath();
-                    ctx.moveTo(cx - 18, cy + Math.sin(spin) * 6); ctx.lineTo(cx - 10, cy);
-                    ctx.moveTo(cx + 18, cy - Math.sin(spin) * 6); ctx.lineTo(cx + 10, cy);
+                    ctx.rect(cx - 16, cy - 10 + bobY, 6, h - 10);
+                    ctx.fill(); ctx.stroke();
+
+                    // 發光探照眼
+                    ctx.fillStyle = "#34d399";
+                    ctx.beginPath();
+                    ctx.arc(cx + 4, cy - 4 + bobY, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                } else if (charIdx === 4) { // Drone 飛行器
+                    // 懸浮上下平移
+                    const hoverY = Math.sin(Date.now() / 100) * 4;
+                    ctx.strokeStyle = "#f97316";
+                    ctx.fillStyle = "rgba(249, 115, 22, 0.15)";
+                    
+                    // 圓形飛行座艙
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy + hoverY, 14, 10, 0, 0, Math.PI * 2);
+                    ctx.fill(); ctx.stroke();
+
+                    // 雙側動力旋翼 (動態旋轉擺動)
+                    const wingSwing = Math.sin(Date.now() / 50) * 6;
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 14, cy + hoverY);
+                    ctx.lineTo(cx - 22, cy + hoverY + wingSwing);
+                    ctx.moveTo(cx + 14, cy + hoverY);
+                    ctx.lineTo(cx + 22, cy + hoverY - wingSwing);
                     ctx.stroke();
-                } else { // Boss
+
+                    // 核心紅點
+                    ctx.fillStyle = "#ff5500";
+                    ctx.beginPath();
+                    ctx.arc(cx, cy + hoverY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else { // Boss VECTOR
+                    // 狂暴核心重疊多邊形
+                    const scale = 1 + Math.sin(Date.now() / 80) * 0.1;
                     ctx.strokeStyle = "#a855f7";
                     ctx.fillStyle = "rgba(168, 85, 247, 0.2)";
+                    
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.scale(scale, scale);
                     ctx.beginPath();
-                    ctx.moveTo(cx, y); ctx.lineTo(x + w, cy);
-                    ctx.lineTo(cx, y + h); ctx.lineTo(x, cy);
+                    ctx.moveTo(0, -h/2);
+                    ctx.lineTo(w/2, 0);
+                    ctx.lineTo(0, h/2);
+                    ctx.lineTo(-w/2, 0);
                     ctx.closePath();
                     ctx.fill(); ctx.stroke();
+                    ctx.restore();
                 }
                 ctx.restore();
             }
@@ -663,6 +792,7 @@
             currentWeapon: 0, lastShotTime: 0,
             isDashing: false, dashTimer: 0, dashDirX: 0, dashDirY: 0,
             flipX: false, frameIdx: 1, animTimer: 0,
+            lastDmgTime: 0, // 受傷計時器 (受傷白閃、白光故障動作)
             skills: { atk: 1, hp: 1, dash: 1 }
         };
 
@@ -871,6 +1001,9 @@
         function update() {
             if (gameState !== 'PLAYING') return;
 
+            // 扣血受傷計時器更新
+            if (player.lastDmgTime > 0) player.lastDmgTime--;
+
             let dx = 0, dy = 0;
             if (keysPressed['KeyW'] || keysPressed['ArrowUp']) dy = -1;
             if (keysPressed['KeyS'] || keysPressed['ArrowDown']) dy = 1;
@@ -878,13 +1011,22 @@
             if (keysPressed['KeyD'] || keysPressed['ArrowRight']) dx = 1;
             if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
 
-            if(dx < 0) player.flipX = true;
-            if(dx > 0) player.flipX = false;
+            // 依滑鼠瞄準方向決定 Kael 水平鏡像
+            const pCenterX = player.x + player.w/2 - camera.x;
+            if (mouseX < pCenterX) {
+                player.flipX = true;
+            } else {
+                player.flipX = false;
+            }
 
             if (dx !== 0 || dy !== 0) {
                 player.animTimer++;
-                if(player.animTimer > 6) { player.frameIdx = (player.frameIdx % 6) + 1; player.animTimer = 0; }
-            } else { player.frameIdx = 1; }
+                // 奔跑時在 2~6 幀擺腿交叉動畫
+                if(player.animTimer > 5) { player.frameIdx = (player.frameIdx % 5) + 2; player.animTimer = 0; }
+            } else { 
+                // 靜止時第 1 幀（呼吸擺動）
+                player.frameIdx = 1; 
+            }
 
             if (keysPressed['Space'] && player.dashCooldown <= 0 && (dx !== 0 || dy !== 0)) {
                 player.isDashing = true; player.dashTimer = 10; player.dashCooldown = Math.max(20, 60 - player.skills.dash * 8);
@@ -899,7 +1041,6 @@
 
             if(player.dashCooldown > 0) player.dashCooldown--;
 
-            const pCenterX = player.x + player.w/2 - camera.x;
             const pCenterY = player.y + player.h/2 - camera.y;
             const angle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
             if (isMouseDown && !player.isDashing) fireWeapon(angle);
@@ -927,9 +1068,24 @@
                 } else {
                     if (b.x >= player.x && b.x <= player.x+player.w && b.y >= player.y && b.y <= player.y+player.h) {
                         if (!player.isDashing) {
+                            // 受傷觸發
                             player.hp -= b.damage;
+                            player.lastDmgTime = 20; // 受傷紅閃與Glitch 20幀
                             spawnFloatingText(`-${Math.round(b.damage)}`, player.x+player.w/2, player.y-10, '#f87171');
-                            if(enableShake) triggerScreenShake(8);
+                            
+                            // 爆發防護罩火花粒子
+                            for(let p=0; p<12; p++) {
+                                particles.push({
+                                    x: player.x + player.w/2,
+                                    y: player.y + player.h/2,
+                                    vx: (Math.random() - 0.5) * 8,
+                                    vy: (Math.random() - 0.5) * 8,
+                                    color: '#22d3ee', // 藍色護盾能量碎片
+                                    life: 25
+                                });
+                            }
+
+                            if(enableShake) triggerScreenShake(12);
                         }
                         bullets.splice(i, 1);
                     }
@@ -956,7 +1112,14 @@
                     
                     if (enemy.type === 'guardian') {
                         moveEntityWithPhysics(enemy, vx, vy);
-                        if (checkCollision(enemy, player) && !player.isDashing) { player.hp -= 0.8; if(enableShake) triggerScreenShake(3); }
+                        if (checkCollision(enemy, player) && !player.isDashing) { 
+                            player.hp -= 0.8; 
+                            if (Math.random() < 0.1) {
+                                player.lastDmgTime = 5;
+                                spawnFloatingText("-1", player.x + player.w/2, player.y - 10, '#f87171');
+                            }
+                            if(enableShake) triggerScreenShake(3); 
+                        }
                     } else if (enemy.type === 'striker') {
                         if (dist > 250) moveEntityWithPhysics(enemy, vx, vy);
                         else if (dist < 150) moveEntityWithPhysics(enemy, -vx * 0.8, -vy * 0.8);
@@ -1044,12 +1207,32 @@
                 ctx.fillStyle = '#10b981'; ctx.fillRect(enemy.x, enemy.y-8, enemy.w*(enemy.hp/enemy.maxHp), 4);
             }
 
-            if (!player.isDashing) { spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4'); } 
-            else { ctx.save(); ctx.globalAlpha = 0.4; spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4'); ctx.restore(); }
+            // 計算瞄準角度，傳遞給向量動畫繪製系統
+            const pCenterX = player.x + player.w/2 - camera.x;
+            const pCenterY = player.y + player.h/2 - camera.y;
+            const mouseAngle = Math.atan2(mouseY - pCenterY, mouseX - pCenterX);
+
+            // 繪製主角 Kael (傳入瞄準角度)
+            spriteLoader.draw(ctx, 1, player.frameIdx, player.x, player.y, player.w, player.h, player.flipX, '#06b6d4', { angle: mouseAngle });
 
             for (let t of floatingTexts) { ctx.save(); ctx.fillStyle = t.color; ctx.font = "bold 13px monospace"; ctx.fillText(t.text, t.x, t.y); ctx.restore(); }
             ctx.restore();
 
+            // ==========================================
+            // 🎬 螢幕空間受傷警報邊框 (Vignette Damage Overlay)
+            // ==========================================
+            if (player.hp < player.maxHp * 0.35 || player.lastDmgTime > 0) {
+                ctx.save();
+                let gradient = ctx.createRadialGradient(canvas.width/2, canvas.height/2, canvas.height/3, canvas.width/2, canvas.height/2, canvas.width);
+                let alpha = player.lastDmgTime > 0 ? 0.45 : 0.25;
+                gradient.addColorStop(0, 'rgba(239, 68, 68, 0)');
+                gradient.addColorStop(1, `rgba(239, 68, 68, ${alpha})`);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
+            }
+
+            // UI 狀態綁定
             document.getElementById('hpText').innerText = `${Math.round(player.hp)} / ${player.maxHp}`;
             document.getElementById('hpBar').style.width = `${(player.hp/player.maxHp)*100}%`;
             document.getElementById('dashText').innerText = `${player.dashCooldown === 0 ? "READY" : "RECHARGING"}`;
@@ -1058,11 +1241,88 @@
             document.getElementById('expText').innerText = `${player.exp} / ${player.reqExp}`;
             document.getElementById('expBar').style.width = `${(player.exp/player.reqExp)*100}%`;
 
+            // 小地圖繪製
             mapCtx.fillStyle = '#020617'; mapCtx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
             const msX = mapCanvas.width / WORLD_W, msY = mapCanvas.height / WORLD_H;
             mapCtx.fillStyle = '#1e293b'; for(let w of walls) mapCtx.fillRect(w.x*msX, w.y*msY, w.w*msX, w.h*msY);
             mapCtx.fillStyle = '#f43f5e'; for(let e of enemies) mapCtx.fillRect(e.x*msX, e.y*msY, 3, 3);
             mapCtx.fillStyle = '#22d3ee'; mapCtx.fillRect(player.x*msX, player.y*msY, 5, 5);
+
+            // 更新左側全息大腦頭像
+            drawHologramAvatar();
+        }
+
+        // ==========================================
+        // 🔮 繪製動態全息大腦/頭盔頭像
+        // ==========================================
+        function drawHologramAvatar() {
+            if (!avatarCtx) return;
+            
+            // 清空頭像畫布
+            avatarCtx.fillStyle = "#020617";
+            avatarCtx.fillRect(0, 0, avatarCanvas.width, avatarCanvas.height);
+
+            const cx = avatarCanvas.width / 2;
+            const cy = avatarCanvas.height / 2;
+
+            avatarCtx.save();
+            
+            // 是否處於受傷干擾狀態 (Glitch)
+            let isDmg = player.lastDmgTime > 0;
+            let themeColor = isDmg ? '#f43f5e' : '#06b6d4';
+
+            // 1. 繪製雷達掃描圈背景
+            avatarCtx.strokeStyle = isDmg ? "rgba(244, 63, 94, 0.15)" : "rgba(6, 182, 212, 0.15)";
+            avatarCtx.lineWidth = 1;
+            avatarCtx.beginPath();
+            avatarCtx.arc(cx, cy, 26, 0, Math.PI * 2);
+            avatarCtx.stroke();
+
+            // 2. 受傷抖動故障
+            if (isDmg) {
+                avatarCtx.translate((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 6);
+                avatarCtx.fillStyle = "rgba(244, 63, 94, 0.1)";
+                avatarCtx.fillRect(0, 0, avatarCanvas.width, avatarCanvas.height);
+            }
+
+            // 3. 嘗試讀取第一個動作幀 (icon/Role/1-1.png) 作為頭像
+            const avatarKey = "1-1";
+            if (spriteLoader.loaded[avatarKey] && spriteLoader.sprites[avatarKey]) {
+                avatarCtx.drawImage(spriteLoader.sprites[avatarKey], cx - 18, cy - 22, 36, 44);
+                if (isDmg && Math.floor(Date.now() / 50) % 2 === 0) {
+                    avatarCtx.fillStyle = "rgba(244, 63, 94, 0.5)";
+                    avatarCtx.fillRect(cx - 18, cy - 22, 36, 44);
+                }
+            } else {
+                // 沒有圖片時繪製向量全息頭盔
+                avatarCtx.shadowColor = themeColor;
+                avatarCtx.shadowBlur = 8;
+                avatarCtx.strokeStyle = themeColor;
+                avatarCtx.lineWidth = 2;
+
+                const bob = Math.sin(Date.now() / 150) * 1.5;
+
+                // 繪製頭盔外輪廓
+                avatarCtx.beginPath();
+                avatarCtx.arc(cx, cy - 2 + bob, 14, 0, Math.PI * 2);
+                avatarCtx.stroke();
+
+                // 繪製呼吸面罩
+                avatarCtx.fillStyle = isDmg ? "rgba(244, 63, 94, 0.8)" : "rgba(34, 211, 238, 0.8)";
+                avatarCtx.beginPath();
+                avatarCtx.ellipse(cx, cy + 3 + bob, 9, 5, 0, 0, Math.PI * 2);
+                avatarCtx.fill();
+            }
+
+            // 4. 受傷時印上紅色的 WARNING 警告文字
+            if (isDmg) {
+                avatarCtx.fillStyle = "#ef4444";
+                avatarCtx.font = "bold 8px monospace";
+                avatarCtx.textAlign = "center";
+                avatarCtx.fillText("WARNING", cx, cy + 22);
+            }
+
+            avatarCtx.restore();
         }
 
         function showOverlay(title, desc, color) {
@@ -1087,6 +1347,12 @@
             if (container) {
                 canvas.width = container.clientWidth;
                 canvas.height = container.clientHeight;
+                
+                // 動態調整頭像 Canvas 像素大小
+                if (avatarCanvas) {
+                    avatarCanvas.width = 64;
+                    avatarCanvas.height = 64;
+                }
             }
         }
         window.addEventListener('resize', resizeCanvas);
