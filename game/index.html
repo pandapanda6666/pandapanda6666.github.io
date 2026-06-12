@@ -4,82 +4,220 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>目錄索引</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* 深藍色背景與黃色/白色文字 */
+        /* 採用程式碼A的配色變數 */
+        :root {
+            --primary-color: #2c5e32;
+            --secondary-color: #3c6e42;
+            --background-color: #f0f8e8;
+            --card-bg-color: #ffffff;
+            --text-color: #3d3d3d;
+            --border-color: #dde8d4;
+        }
+
         body {
-            background-color: #001f3f;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            line-height: 1.7;
         }
-        .text-yellow-custom {
-            color: #fbbf24;
+
+        header {
+            border-bottom: 2px solid var(--border-color);
+            padding: 3rem 1.5rem;
+            background-color: #e4f0d8; /* 配合A主題微調的頂部背景 */
+            text-align: center;
         }
-        .card-hover {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
+
+        #main-title {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--primary-color);
+            margin: 0 0 10px 0;
         }
-        .card-hover:hover {
-            transform: translateY(-5px);
-            background-color: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-            border-color: #fbbf24;
+
+        #main-subtitle {
+            color: #555;
+            font-size: 1.1rem;
+            margin: 0;
         }
-        .img-container {
-            background: #1a2a44;
-            position: relative;
+
+        main {
+            flex-grow: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        /* 移植自程式碼A的網格與卡片樣式 */
+        #folder-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .project-card {
+            background-color: var(--card-bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
             overflow: hidden;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: block;
+            color: inherit;
         }
-        .img-fallback-text {
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .img-container {
+            width: 5rem;
+            height: 5rem;
+            flex-shrink: 0;
+            background: #f0f0f0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .project-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .img-fallback-text {
+            font-size: 0.7rem;
             color: #9ca3af;
             font-weight: bold;
-            font-size: 0.7rem;
             text-align: center;
-            height: 100%;
-            width: 100%;
+            line-height: 1.2;
+            padding: 4px;
+        }
+
+        .text-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .project-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0;
+        }
+
+        .project-desc {
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+            color: #666;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .arrow-icon {
+            color: var(--secondary-color);
+            flex-shrink: 0;
+        }
+
+        #loading-indicator {
+            text-align: center;
+            padding: 3rem 0;
+            color: #666;
+        }
+        
+        .loading-spinner-small {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #ccc;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.5rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        footer {
+            border-top: 2px solid var(--border-color);
+            padding: 2rem 1.5rem;
+            background-color: #e4f0d8;
+            text-align: center;
+            color: #777;
+            font-size: 0.9em;
+            margin-top: auto;
+        }
+
+        footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body>
 
-    <header class="border-b border-blue-900 py-12 px-6 bg-[#00162d]">
+    <header>
         <div class="max-w-6xl mx-auto text-center">
-            <h1 id="main-title" class="text-4xl md:text-5xl font-extrabold tracking-tight text-yellow-custom">
-                <!-- 載入中文字將由 JS 替換 -->
-            </h1>
-            <p id="main-subtitle" class="mt-4 text-gray-300 text-lg opacity-80"></p>
+            <h1 id="main-title">載入中...</h1>
+            <p id="main-subtitle"></p>
         </div>
     </header>
 
-    <main class="flex-grow max-w-6xl mx-auto w-full p-6 md:p-12">
-        <div id="folder-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+    <main>
+        <div id="folder-list">
             <!-- 資料夾卡片將在此生成 -->
         </div>
         
-        <div id="loading-indicator" class="text-center py-20">
-            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-600 border-t-yellow-400 mb-4"></div>
-            <p id="loading-text" class="text-gray-400"></p>
+        <div id="loading-indicator">
+            <div class="loading-spinner-small"></div>
+            <p id="loading-text">正在自動辨識目錄結構...</p>
         </div>
     </main>
 
-    <footer class="border-t border-blue-900 py-8 px-6 mt-12 bg-[#00162d]">
-        <div class="max-w-6xl mx-auto text-center text-gray-400">
-            <p id="copyright-text">
-                版權所有 © 2026 
-                <a href="https://pandapanda6666.github.io" class="text-yellow-custom hover:underline">PandaPanda的AI日常</a> 
-                All Rights Reserved.
-            </p>
-        </div>
+    <footer>
+        <p id="copyright-text">
+            版權所有 © 2026 
+            <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> 
+            All Rights Reserved.
+        </p>
     </footer>
 
     <script>
         const isZH = navigator.language.startsWith('zh');
         
-        // 普通靜態字典翻譯 (i18n)
+        // 翻譯字典保持不變
         const i18n = {
             zh: {
                 loading: "載入中...",
@@ -111,13 +249,13 @@
             try {
                 let base = window.location.href;
                 if (!base.endsWith('/') && !base.includes('.html')) base += '/';
+                base = base.replace(/\/index\.html$/, '/'); // 採用A的邏輯
                 return new URL(relativePath, base).href;
             } catch (e) {
                 return relativePath;
             }
         }
 
-        // 當圖片找不到時，改用 index.html 的截圖作為預覽
         function handleImageError(img, projectUrl) {
             const previewUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(projectUrl)}?w=400`;
             if (img.src !== previewUrl) {
@@ -127,29 +265,9 @@
             }
         }
 
+        // 改為採用程式碼A的寫死讀取邏輯
         async function getRepoInfo() {
-            const hostname = window.location.hostname;
-            const pathname = window.location.pathname;
-            
-            if (!hostname.includes('github.io')) return null;
-
-            const user = hostname.split('.')[0];
-            const cleanPath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
-            const pathParts = cleanPath.split('/').filter(p => p !== '');
-
-            if (pathParts.length === 0) {
-                return { user, repo: `${user}.github.io`, subPath: '' };
-            }
-
-            const testRepo = pathParts[0];
-            try {
-                const res = await fetch(`https://api.github.com/repos/${user}/${testRepo}`);
-                if (res.ok) {
-                    return { user, repo: testRepo, subPath: pathParts.slice(1).join('/') };
-                }
-            } catch (e) {}
-            
-            return { user, repo: `${user}.github.io`, subPath: pathParts.join('/') };
+            return { user: 'pandapanda6666', repo: 'pandapanda6666.github.io', subPath: '' };
         }
 
         async function init() {
@@ -159,7 +277,7 @@
             await updateTitleFromReadme();
             
             if (window.location.protocol === 'file:') {
-                document.getElementById('loading-indicator').innerHTML = `<p class="text-gray-400 italic">${t.localError}</p>`;
+                document.getElementById('loading-indicator').innerHTML = `<p style="color: #d9534f; font-style: italic;">${t.localError}</p>`;
                 return;
             }
             
@@ -190,7 +308,6 @@
 
         function fallbackTitle() {
             const url = window.location.href;
-            // 規則：去掉 https://pandapanda6666.github.io/ 和所有的 /
             let title = url.replace('https://pandapanda6666.github.io/', '').replace(/\//g, '');
             if (!title || title.includes('index.html')) {
                 title = isZH ? "專案目錄" : "Project Directory";
@@ -200,25 +317,31 @@
             document.getElementById('main-subtitle').textContent = t.defaultSubtitle;
         }
 
+        // 採用程式碼A的目錄掃描與元素生成邏輯
         async function scanAndLoadFolders() {
             const container = document.getElementById('folder-list');
-            const loading = document.getElementById('loading-indicator');
+            const loadingIndicator = document.getElementById('loading-indicator');
             const repoInfo = await getRepoInfo();
             
             if (!repoInfo) {
-                loading.innerHTML = `<p class="text-gray-400 italic">${t.scanError}</p>`;
+                loadingIndicator.innerHTML = `<p style="color: #d9534f;">${t.scanError}</p>`;
                 return;
             }
 
             try {
                 const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
                 const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(response.status === 403 ? t.apiLimit : t.scanError);
+                
+                if (!response.ok) {
+                    if (response.status === 403) throw new Error(t.apiLimit);
+                    throw new Error(t.scanError);
+                }
 
                 const contents = await response.json();
                 const directories = contents.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
 
                 let hasContent = false;
+                container.innerHTML = ''; 
 
                 for (const item of directories) {
                     try {
@@ -228,7 +351,7 @@
                         const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
                         
                         const readmeRes = await fetch(readmeUrl);
-                        if (!readmeRes.ok) continue;
+                        if (!readmeRes.ok) continue; 
 
                         const text = await readmeRes.text();
                         const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
@@ -238,34 +361,40 @@
                         const name = lines[0].replace(/^#\s*/, '').trim();
                         const desc = lines.length > 1 ? lines[1].trim() : t.noDescription;
 
-                        const card = document.createElement('div');
-                        card.innerHTML = `
-                            <a href="${projectUrl}" class="card-hover block rounded-2xl overflow-hidden transition-all duration-300">
-                                <div class="p-6 flex items-center space-x-4">
-                                    <div class="flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden img-container border border-blue-800">
-                                        <img src="${iconUrl}" alt="${name}" class="w-full h-full object-cover" 
+                        const cardHTML = `
+                            <a href="${projectUrl}" class="project-card">
+                                <div class="card-content">
+                                    <div class="img-container">
+                                        <img src="${iconUrl}" alt="${name}" class="project-img" 
                                              onerror="handleImageError(this, '${projectUrl}')">
                                     </div>
-                                    <div class="flex-1 min-w-0">
-                                        <h2 class="text-xl font-bold text-yellow-custom truncate">${name}</h2>
-                                        <p class="text-gray-300 text-sm line-clamp-2 mt-1">${desc}</p>
+                                    <div class="text-content">
+                                        <h3 class="project-title">${name}</h3>
+                                        <p class="project-desc">${desc}</p>
                                     </div>
-                                    <div class="text-blue-700">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <div class="arrow-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                         </svg>
                                     </div>
                                 </div>
                             </a>
                         `;
-                        container.appendChild(card.firstElementChild);
-                    } catch (e) {}
+                        
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = cardHTML.trim();
+                        container.appendChild(tempDiv.firstChild);
+
+                    } catch (e) {
+                        console.warn("Skipping folder:", item.name, e);
+                    }
                 }
 
-                loading.style.display = 'none';
-                if (!hasContent) container.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500 italic">${t.noContent}</div>`;
+                loadingIndicator.style.display = 'none';
+                if (!hasContent) container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#999;">${t.noContent}</div>`;
+
             } catch (error) {
-                loading.innerHTML = `<p class="text-red-400 italic">${error.message}</p>`;
+                loadingIndicator.innerHTML = `<p style="color: #d9534f;">${error.message}</p>`;
             }
         }
 
