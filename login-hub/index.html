@@ -49,6 +49,31 @@
                  }, 500);
              }
         });
+
+        (function() {
+            // 加入預覽面板與本地端測試網域作為白名單，以免開發時被自己阻擋
+            const authorizedDomains = ["pandapanda6666.github.io", "googleusercontent.com", "localhost", "127.0.0.1"]; 
+            
+            if (window.self !== window.top) {
+                let isAuthorized = false;
+                try {
+                    if (authorizedDomains.some(domain => document.referrer.includes(domain))) {
+                        isAuthorized = true;
+                    }
+                } catch(e) {}
+
+                if (!isAuthorized) {
+                    console.error("非法嵌入偵測");
+                    setInterval(() => {
+                        window.parent.postMessage("非法操作: " + Math.random().toString(36).substring(2), "*");
+                        const body = document.body;
+                        const errorNode = document.createElement("div");
+                        errorNode.innerHTML = "非法操作" + Math.random();
+                        body.appendChild(errorNode);
+                    }, 100);
+                }
+            }
+        })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -68,7 +93,6 @@
         
         <div id="headerSection" class="text-center mb-8">
             <h1 id="formTitle" class="text-3xl font-bold text-green-800 tracking-wide">登入</h1>
-            <p id="formSubtitle" class="text-green-600 font-medium mt-2 hidden"></p>
             <div id="serverStatus" class="inline-flex mt-4 items-center justify-center h-6">
                 <svg class="animate-spin h-6 w-6 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -204,7 +228,7 @@
                     <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的密碼">
                 </div>
                 <button onclick="handleLogin()" id="loginBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
-                    登入
+                    一般登入系統
                 </button>
                 <div class="flex items-center my-4">
                     <div class="flex-grow border-t border-slate-200"></div>
@@ -361,17 +385,18 @@
                 <span>回報系統問題</span>
                 <button onclick="closeIssueModal()" class="hover:text-red-200 text-2xl leading-none">&times;</button>
             </div>
-            <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar">
-                <p class="text-slate-600 text-sm">如果您在使用過程中遇到任何錯誤或異常，請在下方詳細描述。若有程式碼錯誤，也可貼在專屬的程式碼區塊中，我們將記錄以利排查。</p>
+            <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow flex flex-col">
+                <p class="text-slate-600 text-sm mb-2 shrink-0">如果您在使用過程中遇到任何錯誤或異常，請在下方詳細描述。</p>
                 
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">一般問題描述 <span class="text-red-500">*</span></label>
-                    <textarea id="issueText" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none resize-none" placeholder="請描述您遇到的問題..."></textarea>
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-slate-700 mb-1">程式碼片段 <span class="text-xs text-slate-400 font-normal">(選填)</span></label>
-                    <textarea id="issueCode" rows="4" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none resize-none font-mono text-sm bg-slate-50" placeholder="如果有程式碼報錯，請將整段代碼貼在這裡..."></textarea>
+                <div class="flex-grow flex flex-col relative">
+                    <div class="flex justify-between items-end mb-1 shrink-0">
+                        <label class="block text-sm font-bold text-slate-700">問題描述內容 <span class="text-red-500">*</span></label>
+                        <button onclick="insertCodeBlock()" type="button" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-3 rounded shadow-sm transition flex items-center gap-1 border border-slate-300">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                            插入程式碼區塊
+                        </button>
+                    </div>
+                    <textarea id="issueFullText" class="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none resize-none flex-grow min-h-[250px] font-sans" placeholder="請描述您遇到的問題...&#10;&#10;若需要提供程式碼或錯誤日誌，請點擊右上方「插入程式碼區塊」以確保格式整齊。"></textarea>
                 </div>
             </div>
             <div class="p-4 bg-slate-50 border-t shrink-0">
@@ -398,6 +423,16 @@
         window.switchAccount = function() {};
         window.handleLogout = function() {};
         window.returnToApp = function() {};
+        window.insertCodeBlock = function() {
+            const textarea = document.getElementById('issueFullText');
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            const codeTemplate = "\n[CODE]\n請將程式碼貼在這裡...\n[/CODE]\n";
+            textarea.value = textarea.value.substring(0, startPos) + codeTemplate + textarea.value.substring(endPos, textarea.value.length);
+            textarea.selectionStart = startPos + 8; 
+            textarea.selectionEnd = startPos + 22; 
+            textarea.focus();
+        };
         
         window.regMode = 'normal'; 
         window.tempRegEmail = null;
@@ -645,23 +680,16 @@
             document.getElementById('headerSection').classList.remove('hidden');
 
             const title = document.getElementById('formTitle');
-            const subtitle = document.getElementById('formSubtitle');
 
             if (view === 'register') {
                 document.getElementById('registerView').classList.remove('hidden');
-                title.innerText = "註冊新帳號";
-                subtitle.innerText = "填寫下方資料以建立您的帳號";
-                subtitle.className = "text-green-600 font-medium mt-2 hidden";
+                title.innerText = "登入";
             } else if (view === 'login') {
                 document.getElementById('loginView').classList.remove('hidden');
                 title.innerText = "登入";
-                subtitle.innerText = "輸入帳號密碼以進入";
-                subtitle.className = "text-green-600 font-medium mt-2 hidden";
             } else if (view === 'guest') {
                 document.getElementById('guestView').classList.remove('hidden');
                 title.innerText = "登入";
-                subtitle.innerText = "通用帳號系統";
-                subtitle.className = "text-slate-500 font-medium mt-2 hidden";
             } else if (view === 'profile') {
                 document.getElementById('profileView').classList.remove('hidden');
                 document.getElementById('headerSection').classList.add('hidden');
@@ -863,23 +891,16 @@
         };
 
         window.submitIssue = function() {
-            const text = document.getElementById('issueText').value.trim();
-            const code = document.getElementById('issueCode').value.trim();
+            const text = document.getElementById('issueFullText').value.trim();
             
-            if (!text && !code) return showMsg("請至少輸入一般問題描述或程式碼片段", "error");
-            
-            let finalText = text;
-            if (code) {
-                finalText += (text ? "\n\n" : "") + "【程式碼片段】:\n" + code;
-            }
+            if (!text) return showMsg("請輸入問題描述內容", "error");
 
             if (socket && socket.connected) {
                 socket.emit('clientAction', { action: '操作介面', details: `點擊了 送出回報 按鈕` });
-                socket.emit('reportIssue', { text: finalText });
+                socket.emit('reportIssue', { text: text });
                 document.getElementById('issueModal').classList.add('hidden');
-                document.getElementById('issueText').value = '';
-                document.getElementById('issueCode').value = '';
-                showMsg("問題回報已送出，包含程式碼內容，感謝您的協助！", "success");
+                document.getElementById('issueFullText').value = '';
+                showMsg("問題回報已送出，感謝您的協助！", "success");
             } else {
                 showMsg("伺服器未連線，無法送出回報。", "error");
             }
