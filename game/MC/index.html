@@ -1,0 +1,198 @@
+<!-- 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved. -->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 麥塊網頁版 - Server Authoritative</title>
+    <style>
+        @font-face { font-family: 'Minecraft'; src: local('Courier New'); }
+        body { margin: 0; overflow: hidden; font-family: 'Minecraft', 'Courier New', Courier, monospace; background-color: #000; user-select: none; color: white; }
+        #game-canvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        .ui-screen { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: rgba(0,0,0,0.8); z-index: 100; }
+        .hidden { display: none !important; }
+        .btn { background-color: #727272; color: white; border: 2px solid #aaa; padding: 10px 20px; font-size: 1.2rem; margin: 5px; cursor: pointer; width: 400px; font-family: inherit; }
+        .btn:hover { background-color: #888; border-color: #ccc; }
+        .input-text { width: 400px; background-color: #000; color: white; border: 2px solid #aaa; padding: 10px; font-size: 1.2rem; font-family: inherit; margin-bottom: 15px; outline: none; }
+        #hud { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; transform: translate(-50%, -50%); }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background-color: white; mix-blend-mode: difference; }
+        #crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
+        #crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 2px; background-color: rgba(0,0,0,0.5); padding: 5px; border: 2px solid #333; pointer-events: auto; }
+        .inv-slot { width: 45px; height: 45px; border: 2px solid #888; background-color: #555; position: relative; cursor: pointer; }
+        .inv-slot.active { border: 3px solid #fff; transform: scale(1.1); z-index: 5; }
+        .slot-count { position: absolute; bottom: 2px; right: 4px; font-size: 0.8rem; font-weight: bold; }
+        .item-icon { width: 32px; height: 32px; margin: 6.5px; background-size: cover; image-rendering: pixelated; pointer-events: none; }
+        .inv-container { background: #c6c6c6; padding: 15px; border: 2px solid #000; display: flex; flex-direction: column; gap: 15px; pointer-events: auto; }
+        .inv-grid { display: grid; grid-template-columns: repeat(9, 45px); gap: 5px; }
+        #cursor-item { position: absolute; pointer-events: none; z-index: 9999; display: none; width: 32px; height: 32px; background-size: cover; image-rendering: pixelated; }
+        footer { position: fixed; bottom: 0; left: 0; width: 100%; background-color: rgba(0, 0, 0, 0.8); color: #aaa; text-align: center; padding: 10px 0; font-size: 0.9rem; z-index: 9999; pointer-events: none; }
+        footer a { color: #fff; text-decoration: none; pointer-events: auto; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <canvas id="game-canvas"></canvas>
+    <div id="hud" class="hidden">
+        <div id="crosshair"></div>
+        <div id="hotbar"></div>
+        <div id="click-to-play" style="position:absolute; top:60%; left:50%; transform:translate(-50%,-50%); font-size:1.5rem; pointer-events:auto; cursor:pointer;">點擊畫面回到遊戲</div>
+    </div>
+    <div id="cursor-item"><div id="cursor-count" style="position:absolute; bottom:-8px; right:-8px; font-weight:bold; color:white; text-shadow:1px 1px 0 #000;"></div></div>
+    
+    <div id="screen-main" class="ui-screen">
+        <h1>MINECRAFT JS (伺服器權威版)</h1>
+        <input type="text" id="player-name" class="input-text" placeholder="輸入名稱..." value="Steve">
+        <input type="text" id="room-id" class="input-text" placeholder="輸入房間代碼..." value="room1">
+        <button class="btn" onclick="joinServer()">進入世界</button>
+    </div>
+
+    <div id="screen-inventory" class="ui-screen hidden" style="background-color: rgba(0,0,0,0.5);">
+        <div class="inv-container">
+            <h3 style="color:#333; margin:0;">背包與合成</h3>
+            <div style="display:flex; gap:20px; align-items:center; margin-bottom:10px;">
+                <div style="display:grid; grid-template-columns:repeat(2,45px); gap:5px;" id="craft-2x2-grid"></div>
+                <div style="font-size:2rem; color:#333; font-weight:bold;">➔</div>
+                <div class="inv-slot" id="craft-2x2-res" style="background-color:#8b8b8b;"></div>
+            </div>
+            <div id="inventory-main-grid" class="inv-grid"></div>
+            <div id="inventory-hotbar-grid" class="inv-grid" style="margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+
+    <script>
+        const blockTypes = { 1: { t: 'grass_side' }, 2: { t: 'dirt' }, 3: { t: 'stone' }, 4: { t: 'wood_side' }, 5: { t: 'leaves' }, 6: { t: 'water' }, 7: { t: 'bedrock' }, 8: { t: 'chest_front' }, 9: { t: 'brick' }, 10: { t: 'sand' }, 11: { t: 'glass' }, 12: { t: 'planks' }, 13: { t: 'cobblestone' }, 14: { t: 'gold_ore' }, 15: { t: 'crafting_side' }, 16: { t: 'stick' }, 17: { t: 'coal_ore' }, 18: { t: 'coal' }, 19: { t: 'iron_ore' }, 20: { t: 'iron_ingot' }, 21: { t: 'furnace_front' }, 22: { t: 'wood_pickaxe' }, 23: { t: 'stone_pickaxe' }, 24: { t: 'iron_pickaxe' }, 25: { t: 'stone_bricks' }, 26: { t: 'wood_sword' }, 27: { t: 'stone_sword' }, 28: { t: 'iron_sword' }, 29: { t: 'wood_hoe' }, 30: { t: 'stone_hoe' }, 31: { t: 'iron_hoe' }, 32: { t: 'wool' }, 33: { t: 'bed_top' }, 34: { t: 'bucket' }, 35: { t: 'water_bucket' }, 36: { t: 'ladder' }, 37: { t: 'door_top' }, 38: { t: 'planks' }, 39: { t: 'cobblestone' }, 40: { t: 'trapdoor' }, 41: { t: 'raw_meat' }, 42: { t: 'cooked_meat' }, 43: { t: 'trapped_chest_front' }, 44: { t: 'wood_axe' }, 45: { t: 'stone_axe' }, 46: { t: 'iron_axe' }, 47: { t: 'wood_shovel' }, 48: { t: 'stone_shovel' }, 49: { t: 'iron_shovel' }, 50: { t: 'lava' }, 51: { t: 'cactus_side' }, 52: { t: 'lava_bucket' }, 53: { t: 'apple' }, 54: { t: 'sapling' } };
+        function genTex(type) { const c = document.createElement('canvas'); c.width = 16; c.height = 16; const ctx = c.getContext('2d'); ctx.fillStyle = '#'+Math.floor(Math.random()*16777215).toString(16); ctx.fillRect(0,0,16,16); return c.toDataURL(); }
+        const texCache = {}; function getTexUrl(name) { if(!texCache[name]) texCache[name] = genTex(name); return texCache[name]; }
+        function getMat(typeStr) { const tex = new THREE.TextureLoader().load(getTexUrl(typeStr)); tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter; return new THREE.MeshLambertMaterial({ map: tex }); }
+        
+        const materials = {}; for(let key in blockTypes) { materials[key] = getMat(blockTypes[key].t); }
+        materials[6] = new THREE.MeshLambertMaterial({ map: new THREE.TextureLoader().load(getTexUrl('water')), transparent: true, opacity: 0.65 });
+        const blockGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+        let socket, scene, camera, renderer, controls;
+        let gameLoopActive = false, prevTime = 0;
+        let localBlocksCache = new Map(); let chunkGroupMap = new Map(); let dropMeshes = {}; let playerMeshes = {};
+        const CHUNK_SIZE = 16; let renderDist = 2;
+        let playerPos = new THREE.Vector3(0, 30, 0); let velocity = new THREE.Vector3(); let canJump = false; let moveState = { f: false, b: false, l: false, r: false, up: false };
+        let inventory = { main: new Array(36).fill(null), c2: new Array(4).fill(null), res2: null, cursor: null }; let selectedSlot = 0;
+
+        window.joinServer = () => {
+            const name = document.getElementById('player-name').value; const room = document.getElementById('room-id').value;
+            document.getElementById('screen-main').classList.add('hidden');
+            
+            socket = io();
+            socket.emit('joinRoom', { name, room, config: { mode: '生存' } });
+
+            socket.on('worldInit', (data) => {
+                playerPos.set(data.playerState.x, data.playerState.y, data.playerState.z);
+                inventory.main = data.playerState.inventory;
+                initThree(); renderAllInventoryUIs();
+            });
+
+            socket.on('chunkData', (data) => {
+                const key = `${data.cx},${data.cz}`;
+                const group = new THREE.Group();
+                for (let pos in data.blocks) {
+                    const [x,y,z] = pos.split(',').map(Number);
+                    const mesh = new THREE.Mesh(blockGeometry, materials[data.blocks[pos]]);
+                    mesh.position.set(x, y, z); mesh.userData = {type: data.blocks[pos], x,y,z};
+                    group.add(mesh); localBlocksCache.set(pos, data.blocks[pos]);
+                }
+                scene.add(group); chunkGroupMap.set(key, group);
+            });
+
+            socket.on('blockUpdate', (data) => {
+                const key = `${data.x},${data.y},${data.z}`;
+                if(data.type === null) { localBlocksCache.delete(key); } else { localBlocksCache.set(key, data.type); }
+                const cx = Math.floor(data.x / CHUNK_SIZE); const cz = Math.floor(data.z / CHUNK_SIZE); const ckey = `${cx},${cz}`;
+                if (chunkGroupMap.has(ckey)) { scene.remove(chunkGroupMap.get(ckey)); chunkGroupMap.delete(ckey); socket.emit('reqChunk', {cx, cz}); }
+            });
+
+            socket.on('dropSpawned', (data) => {
+                let mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.3,0.3), materials[data.type]);
+                mesh.position.set(data.x, data.y, data.z); scene.add(mesh); dropMeshes[data.id] = mesh;
+            });
+            socket.on('dropCollected', (data) => { if(dropMeshes[data.id]) { scene.remove(dropMeshes[data.id]); delete dropMeshes[data.id]; } });
+
+            socket.on('invUpdate', (data) => {
+                inventory.main = data.main; inventory.c2 = data.c2; inventory.res2 = data.res2; inventory.cursor = data.cursor; renderAllInventoryUIs();
+            });
+        };
+
+        function getBlockLocal(x,y,z) { return localBlocksCache.get(`${Math.floor(x)},${Math.floor(y)},${Math.floor(z)}`) || null; }
+        function getCollidingBlocksLocal(minX, maxX, minY, maxY, minZ, maxZ) { let hits = []; const startX = Math.floor(minX + 0.5), endX = Math.floor(maxX + 0.5); const startY = Math.floor(minY + 0.5), endY = Math.floor(maxY + 0.5); const startZ = Math.floor(minZ + 0.5), endZ = Math.floor(maxZ + 0.5); for(let x = startX; x <= endX; x++) for(let y = startY; y <= endY; y++) for(let z = startZ; z <= endZ; z++) { let t = getBlockLocal(x,y,z); if(t && t !== 6 && t !== 50) hits.push({x, y, z, type: t}); } return hits; }
+
+        function initThree() {
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game-canvas') }); renderer.setSize(window.innerWidth, window.innerHeight);
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x87CEEB);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5)); const dl = new THREE.DirectionalLight(0xffffff, 1); dl.position.set(50, 50, 20); scene.add(dl);
+            
+            controls = new THREE.PointerLockControls(camera, document.body); scene.add(controls.getObject());
+            document.getElementById('click-to-play').addEventListener('mousedown', () => controls.lock());
+            controls.addEventListener('lock', () => { document.getElementById('hud').classList.remove('hidden'); document.getElementById('click-to-play').style.display = 'none'; document.getElementById('screen-inventory').classList.add('hidden'); });
+            controls.addEventListener('unlock', () => { document.getElementById('click-to-play').style.display = 'block'; });
+
+            setupInput(); gameLoopActive = true; prevTime = performance.now(); animate();
+        }
+
+        function setupInput() {
+            document.addEventListener('keydown', e => { if(!controls.isLocked && e.code==='KeyE') { if(document.getElementById('screen-inventory').classList.contains('hidden')) { document.getElementById('screen-inventory').classList.remove('hidden'); renderAllInventoryUIs(); } else { document.getElementById('screen-inventory').classList.add('hidden'); controls.lock(); } } if(!controls.isLocked) return; switch(e.code) { case 'KeyW': moveState.f=true; break; case 'KeyA': moveState.l=true; break; case 'KeyS': moveState.b=true; break; case 'KeyD': moveState.r=true; break; case 'Space': moveState.up=true; break; case 'KeyE': controls.unlock(); break; } if(e.key>='1'&&e.key<='9') { selectedSlot = parseInt(e.key)-1; renderAllInventoryUIs(); } });
+            document.addEventListener('keyup', e => { switch(e.code) { case 'KeyW': moveState.f=false; break; case 'KeyA': moveState.l=false; break; case 'KeyS': moveState.b=false; break; case 'KeyD': moveState.r=false; break; case 'Space': moveState.up=false; break; } });
+            document.addEventListener('mousedown', e => {
+                if(!controls.isLocked) return;
+                const raycaster = new THREE.Raycaster(); raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                let meshes = []; chunkGroupMap.forEach(g => meshes.push(...g.children));
+                let intersects = raycaster.intersectObjects(meshes);
+                if(intersects.length > 0 && intersects[0].distance < 6) {
+                    const p = intersects[0].object.userData;
+                    if(e.button === 0) { socket.emit('mineBlock', {room: document.getElementById('room-id').value, x:p.x, y:p.y, z:p.z, slot:selectedSlot}); }
+                    else if (e.button === 2 && inventory.main[selectedSlot]) { const n = intersects[0].face.normal; socket.emit('placeBlock', {room: document.getElementById('room-id').value, nx:Math.round(p.x+n.x), ny:Math.round(p.y+n.y), nz:Math.round(p.z+n.z), slot:selectedSlot}); }
+                }
+            });
+        }
+
+        function animate() {
+            if(!gameLoopActive) return; requestAnimationFrame(animate);
+            const time = performance.now(); const delta = Math.min((time - prevTime) / 1000, 0.1); prevTime = time;
+
+            const px = Math.floor(playerPos.x / CHUNK_SIZE); const pz = Math.floor(playerPos.z / CHUNK_SIZE);
+            for(let x=px-renderDist; x<=px+renderDist; x++) for(let z=pz-renderDist; z<=pz+renderDist; z++) { const k=`${x},${z}`; if(!chunkGroupMap.has(k)) { chunkGroupMap.set(k, new THREE.Group()); socket.emit('reqChunk', {room: document.getElementById('room-id').value, cx: x, cz: z}); } }
+
+            if(controls.isLocked) {
+                const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir); camDir.y = 0; camDir.normalize();
+                const camRight = new THREE.Vector3().crossVectors(camDir, new THREE.Vector3(0,1,0)).normalize();
+                let iZ = Number(moveState.b) - Number(moveState.f); let iX = Number(moveState.r) - Number(moveState.l);
+                if(iX!==0 && iZ!==0) { let l = Math.sqrt(iX*iX+iZ*iZ); iX/=l; iZ/=l; }
+                const speed = 5.0; velocity.x += ((camDir.x * -iZ + camRight.x * iX) * speed - velocity.x) * 10.0 * delta; velocity.z += ((camDir.z * -iZ + camRight.z * iX) * speed - velocity.z) * 10.0 * delta;
+                velocity.y -= 25.0 * delta; if(moveState.up && canJump) { velocity.y = 8.5; canJump = false; }
+                let hw = 0.3; let nX = playerPos.x + velocity.x * delta;
+                if(getCollidingBlocksLocal(nX-hw, nX+hw, playerPos.y, playerPos.y+1.7, playerPos.z-hw, playerPos.z+hw).length === 0) playerPos.x = nX; else velocity.x = 0;
+                let nY = playerPos.y + velocity.y * delta;
+                if(getCollidingBlocksLocal(playerPos.x-hw, playerPos.x+hw, nY, nY+1.7, playerPos.z-hw, playerPos.z+hw).length === 0) { playerPos.y = nY; canJump = false; } else { if(velocity.y < 0) canJump = true; velocity.y = 0; }
+                let nZ = playerPos.z + velocity.z * delta;
+                if(getCollidingBlocksLocal(playerPos.x-hw, playerPos.x+hw, playerPos.y, playerPos.y+1.7, nZ-hw, nZ+hw).length === 0) playerPos.z = nZ; else velocity.z = 0;
+                camera.position.copy(playerPos); camera.position.y += 1.6;
+                socket.emit('playerMove', {room: document.getElementById('room-id').value, x: playerPos.x, y: playerPos.y, z: playerPos.z, rot: camera.rotation.y, pitch: camera.rotation.x});
+            }
+            renderer.render(scene, camera);
+        }
+
+        function handleSlotClick(e, gridName, index) { e.preventDefault(); socket.emit('invAction', {room: document.getElementById('room-id').value, grid: gridName, idx: index, rightClick: e.button === 2, type: gridName==='craftRes'?'craftRes':'normal'}); }
+        function renderAllInventoryUIs() {
+            const hC = document.getElementById('hotbar'); hC.innerHTML = '';
+            for(let i=0; i<9; i++) { const item = inventory.main[i]; const d = document.createElement('div'); d.className = `inv-slot ${i===selectedSlot?'active':''}`; if(item) d.innerHTML = `<div class="item-icon" style="background-image:url(${getTexUrl(blockTypes[item.type].t)})"></div><div class="slot-count">${item.count}</div>`; hC.appendChild(d); }
+            const drawG = (cid, arr, gridN) => { const c = document.getElementById(cid); c.innerHTML=''; for(let i=0;i<arr.length;i++) { const d = document.createElement('div'); d.className='inv-slot'; if(arr[i]) d.innerHTML = `<div class="item-icon" style="background-image:url(${getTexUrl(blockTypes[arr[i].type].t)})"></div><div class="slot-count">${arr[i].count}</div>`; d.onmousedown=(e)=>handleSlotClick(e,gridN,i); c.appendChild(d); } };
+            drawG('inventory-main-grid', inventory.main.slice(9, 36), 'main'); drawG('inventory-hotbar-grid', inventory.main.slice(0, 9), 'main'); drawG('craft-2x2-grid', inventory.c2, 'craft2');
+            const resSlot = document.getElementById('craft-2x2-res'); resSlot.innerHTML = inventory.res2 ? `<div class="item-icon" style="background-image:url(${getTexUrl(blockTypes[inventory.res2.type].t)})"></div><div class="slot-count">${inventory.res2.count}</div>` : ''; resSlot.onmousedown = (e) => handleSlotClick(e, 'craftRes', 0);
+            const cursorDiv = document.getElementById('cursor-item'); document.addEventListener('mousemove', e => { if(inventory.cursor) { cursorDiv.style.display='block'; cursorDiv.style.left=e.clientX-16+'px'; cursorDiv.style.top=e.clientY-16+'px'; cursorDiv.style.backgroundImage=`url(${getTexUrl(blockTypes[inventory.cursor.type].t)})`; document.getElementById('cursor-count').innerText=inventory.cursor.count; } else cursorDiv.style.display='none'; });
+        }
+    </script>
+</body>
+</html>
