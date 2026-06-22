@@ -101,7 +101,16 @@
             <div class="bg-slate-900 rounded-xl p-5 border border-slate-700 text-center mb-6">
                 <p class="text-xs text-slate-400 uppercase tracking-widest mb-1">您的專屬監看配對代碼</p>
                 <div id="pairCodeDisplay" class="text-4xl font-mono font-extrabold text-emerald-400 tracking-wider">------</div>
-                <div id="camera-viewer-count" class="text-xs text-indigo-400 font-semibold mt-2">線上觀看人數: 0 人</div>
+                <div id="camera-viewer-count" class="text-xs text-indigo-400 font-semibold mt-2 mb-4">線上觀看人數: 0 人</div>
+                
+                <!-- 新增：快速分享連結區塊 -->
+                <div class="bg-slate-800/50 rounded-lg p-3 text-left border border-slate-700">
+                    <p class="text-[10px] text-slate-400 mb-1.5">🔗 分享此連結給觀眾，點擊即可自動連線：</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="shareLinkInput" readonly class="flex-grow bg-slate-900 border border-slate-600 rounded px-2 py-1.5 text-slate-300 text-xs font-mono focus:outline-none">
+                        <button id="btnCopyLink" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap">複製連結</button>
+                    </div>
+                </div>
             </div>
 
             <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden shadow-inner border border-slate-800">
@@ -289,8 +298,11 @@
                     }
                 });
 
-                // 清除網址列參數避免重新整理造成重複驗證
-                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                // 清除網址列參數避免重新整理造成重複驗證 (保留 mode 與 pin 等參數)
+                params.delete('auth');
+                params.delete('user');
+                const newSearch = params.toString() ? '?' + params.toString() : '';
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + newSearch;
                 window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
             } else {
                 document.getElementById('loginBtn').onclick = () => {
@@ -371,6 +383,28 @@
 
             // 啟用觀看端：離線檢測清掃器
             initOfflineCleaner();
+
+            // 處理網址列自動進入模式與連線
+            processAutoMode();
+        }
+
+        // --- 處理網址列自動連線邏輯 ---
+        function processAutoMode() {
+            const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode');
+            const pin = params.get('pin');
+
+            if (mode === 'camera') {
+                setTimeout(() => document.getElementById('modeCamera').click(), 100);
+            } else if (mode === 'viewer') {
+                setTimeout(() => {
+                    document.getElementById('modeViewer').click();
+                    if (pin) {
+                        document.getElementById('inputPairCode').value = pin;
+                        setTimeout(() => document.getElementById('btnConnect').click(), 300);
+                    }
+                }, 100);
+            }
         }
 
         // --- 模式切換事件 ---
@@ -379,6 +413,45 @@
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('cameraUI').classList.remove('hidden');
             document.getElementById('pairCodeDisplay').innerText = myPairCode;
+            
+            // 更新目前網址模式
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('mode', 'camera');
+            window.history.replaceState({}, '', currentUrl.toString());
+            
+            // 生成分享連結並綁定複製功能
+            const shareUrl = new URL(window.location.href);
+            shareUrl.searchParams.set('mode', 'viewer');
+            shareUrl.searchParams.set('pin', myPairCode);
+            shareUrl.searchParams.delete('auth'); // 確保分享連結不含私有驗證資訊
+            shareUrl.searchParams.delete('user');
+            
+            const linkInput = document.getElementById('shareLinkInput');
+            const btnCopy = document.getElementById('btnCopyLink');
+            linkInput.value = shareUrl.toString();
+            
+            btnCopy.onclick = () => {
+                try {
+                    // 優先使用 clipboard API，若在 iframe 中受限則降級使用 execCommand
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(linkInput.value);
+                    } else {
+                        linkInput.select();
+                        document.execCommand('copy');
+                    }
+                    btnCopy.innerText = '已複製！';
+                    btnCopy.classList.replace('bg-indigo-600', 'bg-emerald-600');
+                    btnCopy.classList.replace('hover:bg-indigo-500', 'hover:bg-emerald-500');
+                    setTimeout(() => {
+                        btnCopy.innerText = '複製連結';
+                        btnCopy.classList.replace('bg-emerald-600', 'bg-indigo-600');
+                        btnCopy.classList.replace('hover:bg-emerald-500', 'hover:bg-indigo-500');
+                    }, 2000);
+                } catch (err) {
+                    console.error('複製失敗', err);
+                }
+            };
+
             await initCameraBroadcaster();
         };
 
@@ -386,6 +459,11 @@
             myRole = 'viewer';
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('viewerUI').classList.remove('hidden');
+            
+            // 更新目前網址模式
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('mode', 'viewer');
+            window.history.replaceState({}, '', currentUrl.toString());
         };
 
         // --- 更新相機端的廣播狀態燈 ---
