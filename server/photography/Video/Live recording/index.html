@@ -59,6 +59,22 @@
         </div>
     </header>
 
+    <!-- 同帳號聯動裝置面板 (登入後自動顯示) -->
+    <section id="deviceDiscoveryPanel" class="hidden bg-slate-800/60 border-b border-slate-700/50 py-3 px-6">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <span class="flex h-2 w-2 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+                </span>
+                <span class="text-xs font-semibold text-slate-300">同帳號在線裝置自動探索中：</span>
+            </div>
+            <div id="discoveredDevicesList" class="flex flex-wrap gap-2 items-center">
+                <span class="text-xs text-slate-500">暫無探索到同帳號的其他聯動裝置</span>
+            </div>
+        </div>
+    </section>
+
     <!-- 主要內容區 -->
     <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
         
@@ -95,7 +111,7 @@
                     <span class="h-2.5 w-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
                     相機端廣播中
                 </h2>
-                <button onclick="window.location.reload()" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
+                <button onclick="window.location.href = window.location.pathname;" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
             </div>
             
             <div class="bg-slate-900 rounded-xl p-5 border border-slate-700 text-center mb-6">
@@ -103,7 +119,7 @@
                 <div id="pairCodeDisplay" class="text-4xl font-mono font-extrabold text-emerald-400 tracking-wider">------</div>
                 <div id="camera-viewer-count" class="text-xs text-indigo-400 font-semibold mt-2 mb-4">線上觀看人數: 0 人</div>
                 
-                <!-- 新增：快速分享連結區塊 -->
+                <!-- 快速分享連結區塊 -->
                 <div class="bg-slate-800/50 rounded-lg p-3 text-left border border-slate-700">
                     <p class="text-[10px] text-slate-400 mb-1.5">🔗 分享此連結給觀眾，點擊即可自動連線：</p>
                     <div class="flex gap-2">
@@ -113,8 +129,9 @@
                 </div>
             </div>
 
-            <div class="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden shadow-inner border border-slate-800">
-                <video id="localVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
+            <div class="relative aspect-video w-full bg-black rounded-xl overflow-hidden shadow-inner border border-slate-800 flex items-center justify-center">
+                <!-- 修改為 object-contain 以維持畫面真實長寬比，不強制拉伸 -->
+                <video id="localVideo" autoplay playsinline muted class="w-full h-full object-contain"></video>
                 <div id="broadcastStatusIndicator" class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-slate-300 flex items-center gap-2">
                     <span id="indicatorDot" class="h-2 w-2 bg-slate-500 rounded-full"></span>
                     <span id="indicatorText">靜止待機中 (無人連線不佔頻寬)</span>
@@ -157,13 +174,13 @@
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
-                    <label class="text-slate-400 text-sm">影像畫質:</label>
+                    <label class="text-slate-400 text-sm">影像寬度 (解析度):</label>
                     <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="0">極省流 (240p)</option>
-                        <option value="1">省流 (360p)</option>
-                        <option value="2" selected>標準 (480p) - 推薦</option>
-                        <option value="3">清晰 (600p)</option>
-                        <option value="4">極致 (720p HD) - 易延遲</option>
+                        <option value="0">極省流 (寬度 320)</option>
+                        <option value="1">省流 (寬度 480)</option>
+                        <option value="2" selected>標準 (寬度 640) - 推薦</option>
+                        <option value="3">清晰 (寬度 800)</option>
+                        <option value="4">極致 (寬度 1280) - 易延遲</option>
                     </select>
                 </div>
             </div>
@@ -178,7 +195,7 @@
                     <span class="h-2.5 w-2.5 bg-indigo-500 rounded-full"></span>
                     主控監看台
                 </h2>
-                <button onclick="window.location.reload()" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
+                <button onclick="window.location.href = window.location.pathname;" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
             </div>
 
             <!-- 頻道添加與控制區 (分為我的裝置與其他裝置) -->
@@ -313,15 +330,15 @@
         
         let currentCaptureInterval = 100; // 預設 10 FPS
         
-        // 高畫質解鎖設定檔 (寬, 高, 壓縮品質)
+        // 寬度設定與壓縮比
         const qualityPresets = [
-            { w: 320, h: 240, q: 0.15 }, // 0: 極省流 (240p)
-            { w: 480, h: 360, q: 0.3 },  // 1: 省流 (360p)
-            { w: 640, h: 480, q: 0.5 },  // 2: 標準 (480p)
-            { w: 800, h: 600, q: 0.7 },  // 3: 清晰 (600p)
-            { w: 1280, h: 720, q: 0.8 }  // 4: 極致 (720p HD)
+            { w: 320, q: 0.15 }, // 0: 極省流
+            { w: 480, q: 0.3 },  // 1: 省流
+            { w: 640, q: 0.5 },  // 2: 標準
+            { w: 800, q: 0.7 },  // 3: 清晰
+            { w: 1280, q: 0.8 }  // 4: 極致 HD
         ];
-        let currentQualityIndex = 2; // 預設 2 (標準 480p)
+        let currentQualityIndex = 2; // 預設 2 (標準寬度 640)
 
         // 本地錄影專用變數 (在相機端運作)
         let cameraRecorder = null;
@@ -368,6 +385,9 @@
                         
                         // 啟動同帳號在線裝置廣播
                         startDeviceDiscoveryBroadcast();
+                        
+                        // 登入成功後，立刻刷新我的裝置清單狀態 (移除請先登入的預設文字提示)
+                        renderSameAccountDevices();
 
                         const container = document.getElementById('authContainer');
                         container.innerHTML = `
@@ -661,7 +681,7 @@
             }
         }
 
-        // --- 相機端廣播邏輯 (高解析度硬體解鎖版) ---
+        // --- 相機端廣播邏輯 (高解析度硬體解鎖版 + 真實比例保留) ---
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
@@ -686,10 +706,11 @@
                 function startCaptureLoop() {
                     stopCaptureLoop();
                     
-                    // 動態套用使用者選擇的真實解析度！
+                    // 動態套用使用者選擇的真實解析度，並維持相機原始長寬比例！
                     const preset = qualityPresets[currentQualityIndex];
+                    const aspect = videoEl.videoWidth / videoEl.videoHeight || 16/9; // 獲取鏡頭真實比例
                     capCanvas.width = preset.w;
-                    capCanvas.height = preset.h;
+                    capCanvas.height = preset.w / aspect;
                     const compressionQuality = preset.q;
 
                     videoInterval = setInterval(() => {
@@ -716,9 +737,6 @@
                 // 監聽 FPS 變更
                 document.getElementById('fpsSelect').onchange = (e) => {
                     currentCaptureInterval = parseInt(e.target.value);
-                    if (currentCaptureInterval <= 33 && currentQualityIndex >= 3) { 
-                        showErrorToast('⚠️ 提示：30FPS 搭配高解析度極度消耗上傳頻寬。若觀看端發生明顯延遲，請主動調降畫質或 FPS！', 6000);
-                    }
                     if (Object.keys(activeViewers).length > 0) {
                         startCaptureLoop();
                     }
@@ -812,8 +830,9 @@
             const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
 
             const preset = qualityPresets[currentQualityIndex];
+            const aspect = videoEl.videoWidth / videoEl.videoHeight || 16/9;
             capCanvas.width = preset.w;
-            capCanvas.height = preset.h;
+            capCanvas.height = preset.w / aspect;
             const compressionQuality = preset.q;
 
             videoInterval = setInterval(() => {
@@ -1052,11 +1071,12 @@
             const container = document.getElementById('feedContainer');
             
             const tile = document.createElement('div');
-            tile.className = "relative bg-slate-950 rounded-xl overflow-hidden aspect-video border border-slate-700 shadow-lg group transition-all duration-300";
+            tile.className = "relative bg-black rounded-xl overflow-hidden aspect-video border border-slate-700 shadow-lg group transition-all duration-300";
             tile.id = `tile_${senderId}`;
 
             const img = document.createElement('img');
-            img.className = "w-full h-full object-cover";
+            // 修改為 object-contain 與 bg-black 以維持真實比例
+            img.className = "w-full h-full object-contain bg-black";
             img.id = `remote-video-${senderId}`;
             img.alt = "正在等待首影格...";
 
@@ -1489,6 +1509,148 @@
                 });
             }, 2000); 
         }
+
+        // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
+        function startOffscreenCompositor() {
+            if (!isRecording) {
+                if (canvasRenderLoopId) {
+                    cancelAnimationFrame(canvasRenderLoopId);
+                    canvasRenderLoopId = null;
+                }
+                return;
+            }
+
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 錄製視訊解析度固定 1280x720
+            canvas.width = 1280;
+            canvas.height = 720;
+
+            function render() {
+                if (myRole !== 'viewer' || !isRecording) return;
+
+                const activeFeeds = Object.entries(remoteFeeds);
+                // 背景塗成純黑
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const count = activeFeeds.length;
+                if (count > 0) {
+                    let cols = Math.ceil(Math.sqrt(count));
+                    let rows = Math.ceil(count / cols);
+                    let w = canvas.width / cols;
+                    let h = canvas.height / rows;
+
+                    activeFeeds.forEach(([id, feed], index) => {
+                        const img = feed.imgElement;
+                        if (img && img.complete && img.naturalWidth > 0) {
+                            let col = index % cols;
+                            let row = Math.floor(index / cols);
+                            let x = col * w;
+                            let y = row * h;
+                            
+                            // 💡 比例換算完美留邊演算法：保持原始鏡頭比例，絕對不會拉長變形！
+                            let imgAspect = img.naturalWidth / img.naturalHeight;
+                            let cellAspect = w / h;
+                            let drawW = w, drawH = h, dx = 0, dy = 0;
+
+                            if (imgAspect > cellAspect) {
+                                // 影像比格子寬：以寬度為基準，上下留黑邊
+                                drawH = w / imgAspect;
+                                dy = (h - drawH) / 2;
+                            } else {
+                                // 影像比格子高：以高度為基準，左右留黑邊
+                                drawW = h * imgAspect;
+                                dx = (w - drawW) / 2;
+                            }
+                            
+                            ctx.drawImage(img, x + dx, y + dy, drawW, drawH);
+                        }
+                    });
+                } else {
+                    ctx.fillStyle = "white";
+                    ctx.font = "30px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("正在等待遠端影像串流...", canvas.width / 2, canvas.height / 2);
+                }
+
+                canvasRenderLoopId = requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        // --- 純淨 Canvas 影像錄製與匯出模組 ---
+        document.getElementById('btnStartRecord').onclick = () => {
+            isRecording = true;
+            startOffscreenCompositor(); // 僅在錄影開啟時，動態啟動 Canvas 拼圖迴圈，平時 0 效能負擔
+
+            const canvas = document.getElementById('hiddenCanvas');
+            
+            // 擷取無 UI 純淨畫布影像訊號 (每秒 15 幀，順暢不卡頓)
+            const stream = canvas.captureStream(15);
+            
+            // 高位元率高畫質無損設定：鎖定高位元率 (10 Mbps) 避免被瀏覽器默認壓縮劣化畫質
+            let options = { videoBitsPerSecond: 10000000 }; 
+            
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                options.mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                options.mimeType = 'video/webm;codecs=vp8';
+            } else {
+                options.mimeType = 'video/webm';
+            }
+
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } catch(e) {
+                showErrorToast('您的瀏覽器不支援 WebM 影像錄製。');
+                return;
+            }
+
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                
+                // 強制觸發瀏覽器下載
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `Panda遠端監視合成錄製_${new Date().toISOString().slice(0,10)}_${Math.floor(100+Math.random()*900)}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            };
+
+            mediaRecorder.start();
+
+            document.getElementById('btnStartRecord').classList.add('hidden');
+            document.getElementById('btnStopRecord').classList.remove('hidden');
+
+            socket.emit('logAppMessage', { appId: appId, message: '開啟多頻道純淨影像畫布錄製', type: 'info' });
+        };
+
+        document.getElementById('btnStopRecord').onclick = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            startOffscreenCompositor(); // 錄製停止，完全關閉背景 Canvas 渲染，減少硬體耗損
+
+            document.getElementById('btnStartRecord').classList.remove('hidden');
+            document.getElementById('btnStopRecord').classList.add('hidden');
+        };
 
         // --- 載入時初始化 ---
         window.onload = initSocketConnection;
