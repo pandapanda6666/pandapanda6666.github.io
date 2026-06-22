@@ -34,7 +34,9 @@
         console.log = function() {};
         console.info = function() {};
 
-        const appId = window.location.hostname + window.location.pathname.replace('index.html', '');
+        let path = window.location.pathname.replace('index.html', '');
+        if (path.endsWith('/') && path.length > 1) path = path.slice(0, -1);
+        const appId = window.location.hostname + path;
     </script>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -608,7 +610,11 @@
                     document.getElementById('modeViewer').click();
                     if (pin) {
                         document.getElementById('inputPairCode').value = pin;
-                        setTimeout(() => document.getElementById('btnConnect').click(), 300);
+                        const tryConnect = () => {
+                            if (socket && socket.connected) document.getElementById('btnConnect').click();
+                            else setTimeout(tryConnect, 300);
+                        };
+                        tryConnect();
                     }
                 }, 100);
             }
@@ -949,7 +955,7 @@
                             removeFeed(null, code); 
                         }
                         socket.off('appData', checkHandler);
-                    }, 4000);
+                    }, 6000);
                 }
             });
             
@@ -1064,6 +1070,8 @@
         }
 
         function handleIncomingAppData(data) {
+            const incomingPin = data.pairCode || data.pin;
+
             if (data.action === 'device_presence' && currentUser && data.username === currentUser.username) {
                 if (data.uuid !== myUuid) {
                     sameAccountDevices[data.uuid] = {
@@ -1088,7 +1096,7 @@
                 return;
             }
 
-            if (myRole === 'camera' && data.pin === myPairCode) {
+            if (myRole === 'camera' && incomingPin === myPairCode) {
                 
                 if (data.action === 'request_socket_stream' || data.action === 'heartbeat_request') {
                     const isNew = !activeViewers[data.requesterId];
@@ -1155,12 +1163,12 @@
                 return;
             }
 
-            if (myRole !== 'viewer' || !watchedCodes.has(data.pairCode)) return;
+            if (myRole !== 'viewer' || !watchedCodes.has(incomingPin)) return;
 
             if (data.action === 'camera_ack' && data.targetViewer === myUuid) {
                 const senderId = data.senderId;
                 if (!remoteFeeds[senderId]) {
-                    createVideoFeedTile(senderId, data.pairCode);
+                    createVideoFeedTile(senderId, incomingPin);
                 }
                 const feed = remoteFeeds[senderId];
                 feed.lastFrameTime = Date.now();
