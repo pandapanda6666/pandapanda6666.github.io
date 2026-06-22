@@ -22,8 +22,9 @@
         };
         
         window.addEventListener('unhandledrejection', function(event) {
-            const errorMsg = event.reason ? event.reason.message || event.reason : '未知錯誤';
-            if (typeof errorMsg === 'string' && errorMsg.includes('message channel closed before a response was received')) return;
+            const errorMsg = event.reason ? (event.reason.message || event.reason.toString()) : '未知錯誤';
+            // 徹底過濾瀏覽器插件產生的已知 Promise 擴充功能報錯
+            if (typeof errorMsg === 'string' && errorMsg.includes('message channel closed')) return;
             if (typeof socket !== 'undefined' && socket.connected) {
                 socket.emit('logError', { errorMsg: 'Promise異常: ' + errorMsg, url: window.location.href, line: 0 });
             }
@@ -667,16 +668,18 @@
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
+                // 如果已經有舊的串流，先徹底關閉
                 if (localStream) {
                     localStream.getTracks().forEach(track => track.stop());
                 }
 
+                // 💡 錄影最高畫質解鎖：允許硬體直接擷取最高達 1080p (1920x1080) 30FPS 的無損影像！
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
                     audio: true 
                 });
                 document.getElementById('localVideo').srcObject = localStream;
-                statusLabel.innerText = "裝置準備就緒，高清硬體擷取通道已解鎖。";
+                statusLabel.innerText = "裝置準備就緒，無損高清硬體擷取通道已解鎖。";
 
                 const capCanvas = document.createElement('canvas');
                 const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
@@ -1511,7 +1514,22 @@
             const canvas = document.getElementById('hiddenCanvas');
             const stream = canvas.captureStream(15);
             
-            let options = { videoBitsPerSecond: 10000000 }; 
+            // 高位元率高畫質無損設定：鎖定極高位元率 (20 Mbps)
+            let options = { videoBitsPerSecond: 20000000 }; 
+            
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+        // --- 被監控端（相機端）實體錄影功能與狀態同步 ---
+        // 綁定本地錄影實體按鈕事件
+        document.getElementById('btnCameraStartRecord').onclick = startLocalCameraRecord;
+        document.getElementById('btnCameraStopRecord').onclick = stopLocalCameraRecord;
+
+        function startLocalCameraRecord() {
+            if (!localStream) return;
+            if (isCameraRecording) return; // 防呆機制
+
+            cameraRecordedChunks = [];
+            // 高位元率高畫質無損設定 (20 Mbps 確保原生 1080p 不失真)
+            let options = { videoBitsPerSecond: 20000000 }; 
             
             if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
                 options.mimeType = 'video/webm;codecs=vp9';
@@ -1555,37 +1573,37 @@
                 };
                 reader.readAsDataURL(blob);
 
-                // 同時觸發瀏覽器下載
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `Panda遠端監視合成錄製_${new Date().toISOString().slice(0,10)}.webm`;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 100);
+                // 移除本地錄影提示 UI，並恢復按鈕狀態
+                document.getElementById('cameraRecordingBlinker').classList.add('hidden');
+                document.getElementById('btnCameraStartRecord').classList.remove('hidden');
+                document.getElementById('btnCameraStopRecord').classList.add('hidden');
+                document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full transition-all duration-300";
+                document.getElementById('cameraRecordStatusText').innerText = "本地錄影未啟動";
+                
+                socket.emit('appData', {
+                    room: appId,
+                    action: 'camera_record_state_change',
+                    pin: myPairCode,
+                    isRecording: false
+                });
             };
 
-            mediaRecorder.start();
+            cameraRecorder.start();
+            isCameraRecording = true;
 
-            document.getElementById('btnStartRecord').classList.add('hidden');
-            document.getElementById('btnStopRecord').classList.remove('hidden');
+            // 顯示本地錄影中 UI，並切換按鈕狀態
+            document.getElementById('cameraRecordingBlinker').classList.remove('hidden');
+            document.getElementById('btnCameraStartRecord').classList.add('hidden');
+            document.getElementById('btnCameraStopRecord').classList.remove('hidden');
+            document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-red-500 rounded-full animate-ping";
+            document.getElementById('cameraRecordStatusText').innerText = "本地錄影中...";
 
-            socket.emit('logAppMessage', { appId: appId, message: '開啟多頻道純淨影像畫布錄製', type: 'info' });
-        };
-
-        document.getElementById('btnStopRecord').onclick = () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
-            isRecording = false;
-            startOffscreenCompositor();
-
-            document.getElementById('btnStartRecord').classList.remove('hidden');
-            document.getElementById('btnStopRecord').classList.add('hidden');
+            socket.emit('appData', {
+                room: appId,
+                action: 'camera_record_state_change',
+                pin: myPairCode,
+                isRecording: true
+            });
         };
 
         // --- 載入時初始化 ---
