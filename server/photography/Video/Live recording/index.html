@@ -62,8 +62,8 @@
     <!-- 主要內容區 -->
     <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
         
-        <!-- 連線狀態提示 (非 Alert 彈窗) -->
-        <div id="alertToast" class="hidden mb-6 p-4 rounded-xl border flex items-center gap-3 bg-red-950/80 border-red-800 text-red-200 shadow-xl transition-all duration-300">
+        <!-- 連線狀態提示 -->
+        <div id="alertToast" class="hidden mb-6 p-4 rounded-xl border flex items-center gap-3 bg-red-950/80 border-red-800 text-red-200 shadow-xl transition-all duration-300 animate-pulse">
             <svg class="h-6 w-6 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
             <span id="alertToastText" class="text-sm font-medium"></span>
         </div>
@@ -118,6 +118,11 @@
                 <div id="broadcastStatusIndicator" class="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs text-slate-300 flex items-center gap-2">
                     <span id="indicatorDot" class="h-2 w-2 bg-slate-500 rounded-full"></span>
                     <span id="indicatorText">靜止待機中 (無人連線不佔頻寬)</span>
+                </div>
+                <!-- 本地錄影中閃爍紅標 -->
+                <div id="cameraRecordingBlinker" class="hidden absolute top-4 right-4 bg-red-600/90 text-white font-bold text-xs py-1 px-3 rounded-full animate-pulse flex items-center gap-1.5 shadow-lg">
+                    <span class="h-2 w-2 bg-white rounded-full"></span>
+                    錄影中
                 </div>
             </div>
 
@@ -176,24 +181,45 @@
                 <button onclick="window.location.reload()" class="text-slate-400 hover:text-white text-sm">返回大廳</button>
             </div>
 
-            <!-- 頻道添加與控制區 -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="md:col-span-2 flex gap-2">
-                    <input type="text" id="inputPairCode" placeholder="輸入6位數相機配對碼" class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono tracking-widest text-center text-lg">
-                    <button id="btnConnect" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl transition shadow-lg shrink-0">加入頻道</button>
+            <!-- 頻道添加與控制區 (分為我的裝置與其他裝置) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- 連線我的裝置 (SSO 同帳號探索) -->
+                <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-inner flex flex-col">
+                    <h3 class="text-sm font-bold text-teal-400 mb-3 flex items-center gap-2">
+                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13 14.5a2.5 2.5 0 10-5 0 2.5 2.5 0 005 0z" /><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM3 10a7 7 0 1114 0 7 7 0 01-14 0z" clip-rule="evenodd" /></svg>
+                        連線我的裝置 (同帳號)
+                    </h3>
+                    <div id="myDevicesList" class="flex flex-col gap-2 flex-grow justify-center">
+                        <span class="text-xs text-slate-500 text-center bg-slate-800/50 py-3 rounded-lg border border-dashed border-slate-700">請先登入 SSO 帳號以啟用此功能</span>
+                    </div>
                 </div>
                 
-                <!-- 錄影控制區 -->
-                <div class="flex gap-2">
-                    <button id="btnStartRecord" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
-                        <span class="h-3 w-3 bg-white rounded-full animate-pulse"></span>
-                        錄製全螢幕
-                    </button>
-                    <button id="btnStopRecord" class="hidden w-full bg-slate-100 hover:bg-white text-slate-900 font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 animate-bounce">
-                        <span class="h-3 w-3 bg-red-600 rounded-full"></span>
-                        停止並匯出
-                    </button>
+                <!-- 連接其他裝置 -->
+                <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-inner flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold text-indigo-400 mb-3 flex items-center gap-2">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" /></svg>
+                            連接其他裝置
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mb-2">輸入朋友分享的代碼以監看其裝置畫面 (支援多組空格分隔)</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="inputPairCode" placeholder="輸入6位數配對碼" class="flex-grow bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono tracking-widest text-center text-sm">
+                        <button id="btnConnect" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-lg transition shadow-lg shrink-0 text-sm">加入監看</button>
+                    </div>
                 </div>
+            </div>
+
+            <!-- 錄影控制區 -->
+            <div class="flex gap-2 mb-6">
+                <button id="btnStartRecord" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                    <span class="h-3 w-3 bg-white rounded-full animate-pulse"></span>
+                    錄製全螢幕合成畫面
+                </button>
+                <button id="btnStopRecord" class="hidden w-full bg-slate-100 hover:bg-white text-slate-900 font-bold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 animate-bounce">
+                    <span class="h-3 w-3 bg-red-600 rounded-full"></span>
+                    停止合成錄製並匯出
+                </button>
             </div>
 
             <div class="bg-slate-900/50 rounded-xl p-4 border border-slate-700 mb-6 flex flex-wrap justify-between items-center gap-3">
@@ -201,19 +227,47 @@
                     <span class="font-semibold">目前連線頻道：</span>
                     <span id="activeCodesList" class="font-mono text-indigo-400">尚無連線</span>
                 </div>
-                <div id="viewerStatus" class="text-xs text-slate-400">請在上方輸入配對碼連線。</div>
+                <div id="viewerStatus" class="text-xs text-slate-400">請在上方選擇或加入連線頻道。</div>
             </div>
 
             <!-- 頻道多分割視窗網格 -->
-            <div id="feedContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div id="feedContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                 <!-- 這裡會動態產生各頻道的視窗 -->
             </div>
+
+            <!-- 🎥 已錄製影片清單區 -->
+            <section class="border-t border-slate-700/60 pt-6">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" /></svg>
+                    🎥 已錄製影片清單 (動態同步)
+                </h3>
+                <div id="recordedVideosGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div class="col-span-full py-8 text-center text-slate-500 text-sm bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
+                        目前尚無錄製影片。請點擊上方各頻道的「🎥 遠端錄影」開始錄製。
+                    </div>
+                </div>
+            </section>
 
             <!-- 隱藏的 Canvas 用於合併與無 UI 乾淨錄影 -->
             <canvas id="hiddenCanvas" class="hidden"></canvas>
         </div>
 
     </main>
+
+    <!-- 影片播放彈窗 Modal -->
+    <div id="videoModal" class="hidden fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl relative">
+            <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/80">
+                <h3 id="videoModalTitle" class="font-bold text-white text-sm truncate">影片播放器</h3>
+                <button onclick="closeVideoModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700 transition">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="aspect-video bg-black flex items-center justify-center">
+                <video id="modalVideoPlayer" class="w-full h-full" controls autoplay></video>
+            </div>
+        </div>
+    </div>
 
     <!-- 底部資訊與版權 -->
     <footer class="bg-slate-950 border-t border-slate-900 py-6 text-center text-xs text-slate-500 flex flex-col gap-2">
@@ -235,20 +289,28 @@
         let myRole = ''; // 'camera' 或者是 'viewer'
         let myPairCode = Math.floor(100000 + Math.random() * 900000).toString(); // 六位數代碼
         let myUuid = crypto.randomUUID();
+        let currentUser = null; // SSO 使用者身分
         
         // 觀看端專用
         let watchedCodes = new Set(); 
-        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, lastFrameTime, mediaSource, sourceBuffer, audioQueue, audioEl } }
+        let remoteFeeds = {}; // 結構: { [senderId]: { pairCode, imgElement, lastFrameTime, mediaSource, sourceBuffer, audioQueue, audioEl, isRecording } }
         let isRecording = false;
         let mediaRecorder;
         let recordedChunks = [];
         let canvasRenderLoopId = null;
+        let recordedVideosList = []; // 本地影片快取清單
 
-        // 相機端專用 (整合高畫質解析度動態切換機制)
+        // 同帳號在線裝置探索
+        let sameAccountDevices = {};
+
+        // 相機端專用 
         let localStream = null;
         let videoInterval = null;
         let micRecorder = null;
-        let activeViewers = []; 
+        
+        // 偵測有沒有請求（心跳偵測系統），儲存 { [requesterId]: lastActiveTime }
+        let activeViewers = {}; 
+        
         let currentCaptureInterval = 100; // 預設 10 FPS
         
         // 高畫質解鎖設定檔 (寬, 高, 壓縮品質)
@@ -261,18 +323,34 @@
         ];
         let currentQualityIndex = 2; // 預設 2 (標準 480p)
 
-        // 新增相機本地高清錄影專用變數
+        // 本地錄影專用變數 (在相機端運作)
         let cameraRecorder = null;
         let cameraRecordedChunks = [];
         let isCameraRecording = false;
 
-        // --- SSO 與登入驗證處理 ---
+        // --- SSO 登入驗證處理與記憶狀態持久化 ---
         function checkSSO() {
             const params = new URLSearchParams(window.location.search);
-            if (params.get('auth') === 'true') {
-                const user = params.get('user');
+            let user = params.get('user');
+            const auth = params.get('auth');
+
+            if (auth === 'true' && user) {
+                // 從 URL 登入成功，儲存狀態至 LocalStorage
+                localStorage.setItem('panda_live_sso_user', user);
                 
-                // 向 Socket 請求資料
+                // 清除網址列參數避免重新整理造成重複驗證 (保留 mode 與 pin 等參數)
+                params.delete('auth');
+                params.delete('user');
+                const newSearch = params.toString() ? '?' + params.toString() : '';
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + newSearch;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+            } else {
+                // 檢查本地是否有記住的帳號
+                user = localStorage.getItem('panda_live_sso_user');
+            }
+
+            if (user) {
+                // 向 Socket 請求個人資料
                 const emitProfileRequest = () => {
                     if (socket && socket.connected) {
                         socket.emit('requestProfile', { username: user });
@@ -285,30 +363,37 @@
                 // 接收個人資料
                 socket.on('profileData', (data) => {
                     if (data) {
+                        currentUser = data;
+                        currentUser.username = user; // 確保有 username
+                        
+                        // 啟動同帳號在線裝置廣播
+                        startDeviceDiscoveryBroadcast();
+
                         const container = document.getElementById('authContainer');
                         container.innerHTML = `
-                            <div onclick="goToLoginHub()" class="flex items-center gap-3 bg-slate-800 border border-slate-700 py-1.5 px-4 rounded-full cursor-pointer hover:bg-slate-700 transition shadow-inner">
-                                <img src="${data.avatar || 'https://via.placeholder.com/40'}" class="w-9 h-9 rounded-full border-2 border-indigo-500 object-cover" onerror="this.src='https://via.placeholder.com/40'">
-                                <div class="flex flex-col text-left">
-                                    <span class="text-xs font-bold text-slate-100">${data.nickname || user}</span>
-                                    <span class="text-[10px] text-yellow-500 font-semibold">🪙 ${data.pCoin || 0} P幣</span>
+                            <div class="flex items-center gap-3">
+                                <div onclick="goToLoginHub()" class="flex items-center gap-3 bg-slate-800 border border-slate-700 py-1.5 px-4 rounded-full cursor-pointer hover:bg-slate-700 transition shadow-inner">
+                                    <img src="${data.avatar || 'https://via.placeholder.com/40'}" class="w-9 h-9 rounded-full border-2 border-indigo-500 object-cover" onerror="this.src='https://via.placeholder.com/40'">
+                                    <div class="flex flex-col text-left">
+                                        <span class="text-xs font-bold text-slate-100">${data.nickname || user}</span>
+                                        <span class="text-[10px] text-yellow-500 font-semibold">🪙 ${data.pCoin || 0} P幣</span>
+                                    </div>
                                 </div>
+                                <button onclick="logoutSSO()" class="text-xs text-slate-400 hover:text-red-400 transition underline decoration-slate-500 underline-offset-2">登出</button>
                             </div>
                         `;
                     }
                 });
-
-                // 清除網址列參數避免重新整理造成重複驗證 (保留 mode 與 pin 等參數)
-                params.delete('auth');
-                params.delete('user');
-                const newSearch = params.toString() ? '?' + params.toString() : '';
-                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + newSearch;
-                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
             } else {
                 document.getElementById('loginBtn').onclick = () => {
                     window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
                 };
             }
+        }
+
+        function logoutSSO() {
+            localStorage.removeItem('panda_live_sso_user');
+            window.location.href = window.location.pathname; // 重載為未登入狀態
         }
 
         function goToLoginHub() {
@@ -317,6 +402,99 @@
 
         function reportIssue() {
             window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+        }
+
+        // --- 同帳號在線裝置廣播探索系統 ---
+        function startDeviceDiscoveryBroadcast() {
+            // 每 2.5 秒發送一次存在心跳
+            setInterval(() => {
+                if (currentUser && socket && socket.connected) {
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'device_presence',
+                        username: currentUser.username,
+                        nickname: currentUser.nickname,
+                        avatar: currentUser.avatar,
+                        device: navigator.userAgent,
+                        role: myRole,
+                        pin: myPairCode,
+                        uuid: myUuid
+                    });
+                }
+            }, 2500);
+
+            // 每 3 秒清掃超時未回報的聯動裝置
+            setInterval(() => {
+                const now = Date.now();
+                let changed = false;
+                for (let uuid in sameAccountDevices) {
+                    if (now - sameAccountDevices[uuid].lastSeen > 6500) {
+                        delete sameAccountDevices[uuid];
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    renderSameAccountDevices();
+                }
+            }, 3000);
+        }
+
+        // 渲染同帳號裝置清單 (置於 Viewer 模式下的我的裝置欄位)
+        function renderSameAccountDevices() {
+            const listEl = document.getElementById('myDevicesList');
+            if (!listEl) return;
+            
+            // 僅顯示可以被連線的相機端裝置
+            const cameras = Object.values(sameAccountDevices).filter(d => d.role === 'camera');
+            
+            if (cameras.length === 0) {
+                listEl.innerHTML = `<span class="text-xs text-slate-500 text-center bg-slate-800/50 py-3 rounded-lg border border-dashed border-slate-700">暫無在線的相機端裝置</span>`;
+                return;
+            }
+
+            listEl.innerHTML = '';
+            cameras.forEach(dev => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm hover:border-teal-500 transition-colors";
+                
+                const cleanDevice = dev.device.includes('Windows') ? 'Windows' : 
+                                    (dev.device.includes('iPhone') ? 'iPhone' : 
+                                    (dev.device.includes('Macintosh') ? 'macOS' : 
+                                    (dev.device.includes('Android') ? 'Android' : '行動裝置')));
+
+                let actionHtml = '';
+                if (dev.pin && dev.pin !== '------') {
+                    actionHtml = `
+                        <button onclick="instantWatch('${dev.pin}')" class="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3 py-1.5 rounded text-xs transition shadow-md flex items-center gap-1">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            一鍵連線
+                        </button>
+                    `;
+                } else {
+                    actionHtml = `<span class="text-[10px] text-slate-500 bg-slate-900 px-2 py-1 rounded">初始化中</span>`;
+                }
+
+                item.innerHTML = `
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span class="text-slate-200 font-bold text-xs">${cleanDevice}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 mt-0.5">代碼: <span class="font-mono text-teal-400">${dev.pin}</span></span>
+                    </div>
+                    ${actionHtml}
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        // 一鍵監看呼叫
+        function instantWatch(pin) {
+            document.getElementById('inputPairCode').value = pin;
+            document.getElementById('btnConnect').click();
         }
 
         // --- 錯誤提示 UI ---
@@ -361,12 +539,15 @@
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
                 
-                // 雲端歷史觀看紀錄讀取
+                // 雲端歷史觀看紀錄與影片紀錄讀取
                 socket.emit('getAppData', { appId: appId }, (res) => {
-                    if (res && res.data && res.data.lastWatchedCodes) {
-                        const saved = res.data.lastWatchedCodes;
-                        if (saved.length > 0) {
-                            document.getElementById('inputPairCode').value = saved.join(', ');
+                    if (res && res.data) {
+                        if (res.data.lastWatchedCodes) {
+                            // 不直接填入 input，因為現在有兩區，交給邏輯處理
+                        }
+                        if (res.data.recordedVideos) {
+                            recordedVideosList = res.data.recordedVideos;
+                            renderRecordedVideos();
                         }
                     }
                 });
@@ -470,9 +651,10 @@
         function updateCameraStatusIndicator() {
             const dot = document.getElementById('indicatorDot');
             const txt = document.getElementById('indicatorText');
-            if (activeViewers.length > 0) {
+            const viewerCount = Object.keys(activeViewers).length;
+            if (viewerCount > 0) {
                 dot.className = "h-2 w-2 bg-red-500 rounded-full animate-pulse";
-                txt.innerText = `畫面串流廣播中 (${activeViewers.length} 人正在觀看)`;
+                txt.innerText = `畫面串流廣播中 (${viewerCount} 人正在觀看)`;
             } else {
                 dot.className = "h-2 w-2 bg-slate-500 rounded-full";
                 txt.innerText = "靜止待機中 (無人連線不佔頻寬)";
@@ -511,15 +693,15 @@
                     const compressionQuality = preset.q;
 
                     videoInterval = setInterval(() => {
-                        // 如果沒有觀眾，直接跳過不發送！
-                        if (activeViewers.length === 0) return;
+                        // 如果心跳清單為空（無在線請求觀看的人），跳過不發送
+                        if (Object.keys(activeViewers).length === 0) return;
 
                         if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                             ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
                             // 使用 webp 確保同畫質下體積更小
                             const base64Frame = capCanvas.toDataURL('image/webp', compressionQuality); 
                             
-                            // 揮發性發送 (volatile)：若網路塞車，舊畫面直接丟棄，確保時間零延遲
+                            // volatile 發送：避免暫存積壓導致延遲
                             socket.volatile.emit('appData', {
                                 room: appId,
                                 action: 'videoFrame',
@@ -531,39 +713,33 @@
                     }, currentCaptureInterval);
                 }
 
-                // 監聽 FPS 變更 (移除強制降畫質綁架，改為善意提示)
+                // 監聽 FPS 變更
                 document.getElementById('fpsSelect').onchange = (e) => {
                     currentCaptureInterval = parseInt(e.target.value);
-                    
-                    // 如果用戶執意要 30 FPS + 清晰以上畫質，顯示延遲警告
                     if (currentCaptureInterval <= 33 && currentQualityIndex >= 3) { 
                         showErrorToast('⚠️ 提示：30FPS 搭配高解析度極度消耗上傳頻寬。若觀看端發生明顯延遲，請主動調降畫質或 FPS！', 6000);
                     }
-                    
-                    if (activeViewers.length > 0) {
+                    if (Object.keys(activeViewers).length > 0) {
                         startCaptureLoop();
                     }
-                    socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms`, type: 'info' });
                 };
 
-                // 監聽畫質變更 (真實切換解析度)
+                // 監聽畫質變更
                 document.getElementById('qualitySelect').onchange = (e) => {
                     currentQualityIndex = parseInt(e.target.value);
-                    
-                    if (activeViewers.length > 0) {
-                        startCaptureLoop(); // 重啟計時器以套用新的畫布大小
+                    if (Object.keys(activeViewers).length > 0) {
+                        startCaptureLoop(); 
                     }
-                    socket.emit('logAppMessage', { appId: appId, message: `更改畫質為檔位: ${currentQualityIndex}`, type: 'info' });
                 };
 
-                // 建立麥克風音訊切片發送實例 (先不啟動，等待觀眾觸發)
+                // 建立麥克風音訊切片發送實例 (等待觀眾觸發)
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length > 0) {
                     const micStream = new MediaStream([audioTracks[0]]);
                     micRecorder = new MediaRecorder(micStream, { mimeType: 'audio/webm;codecs=opus' });
                     
                     micRecorder.ondataavailable = async (e) => {
-                        if (activeViewers.length === 0) return;
+                        if (Object.keys(activeViewers).length === 0) return;
 
                         if (e.data.size > 0 && socket && socket.connected) {
                             socket.volatile.emit('appData', {
@@ -577,12 +753,41 @@
                     };
                 }
 
+                // 偵測觀看請求（心跳偵測系統），維持觀看人數的精準判定
+                setInterval(() => {
+                    const now = Date.now();
+                    let changed = false;
+                    for (let requesterId in activeViewers) {
+                        if (now - activeViewers[requesterId] > 6000) { // 6 秒超時判定沒請求
+                            delete activeViewers[requesterId];
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        const viewerCount = Object.keys(activeViewers).length;
+                        document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${viewerCount} 人`;
+                        updateCameraStatusIndicator();
+                        
+                        // 廣播最新觀看人數給所有觀看端同步
+                        socket.emit('appData', {
+                            room: appId,
+                            action: 'viewer_count_update',
+                            pairCode: myPairCode,
+                            count: viewerCount
+                        });
+
+                        if (viewerCount === 0) {
+                            stopBroadcasting();
+                        }
+                    }
+                }, 2000);
+
                 socket.emit('logAppMessage', { appId: appId, message: `相機端開始廣播代碼: ${myPairCode}`, type: 'info' });
 
             } catch (err) {
                 console.error(err);
                 statusLabel.innerText = "權限授權失敗或本機無可用視訊音訊裝置！";
-                showErrorToast("無法存取相機，請點選 Chrome 網址列左側圖示確認權限設定。");
+                showErrorToast("無法存取相機，請確認瀏覽器權限設定。");
             }
         }
 
@@ -598,7 +803,6 @@
             const statusLabel = document.getElementById('cameraStatus');
             statusLabel.innerText = "觀眾已進入！影像與音訊全速廣播傳輸中...";
             
-            // 1. 影像重啟
             const fpsVal = parseInt(document.getElementById('fpsSelect').value);
             currentCaptureInterval = fpsVal;
             
@@ -607,14 +811,13 @@
             const capCanvas = document.createElement('canvas');
             const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
 
-            // 確保套用正確解析度
             const preset = qualityPresets[currentQualityIndex];
             capCanvas.width = preset.w;
             capCanvas.height = preset.h;
             const compressionQuality = preset.q;
 
             videoInterval = setInterval(() => {
-                if (activeViewers.length === 0) return;
+                if (Object.keys(activeViewers).length === 0) return;
                 if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                     ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
                     const base64Frame = capCanvas.toDataURL('image/webp', compressionQuality); 
@@ -628,16 +831,15 @@
                 }
             }, currentCaptureInterval);
 
-            // 2. 音訊重啟
+            // 音訊重啟
             if (micRecorder && micRecorder.state === 'inactive') {
                 try {
-                    micRecorder.start(250); // 縮短至 250ms 切片，極大降低聲音初次抵達與排隊緩衝時間
+                    micRecorder.start(250); 
                 } catch(e) {}
             }
         }
 
         function stopBroadcasting() {
-            // 觀眾清零，完全暫停擷取，讓硬體徹底休息
             const statusLabel = document.getElementById('cameraStatus');
             statusLabel.innerText = "無人觀看中。影像與音訊已暫停傳送以節省流量。";
             stopCaptureLoop();
@@ -653,7 +855,6 @@
             const codeInput = document.getElementById('inputPairCode').value.trim();
             if (!codeInput) return;
 
-            // 支援批次輸入, 用逗號或空格分隔
             const codes = codeInput.split(/[\s,]+/).map(c => c.trim()).filter(c => c.length === 6);
             if (codes.length === 0) {
                 document.getElementById('viewerStatus').innerText = "輸入代碼格式有誤，必須為 6 位數字";
@@ -676,51 +877,98 @@
             // 更新 UI 頻道清單
             document.getElementById('activeCodesList').innerText = Array.from(watchedCodes).join(', ');
             document.getElementById('viewerStatus').innerText = "開始連線並監聽頻道串流...";
+            document.getElementById('inputPairCode').value = ''; // 清空輸入框
 
             // 備份紀錄到雲端
             socket.emit('saveAppData', { 
                 appId: appId, 
-                data: { lastWatchedCodes: Array.from(watchedCodes) } 
+                data: { lastWatchedCodes: Array.from(watchedCodes), recordedVideos: recordedVideosList } 
             });
 
             socket.emit('logAppMessage', { appId: appId, message: `觀看端加入頻道: ${codes.join(', ')}`, type: 'info' });
         };
 
-        // --- 觀看端接收轉發數據 ---
+        // --- 觀看端接收轉發數據與狀態同步邏輯 ---
         function handleIncomingAppData(data) {
-            // A. 當我們是相機端時，需要聽有沒有觀眾加入或離開
-            if (myRole === 'camera' && data.pin === myPairCode) {
-                if (data.action === 'request_socket_stream') {
-                    if (!activeViewers.includes(data.requesterId)) {
-                        activeViewers.push(data.requesterId);
-                        document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${activeViewers.length} 人`;
-                        updateCameraStatusIndicator();
-                        
-                        // 當第一位觀眾進來時，開啟實時截圖與音訊錄製
-                        if (activeViewers.length === 1) {
-                            startBroadcasting();
-                        }
-                    }
-                }
-                else if (data.action === 'stop_stream') {
-                    activeViewers = activeViewers.filter(id => id !== data.requesterId);
-                    document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${activeViewers.length} 人`;
-                    updateCameraStatusIndicator();
-                    
-                    // 當最後一位觀眾離開時，自動完全暫停
-                    if (activeViewers.length === 0) {
-                        stopBroadcasting();
-                    }
+            // SSO 同帳號裝置同步與自動探索
+            if (data.action === 'device_presence' && currentUser && data.username === currentUser.username) {
+                if (data.uuid !== myUuid) {
+                    sameAccountDevices[data.uuid] = {
+                        nickname: data.nickname,
+                        avatar: data.avatar,
+                        device: data.device,
+                        role: data.role,
+                        pin: data.pin,
+                        lastSeen: Date.now()
+                    };
+                    renderSameAccountDevices();
                 }
                 return;
             }
 
-            // B. 當我們是觀看端時，需要聽視訊影音串流
+            // A. 當我們是相機端（被監聽端）時，處理各種請求與連線
+            if (myRole === 'camera' && data.pin === myPairCode) {
+                
+                // 1. 影像串流與心跳請求偵測
+                if (data.action === 'request_socket_stream' || data.action === 'heartbeat_request') {
+                    const isNew = !activeViewers[data.requesterId];
+                    activeViewers[data.requesterId] = Date.now(); // 刷新心跳時間
+                    
+                    if (isNew) {
+                        const viewerCount = Object.keys(activeViewers).length;
+                        document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${viewerCount} 人`;
+                        updateCameraStatusIndicator();
+                        
+                        socket.emit('appData', {
+                            room: appId,
+                            action: 'viewer_count_update',
+                            pairCode: myPairCode,
+                            count: viewerCount
+                        });
+
+                        if (viewerCount === 1) {
+                            startBroadcasting();
+                        }
+                    }
+                }
+                
+                // 2. 主動停止串流
+                else if (data.action === 'stop_stream') {
+                    delete activeViewers[data.requesterId];
+                    const viewerCount = Object.keys(activeViewers).length;
+                    document.getElementById('camera-viewer-count').innerText = `線上觀看人數: ${viewerCount} 人`;
+                    updateCameraStatusIndicator();
+                    
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'viewer_count_update',
+                        pairCode: myPairCode,
+                        count: viewerCount
+                    });
+
+                    if (viewerCount === 0) {
+                        stopBroadcasting();
+                    }
+                }
+
+                // 3. 🎥 觀看端呼叫被觀看端「開始錄影」
+                else if (data.action === 'trigger_camera_record') {
+                    startLocalCameraRecord();
+                }
+
+                // 4. 🎥 觀看端呼叫被觀看端「停止錄影」
+                else if (data.action === 'trigger_camera_stop') {
+                    stopLocalCameraRecord();
+                }
+                return;
+            }
+
+            // B. 當我們是觀看端時，處理影像、聲音、錄製同步及影片清單
             if (myRole !== 'viewer' || !watchedCodes.has(data.pairCode)) return;
 
             const senderId = data.senderId;
 
-            // 如果該相機來源尚未建立視窗，自動建立
+            // 若此頻道未配置視窗，自動動態建立分割視窗
             if (!remoteFeeds[senderId]) {
                 createVideoFeedTile(senderId, data.pairCode);
             }
@@ -728,25 +976,74 @@
             const feed = remoteFeeds[senderId];
             feed.lastFrameTime = Date.now();
 
+            // 1. 影像幀更新
             if (data.action === 'videoFrame') {
-                // 更新畫面的 Image 標籤
                 feed.imgElement.src = data.image;
                 
-                // 強制覆寫狀態文字
                 const playBtn = document.getElementById('play-btn-' + senderId);
                 const statusEl = document.getElementById('status-' + senderId);
                 if (statusEl) {
                     if (!playBtn || playBtn.style.display === 'none') {
-                        statusEl.innerText = '接收影音中';
-                        statusEl.className = 'text-xs ml-2 text-green-400';
+                        statusEl.innerText = feed.isRecording ? '🔴 遠端錄製中' : '接收影音中';
+                        statusEl.className = feed.isRecording ? 'text-xs ml-2 text-red-400 font-bold animate-pulse' : 'text-xs ml-2 text-green-400';
                     } else {
                         statusEl.innerText = '影像抵達，請點擊接收影音';
                         statusEl.className = 'text-xs ml-2 text-yellow-400 animate-pulse';
                     }
                 }
             } 
+            // 2. 音訊更新
             else if (data.action === 'audioChunk') {
                 playIncomingAudio(senderId, data.chunk);
+            }
+            // 3. 即時觀看人數心跳同步更新
+            else if (data.action === 'viewer_count_update') {
+                const viewerCountEl = document.getElementById('viewer-count-' + senderId);
+                if (viewerCountEl) {
+                    viewerCountEl.innerText = `👁️ ${data.count} 人觀看`;
+                }
+            }
+            // 4. 🎥 錄影狀態同步更新
+            else if (data.action === 'camera_record_state_change') {
+                feed.isRecording = data.isRecording;
+                const recBtn = document.getElementById('btn-rec-' + senderId);
+                const statusEl = document.getElementById('status-' + senderId);
+                
+                if (data.isRecording) {
+                    if (recBtn) {
+                        recBtn.innerText = '■ 停止遠端錄影';
+                        recBtn.className = "bg-rose-600 hover:bg-rose-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md animate-pulse";
+                    }
+                    if (statusEl) {
+                        statusEl.innerText = '🔴 遠端錄製中';
+                        statusEl.className = 'text-xs ml-2 text-red-400 font-bold animate-pulse';
+                    }
+                } else {
+                    if (recBtn) {
+                        recBtn.innerText = '🎥 遠端錄影';
+                        recBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md";
+                    }
+                    if (statusEl) {
+                        statusEl.innerText = '接收影音中';
+                        statusEl.className = 'text-xs ml-2 text-green-400';
+                    }
+                }
+            }
+            // 5. 🎥 錄製完畢傳回影片數據，同步加入清單
+            else if (data.action === 'recorded_video_finished') {
+                // 將收到的 Base64 影片加入清單快取
+                const newVideo = {
+                    id: crypto.randomUUID(),
+                    pin: data.pin,
+                    src: data.videoData,
+                    timestamp: data.timestamp
+                };
+                recordedVideosList.unshift(newVideo);
+                renderRecordedVideos();
+                showErrorToast(`🎥 頻道 [${data.pin}] 的高清影片錄製完成！已同步加入下方影片清單。`);
+
+                // 同步備份影片清單紀錄到雲端 (只備份 metadata 結構防超量，大型影像留存於本地內存/IndexedDB)
+                syncVideosToCloud();
             }
         }
 
@@ -769,6 +1066,7 @@
                 <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
                 <span>頻道: ${pairCode}</span>
                 <span id="status-${senderId}" class="text-xs ml-2 text-yellow-400">連線中...</span>
+                <span id="viewer-count-${senderId}" class="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded ml-1 font-sans">👁️ 0 人觀看</span>
             `;
 
             const audioEl = document.createElement('audio');
@@ -794,9 +1092,16 @@
                 }
             };
 
-            // 全螢幕按鈕
+            // 控制按鈕容器 (置頂懸浮)
+            const controlsOverlay = document.createElement('div');
+            controlsOverlay.className = "absolute top-3 inset-x-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30";
+            
+            const leftGroup = document.createElement('div');
+            leftGroup.className = "flex gap-2";
+
+            // 1. 全螢幕按鈕
             const fullscreenBtn = document.createElement('button');
-            fullscreenBtn.className = "absolute top-3 left-3 bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md z-30";
+            fullscreenBtn.className = "bg-slate-800/80 hover:bg-slate-700 p-2 rounded-lg text-white transition duration-200 shadow-md";
             fullscreenBtn.innerHTML = `
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>
             `;
@@ -809,9 +1114,38 @@
                     document.exitFullscreen();
                 }
             };
+            leftGroup.appendChild(fullscreenBtn);
 
+            // 2. 🎥 遠端呼叫錄影連動按鈕
+            const remoteRecordBtn = document.createElement('button');
+            remoteRecordBtn.id = `btn-rec-${senderId}`;
+            remoteRecordBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md";
+            remoteRecordBtn.innerText = "🎥 遠端錄影";
+            remoteRecordBtn.onclick = () => {
+                const feed = remoteFeeds[senderId];
+                if (!feed.isRecording) {
+                    // 發送呼叫開始錄影指令
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'trigger_camera_record',
+                        pin: pairCode,
+                        requesterId: myUuid
+                    });
+                } else {
+                    // 發送呼叫停止錄影指令
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'trigger_camera_stop',
+                        pin: pairCode,
+                        requesterId: myUuid
+                    });
+                }
+            };
+            leftGroup.appendChild(remoteRecordBtn);
+
+            // 3. 關閉按鈕
             const closeBtn = document.createElement('button');
-            closeBtn.className = "absolute top-3 right-3 bg-red-600/90 hover:bg-red-500 p-2 rounded-lg text-white opacity-0 group-hover:opacity-100 transition duration-200 shadow-md z-30";
+            closeBtn.className = "bg-red-600/90 hover:bg-red-500 p-2 rounded-lg text-white transition duration-200 shadow-md";
             closeBtn.innerHTML = `
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             `;
@@ -819,12 +1153,14 @@
                 removeFeed(senderId, pairCode);
             };
 
+            controlsOverlay.appendChild(leftGroup);
+            controlsOverlay.appendChild(closeBtn);
+
             tile.appendChild(img);
             tile.appendChild(overlay);
             tile.appendChild(audioEl);
             tile.appendChild(playBtn);
-            tile.appendChild(fullscreenBtn);
-            tile.appendChild(closeBtn);
+            tile.appendChild(controlsOverlay);
             container.appendChild(tile);
 
             // 建立 MediaSource 音訊緩衝拼接架構
@@ -838,7 +1174,8 @@
                 mediaSource: ms,
                 sourceBuffer: null,
                 audioQueue: [],
-                audioEl: audioEl 
+                audioEl: audioEl,
+                isRecording: false
             };
 
             ms.addEventListener('sourceopen', () => {
@@ -847,9 +1184,9 @@
                     remoteFeeds[senderId].sourceBuffer = sb;
 
                     sb.addEventListener('updateend', () => {
-                        const feed = remoteFeeds[senderId];
-                        if (feed && feed.audioQueue.length > 0 && !sb.updating) {
-                            sb.appendBuffer(feed.audioQueue.shift());
+                        const feedInstance = remoteFeeds[senderId];
+                        if (feedInstance && feedInstance.audioQueue.length > 0 && !sb.updating) {
+                            sb.appendBuffer(feedInstance.audioQueue.shift());
                         }
                     });
                 } catch(e) {
@@ -872,7 +1209,6 @@
                 delete remoteFeeds[senderId];
             }
 
-            // 檢查是否還有該配對碼的其他廣播，沒有的話從 watchedCodes 中移除
             const stillHas = Object.values(remoteFeeds).some(f => f.pairCode === pairCode);
             if (!stillHas) {
                 watchedCodes.delete(pairCode);
@@ -900,7 +1236,6 @@
             } else if (binaryChunk instanceof Blob) {
                 arrayBuffer = await binaryChunk.arrayBuffer();
             } else if (typeof binaryChunk === 'string') {
-                // 回退 Base64 轉換 (極少發生)
                 const binary = atob(binaryChunk);
                 const bytes = new Uint8Array(binary.length);
                 for (let i = 0; i < binary.length; i++) {
@@ -918,185 +1253,19 @@
                 } catch(e) {}
             } else {
                 feed.audioQueue.push(arrayBuffer);
-                // 防溢出快取控制
                 if (feed.audioQueue.length > 5) {
                     feed.audioQueue.shift(); // 丟棄過老音訊，確保低延遲
                 }
             }
         }
 
-        // --- 核心優化：觀看端追頻防延遲定時器 (Drift Correction) ---
-        function initLatencyCorrection() {
-            setInterval(() => {
-                if (myRole !== 'viewer') return;
-                
-                Object.values(remoteFeeds).forEach(feed => {
-                    const audioEl = feed.audioEl;
-                    // 當音訊有快取，且快取結束時間與當前播放進度相差超過 0.5 秒 (更積極的防延遲)
-                    if (audioEl && audioEl.buffered.length > 0) {
-                        const bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
-                        const latency = bufferedEnd - audioEl.currentTime;
-                        
-                        if (latency > 0.5) {
-                            // 【低延遲追頻控制】：直接將播放時間強行快進到最新位置，容忍值縮小到 0.5s！
-                            audioEl.currentTime = bufferedEnd - 0.05;
-                        }
-                    }
-                });
-            }, 500); // 掃描頻率加快至 500ms
-        }
-
-        // --- 核心優化：離線自動偵測與徹底關閉清掃器 (Drift Correction) ---
-        function initOfflineCleaner() {
-            setInterval(() => {
-                if (myRole !== 'viewer') return;
-                const now = Date.now();
-                Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
-                    // 超過 5 秒未收到任何影像更新，判定對方已離線或斷網
-                    if (now - feed.lastFrameTime > 5000) {
-                        removeFeed(senderId, feed.pairCode);
-                        showErrorToast(`頻道代碼 ${feed.pairCode} 偵測到離線，已自動關閉其連接。`);
-                    }
-                });
-            }, 2000); // 每 2 秒清掃一次死頻道
-        }
-
-        // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
-        function startOffscreenCompositor() {
-            if (!isRecording) {
-                if (canvasRenderLoopId) {
-                    cancelAnimationFrame(canvasRenderLoopId);
-                    canvasRenderLoopId = null;
-                }
-                return;
-            }
-
-            const canvas = document.getElementById('hiddenCanvas');
-            const ctx = canvas.getContext('2d');
-            
-            // 錄製視訊解析度固定 1280x720
-            canvas.width = 1280;
-            canvas.height = 720;
-
-            function render() {
-                if (myRole !== 'viewer' || !isRecording) return;
-
-                const activeFeeds = Object.entries(remoteFeeds);
-                // 背景塗成純黑
-                ctx.fillStyle = "#000000";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                const count = activeFeeds.length;
-                if (count > 0) {
-                    let cols = Math.ceil(Math.sqrt(count));
-                    let rows = Math.ceil(count / cols);
-                    let w = canvas.width / cols;
-                    let h = canvas.height / rows;
-
-                    activeFeeds.forEach(([id, feed], index) => {
-                        // 💡 終極優化：直接將 HTMLImageElement 渲染上畫布，避開二次解碼 Image 的效能損耗！
-                        const img = feed.imgElement;
-                        if (img && img.complete && img.naturalWidth > 0) {
-                            let col = index % cols;
-                            let row = Math.floor(index / cols);
-                            let x = col * w;
-                            let y = row * h;
-                            ctx.drawImage(img, x, y, w, h);
-                        }
-                    });
-                } else {
-                    ctx.fillStyle = "white";
-                    ctx.font = "30px Arial";
-                    ctx.textAlign = "center";
-                    ctx.fillText("正在等待遠端影像串流...", canvas.width / 2, canvas.height / 2);
-                }
-
-                canvasRenderLoopId = requestAnimationFrame(render);
-            }
-            render();
-        }
-
-        // --- 純淨 Canvas 影像錄製與匯出模組 ---
-        document.getElementById('btnStartRecord').onclick = () => {
-            isRecording = true;
-            startOffscreenCompositor(); // 僅在錄影開啟時，動態啟動 Canvas 拼圖迴圈，平時 0 效能負擔
-
-            const canvas = document.getElementById('hiddenCanvas');
-            
-            // 擷取無 UI 純淨畫布影像訊號 (每秒 15 幀，順暢不卡頓)
-            const stream = canvas.captureStream(15);
-            
-            // 高位元率高畫質無損設定：鎖定高位元率 (10 Mbps) 避免被瀏覽器默認壓縮劣化畫質
-            let options = { videoBitsPerSecond: 10000000 }; 
-            
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                options.mimeType = 'video/webm;codecs=vp9';
-            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-                options.mimeType = 'video/webm;codecs=vp8';
-            } else {
-                options.mimeType = 'video/webm';
-            }
-
-            try {
-                mediaRecorder = new MediaRecorder(stream, options);
-            } catch(e) {
-                showErrorToast('您的瀏覽器不支援 WebM 影像錄製。');
-                return;
-            }
-
-            recordedChunks = [];
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    recordedChunks.push(e.data);
-                }
-            };
-
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
-                
-                // 強制觸發瀏覽器下載
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `Panda遠端監視錄製_${new Date().toISOString().slice(0,10)}_${Math.floor(100+Math.random()*900)}.webm`;
-                document.body.appendChild(a);
-                a.click();
-                
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 100);
-            };
-
-            mediaRecorder.start();
-
-            document.getElementById('btnStartRecord').classList.add('hidden');
-            document.getElementById('btnStopRecord').classList.remove('hidden');
-
-            socket.emit('logAppMessage', { appId: appId, message: '開啟多頻道純淨影像畫布錄製', type: 'info' });
-        };
-
-        document.getElementById('btnStopRecord').onclick = () => {
-            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
-            }
-            isRecording = false;
-            startOffscreenCompositor(); // 錄製停止，完全關閉背景 Canvas 渲染，減少硬體耗損
-
-            document.getElementById('btnStartRecord').classList.remove('hidden');
-            document.getElementById('btnStopRecord').classList.add('hidden');
-        };
-
-        // --- 相機端（本地）錄影控制邏輯 ---
-        document.getElementById('btnCameraStartRecord').onclick = () => {
-            if (!localStream) {
-                showErrorToast("相機裝置尚未就緒，無法錄影！");
-                return;
-            }
+        // --- 被監控端（相機端）實體錄影功能與狀態同步 ---
+        function startLocalCameraRecord() {
+            if (!localStream) return;
 
             cameraRecordedChunks = [];
-            let options = { videoBitsPerSecond: 10000000 }; // 本地高清錄影 10 Mbps 畫質不打折
+            // 高位元率高畫質無損設定 (10 Mbps)
+            let options = { videoBitsPerSecond: 10000000 }; 
             
             if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
                 options.mimeType = 'video/webm;codecs=vp9';
@@ -1120,48 +1289,206 @@
 
             cameraRecorder.onstop = () => {
                 const blob = new Blob(cameraRecordedChunks, { type: 'video/webm' });
-                const url = URL.createObjectURL(blob);
                 
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `Panda相機端本地錄製_${new Date().toISOString().slice(0,10)}_${Math.floor(100+Math.random()*900)}.webm`;
-                document.body.appendChild(a);
-                a.click();
-                
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 100);
+                // 將 Blob 影片轉為 Base64 通過 Socket 傳回觀看端
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const base64Video = reader.result;
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'recorded_video_finished',
+                        pin: myPairCode,
+                        videoData: base64Video,
+                        timestamp: Date.now()
+                    });
+                };
+                reader.readAsDataURL(blob);
 
-                // 重設相機端錄影指示燈狀態
-                document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full";
-                document.getElementById('cameraRecordStatusText').innerText = "本地錄影未啟動";
+                // 移除本地錄影提示 UI
+                document.getElementById('cameraRecordingBlinker').classList.add('hidden');
+                
+                // 同步廣播錄影狀態改變（停止錄影）
+                socket.emit('appData', {
+                    room: appId,
+                    action: 'camera_record_state_change',
+                    pin: myPairCode,
+                    isRecording: false
+                });
             };
 
             cameraRecorder.start();
             isCameraRecording = true;
 
-            document.getElementById('btnCameraStartRecord').classList.add('hidden');
-            document.getElementById('btnCameraStopRecord').classList.remove('hidden');
-            
-            document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-red-500 rounded-full animate-ping";
-            document.getElementById('cameraRecordStatusText').innerText = "本地錄影中...";
-            
-            if (socket && socket.connected) {
-                socket.emit('logAppMessage', { appId: appId, message: '相機端開啟本地高清錄影', type: 'info' });
-            }
-        };
+            // 顯示本地錄影中 UI
+            document.getElementById('cameraRecordingBlinker').classList.remove('hidden');
 
-        document.getElementById('btnCameraStopRecord').onclick = () => {
+            // 同步廣播錄影狀態改變（錄製中）
+            socket.emit('appData', {
+                room: appId,
+                action: 'camera_record_state_change',
+                pin: myPairCode,
+                isRecording: true
+            });
+
+            socket.emit('logAppMessage', { appId: appId, message: `相機端開始執行連動高清錄影: 代碼 ${myPairCode}`, type: 'info' });
+        }
+
+        function stopLocalCameraRecord() {
             if (cameraRecorder && cameraRecorder.state !== 'inactive') {
                 cameraRecorder.stop();
             }
             isCameraRecording = false;
+        }
 
-            document.getElementById('btnCameraStartRecord').classList.remove('hidden');
-            document.getElementById('btnCameraStopRecord').classList.add('hidden');
-        };
+        // --- 🎥 已錄製影片清單渲染與操作 ---
+        function renderRecordedVideos() {
+            const grid = document.getElementById('recordedVideosGrid');
+            if (recordedVideosList.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-slate-500 text-sm bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
+                        目前尚無錄製影片。請點擊上方各頻道的「🎥 遠端錄影」開始錄製。
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = '';
+            recordedVideosList.forEach(video => {
+                const dateText = new Date(video.timestamp).toLocaleString();
+                const card = document.createElement('div');
+                card.className = "bg-slate-800/80 border border-slate-700/60 p-4 rounded-xl flex flex-col justify-between shadow-lg hover:border-slate-600 transition-all";
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="p-2 bg-red-950 text-red-400 rounded-lg shrink-0">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                            </span>
+                            <div>
+                                <h4 class="font-bold text-white text-sm">頻道: ${video.pin}</h4>
+                                <p class="text-[10px] text-slate-400">${dateText}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteRecordedVideo('${video.id}')" class="text-slate-500 hover:text-red-400 p-1 rounded transition" title="刪除此紀錄">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="playVideoModal('${video.id}')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg> 播放
+                        </button>
+                        <button onclick="downloadVideo('${video.id}')" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> 下載
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 影片播放 Modal
+        function playVideoModal(id) {
+            const video = recordedVideosList.find(v => v.id === id);
+            if (!video) return;
+
+            const modal = document.getElementById('videoModal');
+            const player = document.getElementById('modalVideoPlayer');
+            const title = document.getElementById('videoModalTitle');
+            
+            title.innerText = `播放影片 - 頻道 [${video.pin}] | 錄製時間: ${new Date(video.timestamp).toLocaleString()}`;
+            player.src = video.src;
+            modal.classList.remove('hidden');
+        }
+
+        function closeVideoModal() {
+            const modal = document.getElementById('videoModal');
+            const player = document.getElementById('modalVideoPlayer');
+            player.pause();
+            player.src = '';
+            modal.classList.add('hidden');
+        }
+
+        // 刪除影片
+        function deleteRecordedVideo(id) {
+            recordedVideosList = recordedVideosList.filter(v => v.id !== id);
+            renderRecordedVideos();
+            syncVideosToCloud();
+        }
+
+        // 下載影片
+        function downloadVideo(id) {
+            const video = recordedVideosList.find(v => v.id === id);
+            if (!video) return;
+
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = video.src;
+            a.download = `Panda遠端監視錄影_${video.pin}_${new Date(video.timestamp).toISOString().slice(0,10)}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+            }, 100);
+        }
+
+        // 同步影片清單至雲端
+        function syncVideosToCloud() {
+            if (socket && socket.connected) {
+                // 為避免 JSON 體積超過雲端極限，雲端僅儲存 metadata，實際影片存於內存中
+                const metadataList = recordedVideosList.map(v => ({ id: v.id, pin: v.pin, timestamp: v.timestamp }));
+                socket.emit('saveAppData', { 
+                    appId: appId, 
+                    data: { lastWatchedCodes: Array.from(watchedCodes), recordedVideos: metadataList } 
+                });
+            }
+        }
+
+        // --- 核心優化：觀看端追頻防延遲定時器 (Drift Correction) ---
+        function initLatencyCorrection() {
+            setInterval(() => {
+                if (myRole !== 'viewer') return;
+                
+                Object.values(remoteFeeds).forEach(feed => {
+                    const audioEl = feed.audioEl;
+                    if (audioEl && audioEl.buffered.length > 0) {
+                        const bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
+                        const latency = bufferedEnd - audioEl.currentTime;
+                        
+                        if (latency > 0.5) {
+                            audioEl.currentTime = bufferedEnd - 0.05;
+                        }
+                    }
+                });
+            }, 500); 
+        }
+
+        // --- 核心優化：離線自動偵測與徹底關閉清掃器 ---
+        function initOfflineCleaner() {
+            // 觀看端：定時向訂閱的頻道廣播請求心跳
+            setInterval(() => {
+                if (myRole === 'viewer') {
+                    watchedCodes.forEach(code => {
+                        socket.emit('appData', {
+                            room: appId,
+                            action: 'heartbeat_request',
+                            pin: code,
+                            requesterId: myUuid
+                        });
+                    });
+                }
+            }, 2500);
+
+            // 觀看端：清掃已斷線的死頻道
+            setInterval(() => {
+                if (myRole !== 'viewer') return;
+                const now = Date.now();
+                Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
+                    if (now - feed.lastFrameTime > 6000) {
+                        removeFeed(senderId, feed.pairCode);
+                        showErrorToast(`頻道代碼 ${feed.pairCode} 偵測到離線，已自動關閉其連接。`);
+                    }
+                });
+            }, 2000); 
+        }
 
         // --- 載入時初始化 ---
         window.onload = initSocketConnection;
