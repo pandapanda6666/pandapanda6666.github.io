@@ -440,7 +440,8 @@
                 const now = Date.now();
                 let changed = false;
                 for (let uuid in sameAccountDevices) {
-                    if (now - sameAccountDevices[uuid].lastSeen > 6500) {
+                    // 放寬：從 6.5秒 放寬到 15秒，避免網路微抖動就導致裝置清單閃爍消失
+                    if (now - sameAccountDevices[uuid].lastSeen > 15000) { 
                         delete sameAccountDevices[uuid];
                         changed = true;
                     }
@@ -746,7 +747,8 @@
                     const now = Date.now();
                     let changed = false;
                     for (let requesterId in activeViewers) {
-                        if (now - activeViewers[requesterId] > 6000) { 
+                        // 放寬：從 6秒 放寬到 15秒。避免觀看端稍微網路卡頓就被相機端誤判離線而中斷廣播
+                        if (now - activeViewers[requesterId] > 15000) { 
                             delete activeViewers[requesterId];
                             changed = true;
                         }
@@ -1427,12 +1429,13 @@
                 if (myRole !== 'viewer') return;
                 const now = Date.now();
                 Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
-                    if (now - feed.lastFrameTime > 6000) {
+                    // 放寬：從 6秒 放寬到 15秒。避免相機端被縮小到背景時 (瀏覽器限制FPS) 被強行關閉
+                    if (now - feed.lastFrameTime > 15000) {
                         removeFeed(senderId, feed.pairCode);
-                        showErrorToast(`頻道代碼 ${feed.pairCode} 偵測到離線，已自動關閉其連接。`);
+                        showErrorToast(`頻道代碼 ${feed.pairCode} 網路不穩或偵測到離線，已自動關閉其連接。`);
                     }
                 });
-            }, 2000); 
+            }, 3000); 
         }
 
         // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
