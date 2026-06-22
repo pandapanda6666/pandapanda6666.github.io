@@ -313,9 +313,7 @@
         let recordedChunks = [];
         let canvasRenderLoopId = null;
         
-        // 核心修正：將所有影片直接存入記憶體與雲端同步
         let recordedVideosList = []; 
-
         let sameAccountDevices = {};
 
         let localStream = null;
@@ -337,7 +335,6 @@
         let cameraRecordedChunks = [];
         let isCameraRecording = false;
 
-        // 全域暫存，用來記錄讀取到的歷史監看頻道
         let cloudSavedCodes = [];
 
         // --- 返回大廳邏輯 (修正參數問題) ---
@@ -382,7 +379,7 @@
                         currentUser.username = user; 
                         
                         startDeviceDiscoveryBroadcast();
-                        renderSameAccountDevices(); // 立即刷新我的裝置清單狀態
+                        renderSameAccountDevices(); 
 
                         const container = document.getElementById('authContainer');
                         container.innerHTML = `
@@ -441,7 +438,6 @@
                 const now = Date.now();
                 let changed = false;
                 for (let uuid in sameAccountDevices) {
-                    // 放寬：從 6.5秒 放寬到 15秒，避免網路微抖動就導致裝置清單閃爍消失
                     if (now - sameAccountDevices[uuid].lastSeen > 15000) { 
                         delete sameAccountDevices[uuid];
                         changed = true;
@@ -520,20 +516,18 @@
 
         // --- 核心連線邏輯 ---
         async function initSocketConnection() {
-            let serverUrl = new URLSearchParams(window.location.search).get('server');
-            
-            if (!serverUrl) {
-                try {
-                    const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
-                    if (res.ok) {
-                        serverUrl = (await res.text()).trim();
-                    } else {
-                        throw new Error('無法取得 server_url.txt 文件');
-                    }
-                } catch (e) {
-                    showErrorToast('伺服器連線失敗，請稍後再試。');
-                    return;
+            // 徹底移除不安全的參數伺服器讀取，強制只從隱藏檔案動態獲取
+            let serverUrl = '';
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                if (res.ok) {
+                    serverUrl = (await res.text()).trim();
+                } else {
+                    throw new Error('無法取得 server_url.txt 文件');
                 }
+            } catch (e) {
+                showErrorToast('伺服器連線失敗，請稍後再試。');
+                return;
             }
 
             if (serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) {
@@ -547,14 +541,12 @@
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
                 
-                // 讀取雲端持久化資料 (歷史監看與歷史影片)
                 socket.emit('getAppData', { appId: appId }, (res) => {
                     if (res && res.data) {
                         if (res.data.lastWatchedCodes && res.data.lastWatchedCodes.length > 0) {
                             cloudSavedCodes = res.data.lastWatchedCodes;
                         }
                         if (res.data.recordedVideos) {
-                            // 恢復包含 base64 影像的完整影片物件
                             recordedVideosList = res.data.recordedVideos;
                             renderRecordedVideos();
                         }
@@ -593,7 +585,7 @@
             myRole = 'camera';
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('cameraUI').classList.remove('hidden');
-            document.getElementById('recordedVideosSection').classList.remove('hidden'); // 共用影片區
+            document.getElementById('recordedVideosSection').classList.remove('hidden'); 
             document.getElementById('pairCodeDisplay').innerText = myPairCode;
             
             const currentUrl = new URL(window.location.href);
@@ -603,6 +595,8 @@
             const shareUrl = new URL(window.location.href);
             shareUrl.searchParams.set('mode', 'viewer');
             shareUrl.searchParams.set('pin', myPairCode);
+            // 淨化連結，保證安全無私有參數
+            shareUrl.searchParams.delete('server');
             shareUrl.searchParams.delete('auth'); 
             shareUrl.searchParams.delete('user');
             
@@ -638,17 +632,16 @@
             myRole = 'viewer';
             document.getElementById('lobbySection').classList.add('hidden');
             document.getElementById('viewerUI').classList.remove('hidden');
-            document.getElementById('recordedVideosSection').classList.remove('hidden'); // 共用影片區
+            document.getElementById('recordedVideosSection').classList.remove('hidden'); 
             
             const currentUrl = new URL(window.location.href);
             currentUrl.searchParams.set('mode', 'viewer');
             window.history.replaceState({}, '', currentUrl.toString());
 
-            // 自動恢復上次看過的代碼連線
             if (cloudSavedCodes && cloudSavedCodes.length > 0) {
                 document.getElementById('inputPairCode').value = cloudSavedCodes.join(', ');
                 document.getElementById('btnConnect').click();
-                cloudSavedCodes = null; // 清除避免重複執行
+                cloudSavedCodes = null; 
             }
         };
 
@@ -668,12 +661,10 @@
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
-                // 如果已經有舊的串流，先徹底關閉
                 if (localStream) {
                     localStream.getTracks().forEach(track => track.stop());
                 }
 
-                // 💡 錄影最高畫質解鎖：允許硬體直接擷取最高達 1080p (1920x1080) 30FPS 的無損影像！
                 localStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
                     audio: true 
@@ -714,6 +705,9 @@
 
                 document.getElementById('fpsSelect').onchange = (e) => {
                     currentCaptureInterval = parseInt(e.target.value);
+                    if (currentCaptureInterval <= 33 && currentQualityIndex >= 3) { 
+                        showErrorToast('⚠️ 提示：30FPS 搭配高解析度極度消耗上傳頻寬。若觀看端發生明顯延遲，請主動調降畫質或 FPS！', 6000);
+                    }
                     if (Object.keys(activeViewers).length > 0) {
                         startCaptureLoop();
                     }
@@ -750,7 +744,6 @@
                     const now = Date.now();
                     let changed = false;
                     for (let requesterId in activeViewers) {
-                        // 放寬：從 6秒 放寬到 15秒。避免觀看端稍微網路卡頓就被相機端誤判離線而中斷廣播
                         if (now - activeViewers[requesterId] > 15000) { 
                             delete activeViewers[requesterId];
                             changed = true;
@@ -931,7 +924,6 @@
                 }
             }
 
-            // 無論是 Camera 還是 Viewer，只要有人錄影完成廣播出來，大家都同步加到清單
             if (data.action === 'recorded_video_finished') {
                 const newVideo = {
                     id: crypto.randomUUID(),
@@ -942,7 +934,6 @@
                 recordedVideosList.unshift(newVideo);
                 renderRecordedVideos();
                 
-                // 只有觸發者或主端負責上傳雲端，避免重複覆寫 (這裡簡單讓大家都存一份最新版)
                 syncCloudData();
                 showErrorToast(`🎥 頻道 [${data.pin}] 的高清影片已同步加入下方影片清單。`);
                 return;
@@ -1208,12 +1199,210 @@
             }
         }
 
-        // --- 被監控端（相機端）實體錄影功能與狀態同步 ---
+        // --- 核心優化：觀看端追頻防延遲定時器 (Drift Correction) ---
+        function initLatencyCorrection() {
+            setInterval(() => {
+                if (myRole !== 'viewer') return;
+                
+                Object.values(remoteFeeds).forEach(feed => {
+                    const audioEl = feed.audioEl;
+                    if (audioEl && audioEl.buffered.length > 0) {
+                        const bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
+                        const latency = bufferedEnd - audioEl.currentTime;
+                        
+                        if (latency > 0.5) {
+                            audioEl.currentTime = bufferedEnd - 0.05;
+                        }
+                    }
+                });
+            }, 500); 
+        }
+
+        // --- 核心優化：離線自動偵測與徹底關閉清掃器 ---
+        function initOfflineCleaner() {
+            setInterval(() => {
+                if (myRole === 'viewer') {
+                    watchedCodes.forEach(code => {
+                        socket.emit('appData', {
+                            room: appId,
+                            action: 'heartbeat_request',
+                            pin: code,
+                            requesterId: myUuid
+                        });
+                    });
+                }
+            }, 2500);
+
+            setInterval(() => {
+                if (myRole !== 'viewer') return;
+                const now = Date.now();
+                Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
+                    if (now - feed.lastFrameTime > 15000) {
+                        removeFeed(senderId, feed.pairCode);
+                        showErrorToast(`頻道代碼 ${feed.pairCode} 網路不穩或偵測到離線，已自動關閉其連接。`);
+                    }
+                });
+            }, 3000); 
+        }
+
+        // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
+        function startOffscreenCompositor() {
+            if (!isRecording) {
+                if (canvasRenderLoopId) {
+                    cancelAnimationFrame(canvasRenderLoopId);
+                    canvasRenderLoopId = null;
+                }
+                return;
+            }
+
+            const canvas = document.getElementById('hiddenCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = 1280;
+            canvas.height = 720;
+
+            function render() {
+                if (myRole !== 'viewer' || !isRecording) return;
+
+                const activeFeeds = Object.entries(remoteFeeds);
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const count = activeFeeds.length;
+                if (count > 0) {
+                    let cols = Math.ceil(Math.sqrt(count));
+                    let rows = Math.ceil(count / cols);
+                    let w = canvas.width / cols;
+                    let h = canvas.height / rows;
+
+                    activeFeeds.forEach(([id, feed], index) => {
+                        const img = feed.imgElement;
+                        if (img && img.complete && img.naturalWidth > 0) {
+                            let col = index % cols;
+                            let row = Math.floor(index / cols);
+                            let x = col * w;
+                            let y = row * h;
+                            
+                            let imgAspect = img.naturalWidth / img.naturalHeight;
+                            let cellAspect = w / h;
+                            let drawW = w, drawH = h, dx = 0, dy = 0;
+
+                            if (imgAspect > cellAspect) {
+                                drawH = w / imgAspect;
+                                dy = (h - drawH) / 2;
+                            } else {
+                                drawW = h * imgAspect;
+                                dx = (w - drawW) / 2;
+                            }
+                            
+                            ctx.drawImage(img, x + dx, y + dy, drawW, drawH);
+                        }
+                    });
+                } else {
+                    ctx.fillStyle = "white";
+                    ctx.font = "30px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("正在等待遠端影像串流...", canvas.width / 2, canvas.height / 2);
+                }
+
+                canvasRenderLoopId = requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        // --- 純淨 Canvas 影像錄製與匯出模組 ---
+        document.getElementById('btnStartRecord').onclick = () => {
+            isRecording = true;
+            startOffscreenCompositor(); 
+
+            const canvas = document.getElementById('hiddenCanvas');
+            const stream = canvas.captureStream(15);
+            
+            let options = { videoBitsPerSecond: 20000000 }; 
+            
+            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+                options.mimeType = 'video/webm;codecs=vp9';
+            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
+                options.mimeType = 'video/webm;codecs=vp8';
+            } else {
+                options.mimeType = 'video/webm';
+            }
+
+            try {
+                mediaRecorder = new MediaRecorder(stream, options);
+            } catch(e) {
+                showErrorToast('您的瀏覽器不支援 WebM 影像錄製。');
+                return;
+            }
+
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
+            };
+
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const base64Video = reader.result;
+                    
+                    const newVideo = {
+                        id: crypto.randomUUID(),
+                        pin: '合成全螢幕',
+                        src: base64Video,
+                        timestamp: Date.now()
+                    };
+                    recordedVideosList.unshift(newVideo);
+                    renderRecordedVideos();
+                    syncCloudData();
+                };
+                reader.readAsDataURL(blob);
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `Panda遠端監視合成錄製_${new Date().toISOString().slice(0,10)}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+            };
+
+            mediaRecorder.start();
+
+            document.getElementById('btnStartRecord').classList.add('hidden');
+            document.getElementById('btnStopRecord').classList.remove('hidden');
+
+            socket.emit('logAppMessage', { appId: appId, message: '開啟多頻道純淨影像畫布錄製', type: 'info' });
+        };
+
+        document.getElementById('btnStopRecord').onclick = () => {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            startOffscreenCompositor();
+
+            document.getElementById('btnStartRecord').classList.remove('hidden');
+            document.getElementById('btnStopRecord').classList.add('hidden');
+        };
+
+        // --- 本地相機錄影功能綁定 ---
+        document.getElementById('btnCameraStartRecord').onclick = startLocalCameraRecord;
+        document.getElementById('btnCameraStopRecord').onclick = stopLocalCameraRecord;
+
         function startLocalCameraRecord() {
             if (!localStream) return;
+            if (isCameraRecording) return; 
 
             cameraRecordedChunks = [];
-            let options = { videoBitsPerSecond: 10000000 }; 
+            let options = { videoBitsPerSecond: 20000000 }; 
             
             if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
                 options.mimeType = 'video/webm;codecs=vp9';
@@ -1242,7 +1431,6 @@
                 reader.onloadend = function() {
                     const base64Video = reader.result;
                     
-                    // 1. 同步加入自己的本地清單
                     const newVideo = {
                         id: crypto.randomUUID(),
                         pin: myPairCode,
@@ -1253,7 +1441,6 @@
                     renderRecordedVideos();
                     syncCloudData();
 
-                    // 2. 將錄完的影片發送給所有的觀看端
                     socket.emit('appData', {
                         room: appId,
                         action: 'recorded_video_finished',
@@ -1265,6 +1452,10 @@
                 reader.readAsDataURL(blob);
 
                 document.getElementById('cameraRecordingBlinker').classList.add('hidden');
+                document.getElementById('btnCameraStartRecord').classList.remove('hidden');
+                document.getElementById('btnCameraStopRecord').classList.add('hidden');
+                document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full transition-all duration-300";
+                document.getElementById('cameraRecordStatusText').innerText = "本地錄影未啟動";
                 
                 socket.emit('appData', {
                     room: appId,
@@ -1278,6 +1469,10 @@
             isCameraRecording = true;
 
             document.getElementById('cameraRecordingBlinker').classList.remove('hidden');
+            document.getElementById('btnCameraStartRecord').classList.add('hidden');
+            document.getElementById('btnCameraStopRecord').classList.remove('hidden');
+            document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-red-500 rounded-full animate-ping";
+            document.getElementById('cameraRecordStatusText').innerText = "本地錄影中...";
 
             socket.emit('appData', {
                 room: appId,
@@ -1285,6 +1480,8 @@
                 pin: myPairCode,
                 isRecording: true
             });
+
+            socket.emit('logAppMessage', { appId: appId, message: `相機端開始執行連動高清錄影: 代碼 ${myPairCode}`, type: 'info' });
         }
 
         function stopLocalCameraRecord() {
@@ -1294,7 +1491,7 @@
             isCameraRecording = false;
         }
 
-        // --- 🎥 已錄製影片清單渲染與操作 (共用) ---
+        // --- 🎥 已錄製影片清單渲染與操作 ---
         function renderRecordedVideos() {
             const grid = document.getElementById('recordedVideosGrid');
             if (recordedVideosList.length === 0) {
@@ -1380,231 +1577,6 @@
                 document.body.removeChild(a);
             }, 100);
         }
-
-        // 將清單 (歷史觀看與錄影完整資料) 同步至雲端伺服器存檔
-        function syncCloudData() {
-            if (socket && socket.connected) {
-                socket.emit('saveAppData', { 
-                    appId: appId, 
-                    data: { 
-                        lastWatchedCodes: Array.from(watchedCodes), 
-                        recordedVideos: recordedVideosList 
-                    } 
-                });
-            }
-        }
-
-        // --- 核心優化：觀看端追頻防延遲定時器 (Drift Correction) ---
-        function initLatencyCorrection() {
-            setInterval(() => {
-                if (myRole !== 'viewer') return;
-                
-                Object.values(remoteFeeds).forEach(feed => {
-                    const audioEl = feed.audioEl;
-                    if (audioEl && audioEl.buffered.length > 0) {
-                        const bufferedEnd = audioEl.buffered.end(audioEl.buffered.length - 1);
-                        const latency = bufferedEnd - audioEl.currentTime;
-                        
-                        if (latency > 0.5) {
-                            audioEl.currentTime = bufferedEnd - 0.05;
-                        }
-                    }
-                });
-            }, 500); 
-        }
-
-        // --- 核心優化：離線自動偵測與徹底關閉清掃器 ---
-        function initOfflineCleaner() {
-            setInterval(() => {
-                if (myRole === 'viewer') {
-                    watchedCodes.forEach(code => {
-                        socket.emit('appData', {
-                            room: appId,
-                            action: 'heartbeat_request',
-                            pin: code,
-                            requesterId: myUuid
-                        });
-                    });
-                }
-            }, 2500);
-
-            setInterval(() => {
-                if (myRole !== 'viewer') return;
-                const now = Date.now();
-                Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
-                    // 放寬：從 6秒 放寬到 15秒。避免相機端被縮小到背景時 (瀏覽器限制FPS) 被強行關閉
-                    if (now - feed.lastFrameTime > 15000) {
-                        removeFeed(senderId, feed.pairCode);
-                        showErrorToast(`頻道代碼 ${feed.pairCode} 網路不穩或偵測到離線，已自動關閉其連接。`);
-                    }
-                });
-            }, 3000); 
-        }
-
-        // --- 背景 2D Canvas 純淨多頻道拼圖與合成引擎 ---
-        function startOffscreenCompositor() {
-            if (!isRecording) {
-                if (canvasRenderLoopId) {
-                    cancelAnimationFrame(canvasRenderLoopId);
-                    canvasRenderLoopId = null;
-                }
-                return;
-            }
-
-            const canvas = document.getElementById('hiddenCanvas');
-            const ctx = canvas.getContext('2d');
-            
-            canvas.width = 1280;
-            canvas.height = 720;
-
-            function render() {
-                if (myRole !== 'viewer' || !isRecording) return;
-
-                const activeFeeds = Object.entries(remoteFeeds);
-                ctx.fillStyle = "#000000";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                const count = activeFeeds.length;
-                if (count > 0) {
-                    let cols = Math.ceil(Math.sqrt(count));
-                    let rows = Math.ceil(count / cols);
-                    let w = canvas.width / cols;
-                    let h = canvas.height / rows;
-
-                    activeFeeds.forEach(([id, feed], index) => {
-                        const img = feed.imgElement;
-                        if (img && img.complete && img.naturalWidth > 0) {
-                            let col = index % cols;
-                            let row = Math.floor(index / cols);
-                            let x = col * w;
-                            let y = row * h;
-                            
-                            let imgAspect = img.naturalWidth / img.naturalHeight;
-                            let cellAspect = w / h;
-                            let drawW = w, drawH = h, dx = 0, dy = 0;
-
-                            if (imgAspect > cellAspect) {
-                                drawH = w / imgAspect;
-                                dy = (h - drawH) / 2;
-                            } else {
-                                drawW = h * imgAspect;
-                                dx = (w - drawW) / 2;
-                            }
-                            
-                            ctx.drawImage(img, x + dx, y + dy, drawW, drawH);
-                        }
-                    });
-                } else {
-                    ctx.fillStyle = "white";
-                    ctx.font = "30px Arial";
-                    ctx.textAlign = "center";
-                    ctx.fillText("正在等待遠端影像串流...", canvas.width / 2, canvas.height / 2);
-                }
-
-                canvasRenderLoopId = requestAnimationFrame(render);
-            }
-            render();
-        }
-
-        // --- 純淨 Canvas 影像錄製與匯出模組 ---
-        document.getElementById('btnStartRecord').onclick = () => {
-            isRecording = true;
-            startOffscreenCompositor(); 
-
-            const canvas = document.getElementById('hiddenCanvas');
-            const stream = canvas.captureStream(15);
-            
-            // 高位元率高畫質無損設定：鎖定極高位元率 (20 Mbps)
-            let options = { videoBitsPerSecond: 20000000 }; 
-            
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-        // --- 被監控端（相機端）實體錄影功能與狀態同步 ---
-        // 綁定本地錄影實體按鈕事件
-        document.getElementById('btnCameraStartRecord').onclick = startLocalCameraRecord;
-        document.getElementById('btnCameraStopRecord').onclick = stopLocalCameraRecord;
-
-        function startLocalCameraRecord() {
-            if (!localStream) return;
-            if (isCameraRecording) return; // 防呆機制
-
-            cameraRecordedChunks = [];
-            // 高位元率高畫質無損設定 (20 Mbps 確保原生 1080p 不失真)
-            let options = { videoBitsPerSecond: 20000000 }; 
-            
-            if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
-                options.mimeType = 'video/webm;codecs=vp9';
-            } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-                options.mimeType = 'video/webm;codecs=vp8';
-            } else {
-                options.mimeType = 'video/webm';
-            }
-
-            try {
-                mediaRecorder = new MediaRecorder(stream, options);
-            } catch(e) {
-                showErrorToast('您的瀏覽器不支援 WebM 影像錄製。');
-                return;
-            }
-
-            recordedChunks = [];
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) {
-                    recordedChunks.push(e.data);
-                }
-            };
-
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                
-                const reader = new FileReader();
-                reader.onloadend = function() {
-                    const base64Video = reader.result;
-                    
-                    // 同步加入清單
-                    const newVideo = {
-                        id: crypto.randomUUID(),
-                        pin: '合成全螢幕',
-                        src: base64Video,
-                        timestamp: Date.now()
-                    };
-                    recordedVideosList.unshift(newVideo);
-                    renderRecordedVideos();
-                    syncCloudData();
-                };
-                reader.readAsDataURL(blob);
-
-                // 移除本地錄影提示 UI，並恢復按鈕狀態
-                document.getElementById('cameraRecordingBlinker').classList.add('hidden');
-                document.getElementById('btnCameraStartRecord').classList.remove('hidden');
-                document.getElementById('btnCameraStopRecord').classList.add('hidden');
-                document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full transition-all duration-300";
-                document.getElementById('cameraRecordStatusText').innerText = "本地錄影未啟動";
-                
-                socket.emit('appData', {
-                    room: appId,
-                    action: 'camera_record_state_change',
-                    pin: myPairCode,
-                    isRecording: false
-                });
-            };
-
-            cameraRecorder.start();
-            isCameraRecording = true;
-
-            // 顯示本地錄影中 UI，並切換按鈕狀態
-            document.getElementById('cameraRecordingBlinker').classList.remove('hidden');
-            document.getElementById('btnCameraStartRecord').classList.add('hidden');
-            document.getElementById('btnCameraStopRecord').classList.remove('hidden');
-            document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-red-500 rounded-full animate-ping";
-            document.getElementById('cameraRecordStatusText').innerText = "本地錄影中...";
-
-            socket.emit('appData', {
-                room: appId,
-                action: 'camera_record_state_change',
-                pin: myPairCode,
-                isRecording: true
-            });
-        };
 
         // --- 載入時初始化 ---
         window.onload = initSocketConnection;
