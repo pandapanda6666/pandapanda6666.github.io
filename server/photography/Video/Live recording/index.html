@@ -139,16 +139,17 @@
                         <option value="200">低 (5 FPS)</option>
                         <option value="100" selected>標準 (10 FPS) - 推薦</option>
                         <option value="66">高 (15 FPS)</option>
-                        <option value="33">極高 (30 FPS) - 高流暢</option>
+                        <option value="33">極高 (30 FPS) - 易延遲</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2">
                     <label class="text-slate-400 text-sm">影像畫質:</label>
                     <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="0.1">極省流 (低頻寬需求)</option>
-                        <option value="0.2">省流 (低畫質)</option>
-                        <option value="0.3" selected>標準 (中畫質)</option>
-                        <option value="0.6">清晰 (高畫質)</option>
+                        <option value="0">極省流 (240p)</option>
+                        <option value="1">省流 (360p)</option>
+                        <option value="2" selected>標準 (480p) - 推薦</option>
+                        <option value="3">清晰 (600p)</option>
+                        <option value="4">極致 (720p HD) - 易延遲</option>
                     </select>
                 </div>
             </div>
@@ -234,13 +235,22 @@
         let recordedChunks = [];
         let canvasRenderLoopId = null;
 
-        // 相機端專用 (整合防重疊與觀眾追蹤機制)
+        // 相機端專用 (整合高畫質解析度動態切換機制)
         let localStream = null;
         let videoInterval = null;
         let micRecorder = null;
-        let activeViewers = []; // 線上正在觀看本機的觀眾 uuid 陣列
-        let currentCaptureInterval = 100; // 預設 100ms (10 FPS)
-        let currentCaptureQuality = 0.3;  // 預設中畫質 0.3
+        let activeViewers = []; 
+        let currentCaptureInterval = 100; // 預設 10 FPS
+        
+        // 高畫質解鎖設定檔 (寬, 高, 壓縮品質)
+        const qualityPresets = [
+            { w: 320, h: 240, q: 0.15 }, // 0: 極省流 (240p)
+            { w: 480, h: 360, q: 0.3 },  // 1: 省流 (360p)
+            { w: 640, h: 480, q: 0.5 },  // 2: 標準 (480p)
+            { w: 800, h: 600, q: 0.7 },  // 3: 清晰 (600p)
+            { w: 1280, h: 720, q: 0.8 }  // 4: 極致 (720p HD)
+        ];
+        let currentQualityIndex = 2; // 預設 2 (標準 480p)
 
         // 新增相機本地高清錄影專用變數
         let cameraRecorder = null;
@@ -298,14 +308,14 @@
         }
 
         // --- 錯誤提示 UI ---
-        function showErrorToast(message) {
+        function showErrorToast(message, duration = 4000) {
             const toast = document.getElementById('alertToast');
             const text = document.getElementById('alertToastText');
             text.innerText = message;
             toast.classList.remove('hidden');
             setTimeout(() => {
                 toast.classList.add('hidden');
-            }, 4000);
+            }, duration);
         }
 
         // --- 核心連線邏輯 ---
@@ -391,7 +401,7 @@
             }
         }
 
-        // --- 相機端廣播邏輯 (高流暢觀眾追蹤與畫質自動調適防延遲版) ---
+        // --- 相機端廣播邏輯 (高解析度硬體解鎖版) ---
         async function initCameraBroadcaster() {
             const statusLabel = document.getElementById('cameraStatus');
             try {
@@ -400,34 +410,38 @@
                     localStream.getTracks().forEach(track => track.stop());
                 }
 
+                // 💡 高清解鎖：允許硬體直接擷取最高達 720p (1280x720) 30FPS 的影像！
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: 480, height: 360, frameRate: 30 }, // 升級最高支援 30 FPS
+                    video: { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
                     audio: true 
                 });
                 document.getElementById('localVideo').srcObject = localStream;
-                statusLabel.innerText = "裝置準備就緒，已啟用「低延遲追頻機制與無人看自動休眠」系統。";
+                statusLabel.innerText = "裝置準備就緒，高清硬體擷取通道已解鎖。";
 
-                // 隱藏畫布用於壓縮擷取
                 const capCanvas = document.createElement('canvas');
-                capCanvas.width = 320; 
-                capCanvas.height = 240;
                 const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
                 const videoEl = document.getElementById('localVideo');
 
-                // 動態啟動或重啟影像擷取迴圈 (防重疊與頻率即時響應機制)
+                // 動態啟動或重啟影像擷取迴圈
                 function startCaptureLoop() {
                     stopCaptureLoop();
                     
+                    // 動態套用使用者選擇的真實解析度！
+                    const preset = qualityPresets[currentQualityIndex];
+                    capCanvas.width = preset.w;
+                    capCanvas.height = preset.h;
+                    const compressionQuality = preset.q;
+
                     videoInterval = setInterval(() => {
-                        // 核心優化：如果沒有觀眾，直接跳過不發送！
+                        // 如果沒有觀眾，直接跳過不發送！
                         if (activeViewers.length === 0) return;
 
                         if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                             ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                            // 終極防延遲：改用 webp 壓縮，體積比 jpeg 小 30%，傳輸更快
-                            const base64Frame = capCanvas.toDataURL('image/webp', currentCaptureQuality); 
+                            // 使用 webp 確保同畫質下體積更小
+                            const base64Frame = capCanvas.toDataURL('image/webp', compressionQuality); 
                             
-                            // 終極防延遲：使用 volatile 發送，若網路塞車則自動丟棄舊幀，絕不排隊累積延遲！
+                            // 揮發性發送 (volatile)：若網路塞車，舊畫面直接丟棄，確保時間零延遲
                             socket.volatile.emit('appData', {
                                 room: appId,
                                 action: 'videoFrame',
@@ -439,28 +453,29 @@
                     }, currentCaptureInterval);
                 }
 
-                // 監聽選單變更，加入「防延遲畫質降載調節器」
+                // 監聽 FPS 變更 (移除強制降畫質綁架，改為善意提示)
                 document.getElementById('fpsSelect').onchange = (e) => {
                     currentCaptureInterval = parseInt(e.target.value);
                     
-                    // 【低延遲自動調節機制】：如果選擇了 30 FPS (33ms)，自動下調預設畫質到 0.15 或 0.2，避免網路阻塞產生延遲！
-                    if (currentCaptureInterval <= 33) { 
-                        document.getElementById('qualitySelect').value = "0.1";
-                        currentCaptureQuality = 0.1;
-                    } else if (currentCaptureInterval <= 100) {
-                        document.getElementById('qualitySelect').value = "0.3";
-                        currentCaptureQuality = 0.3;
+                    // 如果用戶執意要 30 FPS + 清晰以上畫質，顯示延遲警告
+                    if (currentCaptureInterval <= 33 && currentQualityIndex >= 3) { 
+                        showErrorToast('⚠️ 提示：30FPS 搭配高解析度極度消耗上傳頻寬。若觀看端發生明顯延遲，請主動調降畫質或 FPS！', 6000);
                     }
                     
                     if (activeViewers.length > 0) {
                         startCaptureLoop();
                     }
-                    socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms，已自動調整畫質防延遲。`, type: 'info' });
+                    socket.emit('logAppMessage', { appId: appId, message: `更改頻率為: ${e.target.value}ms`, type: 'info' });
                 };
 
+                // 監聽畫質變更 (真實切換解析度)
                 document.getElementById('qualitySelect').onchange = (e) => {
-                    currentCaptureQuality = parseFloat(e.target.value);
-                    socket.emit('logAppMessage', { appId: appId, message: `更改畫質為: ${e.target.value}`, type: 'info' });
+                    currentQualityIndex = parseInt(e.target.value);
+                    
+                    if (activeViewers.length > 0) {
+                        startCaptureLoop(); // 重啟計時器以套用新的畫布大小
+                    }
+                    socket.emit('logAppMessage', { appId: appId, message: `更改畫質為檔位: ${currentQualityIndex}`, type: 'info' });
                 };
 
                 // 建立麥克風音訊切片發送實例 (先不啟動，等待觀眾觸發)
@@ -473,7 +488,6 @@
                         if (activeViewers.length === 0) return;
 
                         if (e.data.size > 0 && socket && socket.connected) {
-                            // 終極防延遲：音訊也採用 volatile 傳送，避免 TCP 排隊
                             socket.volatile.emit('appData', {
                                 room: appId,
                                 action: 'audioChunk',
@@ -503,7 +517,6 @@
         }
 
         function startBroadcasting() {
-            // 觀眾加入，重新啟動影像與聲音擷取
             const statusLabel = document.getElementById('cameraStatus');
             statusLabel.innerText = "觀眾已進入！影像與音訊全速廣播傳輸中...";
             
@@ -511,18 +524,22 @@
             const fpsVal = parseInt(document.getElementById('fpsSelect').value);
             currentCaptureInterval = fpsVal;
             
-            if (videoInterval) clearInterval(videoInterval);
+            stopCaptureLoop();
             const videoEl = document.getElementById('localVideo');
             const capCanvas = document.createElement('canvas');
-            capCanvas.width = 320;
-            capCanvas.height = 240;
             const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
+
+            // 確保套用正確解析度
+            const preset = qualityPresets[currentQualityIndex];
+            capCanvas.width = preset.w;
+            capCanvas.height = preset.h;
+            const compressionQuality = preset.q;
 
             videoInterval = setInterval(() => {
                 if (activeViewers.length === 0) return;
                 if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                     ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                    const base64Frame = capCanvas.toDataURL('image/webp', currentCaptureQuality); 
+                    const base64Frame = capCanvas.toDataURL('image/webp', compressionQuality); 
                     socket.volatile.emit('appData', {
                         room: appId,
                         action: 'videoFrame',
