@@ -23,14 +23,12 @@
         
         window.addEventListener('unhandledrejection', function(event) {
             const errorMsg = event.reason ? (event.reason.message || event.reason.toString()) : '未知錯誤';
-            // 過濾瀏覽器插件產生的已知 Promise 擴充功能報錯
             if (typeof errorMsg === 'string' && errorMsg.includes('message channel closed')) return;
             if (typeof socket !== 'undefined' && socket.connected) {
                 socket.emit('logError', { errorMsg: 'Promise異常: ' + errorMsg, url: window.location.href, line: 0 });
             }
         });
 
-        // 屏蔽不必要的控制台輸出，避免大量代碼刷屏
         console.log = function() {};
         console.info = function() {};
 
@@ -45,7 +43,7 @@
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
 
     <!-- 頂部導覽列與 SSO 個人資料區 -->
-    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md">
+    <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md z-10">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="flex items-center gap-3">
                 <div class="h-3 w-3 bg-red-500 rounded-full animate-ping"></div>
@@ -60,7 +58,7 @@
         </div>
     </header>
 
-    <!-- 同帳號聯動裝置面板 (登入後自動顯示) -->
+    <!-- 同帳號聯動裝置面板 -->
     <section id="deviceDiscoveryPanel" class="hidden bg-slate-800/60 border-b border-slate-700/50 py-3 px-6">
         <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div class="flex items-center gap-2">
@@ -120,7 +118,6 @@
                 <div id="pairCodeDisplay" class="text-4xl font-mono font-extrabold text-emerald-400 tracking-wider">------</div>
                 <div id="camera-viewer-count" class="text-xs text-indigo-400 font-semibold mt-2 mb-4">線上觀看人數: 0 人</div>
                 
-                <!-- 快速分享連結區塊 -->
                 <div class="bg-slate-800/50 rounded-lg p-3 text-left border border-slate-700">
                     <p class="text-[10px] text-slate-400 mb-1.5">🔗 分享此連結給觀眾，點擊即可自動連線：</p>
                     <div class="flex gap-2">
@@ -137,14 +134,13 @@
                     <span id="indicatorDot" class="h-2 w-2 bg-slate-500 rounded-full"></span>
                     <span id="indicatorText">靜止待機中 (無人連線不佔頻寬)</span>
                 </div>
-                <!-- 本地錄影中閃爍紅標 -->
                 <div id="cameraRecordingBlinker" class="hidden absolute top-4 right-4 bg-red-600/90 text-white font-bold text-xs py-1 px-3 rounded-full animate-pulse flex items-center gap-1.5 shadow-lg">
                     <span class="h-2 w-2 bg-white rounded-full"></span>
                     錄影中
                 </div>
             </div>
 
-            <!-- 新增：鏡頭選擇器 (Camera Selection) -->
+            <!-- 鏡頭選擇器 -->
             <div class="mt-4 bg-slate-900 rounded-xl p-3 border border-slate-700 flex items-center justify-between gap-2">
                 <label class="text-slate-400 text-sm whitespace-nowrap font-bold flex items-center gap-2">
                     <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
@@ -173,27 +169,46 @@
                 </div>
             </div>
             
-            <!-- 傳輸頻率與畫質控制區 -->
-            <div class="mt-4 flex flex-wrap items-center justify-center gap-4 bg-slate-900 rounded-xl p-3 border border-slate-700">
-                <div class="flex items-center gap-2">
-                    <label class="text-slate-400 text-sm">傳輸頻率:</label>
-                    <select id="fpsSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="500">極低 (2 FPS) - 最省流</option>
-                        <option value="200">低 (5 FPS)</option>
-                        <option value="100" selected>標準 (10 FPS) - 推薦</option>
-                        <option value="66">高 (15 FPS)</option>
-                        <option value="33">極高 (30 FPS) - 易延遲</option>
-                    </select>
+            <!-- 【核心升級】傳輸頻率與畫質控制區 (支援自訂輸入與自動分配) -->
+            <div class="mt-4 flex flex-col gap-3 bg-slate-900 rounded-xl p-4 border border-slate-700">
+                <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-1">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="autoAllocateCb" class="w-4 h-4 text-emerald-600 rounded border-slate-600 focus:ring-emerald-500 cursor-pointer">
+                        <label for="autoAllocateCb" class="text-sm font-bold text-emerald-400 cursor-pointer select-none">自動分配 (根據雙方電腦效能智慧調節)</label>
+                    </div>
+                    <span id="autoAllocateStatus" class="text-xs text-slate-400 hidden"></span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <label class="text-slate-400 text-sm">影像寬度 (解析度):</label>
-                    <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition">
-                        <option value="0">極省流 (寬度 320)</option>
-                        <option value="1">省流 (寬度 480)</option>
-                        <option value="2" selected>標準 (寬度 640) - 推薦</option>
-                        <option value="3">清晰 (寬度 800)</option>
-                        <option value="4">極致 (寬度 1280) - 易延遲</option>
-                    </select>
+                
+                <div class="flex flex-col sm:flex-row items-start sm:items-end justify-start gap-4">
+                    <div class="flex flex-col gap-1 w-full sm:w-auto">
+                        <label class="text-slate-400 text-xs">傳輸頻率 (FPS):</label>
+                        <div class="flex gap-2 items-center">
+                            <select id="fpsSelect" class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition w-full sm:w-56">
+                                <option value="500">極低 (2 FPS) - 預估 ~2MB RAM</option>
+                                <option value="200">低 (5 FPS) - 預估 ~5MB RAM</option>
+                                <option value="100" selected>標準 (10 FPS) - 預估 ~10MB RAM</option>
+                                <option value="66">高 (15 FPS) - 預估 ~15MB RAM</option>
+                                <option value="33">極高 (30 FPS) - 預估 ~30MB RAM</option>
+                                <option value="custom">⚙️ 自訂頻率...</option>
+                            </select>
+                            <input type="number" id="customFpsInput" placeholder="FPS (1-60)" class="hidden bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-center" min="1" max="60">
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col gap-1 w-full sm:w-auto">
+                        <label class="text-slate-400 text-xs">影像寬度 (解析度):</label>
+                        <div class="flex gap-2 items-center">
+                            <select id="qualitySelect" class="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-indigo-500 transition w-full sm:w-56">
+                                <option value="0">極省流 (寬度 320) - 預估 ~5MB RAM</option>
+                                <option value="1">省流 (寬度 480) - 預估 ~15MB RAM</option>
+                                <option value="2" selected>標準 (寬度 640) - 預估 ~30MB RAM</option>
+                                <option value="3">清晰 (寬度 800) - 預估 ~50MB RAM</option>
+                                <option value="4">極致 (寬度 1280) - 預估 ~100MB RAM</option>
+                                <option value="custom">⚙️ 自訂寬度...</option>
+                            </select>
+                            <input type="number" id="customWidthInput" placeholder="寬度 (像素)" class="hidden bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm w-28 text-center" min="100" max="1920">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -210,9 +225,9 @@
                 <button onclick="returnToLobby()" class="text-slate-400 hover:text-white text-sm transition border border-slate-600 px-3 py-1 rounded-lg">返回大廳</button>
             </div>
 
-            <!-- 頻道添加與控制區 (分為我的裝置與其他裝置) -->
+            <!-- 頻道添加與控制區 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <!-- 連線我的裝置 (SSO 同帳號探索) -->
+                <!-- 連線我的裝置 -->
                 <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-inner flex flex-col">
                     <h3 class="text-sm font-bold text-teal-400 mb-3 flex items-center gap-2">
                         <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13 14.5a2.5 2.5 0 10-5 0 2.5 2.5 0 005 0z" /><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM3 10a7 7 0 1114 0 7 7 0 01-14 0z" clip-rule="evenodd" /></svg>
@@ -239,7 +254,7 @@
                 </div>
             </div>
 
-            <!-- 新增：多裝置錄影控制列 -->
+            <!-- 多裝置錄影批次控制列 -->
             <div id="multiRecordBar" class="bg-slate-900 border border-slate-600 rounded-xl p-3 mb-4 flex flex-wrap items-center justify-between gap-3 shadow-lg">
                 <div class="text-sm font-bold text-slate-200 flex items-center gap-2">
                     <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" /></svg>
@@ -262,9 +277,9 @@
                 <div id="viewerStatus" class="text-xs text-slate-400">請在上方選擇或加入連線頻道。</div>
             </div>
 
-            <!-- 頻道多分割視窗網格 (獨立設備獨立錄製，左上角含勾選框) -->
+            <!-- 頻道多分割視窗網格 -->
             <div id="feedContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                <!-- 這裡會動態產生各頻道的視窗 -->
+                <!-- 動態產生各頻道的視窗 -->
             </div>
         </div>
 
@@ -273,7 +288,6 @@
             
             <!-- 📁 第一區：多裝置任務資料夾專區 -->
             <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
-                <!-- 裝飾用背景 -->
                 <div class="absolute -top-10 -right-10 w-40 h-40 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
                 
                 <h3 class="text-xl font-extrabold text-white mb-6 flex items-center gap-2">
@@ -317,12 +331,17 @@
         </div>
     </div>
 
-    <!-- 底部資訊與版權 -->
-    <footer class="bg-slate-950 border-t border-slate-900 py-6 text-center text-xs text-slate-500 flex flex-col gap-2">
-        <div>
-            <a href="https://pandapanda6666.github.io" class="hover:text-indigo-400 transition font-medium">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
-        </div>
-    </footer>
+    <!-- 左下角記憶體用量監控 -->
+    <div id="memoryMonitor" class="fixed bottom-6 left-6 bg-slate-800/80 backdrop-blur border border-slate-700 text-slate-300 text-[10px] sm:text-xs px-3 py-2 rounded-lg shadow-2xl z-50 flex items-center gap-2 transition-all">
+        <svg class="h-4 w-4 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>
+        <span class="font-mono">RAM: <span id="memoryUsageText" class="text-teal-400 font-bold">計算中...</span></span>
+    </div>
+
+    <!-- 右下角回報問題浮動按鈕 -->
+    <button onclick="reportIssue()" class="fixed bottom-6 right-6 bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 px-5 rounded-full shadow-2xl z-50 flex items-center gap-2 transition duration-300 transform hover:scale-105 active:scale-95">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+        回報問題
+    </button>
 
     <!-- 核心運作腳本 -->
     <script>
@@ -344,9 +363,13 @@
         let videoInterval = null;
         let micRecorder = null;
         let activeViewers = {}; 
-        let currentCameraId = ''; // 儲存使用者選擇的鏡頭ID
+        let currentCameraId = ''; 
         
-        let currentCaptureInterval = 100; 
+        // 智慧調節與自訂控制參數
+        let isAutoAllocate = false;
+        let autoAllocateTimer = null;
+        let currentCaptureInterval = 100; // 預設 100ms (10 FPS)
+        
         const qualityPresets = [
             { w: 320, q: 0.15 }, 
             { w: 480, q: 0.3 },  
@@ -354,24 +377,19 @@
             { w: 800, q: 0.7 },  
             { w: 1280, q: 0.8 }  
         ];
-        let currentQualityIndex = 2; 
+        let currentQualityIndex = 2; // 預設 2 (標準寬度 640)
 
         let cameraRecorder = null;
         let cameraRecordedChunks = [];
         let isCameraRecording = false;
         
-        // 攝影機端紀錄：當前正在執行的錄影任務標記
         let currentRecordingFolderId = null;
         let currentRecordingFolderName = null;
-
-        // 觀看端：多裝置錄影控制狀態
         let activeMultiRecordFolderId = null;
         let cloudSavedCodes = [];
 
-        // --- 雲端資料同步函數 ---
         function syncCloudData() {
             if (socket && socket.connected) {
-                // 為了防超載，雲端目前保存所有 metadata 和影片來源 (Base64 可能極大，正式環境建議改為 URL)
                 socket.emit('saveAppData', {
                     appId: appId,
                     data: {
@@ -389,7 +407,6 @@
             window.location.href = url.toString();
         }
 
-        // --- SSO 登入驗證處理 ---
         function checkSSO() {
             const params = new URLSearchParams(window.location.search);
             let user = params.get('user');
@@ -408,11 +425,8 @@
 
             if (user) {
                 const emitProfileRequest = () => {
-                    if (socket && socket.connected) {
-                        socket.emit('requestProfile', { username: user });
-                    } else {
-                        setTimeout(emitProfileRequest, 500);
-                    }
+                    if (socket && socket.connected) socket.emit('requestProfile', { username: user });
+                    else setTimeout(emitProfileRequest, 500);
                 };
                 emitProfileRequest();
 
@@ -627,7 +641,6 @@
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 const select = document.getElementById('cameraSelect');
                 
-                // 如果只剩預設選項且抓到攝影機了，就更新選單
                 if (select.options.length <= 1 && videoDevices.length > 0) {
                     select.innerHTML = '';
                     videoDevices.forEach((device, index) => {
@@ -642,13 +655,122 @@
             }
         }
 
-        // 綁定攝影機切換事件
         document.getElementById('cameraSelect').onchange = async (e) => {
             currentCameraId = e.target.value;
-            // 重新初始化廣播以切換鏡頭
             await initCameraBroadcaster();
         };
 
+        // --- 控制台邏輯設置 (手動/自動分配) ---
+        function setupControlListeners() {
+            const autoAllocateCb = document.getElementById('autoAllocateCb');
+            const fpsSelect = document.getElementById('fpsSelect');
+            const qualitySelect = document.getElementById('qualitySelect');
+            const customFpsInput = document.getElementById('customFpsInput');
+            const customWidthInput = document.getElementById('customWidthInput');
+            const autoAllocateStatus = document.getElementById('autoAllocateStatus');
+
+            autoAllocateCb.addEventListener('change', (e) => {
+                isAutoAllocate = e.target.checked;
+                fpsSelect.disabled = isAutoAllocate;
+                qualitySelect.disabled = isAutoAllocate;
+                customFpsInput.disabled = isAutoAllocate;
+                customWidthInput.disabled = isAutoAllocate;
+
+                if (isAutoAllocate) {
+                    autoAllocateStatus.classList.remove('hidden');
+                    runAutoAllocate();
+                    if(!autoAllocateTimer) {
+                        autoAllocateTimer = setInterval(runAutoAllocate, 5000);
+                    }
+                    showErrorToast('✅ 已開啟自動分配：系統將根據效能智慧調節最佳畫質與頻率', 3000);
+                } else {
+                    autoAllocateStatus.classList.add('hidden');
+                    if(autoAllocateTimer) {
+                        clearInterval(autoAllocateTimer);
+                        autoAllocateTimer = null;
+                    }
+                    applyManualSettings();
+                }
+            });
+
+            function applyManualSettings() {
+                if (fpsSelect.value === 'custom') {
+                    const fps = parseInt(customFpsInput.value) || 10;
+                    currentCaptureInterval = 1000 / fps;
+                    customFpsInput.classList.remove('hidden');
+                } else {
+                    currentCaptureInterval = parseInt(fpsSelect.value);
+                    customFpsInput.classList.add('hidden');
+                }
+
+                if (qualitySelect.value === 'custom') {
+                    currentQualityIndex = 'custom';
+                    customWidthInput.classList.remove('hidden');
+                } else {
+                    currentQualityIndex = parseInt(qualitySelect.value);
+                    customWidthInput.classList.add('hidden');
+                }
+
+                if (Object.keys(activeViewers).length > 0) {
+                    startCaptureLoop();
+                }
+            }
+
+            fpsSelect.addEventListener('change', applyManualSettings);
+            customFpsInput.addEventListener('change', applyManualSettings);
+            qualitySelect.addEventListener('change', applyManualSettings);
+            customWidthInput.addEventListener('change', applyManualSettings);
+        }
+
+        // --- 自動分配演算法 (Auto Allocate) ---
+        function runAutoAllocate() {
+            if (!isAutoAllocate || Object.keys(activeViewers).length === 0) return;
+
+            let cores = navigator.hardwareConcurrency || 4;
+            let memRatio = 0.5;
+            if (performance && performance.memory) {
+                memRatio = performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit;
+            }
+
+            let newInterval = 100; // 預設 10 fps
+            let newQualityIndex = 2; // 預設 640
+
+            // 防當機智慧調節
+            if (memRatio > 0.8) {
+                newInterval = 500; // 2 fps (極低)
+                newQualityIndex = 0; // 320 (極省流)
+            } else if (memRatio > 0.65) {
+                newInterval = 200; // 5 fps (低)
+                newQualityIndex = 1; // 480 (省流)
+            } else if (cores >= 8 && memRatio < 0.3) {
+                newInterval = 66; // 15 fps (高)
+                newQualityIndex = 3; // 800 (清晰)
+            } else {
+                newInterval = 100; // 10 fps (標準)
+                newQualityIndex = 2; // 640 (標準)
+            }
+
+            let changed = false;
+            if (currentCaptureInterval !== newInterval || currentQualityIndex !== newQualityIndex) {
+                currentCaptureInterval = newInterval;
+                currentQualityIndex = newQualityIndex;
+                changed = true;
+            }
+
+            const infoText = document.getElementById('autoAllocateStatus');
+            if (infoText) {
+                const widthStr = newQualityIndex === 'custom' ? '自訂' : qualityPresets[newQualityIndex].w;
+                const fpsStr = Math.round(1000 / newInterval);
+                infoText.innerHTML = `<span class="text-emerald-400 font-bold">智慧運行中:</span> ${fpsStr} FPS | 寬度 ${widthStr}`;
+            }
+
+            if (changed) {
+                startCaptureLoop();
+                if(socket && socket.connected) {
+                    socket.emit('logAppMessage', { appId: appId, message: `自動分配觸發: 調整為 ${Math.round(1000/newInterval)}FPS, 檔位 ${newQualityIndex}`, type: 'info' });
+                }
+            }
+        }
 
         document.getElementById('modeCamera').onclick = async () => {
             myRole = 'camera';
@@ -693,6 +815,7 @@
                 }
             };
 
+            setupControlListeners(); // 初始化控制面板監聽器
             await initCameraBroadcaster();
         };
 
@@ -734,7 +857,6 @@
                     localStream.getTracks().forEach(track => track.stop());
                 }
 
-                // 套用自訂攝影機 ID (若有)
                 const videoConstraints = { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } };
                 if (currentCameraId !== '') {
                     videoConstraints.deviceId = { exact: currentCameraId };
@@ -748,56 +870,7 @@
                 document.getElementById('localVideo').srcObject = localStream;
                 statusLabel.innerText = "裝置準備就緒，無損高清硬體擷取通道已解鎖。";
 
-                // 列舉並更新攝影機選單
                 await populateCameras();
-
-                const capCanvas = document.createElement('canvas');
-                const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
-                const videoEl = document.getElementById('localVideo');
-
-                function startCaptureLoop() {
-                    stopCaptureLoop();
-                    
-                    const preset = qualityPresets[currentQualityIndex];
-                    const aspect = videoEl.videoWidth / videoEl.videoHeight || 16/9; 
-                    capCanvas.width = preset.w;
-                    capCanvas.height = preset.w / aspect;
-                    const compressionQuality = preset.q;
-
-                    videoInterval = setInterval(() => {
-                        if (Object.keys(activeViewers).length === 0) return;
-
-                        if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
-                            ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                            const base64Frame = capCanvas.toDataURL('image/webp', compressionQuality); 
-                            
-                            socket.volatile.emit('appData', {
-                                room: appId,
-                                action: 'videoFrame',
-                                pairCode: myPairCode,
-                                senderId: myUuid,
-                                image: base64Frame
-                            });
-                        }
-                    }, currentCaptureInterval);
-                }
-
-                document.getElementById('fpsSelect').onchange = (e) => {
-                    currentCaptureInterval = parseInt(e.target.value);
-                    if (currentCaptureInterval <= 33 && currentQualityIndex >= 3) { 
-                        showErrorToast('⚠️ 提示：30FPS 搭配高解析度極度消耗上傳頻寬。若觀看端發生明顯延遲，請主動調降畫質或 FPS！', 6000);
-                    }
-                    if (Object.keys(activeViewers).length > 0) {
-                        startCaptureLoop();
-                    }
-                };
-
-                document.getElementById('qualitySelect').onchange = (e) => {
-                    currentQualityIndex = parseInt(e.target.value);
-                    if (Object.keys(activeViewers).length > 0) {
-                        startCaptureLoop(); 
-                    }
-                };
 
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length > 0) {
@@ -806,7 +879,6 @@
                     
                     micRecorder.ondataavailable = async (e) => {
                         if (Object.keys(activeViewers).length === 0) return;
-
                         if (e.data.size > 0 && socket && socket.connected) {
                             socket.volatile.emit('appData', {
                                 room: appId,
@@ -819,7 +891,6 @@
                     };
                 }
 
-                // 如果切換鏡頭時已經有觀眾在線，直接恢復廣播
                 if (Object.keys(activeViewers).length > 0) {
                     startBroadcasting();
                 }
@@ -867,29 +938,35 @@
             }
         }
 
-        function startBroadcasting() {
-            const statusLabel = document.getElementById('cameraStatus');
-            statusLabel.innerText = "觀眾已進入！影像與音訊全速廣播傳輸中...";
-            
-            const fpsVal = parseInt(document.getElementById('fpsSelect').value);
-            currentCaptureInterval = fpsVal;
-            
+        function startCaptureLoop() {
             stopCaptureLoop();
             const videoEl = document.getElementById('localVideo');
+            if (!videoEl || !videoEl.videoWidth) return;
+
+            const aspect = videoEl.videoWidth / videoEl.videoHeight || 16/9; 
+            
+            let targetW, compressionQ;
+            if (currentQualityIndex === 'custom') {
+                targetW = parseInt(document.getElementById('customWidthInput').value) || 640;
+                compressionQ = 0.6; // 自訂寬度時固定中等壓縮率
+            } else {
+                const preset = qualityPresets[currentQualityIndex];
+                targetW = preset.w;
+                compressionQ = preset.q;
+            }
+
             const capCanvas = document.createElement('canvas');
             const ctx = capCanvas.getContext('2d', { willReadFrequently: true });
-
-            const preset = qualityPresets[currentQualityIndex];
-            const aspect = videoEl.videoWidth / videoEl.videoHeight || 16/9;
-            capCanvas.width = preset.w;
-            capCanvas.height = preset.w / aspect;
-            const compressionQuality = preset.q;
+            capCanvas.width = targetW;
+            capCanvas.height = targetW / aspect;
 
             videoInterval = setInterval(() => {
                 if (Object.keys(activeViewers).length === 0) return;
+
                 if (videoEl.readyState === videoEl.HAVE_ENOUGH_DATA) {
                     ctx.drawImage(videoEl, 0, 0, capCanvas.width, capCanvas.height);
-                    const base64Frame = capCanvas.toDataURL('image/webp', compressionQuality); 
+                    const base64Frame = capCanvas.toDataURL('image/webp', compressionQ); 
+                    
                     socket.volatile.emit('appData', {
                         room: appId,
                         action: 'videoFrame',
@@ -899,6 +976,32 @@
                     });
                 }
             }, currentCaptureInterval);
+        }
+
+        function startBroadcasting() {
+            const statusLabel = document.getElementById('cameraStatus');
+            statusLabel.innerText = "觀眾已進入！影像與音訊全速廣播傳輸中...";
+            
+            // Apply Manual or Auto settings based on toggle
+            if (isAutoAllocate) {
+                runAutoAllocate();
+            } else {
+                // Apply manual selection values securely
+                if (document.getElementById('fpsSelect').value === 'custom') {
+                    const customFps = parseInt(document.getElementById('customFpsInput').value) || 10;
+                    currentCaptureInterval = 1000 / customFps;
+                } else {
+                    currentCaptureInterval = parseInt(document.getElementById('fpsSelect').value);
+                }
+
+                if (document.getElementById('qualitySelect').value === 'custom') {
+                    currentQualityIndex = 'custom';
+                } else {
+                    currentQualityIndex = parseInt(document.getElementById('qualitySelect').value);
+                }
+            }
+            
+            startCaptureLoop();
 
             if (micRecorder && micRecorder.state === 'inactive') {
                 try {
@@ -939,7 +1042,6 @@
                         requesterId: myUuid
                     });
 
-                    // 偵測代碼是否存在
                     let found = false;
                     const checkHandler = (data) => {
                         if (data.action === 'camera_ack' && data.pin === code && data.targetViewer === myUuid) {
@@ -979,7 +1081,6 @@
             if (checkboxes.length === 0) return showErrorToast('請先在畫面上勾選要錄製的攝影機設備！');
 
             if (!activeMultiRecordFolderId) {
-                // 開始批次多裝置錄影
                 activeMultiRecordFolderId = crypto.randomUUID();
                 const folderName = `多裝置任務_${new Date().toLocaleTimeString('zh-TW', {hour12:false})}`;
                 
@@ -988,7 +1089,6 @@
                     const pin = cb.dataset.pin;
                     const feed = remoteFeeds[senderId];
                     if (feed && !feed.isRecording) {
-                        // 鎖定 checkbox 防誤觸
                         cb.disabled = true;
                         socket.emit('appData', {
                             room: appId,
@@ -1007,7 +1107,6 @@
                 btn.classList.replace('hover:bg-red-500', 'hover:bg-rose-600');
                 showErrorToast(`📂 已發送批次錄影指令給 ${checkboxes.length} 台設備。`, 3000);
             } else {
-                // 停止批次多裝置錄影
                 checkboxes.forEach(cb => {
                     const senderId = cb.dataset.sender;
                     const pin = cb.dataset.pin;
@@ -1051,7 +1150,6 @@
                     statusEl.className = 'text-xs ml-2 text-red-400 font-bold animate-pulse';
                 }
                 if (cb && !activeMultiRecordFolderId) {
-                    // 若是被別人或其他任務觸發錄影，禁止本端再勾選以免混亂
                     cb.disabled = true;
                 }
             } else {
@@ -1201,7 +1299,7 @@
             }
         }
 
-        // 建立頻道分割畫面區塊 (加入多選勾選框)
+        // 建立頻道分割畫面區塊 (含縮放平移、多選功能)
         function createVideoFeedTile(senderId, pairCode) {
             const container = document.getElementById('feedContainer');
             
@@ -1209,7 +1307,6 @@
             tile.className = "relative bg-black rounded-xl overflow-hidden aspect-video border border-slate-700 shadow-lg group transition-all duration-300";
             tile.id = `tile_${senderId}`;
 
-            // 左上角多選核取方塊
             const checkbox = document.createElement('input');
             checkbox.type = "checkbox";
             checkbox.className = "multi-select-cb absolute top-3 left-3 z-30 w-5 h-5 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 shadow-lg outline-none ring-offset-slate-900";
@@ -1222,7 +1319,7 @@
             img.alt = "正在等待影像...";
 
             const overlay = document.createElement('div');
-            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300 z-10 transition-opacity duration-300 group-hover:opacity-30";
+            overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300 z-10 transition-opacity duration-300 group-hover:opacity-30 pointer-events-none";
             overlay.innerHTML = `
                 <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
                 <span>頻道: ${pairCode}</span>
@@ -1247,7 +1344,7 @@
                 audioEl.play().catch(e => console.warn("解除靜音失敗:", e));
             };
 
-            // --- 畫面縮放與拖曳平移 (Pan & Zoom) 邏輯 ---
+            // --- 畫面自由縮放與平移 (Pan & Zoom) ---
             let scale = 1, panX = 0, panY = 0, isDragging = false, startX = 0, startY = 0;
             const updateTransform = (smooth = false) => {
                 img.style.transition = smooth ? 'transform 0.2s ease-out' : 'none';
@@ -1257,7 +1354,7 @@
 
             img.addEventListener('wheel', (e) => {
                 e.preventDefault();
-                if (e.deltaY < 0) scale = Math.min(scale * 1.15, 8); // 放大上限 8 倍
+                if (e.deltaY < 0) scale = Math.min(scale * 1.15, 8); 
                 else scale = Math.max(scale / 1.15, 1);
                 if (scale === 1) { panX = 0; panY = 0; }
                 updateTransform(true);
@@ -1288,7 +1385,6 @@
                 }
             });
 
-            // 手機觸控拖曳支援
             img.addEventListener('touchstart', (e) => {
                 if (scale > 1 && e.touches.length === 1) {
                     isDragging = true;
@@ -1311,12 +1407,10 @@
             });
 
             const controlsOverlay = document.createElement('div');
-            // 修改排版為 justify-between 以容納左右兩側按鈕，並加入 pointer-events-none 避免阻擋拖曳
             controlsOverlay.className = "absolute top-3 inset-x-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30 pointer-events-none";
             
-            // 縮放控制群組 (左上角)
             const leftGroup = document.createElement('div');
-            leftGroup.className = "flex gap-1 items-center bg-slate-900/60 p-1 rounded-lg pointer-events-auto backdrop-blur-sm shadow-md";
+            leftGroup.className = "flex gap-1 items-center bg-slate-900/60 p-1 rounded-lg pointer-events-auto backdrop-blur-sm shadow-md ml-8"; 
             
             const zoomInBtn = document.createElement('button');
             zoomInBtn.className = "hover:bg-slate-700 p-1 rounded text-white transition";
@@ -1364,7 +1458,6 @@
             remoteRecordBtn.onclick = () => {
                 const feed = remoteFeeds[senderId];
                 if (!feed.isRecording) {
-                    // 發送單獨錄影指令 (不帶 FolderID)
                     socket.emit('appData', {
                         room: appId,
                         action: 'trigger_camera_record',
@@ -1501,7 +1594,7 @@
             }
         }
 
-        // --- 被監控端（相機端）實體錄影功能 ---
+        // --- 本地相機錄影功能 ---
         document.getElementById('btnCameraStartRecord').onclick = () => startLocalCameraRecord(null, null);
         document.getElementById('btnCameraStopRecord').onclick = stopLocalCameraRecord;
 
@@ -1509,7 +1602,6 @@
             if (!localStream) return;
             if (isCameraRecording) return; 
 
-            // 紀錄當前錄製任務的歸屬
             currentRecordingFolderId = folderId;
             currentRecordingFolderName = folderName;
 
@@ -1563,7 +1655,6 @@
                         videoData: newVideo 
                     });
 
-                    // 清除錄影狀態標記
                     currentRecordingFolderId = null;
                     currentRecordingFolderName = null;
                 };
@@ -1618,7 +1709,6 @@
             const multiGroups = {};
             const singleGroups = {};
 
-            // 將影片分發進資料夾結構
             recordedVideosList.forEach(v => {
                 if (v.folderId) {
                     if(!multiGroups[v.folderId]) multiGroups[v.folderId] = { name: v.folderName, timestamp: v.timestamp, videos: [] };
@@ -1629,7 +1719,6 @@
                 }
             });
 
-            // 1. 渲染：多裝置資料夾專區
             const multiKeys = Object.keys(multiGroups).sort((a,b) => multiGroups[b].timestamp - multiGroups[a].timestamp);
             if (multiKeys.length === 0) {
                 multiGrid.innerHTML = `<div class="p-6 text-center text-slate-500 text-sm bg-slate-900/40 rounded-xl border border-dashed border-slate-700">暫無多裝置同步錄影任務</div>`;
@@ -1658,7 +1747,6 @@
                 });
             }
 
-            // 2. 渲染：單一裝置儲存專區
             const singleKeys = Object.keys(singleGroups);
             if (singleKeys.length === 0) {
                 singleGrid.innerHTML = `<div class="p-6 text-center text-slate-500 text-sm bg-slate-900/40 rounded-xl border border-dashed border-slate-700">暫無單一裝置的獨立錄影檔案</div>`;
@@ -1685,7 +1773,6 @@
             }
         }
 
-        // 獨立影片卡片 HTML 產生器
         function generateVideoCardHTML(video) {
             const dateText = new Date(video.timestamp).toLocaleString();
             const videoName = video.name || `頻道: ${video.pin}`;
@@ -1714,7 +1801,6 @@
             `;
         }
 
-        // 💡 影片更名功能
         function renameVideo(id) {
             const video = recordedVideosList.find(v => v.id === id);
             if (!video) return;
@@ -1816,8 +1902,35 @@
             }, 3000); 
         }
 
+        // --- 記憶體監控 (Memory Monitor) ---
+        function startMemoryMonitor() {
+            const memEl = document.getElementById('memoryUsageText');
+            const monitorEl = document.getElementById('memoryMonitor');
+
+            if (performance && performance.memory) {
+                setInterval(() => {
+                    const used = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
+                    const limit = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(1);
+                    memEl.innerText = `${used} MB / ${limit} MB`;
+                    
+                    if (performance.memory.usedJSHeapSize / performance.memory.jsHeapSizeLimit > 0.8) {
+                        memEl.classList.add('text-red-400');
+                        memEl.classList.remove('text-teal-400');
+                    } else {
+                        memEl.classList.remove('text-red-400');
+                        memEl.classList.add('text-teal-400');
+                    }
+                }, 2000);
+            } else {
+                if (monitorEl) monitorEl.style.display = 'none';
+            }
+        }
+
         // --- 載入時初始化 ---
-        window.onload = initSocketConnection;
+        window.onload = () => {
+            initSocketConnection();
+            startMemoryMonitor();
+        };
     </script>
 </body>
 </html>
