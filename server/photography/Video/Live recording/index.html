@@ -568,7 +568,18 @@
             try {
                 const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
                 if (res.ok) {
-                    serverUrl = (await res.text()).trim();
+                    let rawText = (await res.text()).trim();
+                    
+                    // 💡 解密防護機制：若為被反轉的 Base64 亂碼字串，自動進行解碼轉換
+                    if (!rawText.startsWith('http')) {
+                        try {
+                            serverUrl = atob(rawText.split('').reverse().join(''));
+                        } catch (e) {
+                            serverUrl = rawText;
+                        }
+                    } else {
+                        serverUrl = rawText;
+                    }
                 } else {
                     throw new Error('無法取得 server_url.txt 文件');
                 }
