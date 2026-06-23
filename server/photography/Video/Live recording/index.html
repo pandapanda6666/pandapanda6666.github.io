@@ -169,7 +169,7 @@
                 </div>
             </div>
             
-            <!-- 【核心升級】傳輸頻率與畫質控制區 (支援自訂輸入與自動分配) -->
+            <!-- 傳輸頻率與畫質控制區 -->
             <div class="mt-4 flex flex-col gap-3 bg-slate-900 rounded-xl p-4 border border-slate-700">
                 <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-1">
                     <div class="flex items-center gap-2">
@@ -227,7 +227,6 @@
 
             <!-- 頻道添加與控制區 -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <!-- 連線我的裝置 -->
                 <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-inner flex flex-col">
                     <h3 class="text-sm font-bold text-teal-400 mb-3 flex items-center gap-2">
                         <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M13 14.5a2.5 2.5 0 10-5 0 2.5 2.5 0 005 0z" /><path fill-rule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM3 10a7 7 0 1114 0 7 7 0 01-14 0z" clip-rule="evenodd" /></svg>
@@ -238,7 +237,6 @@
                     </div>
                 </div>
                 
-                <!-- 連接其他裝置 -->
                 <div class="bg-slate-900/80 border border-slate-700 rounded-xl p-4 shadow-inner flex flex-col justify-between">
                     <div>
                         <h3 class="text-sm font-bold text-indigo-400 mb-3 flex items-center gap-2">
@@ -722,7 +720,6 @@
             customWidthInput.addEventListener('change', applyManualSettings);
         }
 
-        // --- 自動分配演算法 (Auto Allocate) ---
         function runAutoAllocate() {
             if (!isAutoAllocate || Object.keys(activeViewers).length === 0) return;
 
@@ -735,19 +732,18 @@
             let newInterval = 100; // 預設 10 fps
             let newQualityIndex = 2; // 預設 640
 
-            // 防當機智慧調節
             if (memRatio > 0.8) {
-                newInterval = 500; // 2 fps (極低)
-                newQualityIndex = 0; // 320 (極省流)
+                newInterval = 500; 
+                newQualityIndex = 0; 
             } else if (memRatio > 0.65) {
-                newInterval = 200; // 5 fps (低)
-                newQualityIndex = 1; // 480 (省流)
+                newInterval = 200; 
+                newQualityIndex = 1; 
             } else if (cores >= 8 && memRatio < 0.3) {
-                newInterval = 66; // 15 fps (高)
-                newQualityIndex = 3; // 800 (清晰)
+                newInterval = 66; 
+                newQualityIndex = 3; 
             } else {
-                newInterval = 100; // 10 fps (標準)
-                newQualityIndex = 2; // 640 (標準)
+                newInterval = 100; 
+                newQualityIndex = 2; 
             }
 
             let changed = false;
@@ -815,7 +811,7 @@
                 }
             };
 
-            setupControlListeners(); // 初始化控制面板監聽器
+            setupControlListeners(); 
             await initCameraBroadcaster();
         };
 
@@ -948,7 +944,7 @@
             let targetW, compressionQ;
             if (currentQualityIndex === 'custom') {
                 targetW = parseInt(document.getElementById('customWidthInput').value) || 640;
-                compressionQ = 0.6; // 自訂寬度時固定中等壓縮率
+                compressionQ = 0.6; 
             } else {
                 const preset = qualityPresets[currentQualityIndex];
                 targetW = preset.w;
@@ -982,11 +978,9 @@
             const statusLabel = document.getElementById('cameraStatus');
             statusLabel.innerText = "觀眾已進入！影像與音訊全速廣播傳輸中...";
             
-            // Apply Manual or Auto settings based on toggle
             if (isAutoAllocate) {
                 runAutoAllocate();
             } else {
-                // Apply manual selection values securely
                 if (document.getElementById('fpsSelect').value === 'custom') {
                     const customFps = parseInt(document.getElementById('customFpsInput').value) || 10;
                     currentCaptureInterval = 1000 / customFps;
@@ -1283,7 +1277,20 @@
             }
 
             if (data.action === 'videoFrame') {
-                if(remoteFeeds[senderId]) remoteFeeds[senderId].imgElement.src = data.image;
+                if(remoteFeeds[senderId]) {
+                    const feed = remoteFeeds[senderId];
+                    // 在圖片載入完成後，同步繪製到子母畫面的畫布中 (無效能負擔)
+                    feed.imgElement.onload = () => {
+                        if (feed.isPipActive && feed.pipCtx && feed.pipCanvas) {
+                            if (feed.pipCanvas.width !== feed.imgElement.naturalWidth) {
+                                feed.pipCanvas.width = feed.imgElement.naturalWidth;
+                                feed.pipCanvas.height = feed.imgElement.naturalHeight;
+                            }
+                            feed.pipCtx.drawImage(feed.imgElement, 0, 0);
+                        }
+                    };
+                    feed.imgElement.src = data.image;
+                }
             } 
             else if (data.action === 'audioChunk') {
                 playIncomingAudio(senderId, data.chunk);
@@ -1299,7 +1306,7 @@
             }
         }
 
-        // 建立頻道分割畫面區塊 (含縮放平移、多選功能)
+        // 建立頻道分割畫面區塊 (含縮放平移、多選功能、以及全新的子母畫面 PiP)
         function createVideoFeedTile(senderId, pairCode) {
             const container = document.getElementById('feedContainer');
             
@@ -1437,6 +1444,47 @@
             const rightGroup = document.createElement('div');
             rightGroup.className = "flex gap-2 items-center pointer-events-auto";
 
+            // --- 新增：子母畫面 (PiP) 開關按鈕 ---
+            const pipBtn = document.createElement('button');
+            pipBtn.className = "bg-slate-800/80 hover:bg-slate-700 p-1.5 rounded-lg text-white transition duration-200 shadow-md";
+            pipBtn.title = "開啟/關閉子母畫面";
+            pipBtn.innerHTML = `
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor" />
+                </svg>
+            `;
+            pipBtn.onclick = async () => {
+                const feed = remoteFeeds[senderId];
+                if (!feed) return;
+
+                if (document.pictureInPictureElement === feed.pipVideo) {
+                    await document.exitPictureInPicture();
+                } else {
+                    if (!feed.pipVideo) {
+                        // 初始化 PiP 隱藏繪圖系統
+                        feed.pipCanvas = document.createElement('canvas');
+                        feed.pipCanvas.width = 640;
+                        feed.pipCanvas.height = 480;
+                        feed.pipCtx = feed.pipCanvas.getContext('2d', { willReadFrequently: true });
+                        feed.pipVideo = document.createElement('video');
+                        feed.pipVideo.muted = true;
+                        feed.pipVideo.playsInline = true;
+                        feed.pipVideo.srcObject = feed.pipCanvas.captureStream(30);
+                        await feed.pipVideo.play();
+                        
+                        feed.pipVideo.addEventListener('enterpictureinpicture', () => { feed.isPipActive = true; });
+                        feed.pipVideo.addEventListener('leavepictureinpicture', () => { feed.isPipActive = false; });
+                    }
+                    try {
+                        await feed.pipVideo.requestPictureInPicture();
+                    } catch (err) {
+                        showErrorToast(`瀏覽器目前不支援或無法開啟子母畫面: ${err.message}`);
+                    }
+                }
+            };
+            rightGroup.appendChild(pipBtn);
+
             const fullscreenBtn = document.createElement('button');
             fullscreenBtn.className = "bg-slate-800/80 hover:bg-slate-700 p-1.5 rounded-lg text-white transition duration-200 shadow-md";
             fullscreenBtn.innerHTML = `
@@ -1510,7 +1558,11 @@
                 audioQueue: [],
                 audioEl: audioEl,
                 isRecording: false,
-                isAcked: false
+                isAcked: false,
+                pipCanvas: null,
+                pipCtx: null,
+                pipVideo: null,
+                isPipActive: false
             };
 
             ms.addEventListener('sourceopen', () => {
@@ -1542,6 +1594,9 @@
                     if (feed.audioEl) {
                         feed.audioEl.pause();
                         URL.revokeObjectURL(feed.audioEl.src);
+                    }
+                    if (feed.pipVideo && document.pictureInPictureElement === feed.pipVideo) {
+                        document.exitPictureInPicture().catch(()=>{});
                     }
                     delete remoteFeeds[senderId];
                 }
