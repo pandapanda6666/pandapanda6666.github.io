@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統遠端管理面板</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Consolas', 'Noto Sans TC', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3b82f6; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 h-screen overflow-hidden flex flex-col">
+
+    <div id="loadingView" class="flex-grow flex flex-col items-center justify-center">
+        <svg class="animate-spin h-16 w-16 text-blue-500 mb-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <h2 class="text-2xl font-bold text-blue-400 mb-2">系統遠端管理面板</h2>
+        <p id="connStatus" class="text-slate-400 font-bold animate-pulse">正在透過統一登入中心驗證身分，請稍候...</p>
+    </div>
+
+    <div id="dashboardView" class="hidden flex-grow flex overflow-hidden">
+        <div class="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
+            <div class="p-6 border-b border-slate-700">
+                <h1 class="text-xl font-bold text-blue-400">系統遠端管理面板</h1>
+                <p class="text-xs text-slate-400 mt-1">授權管理員：<span id="currentAdminName" class="text-green-400"></span></p>
+            </div>
+            <div class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-2">
+                <button onclick="switchTab('tab_users')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🧑‍💻 帳號與權限</button>
+                <button onclick="switchTab('tab_broadcasts')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">📢 廣播排程設定</button>
+                <button onclick="switchTab('tab_history')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">📜 歷史紀錄</button>
+                <button onclick="switchTab('tab_issues')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🚨 問題回報</button>
+                <button onclick="switchTab('tab_errors')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">❌ 錯誤診斷</button>
+            </div>
+            <div class="p-4 border-t border-slate-700">
+                <button onclick="doLogout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold transition">登出系統</button>
+            </div>
+        </div>
+
+        <div class="flex-grow flex flex-col bg-slate-900 overflow-hidden relative">
+            <div class="absolute top-4 right-4 z-50">
+                <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold shadow-lg">🔄 重新整理資料</button>
+            </div>
+
+            <div id="tab_users" class="tab-content p-6 h-full flex flex-col hidden">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">註冊用戶清單</h2>
+                <div class="flex-grow overflow-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-700 text-slate-300 sticky top-0">
+                            <tr>
+                                <th class="p-4 font-bold">系統帳號</th>
+                                <th class="p-4 font-bold">公開暱稱</th>
+                                <th class="p-4 font-bold">等級/P幣</th>
+                                <th class="p-4 font-bold">綁定信箱</th>
+                                <th class="p-4 font-bold">狀態</th>
+                                <th class="p-4 font-bold">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody" class="divide-y divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab_broadcasts" class="tab-content p-6 h-full flex flex-col hidden">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">📢 跑馬燈與廣播排程系統</h2>
+                <div class="flex gap-4 mb-6 shrink-0">
+                    <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex-grow">
+                        <h3 class="font-bold text-green-400 mb-2">Mode 1: 定時與重複</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="datetime-local" id="b1_st" class="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                            <input type="text" id="b1_msg" placeholder="廣播訊息內容" class="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                        </div>
+                        <div class="flex gap-2 items-center text-sm">
+                            <span>重複:</span><input type="number" id="b1_rc" value="3" class="w-16 bg-slate-900 border border-slate-600 rounded p-1 text-white">
+                            <span>間隔(分):</span><input type="number" id="b1_int" value="10" class="w-16 bg-slate-900 border border-slate-600 rounded p-1 text-white">
+                            <label class="flex items-center gap-1 ml-2"><input type="checkbox" id="b1_off" checked> 啟動雲端離線備用</label>
+                            <button onclick="addBroadcast(1)" class="ml-auto bg-green-600 hover:bg-green-700 px-3 py-1 rounded font-bold">新增</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 flex-grow">
+                        <h3 class="font-bold text-blue-400 mb-2">Mode 2: 區間持續顯示</h3>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="datetime-local" id="b2_st" class="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                            <input type="datetime-local" id="b2_et" class="bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                        </div>
+                        <div class="flex gap-2 items-center text-sm">
+                            <input type="text" id="b2_msg" placeholder="廣播訊息內容" class="flex-grow bg-slate-900 border border-slate-600 rounded p-2 text-white text-sm">
+                            <label class="flex items-center gap-1 shrink-0"><input type="checkbox" id="b2_off" checked> 雲端離線備用</label>
+                            <button onclick="addBroadcast(2)" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded font-bold shrink-0">新增</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-grow overflow-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-700 text-slate-300 sticky top-0">
+                            <tr>
+                                <th class="p-3 font-bold">模式</th>
+                                <th class="p-3 font-bold">時間條件</th>
+                                <th class="p-3 font-bold w-full">訊息內容</th>
+                                <th class="p-3 font-bold">離線</th>
+                                <th class="p-3 font-bold">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="broadcastsTableBody" class="divide-y divide-slate-700/50"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab_history" class="tab-content p-6 h-full flex flex-col hidden">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">系統操作與行為追蹤</h2>
+                <div class="flex-grow overflow-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-700 text-slate-300 sticky top-0">
+                            <tr>
+                                <th class="p-3 font-bold">時間</th>
+                                <th class="p-3 font-bold">操作者</th>
+                                <th class="p-3 font-bold">地點/IP</th>
+                                <th class="p-3 font-bold">動作類型</th>
+                                <th class="p-3 font-bold w-full">詳細資訊</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="divide-y divide-slate-700/50 text-xs"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab_issues" class="tab-content p-6 h-full flex flex-col hidden">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">玩家問題回報專區</h2>
+                <div class="flex-grow overflow-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-700 text-slate-300 sticky top-0">
+                            <tr>
+                                <th class="p-3 font-bold">時間</th>
+                                <th class="p-3 font-bold">回報者</th>
+                                <th class="p-3 font-bold w-full">問題內容</th>
+                                <th class="p-3 font-bold">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="issuesTableBody" class="divide-y divide-slate-700/50 text-xs"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="tab_errors" class="tab-content p-6 h-full flex flex-col hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-red-400">系統錯誤診斷專區</h2>
+                    <button onclick="clearErrors()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded font-bold shadow">清空錯誤紀錄</button>
+                </div>
+                <div class="flex-grow overflow-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-700 text-slate-300 sticky top-0">
+                            <tr>
+                                <th class="p-3 font-bold">時間</th>
+                                <th class="p-3 font-bold">來源/觸發者</th>
+                                <th class="p-3 font-bold w-full">錯誤內容</th>
+                            </tr>
+                        </thead>
+                        <tbody id="errorsTableBody" class="divide-y divide-slate-700/50 text-xs text-red-300"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+        };
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        const authConfig = {
+            apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
+            authDomain: "brawl-survival-27c30.firebaseapp.com",
+            projectId: "brawl-survival-27c30",
+            storageBucket: "brawl-survival-27c30.firebasestorage.app",
+            messagingSenderId: "968683230232",
+            appId: "1:968683230232:web:5fec3f105cfe9907e81f6d"
+        };
+
+        const app = initializeApp(authConfig);
+        const auth = getAuth(app);
+
+        let socket;
+        let serverUrl = "";
+        let globalData = {};
+        
+        function formatLocal(dateStr) {
+            const d = new Date(dateStr);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            return d.toISOString().slice(0,16);
+        }
+        document.getElementById('b1_st').value = formatLocal(Date.now());
+        document.getElementById('b2_st').value = formatLocal(Date.now());
+        document.getElementById('b2_et').value = formatLocal(Date.now() + 86400000);
+
+        function setStatus(msg, isError=false) {
+            const el = document.getElementById('connStatus');
+            el.innerText = msg;
+            el.className = `text-slate-400 font-bold ${isError ? 'text-red-500' : 'text-slate-400'} ${isError ? '' : 'animate-pulse'}`;
+        }
+
+        function redirectToLogin() {
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1';
+        }
+
+        function initApp() {
+            fetch('https://pandapanda6666.github.io/login-hub/server_url.txt')
+                .then(r => r.text())
+                .then(txt => { 
+                    serverUrl = atob(txt.trim().split('').reverse().join('')); 
+                    connectSocket(); 
+                })
+                .catch(() => {
+                    fetch('../login-hub/server_url.txt').then(r=>r.text()).then(txt => { 
+                        serverUrl = atob(txt.trim().split('').reverse().join('')); 
+                        connectSocket(); 
+                    })
+                    .catch(() => {
+                        serverUrl = prompt("無法自動取得伺服器網址，請手動輸入：", "https://");
+                        if (serverUrl) connectSocket(); else setStatus("初始化失敗", true);
+                    });
+                });
+        }
+
+        function connectSocket() {
+            setStatus("已取得伺服器位址，正在連線...");
+            socket = io(serverUrl, { transports: ['websocket'] });
+            
+            socket.on('connect', () => { 
+                setStatus("連線成功！正在驗證統一登入憑證...");
+                const savedU = localStorage.getItem('panda_auto_user');
+                const savedP = localStorage.getItem('panda_auto_pass');
+
+                if (savedP === 'GOOGLE_AUTH') {
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                        } else {
+                            redirectToLogin();
+                        }
+                    });
+                } else if (savedU && savedP) {
+                    socket.emit('login', { username: savedU, password: savedP });
+                } else {
+                    redirectToLogin();
+                }
+            });
+
+            socket.on('connect_error', () => { setStatus("伺服器連線失敗，請確定本地伺服器已開啟", true); });
+
+            socket.on('loginResult', (res) => {
+                if(res.success && res.isAdmin) {
+                    document.getElementById('loadingView').classList.add('hidden');
+                    document.getElementById('dashboardView').classList.remove('hidden');
+                    document.getElementById('currentAdminName').innerText = res.username;
+                    switchTab('tab_users');
+                    window.fetchData();
+                } else {
+                    alert(res.success ? "登入成功，但您的帳號沒有管理員權限！\n請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
+                    socket.emit('logout');
+                    setTimeout(redirectToLogin, 500);
+                }
+            });
+        }
+
+        window.doLogout = function() {
+            localStorage.removeItem('panda_auto_user');
+            localStorage.removeItem('panda_auto_pass');
+            if (socket) socket.emit('logout');
+            redirectToLogin();
+        };
+
+        window.fetchData = function() {
+            socket.emit('adminAction', { action: 'getDashboard' }, (res) => {
+                if(!res.success) return alert("無法獲取資料：" + res.msg);
+                globalData = res;
+                renderUsers(); renderBroadcasts(); renderHistory(); renderIssues(); renderErrors();
+            });
+        };
+
+        function renderUsers() {
+            const tb = document.getElementById('usersTableBody');
+            tb.innerHTML = '';
+            for(let uname in globalData.users) {
+                const u = globalData.users[uname];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-blue-300">${uname}</td>
+                    <td class="p-4">${u.nickname || uname}</td>
+                    <td class="p-4 text-green-400">Lv.${u.level} / ${u.p_coin} P</td>
+                    <td class="p-4 text-slate-400">${u.gmail || '-'}</td>
+                    <td class="p-4">${globalData.banned[uname] ? '⛔封鎖' : globalData.muted[uname] ? '🔇禁言' : '🟢正常'}</td>
+                    <td class="p-4">
+                        <button onclick="actUser('delete', '${uname}')" class="text-red-500 hover:text-red-300 px-2 font-bold">刪除</button>
+                        <button onclick="actUser('ban', '${uname}')" class="text-slate-400 hover:text-slate-200 px-2 font-bold">封鎖</button>
+                    </td>
+                `;
+                tb.appendChild(tr);
+            }
+        }
+
+        window.actUser = function(act, uname) {
+            if(act==='delete' && confirm(`確定刪除 ${uname}?`)) socket.emit('adminAction', {action:'deleteUser', tgtUser: uname}, window.fetchData);
+            if(act==='ban') {
+                const m = prompt("輸入封鎖分鐘數 (0為永久, 負數為解鎖):", "60");
+                if(m!==null) socket.emit('adminAction', {action:'banUser', tgtUser: uname, minutes: parseInt(m)}, window.fetchData);
+            }
+        };
+
+        function renderBroadcasts() {
+            const tb = document.getElementById('broadcastsTableBody');
+            tb.innerHTML = '';
+            (globalData.broadcasts || []).forEach(b => {
+                const info = b.mode === 1 ? `${b.startTime} (重複${b.repeatCount}次,間隔${b.intervalMin}分)` : `${b.startTime} ~ ${b.endTime}`;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-3">Mode ${b.mode}</td>
+                    <td class="p-3 text-blue-300">${info}</td>
+                    <td class="p-3 text-green-300">${b.message}</td>
+                    <td class="p-3">${b.offline ? '✅' : '❌'}</td>
+                    <td class="p-3"><button onclick="delBroadcast('${b.id}')" class="text-red-500 hover:text-red-300 font-bold">刪除</button></td>
+                `;
+                tb.appendChild(tr);
+            });
+        }
+
+        window.addBroadcast = function(mode) {
+            const msg = document.getElementById(mode===1 ? 'b1_msg' : 'b2_msg').value.trim();
+            if(!msg) return alert('請輸入訊息');
+            const newB = { id: Date.now().toString()+'m'+mode, mode: mode, message: msg, offline: document.getElementById(`b${mode}_off`).checked };
+            if(mode === 1) {
+                newB.startTime = document.getElementById('b1_st').value;
+                newB.repeatCount = parseInt(document.getElementById('b1_rc').value);
+                newB.intervalMin = parseInt(document.getElementById('b1_int').value);
+            } else {
+                newB.startTime = document.getElementById('b2_st').value;
+                newB.endTime = document.getElementById('b2_et').value;
+            }
+            const list = globalData.broadcasts || [];
+            list.push(newB);
+            socket.emit('adminAction', { action: 'updateBroadcasts', broadcasts: list }, () => {
+                document.getElementById(mode===1 ? 'b1_msg' : 'b2_msg').value = '';
+                window.fetchData();
+            });
+        };
+
+        window.delBroadcast = function(id) {
+            if(!confirm('刪除此廣播？')) return;
+            const list = (globalData.broadcasts || []).filter(b => b.id !== id);
+            socket.emit('adminAction', { action: 'updateBroadcasts', broadcasts: list }, window.fetchData);
+        };
+
+        function renderHistory() {
+            const tb = document.getElementById('historyTableBody'); tb.innerHTML = '';
+            (globalData.history || []).forEach(h => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="p-3 text-slate-400">${h.time}</td><td class="p-3 font-bold text-blue-400">${h.user}</td><td class="p-3">${h.location}</td><td class="p-3 text-green-400">${h.action}</td><td class="p-3 truncate max-w-md" title="${h.details}">${h.details}</td>`;
+                tb.appendChild(tr);
+            });
+        }
+
+        function renderIssues() {
+            const tb = document.getElementById('issuesTableBody'); tb.innerHTML = '';
+            (globalData.issues || []).forEach(i => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="p-3 text-slate-400">${i.time}</td><td class="p-3 font-bold text-blue-400">${i.user}</td><td class="p-3 whitespace-pre-wrap">${i.text}</td><td class="p-3"><button onclick="delIssue('${i.id}')" class="text-green-500 font-bold">標記處理並刪除</button></td>`;
+                tb.appendChild(tr);
+            });
+        }
+        window.delIssue = function(id) { if(confirm('刪除此回報？')) socket.emit('adminAction', {action:'deleteIssue', id: id}, window.fetchData); };
+
+        function renderErrors() {
+            const tb = document.getElementById('errorsTableBody'); tb.innerHTML = '';
+            (globalData.errors || []).forEach(e => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="p-3 text-slate-400">${e.timestamp}</td><td class="p-3 font-bold">${e.source} (${e.user})</td><td class="p-3 whitespace-pre-wrap">${e.error_message}</td>`;
+                tb.appendChild(tr);
+            });
+        }
+        window.clearErrors = function() { if(confirm('清空所有錯誤？')) socket.emit('adminAction', {action:'clearErrors'}, window.fetchData); };
+
+        initApp();
+    </script>
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+</body>
+</html>
