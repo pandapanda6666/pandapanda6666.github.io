@@ -389,6 +389,10 @@
                 <p class="text-slate-600 text-sm mb-2 shrink-0">如果您在使用過程中遇到任何錯誤或異常，請在下方詳細描述。</p>
                 
                 <div class="flex-grow flex flex-col relative">
+                    <div class="mb-4 shrink-0">
+                        <label class="block text-sm font-bold text-slate-700 mb-1">發生問題的網頁網址</label>
+                        <input type="text" id="issueUrl" class="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-red-500 outline-none font-sans text-sm text-slate-600 bg-slate-50" placeholder="例如：https://pandapanda6666.github.io/game/">
+                    </div>
                     <div class="flex justify-between items-end mb-1 shrink-0">
                         <label class="block text-sm font-bold text-slate-700">問題描述內容 <span class="text-red-500">*</span></label>
                         <button onclick="insertCodeBlock()" type="button" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-3 rounded shadow-sm transition flex items-center gap-1 border border-slate-300">
@@ -455,6 +459,7 @@
 
         const app = initializeApp(authConfig);
         const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
 
         let socket;
         let serverUrl = "";
@@ -891,12 +896,14 @@
 
         window.submitIssue = function() {
             const text = document.getElementById('issueFullText').value.trim();
+            const urlInput = document.getElementById('issueUrl');
+            const url = urlInput ? urlInput.value.trim() : '';
             
             if (!text) return showMsg("請輸入問題描述內容", "error");
 
             if (socket && socket.connected) {
                 socket.emit('clientAction', { action: '操作介面', details: `點擊了 送出回報 按鈕` });
-                socket.emit('reportIssue', { text: text });
+                socket.emit('reportIssue', { text: text, url: url });
                 document.getElementById('issueModal').classList.add('hidden');
                 document.getElementById('issueFullText').value = '';
                 showMsg("問題回報已送出，感謝您的協助！", "success");
@@ -907,6 +914,11 @@
 
         window.openIssueModal = function() {
             document.getElementById('issueModal').classList.remove('hidden');
+            let issueUrlInput = document.getElementById('issueUrl');
+            if(issueUrlInput && !issueUrlInput.value) {
+                const urlParams = new URLSearchParams(window.location.search);
+                issueUrlInput.value = urlParams.get('from') || window.location.href;
+            }
             if (socket && socket.connected) socket.emit('clientAction', { action: '查看回報', details: '開啟了問題回報面板' });
         };
         window.closeIssueModal = function() {
