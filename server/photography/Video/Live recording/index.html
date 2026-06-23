@@ -1247,11 +1247,101 @@
                 audioEl.play().catch(e => console.warn("解除靜音失敗:", e));
             };
 
+            // --- 畫面縮放與拖曳平移 (Pan & Zoom) 邏輯 ---
+            let scale = 1, panX = 0, panY = 0, isDragging = false, startX = 0, startY = 0;
+            const updateTransform = (smooth = false) => {
+                img.style.transition = smooth ? 'transform 0.2s ease-out' : 'none';
+                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                img.style.cursor = scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default';
+            };
+
+            img.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY < 0) scale = Math.min(scale * 1.15, 8); // 放大上限 8 倍
+                else scale = Math.max(scale / 1.15, 1);
+                if (scale === 1) { panX = 0; panY = 0; }
+                updateTransform(true);
+            });
+
+            const onMouseMove = (e) => {
+                if (isDragging) {
+                    panX = e.clientX - startX;
+                    panY = e.clientY - startY;
+                    updateTransform(false);
+                }
+            };
+            const onMouseUp = () => {
+                isDragging = false;
+                updateTransform(false);
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+            };
+
+            img.addEventListener('mousedown', (e) => {
+                if (scale > 1) {
+                    isDragging = true;
+                    startX = e.clientX - panX;
+                    startY = e.clientY - panY;
+                    updateTransform(false);
+                    window.addEventListener('mousemove', onMouseMove);
+                    window.addEventListener('mouseup', onMouseUp);
+                }
+            });
+
+            // 手機觸控拖曳支援
+            img.addEventListener('touchstart', (e) => {
+                if (scale > 1 && e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX - panX;
+                    startY = e.touches[0].clientY - panY;
+                    updateTransform(false);
+                }
+            });
+            img.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length === 1) {
+                    e.preventDefault();
+                    panX = e.touches[0].clientX - startX;
+                    panY = e.touches[0].clientY - startY;
+                    updateTransform(false);
+                }
+            }, { passive: false });
+            img.addEventListener('touchend', () => {
+                isDragging = false;
+                updateTransform(false);
+            });
+
             const controlsOverlay = document.createElement('div');
-            controlsOverlay.className = "absolute top-3 inset-x-3 flex justify-end items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30";
+            // 修改排版為 justify-between 以容納左右兩側按鈕，並加入 pointer-events-none 避免阻擋拖曳
+            controlsOverlay.className = "absolute top-3 inset-x-3 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-30 pointer-events-none";
             
+            // 縮放控制群組 (左上角)
+            const leftGroup = document.createElement('div');
+            leftGroup.className = "flex gap-1 items-center bg-slate-900/60 p-1 rounded-lg pointer-events-auto backdrop-blur-sm shadow-md";
+            
+            const zoomInBtn = document.createElement('button');
+            zoomInBtn.className = "hover:bg-slate-700 p-1 rounded text-white transition";
+            zoomInBtn.title = "放大畫面";
+            zoomInBtn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" /></svg>`;
+            zoomInBtn.onclick = () => { scale = Math.min(scale * 1.3, 8); updateTransform(true); };
+
+            const zoomOutBtn = document.createElement('button');
+            zoomOutBtn.className = "hover:bg-slate-700 p-1 rounded text-white transition";
+            zoomOutBtn.title = "縮小畫面";
+            zoomOutBtn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM13.5 10.5h-6" /></svg>`;
+            zoomOutBtn.onclick = () => { scale = Math.max(scale / 1.3, 1); if(scale===1){panX=0; panY=0;} updateTransform(true); };
+
+            const resetZoomBtn = document.createElement('button');
+            resetZoomBtn.className = "hover:bg-slate-700 p-1 rounded text-white transition";
+            resetZoomBtn.title = "重置縮放與位置";
+            resetZoomBtn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" /></svg>`;
+            resetZoomBtn.onclick = () => { scale = 1; panX = 0; panY = 0; updateTransform(true); };
+
+            leftGroup.appendChild(zoomInBtn);
+            leftGroup.appendChild(zoomOutBtn);
+            leftGroup.appendChild(resetZoomBtn);
+
             const rightGroup = document.createElement('div');
-            rightGroup.className = "flex gap-2 items-center";
+            rightGroup.className = "flex gap-2 items-center pointer-events-auto";
 
             const fullscreenBtn = document.createElement('button');
             fullscreenBtn.className = "bg-slate-800/80 hover:bg-slate-700 p-1.5 rounded-lg text-white transition duration-200 shadow-md";
@@ -1304,6 +1394,7 @@
             };
             rightGroup.appendChild(closeBtn);
 
+            controlsOverlay.appendChild(leftGroup);
             controlsOverlay.appendChild(rightGroup);
 
             tile.appendChild(checkbox);
