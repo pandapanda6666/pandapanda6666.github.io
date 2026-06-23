@@ -329,7 +329,10 @@
                     <td class="p-3 text-blue-300">${info}</td>
                     <td class="p-3 text-green-300">${b.message}</td>
                     <td class="p-3">${b.offline ? '✅' : '❌'}</td>
-                    <td class="p-3"><button onclick="delBroadcast('${b.id}')" class="text-red-500 hover:text-red-300 font-bold">刪除</button></td>
+                    <td class="p-3">
+                        <button onclick="editBroadcast('${b.id}')" class="text-yellow-500 hover:text-yellow-300 font-bold mr-3">編輯</button>
+                        <button onclick="delBroadcast('${b.id}')" class="text-red-500 hover:text-red-300 font-bold">刪除</button>
+                    </td>
                 `;
                 tb.appendChild(tr);
             });
@@ -353,6 +356,17 @@
                 document.getElementById(mode===1 ? 'b1_msg' : 'b2_msg').value = '';
                 window.fetchData();
             });
+        };
+
+        window.editBroadcast = function(id) {
+            const list = globalData.broadcasts || [];
+            const b = list.find(x => x.id === id);
+            if(!b) return;
+            const newMsg = prompt("請輸入新的廣播訊息內容:", b.message);
+            if(newMsg === null) return;
+            if(newMsg.trim() === '') return alert('訊息不能為空');
+            b.message = newMsg.trim();
+            socket.emit('adminAction', { action: 'updateBroadcasts', broadcasts: list }, window.fetchData);
         };
 
         window.delBroadcast = function(id) {
