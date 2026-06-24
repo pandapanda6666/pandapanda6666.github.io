@@ -31,6 +31,8 @@
                 <p class="text-xs text-slate-400 mt-1">授權管理員：<span id="currentAdminName" class="text-green-400"></span></p>
             </div>
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-2">
+                <button onclick="switchTab('tab_system')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🖥️ 本機系統控制</button>
+                <button onclick="switchTab('tab_mc')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🟩 Minecraft 伺服器</button>
                 <button onclick="switchTab('tab_users')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🧑‍💻 帳號與權限</button>
                 <button onclick="switchTab('tab_broadcasts')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">📢 廣播排程設定</button>
                 <button onclick="switchTab('tab_history')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">📜 歷史紀錄</button>
@@ -45,6 +47,28 @@
         <div class="flex-grow flex flex-col bg-slate-900 overflow-hidden relative">
             <div class="absolute top-4 right-4 z-50">
                 <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-bold shadow-lg">🔄 重新整理資料</button>
+            </div>
+
+            <div id="tab_system" class="tab-content p-6 h-full flex flex-col hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-400">🖥️ 本機系統控制台</h2>
+                    <button onclick="sendCommand('restart_system')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-bold shadow-lg">⚡ 重啟所有伺服器服務</button>
+                </div>
+                <div class="flex-grow bg-black p-4 rounded-lg font-mono text-sm overflow-auto whitespace-pre-wrap text-green-400" id="systemConsole">
+                    <!-- Logs will be appended here -->
+                </div>
+            </div>
+
+            <div id="tab_mc" class="tab-content p-6 h-full flex flex-col hidden">
+                <h2 class="text-2xl font-bold text-blue-400 mb-6">🟩 Minecraft 伺服器管理</h2>
+                <div class="bg-slate-800 p-8 rounded-lg border border-slate-700 max-w-2xl">
+                    <p class="text-slate-300 mb-6 text-lg">您可以在此遠端遙控本機端的 Minecraft 伺服器。</p>
+                    <div class="flex gap-4">
+                        <button onclick="sendCommand('start_mc')" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-bold shadow-lg text-lg flex-1">▶️ 啟動 Minecraft 伺服器</button>
+                        <button onclick="sendCommand('stop_mc')" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded font-bold shadow-lg text-lg flex-1">⏹️ 停止 Minecraft 伺服器</button>
+                    </div>
+                    <p class="text-slate-500 text-sm mt-4">註: 伺服器啟動狀態與詳細日誌請至「本機系統控制台」查看。</p>
+                </div>
             </div>
 
             <div id="tab_users" class="tab-content p-6 h-full flex flex-col hidden">
@@ -264,7 +288,7 @@
                     document.getElementById('loadingView').classList.add('hidden');
                     document.getElementById('dashboardView').classList.remove('hidden');
                     document.getElementById('currentAdminName').innerText = res.username;
-                    switchTab('tab_users');
+                    switchTab('tab_system');
                     window.fetchData();
                 } else {
                     alert(res.success ? "登入成功，但您的帳號沒有管理員權限！\n請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
@@ -272,7 +296,24 @@
                     setTimeout(redirectToLogin, 500);
                 }
             });
+
+            socket.on('systemLogs', (logs) => {
+                const consoleDiv = document.getElementById('systemConsole');
+                if (consoleDiv) {
+                    consoleDiv.textContent = logs;
+                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                }
+            });
         }
+
+        window.sendCommand = function(cmd) {
+            if(confirm(`確定要執行系統指令 [${cmd}] 嗎？`)) {
+                socket.emit('adminAction', { action: 'systemControl', command: cmd }, (res) => {
+                    if(res && res.success) alert("指令已送出！");
+                    else alert("指令傳送失敗");
+                });
+            }
+        };
 
         window.doLogout = function() {
             localStorage.removeItem('panda_auto_user');
@@ -285,6 +326,13 @@
             socket.emit('adminAction', { action: 'getDashboard' }, (res) => {
                 if(!res.success) return alert("無法獲取資料：" + res.msg);
                 globalData = res;
+                if (res.systemLogs) {
+                    const consoleDiv = document.getElementById('systemConsole');
+                    if (consoleDiv) {
+                        consoleDiv.textContent = res.systemLogs;
+                        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                    }
+                }
                 renderUsers(); renderBroadcasts(); renderHistory(); renderIssues(); renderErrors();
             });
         };
