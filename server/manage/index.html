@@ -322,7 +322,122 @@
             redirectToLogin();
         };
 
-        window.fetchData = function() {
+        
+        socket.on('productsData', (data) => {
+            globalData.products = data || [];
+            const tb = document.getElementById('shopList');
+            tb.innerHTML = '';
+            (globalData.products).forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-700/50 hover:bg-slate-700/30';
+                tr.innerHTML = `<td class="p-3">${p.id}</td><td class="p-3 text-yellow-400 font-bold">${p.name}</td><td class="p-3 text-slate-300">${p.origin||'通用'}</td><td class="p-3 text-green-400">${p.price}</td>
+                    <td class="p-3">
+                        <button onclick="editShopItem('${p.id}')" class="text-yellow-500 hover:text-yellow-300 font-bold mr-2">編輯</button>
+                        <button onclick="delShopItem('${p.id}')" class="text-red-500 hover:text-red-300 font-bold">刪除</button>
+                    </td>`;
+                tb.appendChild(tr);
+            });
+        });
+
+        window.editUser = function(uname) {
+            const user = globalData.users[uname];
+            if(!user) return;
+            Swal.fire({
+                title: '編輯玩家資料',
+                html: `
+                    <input id="swal-nick" class="swal2-input" placeholder="暱稱" value="${user.nickname || uname}">
+                    <input id="swal-lvl" class="swal2-input" placeholder="等級" value="${user.level || 1}" type="number">
+                    <input id="swal-exp" class="swal2-input" placeholder="經驗值" value="${user.exp || 0}" type="number">
+                    <input id="swal-coin" class="swal2-input" placeholder="P幣" value="${user.p_coin || 0}" type="number">
+                    <input id="swal-real" class="swal2-input" placeholder="真實姓名" value="${user.realName || ''}">
+                    <input id="swal-phone" class="swal2-input" placeholder="電話" value="${user.phone || ''}">
+                `,
+                focusConfirm: false,
+                background: '#1e293b', color: '#fff',
+                preConfirm: () => {
+                    return {
+                        nickname: document.getElementById('swal-nick').value,
+                        level: parseInt(document.getElementById('swal-lvl').value),
+                        exp: parseInt(document.getElementById('swal-exp').value),
+                        p_coin: parseInt(document.getElementById('swal-coin').value),
+                        realName: document.getElementById('swal-real').value,
+                        phone: document.getElementById('swal-phone').value
+                    }
+                }
+            }).then((result) => {
+                if(result.isConfirmed) {
+                    socket.emit('adminAction', {action:'updateUser', username: uname, data: result.value}, window.fetchData);
+                }
+            });
+        };
+
+        window.addShopItem = function() {
+            Swal.fire({
+                title: '新增商品',
+                html: `
+                    <input id="swal-p-id" class="swal2-input" placeholder="商品ID (如 item_01)">
+                    <input id="swal-p-name" class="swal2-input" placeholder="商品名稱">
+                    <input id="swal-p-origin" class="swal2-input" placeholder="所屬網域" value="https://pandapanda6666.github.io/">
+                    <input id="swal-p-price" class="swal2-input" placeholder="價格(P幣)" type="number" value="100">
+                    <input id="swal-p-img" class="swal2-input" placeholder="圖片網址">
+                    <input id="swal-p-desc" class="swal2-input" placeholder="商品說明">
+                `,
+                background: '#1e293b', color: '#fff',
+                preConfirm: () => {
+                    return {
+                        id: document.getElementById('swal-p-id').value, name: document.getElementById('swal-p-name').value,
+                        origin: document.getElementById('swal-p-origin').value, price: parseInt(document.getElementById('swal-p-price').value||0),
+                        image: document.getElementById('swal-p-img').value, description: document.getElementById('swal-p-desc').value
+                    }
+                }
+            }).then(res => {
+                if(res.isConfirmed && res.value.id) {
+                    const list = globalData.products || [];
+                    list.push(res.value);
+                    socket.emit('adminAction', {action:'updateProducts', products: list}, () => socket.emit('getProducts'));
+                }
+            });
+        };
+        
+        window.editShopItem = function(id) {
+            const p = (globalData.products||[]).find(x=>x.id===id);
+            if(!p) return;
+            Swal.fire({
+                title: '編輯商品',
+                html: `
+                    <input id="swal-p-id" class="swal2-input" placeholder="商品ID" value="${p.id}" disabled>
+                    <input id="swal-p-name" class="swal2-input" placeholder="商品名稱" value="${p.name}">
+                    <input id="swal-p-origin" class="swal2-input" placeholder="所屬網域" value="${p.origin||''}">
+                    <input id="swal-p-price" class="swal2-input" placeholder="價格(P幣)" type="number" value="${p.price||0}">
+                    <input id="swal-p-img" class="swal2-input" placeholder="圖片網址" value="${p.image||''}">
+                    <input id="swal-p-desc" class="swal2-input" placeholder="商品說明" value="${p.description||''}">
+                `,
+                background: '#1e293b', color: '#fff',
+                preConfirm: () => {
+                    return {
+                        id: p.id, name: document.getElementById('swal-p-name').value,
+                        origin: document.getElementById('swal-p-origin').value, price: parseInt(document.getElementById('swal-p-price').value||0),
+                        image: document.getElementById('swal-p-img').value, description: document.getElementById('swal-p-desc').value
+                    }
+                }
+            }).then(res => {
+                if(res.isConfirmed) {
+                    let list = globalData.products || [];
+                    const idx = list.findIndex(x=>x.id===id);
+                    if(idx>-1) list[idx] = res.value;
+                    socket.emit('adminAction', {action:'updateProducts', products: list}, () => socket.emit('getProducts'));
+                }
+            });
+        };
+
+        window.delShopItem = function(id) {
+            if(confirm('確定刪除此商品?')) {
+                const list = (globalData.products||[]).filter(x=>x.id!==id);
+                socket.emit('adminAction', {action:'updateProducts', products: list}, () => socket.emit('getProducts'));
+            }
+        };
+
+window.fetchData = function() {
             socket.emit('adminAction', { action: 'getDashboard' }, (res) => {
                 if(!res.success) return alert("無法獲取資料：" + res.msg);
                 globalData = res;
@@ -350,7 +465,8 @@
                     <td class="p-4 text-slate-400">${u.gmail || '-'}</td>
                     <td class="p-4">${globalData.banned[uname] ? '⛔封鎖' : globalData.muted[uname] ? '🔇禁言' : '🟢正常'}</td>
                     <td class="p-4">
-                        <button onclick="actUser('delete', '${uname}')" class="text-red-500 hover:text-red-300 px-2 font-bold">刪除</button>
+                        <button onclick="editUser('${uname}')" class="text-yellow-500 hover:text-yellow-300 px-2 font-bold">編輯</button>
+<button onclick="actUser('delete', '${uname}')" class="text-red-500 hover:text-red-300 px-2 font-bold">刪除</button>
                         <button onclick="actUser('ban', '${uname}')" class="text-slate-400 hover:text-slate-200 px-2 font-bold">封鎖</button>
                     </td>
                 `;
