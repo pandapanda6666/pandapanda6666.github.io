@@ -723,66 +723,6 @@
         
 
         // --- 控制台邏輯設置 (手動/自動分配) ---
-        function setupControlListeners() {
-            const autoAllocateCb = document.getElementById('autoAllocateCb');
-            const fpsSelect = document.getElementById('fpsSelect');
-            const qualitySelect = document.getElementById('qualitySelect');
-            const customFpsInput = document.getElementById('customFpsInput');
-            const customWidthInput = document.getElementById('customWidthInput');
-            const autoAllocateStatus = document.getElementById('autoAllocateStatus');
-
-            autoAllocateCb.addEventListener('change', (e) => {
-                isAutoAllocate = e.target.checked;
-                fpsSelect.disabled = isAutoAllocate;
-                qualitySelect.disabled = isAutoAllocate;
-                customFpsInput.disabled = isAutoAllocate;
-                customWidthInput.disabled = isAutoAllocate;
-
-                if (isAutoAllocate) {
-                    autoAllocateStatus.classList.remove('hidden');
-                    runAutoAllocate();
-                    if(!autoAllocateTimer) {
-                        autoAllocateTimer = setInterval(runAutoAllocate, 5000);
-                    }
-                    showErrorToast('✅ 已開啟自動分配：系統將根據效能智慧調節最佳畫質與頻率', 3000);
-                } else {
-                    autoAllocateStatus.classList.add('hidden');
-                    if(autoAllocateTimer) {
-                        clearInterval(autoAllocateTimer);
-                        autoAllocateTimer = null;
-                    }
-                    applyManualSettings();
-                }
-            });
-
-            function applyManualSettings() {
-                if (fpsSelect.value === 'custom') {
-                    const fps = parseInt(customFpsInput.value) || 10;
-                    currentCaptureInterval = 1000 / fps;
-                    customFpsInput.classList.remove('hidden');
-                } else {
-                    currentCaptureInterval = parseInt(fpsSelect.value);
-                    customFpsInput.classList.add('hidden');
-                }
-
-                if (qualitySelect.value === 'custom') {
-                    currentQualityIndex = 'custom';
-                    customWidthInput.classList.remove('hidden');
-                } else {
-                    currentQualityIndex = parseInt(qualitySelect.value);
-                    customWidthInput.classList.add('hidden');
-                }
-
-                if (Object.keys(activeViewers).length > 0) {
-                    startCaptureLoop();
-                }
-            }
-
-            fpsSelect.addEventListener('change', applyManualSettings);
-            customFpsInput.addEventListener('change', applyManualSettings);
-            qualitySelect.addEventListener('change', applyManualSettings);
-            customWidthInput.addEventListener('change', applyManualSettings);
-        }
 
         function runAutoAllocate() {
             if (!isAutoAllocate || Object.keys(activeViewers).length === 0) return;
@@ -815,13 +755,6 @@
                 currentCaptureInterval = newInterval;
                 currentQualityIndex = newQualityIndex;
                 changed = true;
-            }
-
-            const infoText = document.getElementById('autoAllocateStatus');
-            if (infoText) {
-                const widthStr = newQualityIndex === 'custom' ? '自訂' : qualityPresets[newQualityIndex].w;
-                const fpsStr = Math.round(1000 / newInterval);
-                infoText.innerHTML = `<span class="text-emerald-400 font-bold">智慧運行中:</span> ${fpsStr} FPS | 寬度 ${widthStr}`;
             }
 
             if (changed) {
@@ -875,12 +808,9 @@
                 }
             };
 
-            setupControlListeners(); 
-            
-            
-            
-            
-
+            if (isAutoAllocate && typeof autoAllocateTimer !== 'undefined' && !autoAllocateTimer) {
+                autoAllocateTimer = setInterval(runAutoAllocate, 5000);
+            }
             await initCameraBroadcaster();
         };
 
