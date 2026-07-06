@@ -387,7 +387,16 @@
         let recordedVideosList = []; 
         let sameAccountDevices = {};
         let publicDevices = {};
-        let myDeviceName = localStorage.getItem('panda_device_name') || '未命名裝置';
+        function getDefaultDeviceName() {
+            const ua = navigator.userAgent;
+            if (ua.includes('Windows')) return 'Windows 設備';
+            if (ua.includes('iPhone')) return 'iPhone';
+            if (ua.includes('iPad')) return 'iPad';
+            if (ua.includes('Macintosh')) return 'Mac 設備';
+            if (ua.includes('Android')) return 'Android 設備';
+            return '未命名裝置';
+        }
+        let myDeviceName = localStorage.getItem('panda_device_name') || getDefaultDeviceName();
         let isPublicDevice = localStorage.getItem('panda_device_public') === 'true';
 
         // 相機控制與攝影機選擇
@@ -953,20 +962,32 @@
             }
             
             const saveSettings = () => {
-                myDeviceName = document.getElementById('cameraNameInput').value.trim() || '未命名裝置';
-                isPublicDevice = document.getElementById('publicListCb').checked;
+                myDeviceName = document.getElementById('cameraNameInput').value.trim() || getDefaultDeviceName();
+                
+                const passInput = document.getElementById('cameraPasswordInput');
+                const cb = document.getElementById('publicListCb');
+                
+                if (cb && cb.checked) {
+                    if (!passInput || !passInput.value.trim()) {
+                        alert('如要公開顯示於大廳，請務必先設定一組連線密碼！');
+                        cb.checked = false;
+                    }
+                }
+                
+                isPublicDevice = cb ? cb.checked : false;
                 localStorage.setItem('panda_device_name', myDeviceName);
-                isPublicDevice = document.getElementById('publicListCb') ? document.getElementById('publicListCb').checked : false;
                 localStorage.setItem('panda_device_public', isPublicDevice);
-                localStorage.setItem('panda_device_public', isPublicDevice);
-                if(document.getElementById('cameraPasswordInput')) {
-                    localStorage.setItem('panda_device_password', document.getElementById('cameraPasswordInput').value.trim());
+                
+                if(passInput) {
+                    localStorage.setItem('panda_device_password', passInput.value.trim());
                 }
                 syncCloudData();
             };
             document.getElementById('cameraNameInput').addEventListener('change', saveSettings);
-            if(document.getElementById('publicListCb')) { document.getElementById('publicListCb').checked = isPublicDevice; document.getElementById('publicListCb').addEventListener('change', saveSettings); }
-            document.getElementById('publicListCb').addEventListener('change', saveSettings);
+            if(document.getElementById('publicListCb')) { 
+                document.getElementById('publicListCb').checked = isPublicDevice; 
+                document.getElementById('publicListCb').addEventListener('change', saveSettings); 
+            }
             if(document.getElementById('cameraPasswordInput')) {
                 document.getElementById('cameraPasswordInput').addEventListener('change', saveSettings);
             }
