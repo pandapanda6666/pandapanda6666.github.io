@@ -154,6 +154,10 @@
                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-t border-slate-700 pt-3">
                     <div class="flex items-center gap-2 w-full sm:w-auto">
                         <label class="text-slate-400 text-sm whitespace-nowrap font-bold">設備名稱:</label>
+                        <input type="checkbox" id="publicListCb" class="w-4 h-4 text-indigo-600 rounded border-slate-600">
+                        <label for="publicListCb" class="text-indigo-400 text-sm font-bold cursor-pointer select-none">公開顯示於大廳</label>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
                         <input type="text" id="cameraNameInput" placeholder="輸入名稱" class="w-full sm:w-32 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1.5 text-white text-sm focus:outline-none focus:border-emerald-500 transition">
                     </div>
                     <div class="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
@@ -382,8 +386,8 @@
         
         let recordedVideosList = []; 
         let sameAccountDevices = {};
-        
-        let publicDevices = {}; 
+        let publicDevices = {};
+        let isPublicDevice = localStorage.getItem(\'panda_device_public\') === \'true\'; 
         let myDeviceName = localStorage.getItem('panda_device_name') || '未命名裝置';
         let isPublicDevice = localStorage.getItem('panda_device_public') === 'true';
 
@@ -512,6 +516,7 @@
                         avatar: currentUser.avatar,
                         device: navigator.userAgent,
                         deviceName: myDeviceName,
+                        isPublic: isPublicDevice,
                         role: myRole,
                         pin: myPairCode,
                         uuid: myUuid
@@ -528,6 +533,7 @@
                         action: 'public_device_presence',
                         nickname: currentUser ? currentUser.nickname : '訪客',
                         deviceName: myDeviceName,
+                        isPublic: isPublicDevice,
                         pin: myPairCode,
                         uuid: myUuid,
                         hasPassword: hasPass
@@ -707,9 +713,15 @@
                             recordedVideosList = res.data.recordedVideos;
                             renderRecordedVideos();
                         }
+                        if (res.data.isPublic !== undefined) {
+                            isPublicDevice = res.data.isPublic;
+                            localStorage.setItem('panda_device_public', isPublicDevice);
+                        }
                         if (res.data.deviceName) {
                             myDeviceName = res.data.deviceName;
                             localStorage.setItem('panda_device_name', myDeviceName);
+                isPublicDevice = document.getElementById('publicListCb') ? document.getElementById('publicListCb').checked : false;
+                localStorage.setItem('panda_device_public', isPublicDevice);
                         }
                         if (res.data.isPublic !== undefined) {
                             isPublicDevice = res.data.isPublic;
@@ -945,6 +957,8 @@
                 myDeviceName = document.getElementById('cameraNameInput').value.trim() || '未命名裝置';
                 isPublicDevice = document.getElementById('publicListCb').checked;
                 localStorage.setItem('panda_device_name', myDeviceName);
+                isPublicDevice = document.getElementById('publicListCb') ? document.getElementById('publicListCb').checked : false;
+                localStorage.setItem('panda_device_public', isPublicDevice);
                 localStorage.setItem('panda_device_public', isPublicDevice);
                 if(document.getElementById('cameraPasswordInput')) {
                     localStorage.setItem('panda_device_password', document.getElementById('cameraPasswordInput').value.trim());
@@ -952,6 +966,7 @@
                 syncCloudData();
             };
             document.getElementById('cameraNameInput').addEventListener('change', saveSettings);
+            if(document.getElementById('publicListCb')) { document.getElementById('publicListCb').checked = isPublicDevice; document.getElementById('publicListCb').addEventListener('change', saveSettings); }
             document.getElementById('publicListCb').addEventListener('change', saveSettings);
             if(document.getElementById('cameraPasswordInput')) {
                 document.getElementById('cameraPasswordInput').addEventListener('change', saveSettings);
