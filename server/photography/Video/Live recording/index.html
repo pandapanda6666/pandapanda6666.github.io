@@ -643,6 +643,35 @@
             socket.on('connect', () => {
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                // 自動重新連線恢復機制 (不需重整頁面)
+                if (typeof myRole !== 'undefined') {
+                    if (myRole === 'camera') {
+                        const statusLabel = document.getElementById('cameraStatus');
+                        if (statusLabel && statusLabel.innerText.includes("斷線")) {
+                            statusLabel.innerText = "伺服器重新連線成功，正在恢復廣播狀態...";
+                        }
+                        if (typeof syncCloudData === 'function') syncCloudData();
+                    } else if (myRole === 'viewer') {
+                        const statusLabel = document.getElementById('viewerStatus');
+                        if (statusLabel && statusLabel.innerText.includes("斷線")) {
+                            statusLabel.innerText = "伺服器重新連線成功，正在恢復影像連線...";
+                        }
+                        if (typeof watchedCodes !== 'undefined' && watchedCodes.size > 0) {
+                            watchedCodes.forEach(code => {
+                                const passInput = document.getElementById('inputConnectPassword') ? document.getElementById('inputConnectPassword').value.trim() : '';
+                                socket.emit('appData', {
+                                    room: appId,
+                                    action: 'request_socket_stream',
+                                    pin: code,
+                                    password: passInput,
+                                    requesterId: myUuid,
+                                    requesterUsername: typeof currentUser !== 'undefined' && currentUser ? currentUser.username : null
+                                });
+                            });
+                        }
+                    }
+                }
+
                 
                 socket.emit('getAppData', { appId: appId }, (res) => {
                     if (res && res.data) {
@@ -675,6 +704,19 @@
             });
 
             socket.off('appData');
+            socket.on('disconnect', () => {
+                console.warn('與伺服器連線中斷，嘗試自動重新連線...');
+                if (typeof myRole !== 'undefined') {
+                    if (myRole === 'camera') {
+                        const statusLabel = document.getElementById('cameraStatus');
+                        if (statusLabel) statusLabel.innerText = "伺服器已斷線，正在自動重新連線...";
+                    } else if (myRole === 'viewer') {
+                        const statusLabel = document.getElementById('viewerStatus');
+                        if (statusLabel) statusLabel.innerText = "伺服器已斷線，正在自動重新連線...";
+                    }
+                }
+            });
+
             socket.on('appData', handleIncomingAppData);
 
             checkSSO();
