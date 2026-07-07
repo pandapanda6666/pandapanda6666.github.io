@@ -110,7 +110,10 @@
                     <span class="h-2.5 w-2.5 bg-emerald-500 rounded-full animate-pulse"></span>
                     相機端廣播中
                 </h2>
-                <button onclick="returnToLobby()" class="text-slate-400 hover:text-white text-sm transition border border-slate-600 px-3 py-1 rounded-lg">返回大廳</button>
+                <div class="flex gap-2">
+                    <button onclick="openSettingsModal()" class="text-white bg-indigo-600 hover:bg-indigo-500 text-sm transition border border-indigo-500 px-3 py-1 rounded-lg shadow-md flex items-center gap-1">⚙️ 設定</button>
+                    <button onclick="returnToLobby()" class="text-slate-400 hover:text-white text-sm transition border border-slate-600 px-3 py-1 rounded-lg">返回大廳</button>
+                </div>
             </div>
             
             <div class="bg-slate-900 rounded-xl p-5 border border-slate-700 text-center mb-6 relative">
@@ -700,25 +703,6 @@
         }
 
         // --- 攝影機列舉 (Camera Enum) ---
-        async function populateCameras() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-                const select = document.getElementById('cameraSelect');
-                
-                if (select.options.length <= 1 && videoDevices.length > 0) {
-                    select.innerHTML = '';
-                    videoDevices.forEach((device, index) => {
-                        const option = document.createElement('option');
-                        option.value = device.deviceId;
-                        option.text = device.label || `攝影機鏡頭 ${index + 1}`;
-                        select.appendChild(option);
-                    });
-                }
-            } catch(e) {
-                console.warn("獲取攝影機清單失敗", e);
-            }
-        }
 
         
 
@@ -865,8 +849,6 @@
                 document.getElementById('localVideo').srcObject = localStream;
                 statusLabel.innerText = "裝置準備就緒，無損高清硬體擷取通道已解鎖。";
 
-                await populateCameras();
-
                 const audioTracks = localStream.getAudioTracks();
                 if (audioTracks.length > 0) {
                     const micStream = new MediaStream([audioTracks[0]]);
@@ -980,19 +962,6 @@
             
             if (isAutoAllocate) {
                 runAutoAllocate();
-            } else {
-                if (document.getElementById('fpsSelect').value === 'custom') {
-                    const customFps = parseInt(document.getElementById('customFpsInput').value) || 10;
-                    currentCaptureInterval = 1000 / customFps;
-                } else {
-                    currentCaptureInterval = parseInt(document.getElementById('fpsSelect').value);
-                }
-
-                if (document.getElementById('qualitySelect').value === 'custom') {
-                    currentQualityIndex = 'custom';
-                } else {
-                    currentQualityIndex = parseInt(document.getElementById('qualitySelect').value);
-                }
             }
             
             startCaptureLoop();
@@ -2154,14 +2123,15 @@
             remoteSettingsTarget = targetPin;
             
             if (targetPin) {
-                // 遠端設定模式：隱藏不相干的選項
-                document.getElementById('modalDeviceName').closest('.flex-col').classList.add('hidden');
+                // 遠端設定模式：允許修改名稱與密碼，但隱藏相機選擇與舊密碼輸入（因為遠端不需舊密碼）
+                document.getElementById('modalDeviceName').closest('.flex-col').classList.remove('hidden');
                 document.getElementById('modalCameraSelect').closest('.flex-col').classList.add('hidden');
-                document.getElementById('modalPublicCb').closest('.border-t').classList.add('hidden');
-                document.getElementById('oldPasswordBlock').parentElement.classList.add('hidden'); // 整個密碼區塊
+                document.getElementById('modalPublicCb').closest('.border-t').classList.remove('hidden');
+                document.getElementById('oldPasswordBlock').parentElement.classList.remove('hidden'); 
+                document.getElementById('oldPasswordBlock').classList.add('hidden'); // 不需驗證舊密碼
+                document.getElementById('oldPasswordBlock').classList.remove('flex');
                 
-                // 設定彈窗為遠端控制標題
-                document.querySelector('#settingsModal h3').innerText = `⚙️ 遠端畫質控制 [${targetPin}]`;
+                document.querySelector('#settingsModal h3').innerText = `⚙️ 遠端設備設定 [${targetPin}]`;
                 
                 // 清空預設的自訂值
                 document.getElementById('modalFpsSelect').value = '100';
@@ -2305,6 +2275,14 @@
                 else if (qVal === '4') newW = 1280;
 
                 const isAuto = document.getElementById('modalAutoAllocateCb').checked;
+                const newName = document.getElementById('modalDeviceName').value.trim();
+                const newPublic = document.getElementById('modalPublicCb').checked;
+                const newPass = document.getElementById('modalNewPassword').value.trim();
+
+                if (newPublic && !newPass) {
+                    // 如果遠端想公開，但沒給密碼（且我們不知道他原本有沒有密碼，保險起見警告）
+                    // 但這裡放寬，交給相機端驗證
+                }
 
                 if (socket && socket.connected) {
                     socket.emit('appData', {
@@ -2314,7 +2292,10 @@
                         requesterId: myUuid,
                         fps: newFps,
                         width: newW,
-                        autoAllocate: isAuto
+                        autoAllocate: isAuto,
+                        deviceName: newName,
+                        isPublic: newPublic,
+                        password: newPass
                     });
                 }
                 closeSettingsModal();
