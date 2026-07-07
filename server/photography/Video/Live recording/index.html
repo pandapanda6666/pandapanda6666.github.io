@@ -206,7 +206,10 @@
                     </div>
                     <div class="flex gap-2">
                         <input type="text" id="inputPairCode" placeholder="輸入6位數配對碼" class="flex-grow bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono tracking-widest text-center text-sm">
-                        <input type="password" id="inputConnectPassword" placeholder="密碼(選填)" class="w-24 shrink-0 bg-slate-800 border border-slate-600 rounded-lg px-2 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm text-center">
+                        <div class="relative flex items-center shrink-0">
+                            <input type="password" id="inputConnectPassword" placeholder="密碼(選填)" class="w-28 bg-slate-800 border border-slate-600 rounded-lg pl-2 pr-8 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm text-center">
+                            <button type="button" onclick="togglePasswordVisibility('inputConnectPassword')" class="absolute right-2 text-slate-400 hover:text-white transition" title="顯示密碼">👁️</button>
+                        </div>
                         <button id="btnConnect" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-lg transition shadow-lg shrink-0 text-sm">加入監看</button>
                     </div>
                 </div>
@@ -2148,33 +2151,13 @@
                 document.querySelector('#settingsModal h3').innerText = `⚙️ 設備進階設定`;
                 
                 const savedPass = localStorage.getItem('panda_device_password') || '';
-                let requireSettingsPassword = localStorage.getItem('panda_require_settings_password') === 'true';
                 
-                if (requireSettingsPassword && savedPass !== '') {
-                    const check = prompt('請輸入目前的連線密碼以開啟設定：');
-                    if (check === null) return;
-                    if (check !== savedPass) {
-                        alert('密碼錯誤！');
-                        return;
-                    }
-                }
-
                 populateSettingsCameras();
 
                 document.getElementById('modalDeviceName').value = myDeviceName;
                 document.getElementById('modalPublicCb').checked = localStorage.getItem('panda_device_public') === 'true';
-                document.getElementById('modalRequirePassCb').checked = requireSettingsPassword;
                 
                 document.getElementById('modalNewPassword').value = '';
-                document.getElementById('modalOldPassword').value = '';
-                
-                if (savedPass) {
-                    document.getElementById('oldPasswordBlock').classList.remove('hidden');
-                    document.getElementById('oldPasswordBlock').classList.add('flex');
-                } else {
-                    document.getElementById('oldPasswordBlock').classList.add('hidden');
-                    document.getElementById('oldPasswordBlock').classList.remove('flex');
-                }
 
                 document.getElementById('modalAutoAllocateCb').checked = isAutoAllocate;
                 if ([500,200,100,66,33].includes(currentCaptureInterval)) {
@@ -2305,13 +2288,7 @@
 
             // 本地儲存模式
             const savedPass = localStorage.getItem('panda_device_password') || '';
-            const oldPassInput = document.getElementById('modalOldPassword').value;
             const newPassInput = document.getElementById('modalNewPassword').value.trim();
-
-            if (savedPass && oldPassInput !== savedPass) {
-                alert('舊密碼錯誤，無法儲存變更！');
-                return;
-            }
 
             const cb = document.getElementById('modalPublicCb');
             let finalPass = savedPass;
@@ -2329,12 +2306,10 @@
             if(!myDeviceName) myDeviceName = '未命名裝置';
             
             let isPublicDevice = cb.checked;
-            let requireSettingsPassword = document.getElementById('modalRequirePassCb').checked;
             isAutoAllocate = document.getElementById('modalAutoAllocateCb').checked;
             
             localStorage.setItem('panda_device_name', myDeviceName);
             localStorage.setItem('panda_device_public', isPublicDevice);
-            localStorage.setItem('panda_require_settings_password', requireSettingsPassword);
             localStorage.setItem('panda_device_password', finalPass);
 
             const fpsVal = document.getElementById('modalFpsSelect').value;
