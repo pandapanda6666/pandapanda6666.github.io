@@ -1285,25 +1285,34 @@
                     if (currentUser && data.requesterUsername === currentUser.username) isSameAccount = true;
                     // 如果有設密碼且非同帳號，不允許設定(簡易版安全)
                     let changed = false;
-                    if (data.fps && data.fps > 0 && data.fps <= 60) {
-                        currentCaptureInterval = 1000 / data.fps;
-                        isAutoAllocate = false;
-                        isAutoAllocate = false;
-                        document.getElementById('fpsSelect').value = 'custom';
-                        document.getElementById('customFpsInput').value = data.fps;
-                        document.getElementById('customFpsInput').classList.remove('hidden');
-                        changed = true;
-                    }
-                    if (data.width && data.width > 0) {
-                        currentQualityIndex = 'custom';
-                        isAutoAllocate = false;
-                        isAutoAllocate = false;
-                        document.getElementById('qualitySelect').value = 'custom';
-                        document.getElementById('customWidthInput').value = data.width;
-                        document.getElementById('customWidthInput').classList.remove('hidden');
-                        changed = true;
-                    }
-                    if (changed) {
+                    if (typeof data.autoAllocate === 'boolean') {
+                          isAutoAllocate = data.autoAllocate;
+                          if (isAutoAllocate && typeof autoAllocateTimer !== 'undefined' && !autoAllocateTimer) {
+                              autoAllocateTimer = setInterval(runAutoAllocate, 5000);
+                          } else if (!isAutoAllocate && typeof autoAllocateTimer !== 'undefined' && autoAllocateTimer) {
+                              clearInterval(autoAllocateTimer);
+                              autoAllocateTimer = null;
+                          }
+                          changed = true;
+                      }
+                      
+                      if (!isAutoAllocate) {
+                          if (data.fps && data.fps > 0 && data.fps <= 60) {
+                              currentCaptureInterval = 1000 / data.fps;
+                              changed = true;
+                          }
+                          if (data.width && data.width > 0) {
+                              currentQualityIndex = 'custom';
+                              // Wait, initCameraBroadcaster needs the width to be read.
+                              // So we must temporarily update the DOM element, since initCameraBroadcaster reads from DOM currently!
+                              // Actually, the new initCameraBroadcaster logic reads from modalQualitySelect and modalCustomWidthInput
+                              document.getElementById('modalQualitySelect').value = 'custom';
+                              document.getElementById('modalCustomWidthInput').value = data.width;
+                              changed = true;
+                          }
+                      }
+                      
+                      if (changed) {
                         startCaptureLoop();
                         showErrorToast('已套用遠端設定變更！', 3000);
                     }
@@ -1639,18 +1648,7 @@
             settingsBtn.title = "遠端設定";
             settingsBtn.innerHTML = `<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>`;
             settingsBtn.onclick = () => {
-                const newFps = prompt('請輸入新 FPS (1-60) 或留空維持原狀:');
-                const newW = prompt('請輸入新畫質寬度 (如 320, 640, 1280) 或留空維持原狀:');
-                if (newFps || newW) {
-                    socket.emit('appData', {
-                        room: appId,
-                        action: 'update_remote_settings',
-                        pin: pairCode,
-                        requesterId: myUuid,
-                        fps: newFps ? parseInt(newFps) : null,
-                        width: newW ? parseInt(newW) : null
-                    });
-                }
+                openSettingsModal(pairCode);
             };
             rightGroup.appendChild(settingsBtn);
 
@@ -2152,7 +2150,72 @@
             else el.type = 'password';
         }
 
-        function openSettingsModal() {
+        function openSettingsModal(targetPin = null) {
+            remoteSettingsTarget = targetPin;
+            
+            if (targetPin) {
+                // 遠端設定模式：隱藏不相干的選項
+                document.getElementById('modalDeviceName').closest('.flex-col').classList.add('hidden');
+                document.getElementById('modalCameraSelect').closest('.flex-col').classList.add('hidden');
+                document.getElementById('modalPublicCb').closest('.border-t').classList.add('hidden');
+                document.getElementById('oldPasswordBlock').parentElement.classList.add('hidden'); // 整個密碼區塊
+                
+                // 設定彈窗為遠端控制標題
+                document.querySelector('#settingsModal h3').innerText = `⚙️ 遠端畫質控制 [${targetPin}]`;
+                
+                // 清空預設的自訂值
+                document.getElementById('modalFpsSelect').value = '100';
+                document.getElementById('modalQualitySelect').value = '2';
+                document.getElementById('modalAutoAllocateCb').checked = false;
+                
+            } else {
+                // 本地設定模式：顯示所有選項
+                document.getElementById('modalDeviceName').closest('.flex-col').classList.remove('hidden');
+                document.getElementById('modalCameraSelect').closest('.flex-col').classList.remove('hidden');
+                document.getElementById('modalPublicCb').closest('.border-t').classList.remove('hidden');
+                document.getElementById('oldPasswordBlock').parentElement.classList.remove('hidden');
+                
+                document.querySelector('#settingsModal h3').innerText = `⚙️ 設備進階設定`;
+                
+                const savedPass = localStorage.getItem('panda_device_password') || '';
+                let requireSettingsPassword = localStorage.getItem('panda_require_settings_password') === 'true';
+                
+                if (requireSettingsPassword && savedPass !== '') {
+                    const check = prompt('請輸入目前的連線密碼以開啟設定：');
+                    if (check === null) return;
+                    if (check !== savedPass) {
+                        alert('密碼錯誤！');
+                        return;
+                    }
+                }
+
+                populateSettingsCameras();
+
+                document.getElementById('modalDeviceName').value = myDeviceName;
+                document.getElementById('modalPublicCb').checked = localStorage.getItem('panda_device_public') === 'true';
+                document.getElementById('modalRequirePassCb').checked = requireSettingsPassword;
+                
+                document.getElementById('modalNewPassword').value = '';
+                document.getElementById('modalOldPassword').value = '';
+                
+                if (savedPass) {
+                    document.getElementById('oldPasswordBlock').classList.remove('hidden');
+                    document.getElementById('oldPasswordBlock').classList.add('flex');
+                } else {
+                    document.getElementById('oldPasswordBlock').classList.add('hidden');
+                    document.getElementById('oldPasswordBlock').classList.remove('flex');
+                }
+
+                document.getElementById('modalAutoAllocateCb').checked = isAutoAllocate;
+                if ([500,200,100,66,33].includes(currentCaptureInterval)) {
+                    document.getElementById('modalFpsSelect').value = currentCaptureInterval;
+                    document.getElementById('modalCustomFpsInput').classList.add('hidden');
+                } else {
+                    document.getElementById('modalFpsSelect').value = 'custom';
+                    document.getElementById('modalCustomFpsInput').value = Math.round(1000/currentCaptureInterval);
+                    document.getElementById('modalCustomFpsInput').classList.remove('hidden');
+                }
+            }
             const savedPass = localStorage.getItem('panda_device_password') || '';
             let requireSettingsPassword = localStorage.getItem('panda_require_settings_password') === 'true';
             
@@ -2225,6 +2288,41 @@
         }
 
         async function saveSettingsModal() {
+            if (remoteSettingsTarget) {
+                // 遠端儲存模式
+                let newFps = null;
+                const fpsVal = document.getElementById('modalFpsSelect').value;
+                if (fpsVal === 'custom') newFps = parseInt(document.getElementById('modalCustomFpsInput').value);
+                else newFps = Math.round(1000/parseInt(fpsVal));
+
+                let newW = null;
+                const qVal = document.getElementById('modalQualitySelect').value;
+                if (qVal === 'custom') newW = parseInt(document.getElementById('modalCustomWidthInput').value);
+                else if (qVal === '0') newW = 320;
+                else if (qVal === '1') newW = 480;
+                else if (qVal === '2') newW = 640;
+                else if (qVal === '3') newW = 800;
+                else if (qVal === '4') newW = 1280;
+
+                const isAuto = document.getElementById('modalAutoAllocateCb').checked;
+
+                if (socket && socket.connected) {
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'update_remote_settings',
+                        pin: remoteSettingsTarget,
+                        requesterId: myUuid,
+                        fps: newFps,
+                        width: newW,
+                        autoAllocate: isAuto
+                    });
+                }
+                closeSettingsModal();
+                remoteSettingsTarget = null;
+                return;
+            }
+
+            // 本地儲存模式
             const savedPass = localStorage.getItem('panda_device_password') || '';
             const oldPassInput = document.getElementById('modalOldPassword').value;
             const newPassInput = document.getElementById('modalNewPassword').value.trim();
