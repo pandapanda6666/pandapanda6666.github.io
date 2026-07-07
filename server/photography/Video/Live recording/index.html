@@ -2145,9 +2145,162 @@
             initSocketConnection();
             startMemoryMonitor();
         };
-    </script>
+// --- 設定視窗邏輯 ---
+        function togglePasswordVisibility(id) {
+            const el = document.getElementById(id);
+            if (el.type === 'password') el.type = 'text';
+            else el.type = 'password';
+        }
 
-    <!-- 相機設定 Modal -->
+        function openSettingsModal() {
+            const savedPass = localStorage.getItem('panda_device_password') || '';
+            let requireSettingsPassword = localStorage.getItem('panda_require_settings_password') === 'true';
+            
+            if (requireSettingsPassword && savedPass !== '') {
+                const check = prompt('請輸入目前的連線密碼以開啟設定：');
+                if (check === null) return;
+                if (check !== savedPass) {
+                    alert('密碼錯誤！');
+                    return;
+                }
+            }
+
+            populateSettingsCameras();
+
+            document.getElementById('modalDeviceName').value = myDeviceName;
+            document.getElementById('modalPublicCb').checked = localStorage.getItem('panda_device_public') === 'true';
+            document.getElementById('modalRequirePassCb').checked = requireSettingsPassword;
+            
+            document.getElementById('modalNewPassword').value = '';
+            document.getElementById('modalOldPassword').value = '';
+            
+            if (savedPass) {
+                document.getElementById('oldPasswordBlock').classList.remove('hidden');
+                document.getElementById('oldPasswordBlock').classList.add('flex');
+            } else {
+                document.getElementById('oldPasswordBlock').classList.add('hidden');
+                document.getElementById('oldPasswordBlock').classList.remove('flex');
+            }
+
+            document.getElementById('modalAutoAllocateCb').checked = isAutoAllocate;
+            if ([500,200,100,66,33].includes(currentCaptureInterval)) {
+                document.getElementById('modalFpsSelect').value = currentCaptureInterval;
+                document.getElementById('modalCustomFpsInput').classList.add('hidden');
+            } else {
+                document.getElementById('modalFpsSelect').value = 'custom';
+                document.getElementById('modalCustomFpsInput').value = Math.round(1000/currentCaptureInterval);
+                document.getElementById('modalCustomFpsInput').classList.remove('hidden');
+            }
+
+            document.getElementById('modalFpsSelect').onchange = (e) => {
+                if(e.target.value === 'custom') document.getElementById('modalCustomFpsInput').classList.remove('hidden');
+                else document.getElementById('modalCustomFpsInput').classList.add('hidden');
+            };
+
+            document.getElementById('modalQualitySelect').onchange = (e) => {
+                if(e.target.value === 'custom') document.getElementById('modalCustomWidthInput').classList.remove('hidden');
+                else document.getElementById('modalCustomWidthInput').classList.add('hidden');
+            };
+
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        async function populateSettingsCameras() {
+            const select = document.getElementById('modalCameraSelect');
+            select.innerHTML = '<option value="">自動選擇預設鏡頭</option>';
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                devices.filter(d => d.kind === 'videoinput').forEach(d => {
+                    const option = document.createElement('option');
+                    option.value = d.deviceId;
+                    option.text = d.label || `攝影機 ${select.length}`;
+                    if (d.deviceId === currentCameraId) option.selected = true;
+                    select.appendChild(option);
+                });
+            } catch (e) {}
+        }
+
+        async function saveSettingsModal() {
+            const savedPass = localStorage.getItem('panda_device_password') || '';
+            const oldPassInput = document.getElementById('modalOldPassword').value;
+            const newPassInput = document.getElementById('modalNewPassword').value.trim();
+
+            if (savedPass && oldPassInput !== savedPass) {
+                alert('舊密碼錯誤，無法儲存變更！');
+                return;
+            }
+
+            const cb = document.getElementById('modalPublicCb');
+            let finalPass = savedPass;
+            if (newPassInput) {
+                finalPass = newPassInput;
+            }
+            
+            if (cb.checked && !finalPass) {
+                alert('如要公開顯示於大廳，請務必先設定一組連線密碼！');
+                cb.checked = false;
+                return;
+            }
+
+            myDeviceName = document.getElementById('modalDeviceName').value.trim();
+            if(!myDeviceName) myDeviceName = '未命名裝置';
+            
+            let isPublicDevice = cb.checked;
+            let requireSettingsPassword = document.getElementById('modalRequirePassCb').checked;
+            isAutoAllocate = document.getElementById('modalAutoAllocateCb').checked;
+            
+            localStorage.setItem('panda_device_name', myDeviceName);
+            localStorage.setItem('panda_device_public', isPublicDevice);
+            localStorage.setItem('panda_require_settings_password', requireSettingsPassword);
+            localStorage.setItem('panda_device_password', finalPass);
+
+            const fpsVal = document.getElementById('modalFpsSelect').value;
+            let needReinit = false;
+            let newInterval = currentCaptureInterval;
+            if (fpsVal === 'custom') {
+                const v = parseInt(document.getElementById('modalCustomFpsInput').value);
+                if(v && v > 0) newInterval = Math.round(1000/v);
+            } else {
+                newInterval = parseInt(fpsVal);
+            }
+            if(newInterval !== currentCaptureInterval) {
+                currentCaptureInterval = newInterval;
+                needReinit = true;
+            }
+
+            const qVal = document.getElementById('modalQualitySelect').value;
+            if (qVal === 'custom') {
+                needReinit = true; 
+            } else {
+                needReinit = true;
+            }
+
+            const camVal = document.getElementById('modalCameraSelect').value;
+            if (camVal !== currentCameraId) {
+                currentCameraId = camVal;
+                needReinit = true;
+            }
+
+            if (isAutoAllocate && typeof autoAllocateTimer !== 'undefined' && !autoAllocateTimer) {
+                autoAllocateTimer = setInterval(runAutoAllocate, 5000);
+            } else if (!isAutoAllocate && typeof autoAllocateTimer !== 'undefined' && autoAllocateTimer) {
+                clearInterval(autoAllocateTimer);
+                autoAllocateTimer = null;
+            }
+
+            syncCloudData();
+            closeSettingsModal();
+
+            if (needReinit && myRole === 'camera') {
+                await initCameraBroadcaster();
+            }
+        }
+    </script>
+</body>
     <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transform transition-transform duration-300 scale-95 origin-center animate-in fade-in zoom-in-95">
             <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
