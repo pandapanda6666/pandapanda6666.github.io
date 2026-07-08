@@ -2169,9 +2169,6 @@
             if (isOpeningSettings) return;
             isOpeningSettings = true;
             
-            // Release the lock slightly after execution to prevent double-click queuing
-            setTimeout(() => { isOpeningSettings = false; }, 500);
-            
             remoteSettingsTarget = targetPin;
             
             if (targetPin) {
@@ -2207,9 +2204,10 @@
                 
                 if (requireSettingsPassword && savedPass !== '') {
                     const check = prompt('請輸入目前的連線密碼以開啟設定：');
-                    if (check === null) return;
+                    if (check === null) { isOpeningSettings = false; return; }
                     if (check !== savedPass) {
                         alert('密碼錯誤！');
+                        isOpeningSettings = false;
                         return;
                     }
                 }
