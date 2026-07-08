@@ -33,6 +33,7 @@
             <div class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-2">
                 <button onclick="switchTab('tab_system')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🖥️ 本機系統控制</button>
                 <button onclick="switchTab('tab_mc')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🟩 Minecraft 伺服器</button>
+                <button onclick="switchTab('tab_config')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">⚙️ 設定編輯</button>
                 <button onclick="switchTab('tab_users')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🧑‍💻 帳號與權限</button>
                 <button onclick="switchTab('tab_broadcasts')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">📢 廣播排程設定</button>
                 <button onclick="switchTab('tab_history')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">📜 歷史紀錄</button>
@@ -72,6 +73,23 @@
                     </div>
                     <p class="text-slate-500 text-sm mt-4">註: 伺服器啟動狀態與詳細日誌請至「本機系統控制台」查看。</p>
                 </div>
+            </div>
+
+            <div id="tab_config" class="tab-content p-6 h-full flex flex-col hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-400">⚙️ 伺服器設定編輯</h2>
+                    <div class="flex gap-2 items-center">
+                        <select id="configSelector" class="bg-slate-800 border border-slate-600 text-white p-2 rounded-lg font-bold" onchange="window.loadConfigFile()">
+                            <option value="server.properties">server.properties</option>
+                            <option value="ops.json">ops.json</option>
+                            <option value="banned-players.json">banned-players.json</option>
+                            <option value="banned-ips.json">banned-ips.json</option>
+                            <option value="whitelist.json">whitelist.json</option>
+                        </select>
+                        <button onclick="window.saveConfigFile()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold shadow-lg transition">💾 儲存檔案</button>
+                    </div>
+                </div>
+                <textarea id="configEditor" class="w-full flex-grow bg-slate-950 border border-slate-700 text-green-300 font-mono p-4 rounded-xl focus:outline-none focus:border-green-500 min-h-[500px]" spellcheck="false"></textarea>
             </div>
 
             <div id="tab_users" class="tab-content p-6 h-full flex flex-col hidden">
@@ -792,6 +810,41 @@ window.fetchData = function() {
             const out = document.getElementById('pgOutput');
             out.select(); document.execCommand('copy');
             alert('已複製到剪貼簿！');
+        };
+
+        window.loadConfigFile = function() {
+            const file = document.getElementById('configSelector').value;
+            const editor = document.getElementById('configEditor');
+            editor.value = '讀取中...';
+            socket.emit('adminAction', { action: 'readFile', filePath: file }, (res) => {
+                if (res && res.success) {
+                    editor.value = res.content;
+                } else {
+                    editor.value = '無法讀取檔案: ' + (res ? res.msg : '伺服器無回應');
+                }
+            });
+        };
+
+        window.saveConfigFile = function() {
+            const file = document.getElementById('configSelector').value;
+            const content = document.getElementById('configEditor').value;
+            alert('儲存檔案中...');
+            socket.emit('adminAction', { action: 'writeFile', filePath: file, content: content }, (res) => {
+                if (res && res.success) {
+                    alert('檔案儲存成功！');
+                } else {
+                    alert('檔案儲存失敗: ' + (res ? res.msg : '伺服器無回應'));
+                }
+            });
+        };
+
+        const originalSwitchTab = window.switchTab;
+        window.switchTab = function(tabId) {
+            if(typeof originalSwitchTab === 'function') originalSwitchTab(tabId);
+            
+            if (tabId === 'tab_config') {
+                window.loadConfigFile();
+            }
         };
 
         initApp();
