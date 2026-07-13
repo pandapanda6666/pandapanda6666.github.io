@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>服务协议与隐私政策</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: #f7f7f7;
+            overflow: hidden;
+        }
+
+        /* 隐私授权弹窗层 */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 1000;
+        }
+
+        .privacy-dialog {
+            width: 85%;
+            max-width: 400px;
+            background: #fff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .dialog-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .dialog-content {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .dialog-footer {
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn-agree {
+            width: 100%;
+            height: 44px;
+            border-radius: 22px;
+            border: none;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            background-color: #07c160;
+            color: #fff;
+            transition: opacity 0.2s;
+        }
+
+        .btn-agree:active {
+            opacity: 0.8;
+        }
+
+        /* 视频展示层 */
+        .scare-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background: #000;
+            z-index: 10;
+        }
+
+        video {
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+
+        .hidden { display: none !important; }
+        .no-cursor { cursor: none !important; }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <div id="overlay" class="overlay">
+        <div class="privacy-dialog">
+            <div class="dialog-title">个人信息保护指引</div>
+            <div class="dialog-content">
+                为了加强对个人信息的保护，根据相关法律法规，我们需要向您说明处理个人信息的情况。我们会根据您的授权来收集和使用信息，包括为您提供基础展示服务、优化用户体验以及保障账号安全。
+            </div>
+            <div class="dialog-footer">
+                <button class="btn-agree" id="start-btn">同意并继续</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="video-wrap" class="scare-container hidden">
+        <video id="video" src="video.mp4" loop playsinline></video>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const videoWrap = document.getElementById('video-wrap');
+        const overlay = document.getElementById('overlay');
+        const startBtn = document.getElementById('start-btn');
+
+        // 全屏逻辑
+        function tryFullScreen() {
+            const el = document.documentElement;
+            const rfs = el.requestFullscreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+            if (rfs) rfs.call(el).catch(() => {});
+        }
+
+        // 退出全屏后再次点击恢复
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.body.addEventListener('click', tryFullScreen, { once: true });
+            }
+        });
+
+        // 核心交互：点击“同意”
+        startBtn.addEventListener('click', () => {
+            overlay.classList.add('hidden');
+            videoWrap.classList.remove('hidden');
+            document.body.classList.add('no-cursor');
+
+            // 播放视频
+            video.play().catch(() => {
+                video.muted = true;
+                video.play();
+            });
+
+            // 触发全屏
+            tryFullScreen();
+        });
+
+        // 离开页面提示
+        window.onbeforeunload = () => "确定离开吗？";
+    </script>
+<!-- Cloudflare Pages Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "3c7c186cffbb44e3894280760d43d06d"}'></script><!-- Cloudflare Pages Analytics --></body>
+</html>
