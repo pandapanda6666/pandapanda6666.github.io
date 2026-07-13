@@ -7,10 +7,9 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        html, body { 
-            max-width: 100vw; overflow-x: hidden !important; 
+        body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; overflow: hidden !important; box-sizing: border-box; user-select: none; touch-action: none; overscroll-behavior: none;
+            margin: 0; overflow: hidden; user-select: none;
             /* Win11 Bloom Style Background */
             background: radial-gradient(circle at 50% 120%, #004488, #001133 70%);
             color: white;
@@ -45,11 +44,11 @@
         .dk-icon .icon-text { font-size: 12px; text-shadow: 1px 1px 2px black; text-align: center; }
 
         /* Windows Manager */
-        .window { box-sizing: border-box; max-width: 100vw; overflow-x: hidden !important;
-            position: absolute; top: 20px; left: 50px; width: 850px; height: 750px;
+        .window {
+            position: absolute; top: 20px; left: 50px; width: 850px; height: 980px;
             background: #0f172a; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: flex; flex-direction: column; overflow: hidden !important; box-sizing: border-box;
+            display: flex; flex-direction: column; overflow: hidden;
             display: none;
         }
         .window.active { z-index: 1000; }
@@ -59,7 +58,7 @@
         }
         .window-header:active { cursor: grabbing; }
         .window-controls { display: flex; gap: 10px; }
-        .win-btn { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+        .win-btn { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; display: inline-block; }
         .win-close { background: #ef4444; }
         .win-max { background: #eab308; }
         .win-min { background: #22c55e; }
@@ -67,30 +66,31 @@
         .window-content { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
 
         /* Console App Custom Styles (Matching local Tkinter EXACTLY) */
-        .tk-title { text-align: center; font-size: 32px; font-weight: bold; color: #818cf8; margin-top: 20px; }
-        .tk-subtitle { text-align: center; font-size: 18px; color: #94a3b8; margin-bottom: 20px; }
+        .tk-title { text-align: center; font-size: 32px; font-weight: bold; color: #818cf8; margin-top: 15px; font-family: 'Microsoft JhengHei', sans-serif;}
+        .tk-subtitle { text-align: center; font-size: 18px; color: #94a3b8; margin-bottom: 5px; font-family: 'Microsoft JhengHei', sans-serif;}
         
-        .tk-btn-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
-        .tk-btn { padding: 10px 20px; font-size: 16px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; }
-        .tk-btn-green { background: #22c55e; color: white; }
-        .tk-btn-green:hover { background: #16a34a; }
-        .tk-btn-red { background: #ef4444; color: white; }
-        .tk-btn-red:hover { background: #dc2626; }
-        .tk-btn-gray { background: #475569; color: white; }
-        .tk-btn-gray:hover { background: #334155; }
+        .tk-btn-row { display: flex; justify-content: center; gap: 10px; margin: 15px 40px; }
+        .tk-btn { padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer; border: none; border-radius: 2px; font-family: 'Microsoft JhengHei', sans-serif; flex-grow: 1; text-align: center;}
         
-        .tk-url-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .tk-url-input { background: #0f172a; border: none; color: #60a5fa; font-family: Consolas; font-size: 18px; font-weight: bold; width: 400px; outline: none; }
+        /* Auto Restart Options */
+        .tk-opt-frame { border: 1px solid #334155; margin: 10px 40px; padding: 10px; border-radius: 2px; position: relative; }
+        .tk-opt-title { position: absolute; top: -12px; left: 10px; background: #0f172a; padding: 0 5px; color: #fcd34d; font-weight: bold; font-family: 'Microsoft JhengHei'; font-size: 16px;}
+        .tk-checkbox-row { display: flex; align-items: center; margin: 5px 10px; color: #e2e8f0; font-family: 'Microsoft JhengHei'; font-size: 14px;}
+        .tk-checkbox { margin-right: 10px; width: 16px; height: 16px; accent-color: #1e293b; }
         
-        .tk-progress-bar { width: 90%; margin: 0 auto 20px auto; height: 15px; background: #1e293b; }
+        .tk-url-frame { background: #1e293b; margin: 10px 40px; padding: 10px 15px; display: flex; align-items: center; }
+        .tk-url-input { background: #0f172a; border: none; color: #60a5fa; font-family: Consolas; font-size: 18px; font-weight: bold; flex-grow: 1; outline: none; margin-left: 10px; padding: 5px;}
+        
+        .tk-progress-frame { margin: 10px 40px; height: 15px; background: #1e293b; }
         .tk-progress-fill { height: 100%; background: #4ade80; width: 0%; transition: width 0.3s; }
         
-        #terminal { width: 90%; margin: 0 auto 20px auto; flex-grow: 1; background: #020617; color: #34d399; font-family: Consolas, monospace; padding: 10px; overflow-y: auto; font-size: 14px; white-space: pre-wrap; word-break: break-all; overflow-x: hidden; }
+        .tk-log-frame { flex-grow: 1; margin: 10px 40px; background: #020617; color: #34d399; font-family: Consolas, monospace; padding: 5px; overflow-y: auto; font-size: 14.6px; white-space: pre-wrap; display: flex; flex-direction: column;}
         
         /* Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar { width: 16px; height: 16px; }
+        ::-webkit-scrollbar-track { background: #0f172a; border-left: 1px solid #334155; border-top: 1px solid #334155;}
+        ::-webkit-scrollbar-thumb { background: #334155; border: 1px solid #0f172a; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
 <body>
@@ -108,13 +108,13 @@
     </div>
 
     <!-- Window: Console (Exact Replica of Tkinter) -->
-    <div id="win-console" class="window" style="width: 850px; height: 750px; display: none;">
-        <div class="window-header" onmousedown="dragWindow(event, \'win-console\')" ontouchstart="dragWindow(event, \'win-console\')">
+    <div id="win-console" class="window" style="width: 850px; height: 850px; display: none;">
+        <div class="window-header" onmousedown="dragWindow(event, 'win-console')">
             <div>PandaPanda的AI日常___面板</div>
             <div class="window-controls">
-                <div class="win-min" onclick="minWindow('console')"></div>
-                <div class="win-max" onclick="maxWindow('console')"></div>
-                <div class="win-close" onclick="closeWindow('console')"></div>
+                <div class="win-btn win-min" onclick="minWindow('console')"></div>
+                <div class="win-btn win-max" onclick="maxWindow('console')"></div>
+                <div class="win-btn win-close" onclick="closeWindow('console')"></div>
             </div>
         </div>
         <div class="window-content" style="background: #0f172a;">
@@ -123,26 +123,45 @@
             <div class="tk-subtitle">全自動架站與管理機器人</div>
             
             <div class="tk-btn-row">
-                <button class="tk-btn tk-btn-green" onclick="emitCmd('start_mc')">開始伺服器</button>
-                <button class="tk-btn tk-btn-red" onclick="emitCmd('stop_mc')">停止所有服務</button>
-                <button class="tk-btn tk-btn-gray" onclick="emitCmd('restart_system')">重新啟動面板</button>
-                <button class="tk-btn tk-btn-gray" onclick="openWindow('settings')">系統設定</button>
+                <button class="tk-btn" style="background:#4ade80; color:#022c22; font-size:16px;" onclick="emitCmd('start_mc')">🚀 手動啟動伺服器</button>
+                <button class="tk-btn" style="background:#ef4444; color:white; font-size:14px;" onclick="emitCmd('stop_mc')">⏹️ 停止所有服務</button>
+                <button class="tk-btn" style="background:#f59e0b; color:white; font-size:14px;" onclick="emitCmd('open_account')">👥 系統與權限管理</button>
+                <button class="tk-btn" style="background:#8b5cf6; color:white; font-size:14px;" onclick="openWindow('settings')">⚙️ 設定 GitHub 聯動</button>
+                <button class="tk-btn" style="background:#818cf8; color:white; font-size:12px;" onclick="emitCmd('restart_system')">🔄 套用更新 (重啟面板)</button>
             </div>
             
-            <div class="tk-url-row">
-                <span style="font-size: 16px; color: #e2e8f0; font-weight: bold;">您的遠端管理網址：</span>
-                <input type="text" id="lbl-url" class="tk-url-input" value="等待中..." readonly>
+            <div class="tk-opt-frame">
+                <div class="tk-opt-title">🔄 自動重啟防護設定</div>
+                <div class="tk-checkbox-row" style="margin-top: 15px;">
+                    <input type="checkbox" class="tk-checkbox" checked> 1. 啟用外網穿透心跳偵測 (連續 3 次無回應自動重啟)
+                </div>
+                <div class="tk-checkbox-row">
+                    <input type="checkbox" class="tk-checkbox" checked> 2. 啟用伺服器崩潰攔截 (後端報錯時自動重啟)
+                </div>
+                <div class="tk-checkbox-row">
+                    <input type="checkbox" class="tk-checkbox" checked> 3. 偵測到伺服器未知錯誤訊息自動重啟 (包含穿透斷線偵測)
+                </div>
+                <div class="tk-checkbox-row">
+                    <input type="checkbox" class="tk-checkbox"> 4. 每隔指定時間自動重啟 (分鐘):
+                    <input type="text" value="120" style="width: 50px; background: #1e293b; color: white; font-family: Consolas; border: none; margin-left: 5px; padding: 2px;">
+                </div>
+            </div>
+
+            <div class="tk-url-frame">
+                <span style="font-size: 18px; color: #e2e8f0; font-weight: bold; font-family: 'Microsoft JhengHei';">🌐 外網連線網址：</span>
+                <input type="text" id="lbl-url" class="tk-url-input" value="等待伺服器啟動中..." readonly>
             </div>
             
-            <div class="tk-progress-bar">
+            <div class="tk-progress-frame">
                 <div id="progress-fill" class="tk-progress-fill"></div>
             </div>
             
-            <div id="terminal">========================================
+            <div class="tk-log-frame" id="terminal">========================================
 [系統] PandaPanda 遠端管理面板已啟動
-========================================</div>
+========================================
+</div>
             
-            <div style="text-align: center; color: #64748b; margin-bottom: 15px; font-size: 14px; cursor: pointer;" onclick="window.open('https://pandapanda6666.github.io')">
+            <div style="text-align: center; color: #64748b; margin-bottom: 10px; font-size: 13px; cursor: pointer; font-family: 'Microsoft JhengHei';" onclick="window.open('https://pandapanda6666.github.io')">
                 版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.
             </div>
         </div>
@@ -150,12 +169,12 @@
 
     <!-- Window: Settings (Old Panel) -->
     <div id="win-settings" class="window" style="width: 1000px; height: 700px; display: none; left: 100px; top: 50px;">
-        <div class="window-header" onmousedown="dragWindow(event, \'win-settings\')" ontouchstart="dragWindow(event, \'win-settings\')">
+        <div class="window-header" onmousedown="dragWindow(event, 'win-settings')">
             <div>系統設定與小程式管理</div>
             <div class="window-controls">
-                <div class="win-min" onclick="minWindow('settings')"></div>
-                <div class="win-max" onclick="maxWindow('settings')"></div>
-                <div class="win-close" onclick="closeWindow('settings')"></div>
+                <div class="win-btn win-min" onclick="minWindow('settings')"></div>
+                <div class="win-btn win-max" onclick="maxWindow('settings')"></div>
+                <div class="win-btn win-close" onclick="closeWindow('settings')"></div>
             </div>
         </div>
         <div class="window-content">
@@ -189,7 +208,7 @@
         socket.on('system_status', (data) => {
             if(data.url) document.getElementById('lbl-url').value = data.url;
             if(data.open === false) {
-                document.getElementById('lbl-url').value = "伺服器已離線";
+                document.getElementById('lbl-url').value = "等待伺服器啟動中...";
                 document.getElementById('progress-fill').style.width = "0%";
             } else {
                 document.getElementById('progress-fill').style.width = "100%";
@@ -201,7 +220,6 @@
             const span = document.createElement('span');
             span.textContent = text + (text.endsWith('\n')?'':'\n');
             if(color) span.style.color = color;
-            // parse ansi or simple rules
             if(!color) {
                 if(text.includes('[系統]')) span.style.color = '#38bdf8';
                 if(text.includes('[錯誤]')) span.style.color = '#ef4444';
@@ -258,7 +276,7 @@
                 win.dataset.oldX = win.style.left;
                 win.dataset.oldY = win.style.top;
                 
-                win.style.width = '100%';
+                win.style.width = '100vw';
                 win.style.height = 'calc(100vh - 48px)';
                 win.style.top = '0';
                 win.style.left = '0';
@@ -291,27 +309,21 @@
             if(win.dataset.maximized === 'true') return;
             focusWindow(winId.replace('win-', ''));
             
-            let startX = e.clientX || (e.touches && e.touches[0].clientX);
-            let startY = e.clientY || (e.touches && e.touches[0].clientY);
+            let startX = e.clientX;
+            let startY = e.clientY;
             let startLeft = parseInt(window.getComputedStyle(win).left, 10) || 0;
             let startTop = parseInt(window.getComputedStyle(win).top, 10) || 0;
 
-            function onMove(moveEvent) {
-                let currentX = moveEvent.clientX || (moveEvent.touches ? moveEvent.touches[0].clientX : startX);
-                let currentY = moveEvent.clientY || (moveEvent.touches ? moveEvent.touches[0].clientY : startY);
-                win.style.left = startLeft + currentX - startX + 'px';
-                win.style.top = startTop + currentY - startY + 'px';
+            function onMouseMove(moveEvent) {
+                win.style.left = startLeft + moveEvent.clientX - startX + 'px';
+                win.style.top = startTop + moveEvent.clientY - startY + 'px';
             }
-            function onUp() {
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onUp);
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
             }
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-            document.addEventListener('touchmove', onMove, {passive: false});
-            document.addEventListener('touchend', onUp);
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         }
         
         // Auto open console
