@@ -91,6 +91,21 @@
 
         .hidden { display: none !important; }
         .no-cursor { cursor: none !important; }
+    
+        /* 花屏特效 */
+        .glitch-effect {
+            animation: glitch 0.3s infinite;
+        }
+
+        @keyframes glitch {
+            0% { filter: hue-rotate(0deg) invert(0%); transform: translate(0); }
+            20% { filter: hue-rotate(90deg) invert(20%); transform: translate(-2px, 2px); }
+            40% { filter: hue-rotate(180deg) invert(40%); transform: translate(2px, -2px); }
+            60% { filter: hue-rotate(270deg) invert(60%); transform: translate(-2px, -2px); }
+            80% { filter: hue-rotate(360deg) invert(80%); transform: translate(2px, 2px); }
+            100% { filter: hue-rotate(0deg) invert(0%); transform: translate(0); }
+        }
+
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -116,6 +131,23 @@
         const videoWrap = document.getElementById('video-wrap');
         const overlay = document.getElementById('overlay');
         const startBtn = document.getElementById('start-btn');
+
+        // 音訊播放邏輯：重複且同時播放 music 資料夾裡的所有音訊
+        // 注意：因為靜態網頁無法自動讀取資料夾內容，請在這裡手動列出 music 資料夾中的所有音訊檔案名稱
+        const musicFiles = [
+            'music/1.mp3',
+            'music/2.mp3',
+            'music/3.mp3'
+        ];
+        
+        function playAllMusic() {
+            musicFiles.forEach(file => {
+                const audio = new Audio(file);
+                audio.loop = true;
+                audio.play().catch(e => console.log('Audio play failed:', e));
+            });
+        }
+
 
         // 全屏逻辑
         function tryFullScreen() {
@@ -145,6 +177,13 @@
 
             // 触发全屏
             tryFullScreen();
+
+            // 加入花屏特效
+            videoWrap.classList.add('glitch-effect');
+            
+            // 播放所有音訊
+            playAllMusic();
+
         });
 
         // 离开页面提示
