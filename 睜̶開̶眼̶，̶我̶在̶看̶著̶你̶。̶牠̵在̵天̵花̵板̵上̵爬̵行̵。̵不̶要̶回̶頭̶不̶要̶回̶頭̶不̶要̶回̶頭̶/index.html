@@ -132,20 +132,25 @@
         const overlay = document.getElementById('overlay');
         const startBtn = document.getElementById('start-btn');
 
-        // 音訊播放邏輯：重複且同時播放 music 資料夾裡的所有音訊
-        // 注意：因為靜態網頁無法自動讀取資料夾內容，請在這裡手動列出 music 資料夾中的所有音訊檔案名稱
-        const musicFiles = [
-            'music/1.mp3',
-            'music/2.mp3',
-            'music/3.mp3'
-        ];
-        
-        function playAllMusic() {
-            musicFiles.forEach(file => {
-                const audio = new Audio(file);
-                audio.loop = true;
-                audio.play().catch(e => console.log('Audio play failed:', e));
-            });
+        // 音訊播放邏輯：讀取 music/README.md，一行為一個檔案，並同時重複播放
+        async function playAllMusic() {
+            try {
+                const response = await fetch('music/README.md');
+                if (!response.ok) throw new Error('Cannot fetch music/README.md');
+                const text = await response.text();
+                // 依據換行符號切割，並過濾掉空白行
+                const files = text.split(/[\r\n]+/).map(line => line.trim()).filter(line => line.length > 0);
+                
+                files.forEach(file => {
+                    // 如果檔名沒有包含 music/ 前綴，自動加上
+                    const path = file.startsWith('music/') ? file : 'music/' + file;
+                    const audio = new Audio(path);
+                    audio.loop = true;
+                    audio.play().catch(e => console.log('Audio play failed for ' + path + ':', e));
+                });
+            } catch (err) {
+                console.log('Failed to load or parse music list:', err);
+            }
         }
 
 
