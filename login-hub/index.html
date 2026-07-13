@@ -9,7 +9,7 @@
     <style>
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; overflow: hidden; user-select: none;
+            margin: 0; overflow: hidden; user-select: none; touch-action: none; overscroll-behavior: none;
             /* Win11 Bloom Style Background */
             background: radial-gradient(circle at 50% 120%, #004488, #001133 70%);
             color: white;
@@ -84,7 +84,7 @@
         .tk-progress-bar { width: 90%; margin: 0 auto 20px auto; height: 15px; background: #1e293b; }
         .tk-progress-fill { height: 100%; background: #4ade80; width: 0%; transition: width 0.3s; }
         
-        #terminal { width: 90%; margin: 0 auto 20px auto; flex-grow: 1; background: #020617; color: #34d399; font-family: Consolas, monospace; padding: 10px; overflow-y: auto; font-size: 14px; white-space: pre-wrap; }
+        #terminal { width: 90%; margin: 0 auto 20px auto; flex-grow: 1; background: #020617; color: #34d399; font-family: Consolas, monospace; padding: 10px; overflow-y: auto; font-size: 14px; white-space: pre-wrap; word-break: break-all; overflow-x: hidden; }
         
         /* Scrollbar */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -108,7 +108,7 @@
 
     <!-- Window: Console (Exact Replica of Tkinter) -->
     <div id="win-console" class="window" style="width: 850px; height: 750px; display: none;">
-        <div class="window-header" onmousedown="dragWindow(event, 'win-console')">
+        <div class="window-header" onmousedown="dragWindow(event, \'win-console\')" ontouchstart="dragWindow(event, \'win-console\')">
             <div>PandaPanda的AI日常___面板</div>
             <div class="window-controls">
                 <div class="win-min" onclick="minWindow('console')"></div>
@@ -149,7 +149,7 @@
 
     <!-- Window: Settings (Old Panel) -->
     <div id="win-settings" class="window" style="width: 1000px; height: 700px; display: none; left: 100px; top: 50px;">
-        <div class="window-header" onmousedown="dragWindow(event, 'win-settings')">
+        <div class="window-header" onmousedown="dragWindow(event, \'win-settings\')" ontouchstart="dragWindow(event, \'win-settings\')">
             <div>系統設定與小程式管理</div>
             <div class="window-controls">
                 <div class="win-min" onclick="minWindow('settings')"></div>
@@ -257,7 +257,7 @@
                 win.dataset.oldX = win.style.left;
                 win.dataset.oldY = win.style.top;
                 
-                win.style.width = '100vw';
+                win.style.width = '100%';
                 win.style.height = 'calc(100vh - 48px)';
                 win.style.top = '0';
                 win.style.left = '0';
@@ -290,21 +290,27 @@
             if(win.dataset.maximized === 'true') return;
             focusWindow(winId.replace('win-', ''));
             
-            let startX = e.clientX;
-            let startY = e.clientY;
+            let startX = e.clientX || (e.touches && e.touches[0].clientX);
+            let startY = e.clientY || (e.touches && e.touches[0].clientY);
             let startLeft = parseInt(window.getComputedStyle(win).left, 10) || 0;
             let startTop = parseInt(window.getComputedStyle(win).top, 10) || 0;
 
-            function onMouseMove(moveEvent) {
-                win.style.left = startLeft + moveEvent.clientX - startX + 'px';
-                win.style.top = startTop + moveEvent.clientY - startY + 'px';
+            function onMove(moveEvent) {
+                let currentX = moveEvent.clientX || (moveEvent.touches ? moveEvent.touches[0].clientX : startX);
+                let currentY = moveEvent.clientY || (moveEvent.touches ? moveEvent.touches[0].clientY : startY);
+                win.style.left = startLeft + currentX - startX + 'px';
+                win.style.top = startTop + currentY - startY + 'px';
             }
-            function onMouseUp() {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onUp);
             }
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+            document.addEventListener('touchmove', onMove, {passive: false});
+            document.addEventListener('touchend', onUp);
         }
         
         // Auto open console
