@@ -1421,6 +1421,40 @@
 
             if (data.action === 'camera_ack' && data.targetViewer === myUuid) {
                 const senderId = data.senderId;
+                
+                const existingSenderId = Object.keys(remoteFeeds).find(id => remoteFeeds[id].pairCode === incomingPin);
+                if (existingSenderId && existingSenderId !== senderId) {
+                    remoteFeeds[senderId] = remoteFeeds[existingSenderId];
+                    delete remoteFeeds[existingSenderId];
+                    
+                    const tile = document.getElementById(`tile_${existingSenderId}`);
+                    if (tile) tile.id = `tile_${senderId}`;
+                    
+                    const cb = document.querySelector(`input.multi-select-cb[data-sender="${existingSenderId}"]`);
+                    if (cb) cb.dataset.sender = senderId;
+                    
+                    const img = document.getElementById(`remote-video-${existingSenderId}`);
+                    if (img) img.id = `remote-video-${senderId}`;
+                    
+                    const status = document.getElementById(`status-${existingSenderId}`);
+                    if (status) status.id = `status-${senderId}`;
+                    
+                    const vc = document.getElementById(`viewer-count-${existingSenderId}`);
+                    if (vc) vc.id = `viewer-count-${senderId}`;
+                    
+                    const ping = document.getElementById(`ping-${existingSenderId}`);
+                    if (ping) ping.id = `ping-${senderId}`;
+                    
+                    const pb = document.getElementById(`play-btn-${existingSenderId}`);
+                    if (pb) pb.id = `play-btn-${senderId}`;
+                    
+                    const au = document.getElementById(`remote-audio-${existingSenderId}`);
+                    if (au) au.id = `remote-audio-${senderId}`;
+                    
+                    const nameLabel = document.getElementById(`name-${existingSenderId}`);
+                    if (nameLabel) nameLabel.id = `name-${senderId}`;
+                }
+
                 if (!remoteFeeds[senderId]) {
                     createVideoFeedTile(senderId, incomingPin);
                 }
@@ -1431,13 +1465,8 @@
                 updateRecordingUI(senderId, data.isRecording);
                 
                 if (data.name) {
-                    const fw = document.getElementById(`feed-wrapper-${incomingPin}`);
-                    if (fw) {
-                        const nameLabel = fw.querySelector('.feed-name');
-                        if (nameLabel) {
-                            nameLabel.innerText = `[${incomingPin}] ${data.name}`;
-                        }
-                    }
+                    const nameLabel = document.getElementById(`name-${senderId}`);
+                    if (nameLabel) nameLabel.innerText = `[${data.name}]`;
                 }
                 if (data.fps !== undefined) {
                     let fpsKey = '100';
@@ -1527,7 +1556,7 @@
             overlay.className = "absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg text-xs flex items-center gap-2 text-slate-300 z-10 transition-opacity duration-300 group-hover:opacity-30 pointer-events-none";
             overlay.innerHTML = `
                 <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
-                <span>頻道: ${pairCode}</span>
+                <span>頻道: ${pairCode} <span id="name-${senderId}" class="text-indigo-300 ml-1 font-bold"></span></span>
                 <span id="status-${senderId}" class="text-xs ml-2 text-yellow-400">連線中...</span>
                 <span id="viewer-count-${senderId}" class="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded ml-1 font-sans">👁️ 0 人觀看</span>
                 <span id="ping-${senderId}" class="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded ml-1 font-sans font-mono hidden">⚡ --- ms</span>
@@ -2293,11 +2322,11 @@
                 
                 // 從畫面上抓取目前的名稱
                 let currentName = '';
-                const fw = document.getElementById(`feed-wrapper-${targetPin}`);
-                if (fw) {
-                    const nameLabel = fw.querySelector('.feed-name');
-                    if (nameLabel) {
-                        currentName = nameLabel.innerText.replace(`[${targetPin}]`, '').trim();
+                const senderId = Object.keys(remoteFeeds).find(id => remoteFeeds[id].pairCode === targetPin);
+                if (senderId) {
+                    const nameLabel = document.getElementById(`name-${senderId}`);
+                    if (nameLabel && nameLabel.innerText) {
+                        currentName = nameLabel.innerText.replace('[', '').replace(']', '').trim();
                     }
                 }
                 document.getElementById('modalDeviceName').value = currentName;
