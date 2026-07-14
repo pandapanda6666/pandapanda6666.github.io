@@ -44,6 +44,7 @@
         .dk-icon .icon-text { font-size: 12px; text-shadow: 1px 1px 2px black; text-align: center; }
 
         /* Windows Manager */
+        .window-controls { display: flex; }
         .window {
             position: absolute; top: 20px; left: 50px; width: 850px; height: 980px;
             background: #0f172a; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
@@ -57,7 +58,7 @@
             align-items: center; padding: 0 10px; cursor: grab; font-size: 12px;
         }
         .window-header:active { cursor: grabbing; }
-        .window-controls { display: flex; gap: 10px; }
+        
         .win-btn { width: 46px; height: 32px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; transition: 0.1s; font-family: sans-serif; font-size: 14px; margin-top: -8px; margin-bottom: -8px; }
 .win-btn:hover { background: rgba(255,255,255,0.1); }
 .win-close:hover { background: #e81123 !important; }
@@ -103,10 +104,7 @@
             <div class="icon-img">🐼</div>
             <div class="icon-text">Panda主控台</div>
         </div>
-        <div class="dk-icon" onclick="openWindow('settings')">
-            <div class="icon-img">⚙️</div>
-            <div class="icon-text">系統設定</div>
-        </div>
+        
     </div>
 
     <!-- Window: Console (Exact Replica of Tkinter) -->
@@ -128,7 +126,7 @@
                 <button class="tk-btn" style="background:#4ade80; color:#022c22; font-size:16px;" onclick="emitCmd('start_mc')">🚀 手動啟動伺服器</button>
                 <button class="tk-btn" style="background:#ef4444; color:white; font-size:14px;" onclick="emitCmd('stop_mc')">⏹️ 停止所有服務</button>
                 <button class="tk-btn" style="background:#f59e0b; color:white; font-size:14px;" onclick="emitCmd('open_account')">👥 系統與權限管理</button>
-                <button class="tk-btn" style="background:#8b5cf6; color:white; font-size:14px;" onclick="emitCmd('open_settings'); openWindow('settings')">⚙️ 設定 GitHub 聯動</button>
+                <button class="tk-btn" style="background:#8b5cf6; color:white; font-size:14px;" onclick="emitCmd('open_settings')">⚙️ 設定 GitHub 聯動</button>
                 <button class="tk-btn" style="background:#818cf8; color:white; font-size:12px;" onclick="emitCmd('restart_system')">🔄 套用更新 (重啟面板)</button>
             </div>
             
@@ -169,15 +167,7 @@
         </div>
     </div>
 
-    <!-- Window: Settings (Old Panel) -->
-    <div id="win-settings" class="window" style="width: 1000px; height: 700px; display: none; left: 100px; top: 50px;">
-        <div class="window-header" onmousedown="dragWindow(event, 'win-settings')">
-            <div>系統設定與小程式管理</div>
-            <div class="window-controls">
-                <div class="win-btn win-min" onclick="minWindow('settings')">─</div>
-                <div class="win-btn win-max" onclick="maxWindow('settings')">□</div>
-                <div class="win-btn win-close" onclick="closeWindow('settings')">✕</div>
-            </div>
+    
         </div>
         <div class="window-content">
             <iframe id="iframe-settings" style="width: 100%; height: 100%; border: none;"></iframe>
@@ -193,29 +183,61 @@
 
     <!-- Scripts -->
     <script>
-        const socket = io();
-        
-        socket.on('connect', () => {
-            appendLog('[系統] 已成功連接遠端伺服器！', '#22c55e');
-        });
+        let socket;
+        async function initSocket() {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const t = await res.text();
+                const serverUrl = atob(t.trim().split('').reverse().join(''));
+                
+                socket = io(serverUrl, { transports: ['websocket'] });
+                
+                socket.on('connect', () => {
+                    appendLog('[系統] 已成功連接遠端伺服器！', '#22c55e');
+                    const savedU = localStorage.getItem('panda_auto_user');
+                    const savedP = localStorage.getItem('panda_auto_pass');
+                    if (!savedU || !savedP) {
+                        window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1';
+                    } else {
+                        socket.emit('login', { username: savedU, password: savedP });
+                    } else {
+                        appendLog('[錯誤] 尚未登入，無法執行管理指令。', '#ef4444');
+                    }
+                });
 
-        socket.on('disconnect', () => {
-            appendLog('[系統] 與遠端伺服器斷線。', '#ef4444');
-        });
+                socket.on('disconnect', () => {
+                    appendLog('[系統] 與遠端伺服器斷線。', '#ef4444');
+                });
 
-        socket.on('system_log', (data) => {
-            appendLog(data.text);
-        });
+                
+                socket.on('loginResult', (res) => {
+                    if(res.success && res.isAdmin) {
+                        socket.username = res.username;
+                        appendLog('[系統] 身分驗證通過！', '#22c55e');
+                    } else {
+                        appendLog('[錯誤] 身分驗證失敗或權限不足，即將跳轉登入畫面...', '#ef4444');
+                        setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1', 1500);
+                    }
+                });
 
-        socket.on('system_status', (data) => {
-            if(data.url) document.getElementById('lbl-url').value = data.url;
-            if(data.open === false) {
-                document.getElementById('lbl-url').value = "等待伺服器啟動中...";
-                document.getElementById('progress-fill').style.width = "0%";
-            } else {
-                document.getElementById('progress-fill').style.width = "100%";
+                socket.on('system_log', (data) => {
+                    appendLog(data.text);
+                });
+
+                socket.on('system_status', (data) => {
+                    if(data.url) document.getElementById('lbl-url').value = data.url;
+                    if(data.open === false) {
+                        document.getElementById('lbl-url').value = "等待伺服器啟動中...";
+                        document.getElementById('progress-fill').style.width = "0%";
+                    } else {
+                        document.getElementById('progress-fill').style.width = "100%";
+                    }
+                });
+            } catch (e) {
+                appendLog('[錯誤] 無法獲取遠端伺服器網址，連線失敗。', '#ef4444');
             }
-        });
+        }
+        initSocket();
 
         function appendLog(text, color='') {
             const t = document.getElementById('terminal');
