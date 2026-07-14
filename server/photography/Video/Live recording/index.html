@@ -2229,6 +2229,19 @@
                 if (myRole === 'viewer') {
                     watchedCodes.forEach(code => {
                         socket.emit('appData', { room: appId, action: 'heartbeat_request', pin: code, requesterId: myUuid });
+                        
+                        // 發送 ping 計算延遲
+                        Object.entries(remoteFeeds).forEach(([senderId, feed]) => {
+                            if (feed.pairCode === code) {
+                                socket.emit('appData', {
+                                    room: appId,
+                                    action: 'ping',
+                                    senderViewer: myUuid,
+                                    targetCamera: senderId,
+                                    time: Date.now()
+                                });
+                            }
+                        });
                     });
                 }
             }, 2500);
