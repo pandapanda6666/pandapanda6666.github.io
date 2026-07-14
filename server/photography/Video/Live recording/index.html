@@ -1187,6 +1187,29 @@
         function handleIncomingAppData(data) {
             const incomingPin = data.pairCode || data.pin;
 
+            if (data.action === 'ping' && myRole === 'camera' && data.targetCamera === myUuid) {
+                socket.volatile.emit('appData', {
+                    room: appId,
+                    action: 'pong',
+                    targetViewer: data.senderViewer,
+                    senderCamera: myUuid,
+                    time: data.time
+                });
+                return;
+            }
+            if (data.action === 'pong' && data.targetViewer === myUuid) {
+                const latency = Date.now() - data.time;
+                const pingEl = document.getElementById(`ping-${data.senderCamera}`);
+                if (pingEl) {
+                    pingEl.innerText = `⚡ ${latency} ms`;
+                    pingEl.classList.remove('hidden', 'text-slate-400', 'text-green-400', 'text-yellow-400', 'text-red-400');
+                    if (latency < 100) pingEl.classList.add('text-green-400');
+                    else if (latency < 300) pingEl.classList.add('text-yellow-400');
+                    else pingEl.classList.add('text-red-400');
+                }
+                return;
+            }
+
             if (data.action === 'device_presence' && currentUser && data.username === currentUser.username) {
                 if (data.uuid !== myUuid) {
                     sameAccountDevices[data.uuid] = {
@@ -1507,6 +1530,7 @@
                 <span>頻道: ${pairCode}</span>
                 <span id="status-${senderId}" class="text-xs ml-2 text-yellow-400">連線中...</span>
                 <span id="viewer-count-${senderId}" class="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded ml-1 font-sans">👁️ 0 人觀看</span>
+                <span id="ping-${senderId}" class="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded ml-1 font-sans font-mono hidden">⚡ --- ms</span>
             `;
 
             const audioEl = document.createElement('audio');
