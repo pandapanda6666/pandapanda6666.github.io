@@ -1251,7 +1251,11 @@
                         name: myDeviceName,
                         senderId: myUuid,
                         targetViewer: data.requesterId,
-                        isRecording: isCameraRecording
+                        isRecording: isCameraRecording,
+                        fps: currentCaptureInterval ? Math.round(1000/currentCaptureInterval) : 10,
+                        quality: currentQualityIndex,
+                        autoAllocate: isAutoAllocate,
+                        isPublic: isPublicDevice
                     });
 
                     if (isNew) {
@@ -1409,6 +1413,22 @@
                             nameLabel.innerText = `[${incomingPin}] ${data.name}`;
                         }
                     }
+                }
+                if (data.fps !== undefined) {
+                    let fpsKey = '100';
+                    if(data.fps === 5) fpsKey = '200';
+                    else if(data.fps === 2) fpsKey = '500';
+                    else if(data.fps === 15) fpsKey = '66';
+                    else if(data.fps === 30) fpsKey = '33';
+                    else if(data.fps !== 10) fpsKey = 'custom';
+                    
+                    remoteSettingsCache[incomingPin] = {
+                        fps: fpsKey,
+                        customFps: data.fps,
+                        quality: data.quality,
+                        auto: data.autoAllocate,
+                        isPublic: data.isPublic
+                    };
                 }
                 
                 document.getElementById('viewerStatus').innerText = "連線成功，即時畫面同步中...";
@@ -2225,25 +2245,36 @@
                 let cached = remoteSettingsCache[targetPin];
                 if (cached) {
                     document.getElementById('modalFpsSelect').value = cached.fps;
+                    if (cached.fps === 'custom') {
+                        document.getElementById('modalCustomFpsInput').value = cached.customFps;
+                        document.getElementById('modalCustomFpsInput').classList.remove('hidden');
+                    } else {
+                        document.getElementById('modalCustomFpsInput').classList.add('hidden');
+                    }
                     document.getElementById('modalQualitySelect').value = cached.quality;
+                    if (cached.quality === 'custom') document.getElementById('modalCustomWidthInput').classList.remove('hidden');
+                    else document.getElementById('modalCustomWidthInput').classList.add('hidden');
                     document.getElementById('modalAutoAllocateCb').checked = cached.auto;
+                    document.getElementById('modalPublicCb').checked = cached.isPublic;
                 } else {
                     document.getElementById('modalFpsSelect').value = '100';
+                    document.getElementById('modalCustomFpsInput').classList.add('hidden');
                     document.getElementById('modalQualitySelect').value = '2';
+                    document.getElementById('modalCustomWidthInput').classList.add('hidden');
                     document.getElementById('modalAutoAllocateCb').checked = false;
+                    document.getElementById('modalPublicCb').checked = false;
                 }
                 
                 // 從畫面上抓取目前的名稱
                 let currentName = '';
-                const feedWrapper = document.getElementById(`feed-${targetPin}`);
-                if (feedWrapper && feedWrapper.parentElement) {
-                    const nameLabel = feedWrapper.parentElement.querySelector('.text-white.font-bold');
+                const fw = document.getElementById(`feed-wrapper-${targetPin}`);
+                if (fw) {
+                    const nameLabel = fw.querySelector('.feed-name');
                     if (nameLabel) {
                         currentName = nameLabel.innerText.replace(`[${targetPin}]`, '').trim();
                     }
                 }
                 document.getElementById('modalDeviceName').value = currentName;
-                document.getElementById('modalPublicCb').checked = false; // 無法確知遠端公開狀態
                 if(document.getElementById('modalRequirePassCb')) {
                     document.getElementById('modalRequirePassCb').checked = false;
                 }
@@ -2305,6 +2336,7 @@
             document.getElementById('settingsModal').classList.remove('hidden');
         }
         function closeSettingsModal() {
+            isOpeningSettings = false;
             document.getElementById('settingsModal').classList.add('hidden');
         }
 
@@ -2416,10 +2448,14 @@
             }
 
             const qVal = document.getElementById('modalQualitySelect').value;
-            if (qVal === 'custom') {
-                needReinit = true; 
-            } else {
+            if (qVal !== currentQualityIndex) {
+                currentQualityIndex = qVal;
                 needReinit = true;
+            }
+            if (qVal === 'custom') {
+                const cwi = document.getElementById('modalCustomWidthInput').value;
+                if(cwi) document.getElementById('customWidthInput').value = cwi;
+                needReinit = true; 
             }
 
             const camVal = document.getElementById('modalCameraSelect').value;
@@ -2440,6 +2476,9 @@
 
             if (needReinit && myRole === 'camera') {
                 await initCameraBroadcaster();
+                if (Object.keys(activeViewers).length > 0) {
+                    startCaptureLoop();
+                }
             }
         }
     </script>
