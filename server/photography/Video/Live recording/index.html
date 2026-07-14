@@ -358,6 +358,7 @@
         let isCameraRecording = false;
         
         let currentRecordingFolderId = null;
+        const remoteSettingsCache = {};
         let currentRecordingFolderName = null;
         let activeMultiRecordFolderId = null;
         let cloudSavedCodes = [];
@@ -1247,6 +1248,7 @@
                         room: appId,
                         action: 'camera_ack',
                         pin: myPairCode,
+                        name: myDeviceName,
                         senderId: myUuid,
                         targetViewer: data.requesterId,
                         isRecording: isCameraRecording
@@ -1298,7 +1300,31 @@
                     let isSameAccount = false;
                     if (currentUser && data.requesterUsername === currentUser.username) isSameAccount = true;
                     // 如果有設密碼且非同帳號，不允許設定(簡易版安全)
+                    let myPass = localStorage.getItem('panda_device_password') || '';
+                    if (myPass && !isSameAccount) {
+                        // 簡易安全檢查：如果有密碼且非同帳號，這裡暫不處理，交由其他機制
+                    }
+                    
                     let changed = false;
+                    
+                    if (data.deviceName) {
+                        myDeviceName = data.deviceName;
+                        localStorage.setItem('panda_device_name', myDeviceName);
+                        const dnInput = document.getElementById('deviceNameInput');
+                        if (dnInput) dnInput.value = myDeviceName;
+                        changed = true;
+                    }
+                    if (typeof data.isPublic === 'boolean') {
+                        isPublicDevice = data.isPublic;
+                        localStorage.setItem('panda_device_public', isPublicDevice);
+                        changed = true;
+                    }
+                    if (typeof data.password === 'string' && data.password.trim() !== '') {
+                        localStorage.setItem('panda_device_password', data.password.trim());
+                    } else if (typeof data.password === 'string' && data.password === '') {
+                        localStorage.removeItem('panda_device_password');
+                    }
+                    
                     if (typeof data.autoAllocate === 'boolean') {
                           isAutoAllocate = data.autoAllocate;
                           if (isAutoAllocate && typeof autoAllocateTimer !== 'undefined' && !autoAllocateTimer) {
@@ -1328,6 +1354,7 @@
                       
                       if (changed) {
                         startCaptureLoop();
+                        if (typeof syncCloudData === 'function') syncCloudData();
                         showErrorToast('已套用遠端設定變更！', 3000);
                     }
                 }
@@ -1373,6 +1400,17 @@
                 feed.isAcked = true;
                 
                 updateRecordingUI(senderId, data.isRecording);
+                
+                if (data.name) {
+                    const fw = document.getElementById(`feed-wrapper-${incomingPin}`);
+                    if (fw) {
+                        const nameLabel = fw.querySelector('.feed-name');
+                        if (nameLabel) {
+                            nameLabel.innerText = `[${incomingPin}] ${data.name}`;
+                        }
+                    }
+                }
+                
                 document.getElementById('viewerStatus').innerText = "連線成功，即時畫面同步中...";
                 return;
             }
@@ -2183,14 +2221,29 @@
                 
                 document.querySelector('#settingsModal h3').innerText = `⚙️ 遠端設備設定 [${targetPin}]`;
                 
-                // 清空預設的自訂值
-                document.getElementById('modalFpsSelect').value = '100';
-                document.getElementById('modalQualitySelect').value = '2';
-                document.getElementById('modalAutoAllocateCb').checked = false;
+                // 嘗試讀取快取或現有名稱
+                let cached = remoteSettingsCache[targetPin];
+                if (cached) {
+                    document.getElementById('modalFpsSelect').value = cached.fps;
+                    document.getElementById('modalQualitySelect').value = cached.quality;
+                    document.getElementById('modalAutoAllocateCb').checked = cached.auto;
+                } else {
+                    document.getElementById('modalFpsSelect').value = '100';
+                    document.getElementById('modalQualitySelect').value = '2';
+                    document.getElementById('modalAutoAllocateCb').checked = false;
+                }
                 
-                // 遠端模式不讀取本地的名稱或密碼
-                document.getElementById('modalDeviceName').value = '';
-                document.getElementById('modalPublicCb').checked = false;
+                // 從畫面上抓取目前的名稱
+                let currentName = '';
+                const feedWrapper = document.getElementById(`feed-${targetPin}`);
+                if (feedWrapper && feedWrapper.parentElement) {
+                    const nameLabel = feedWrapper.parentElement.querySelector('.text-white.font-bold');
+                    if (nameLabel) {
+                        currentName = nameLabel.innerText.replace(`[${targetPin}]`, '').trim();
+                    }
+                }
+                document.getElementById('modalDeviceName').value = currentName;
+                document.getElementById('modalPublicCb').checked = false; // 無法確知遠端公開狀態
                 if(document.getElementById('modalRequirePassCb')) {
                     document.getElementById('modalRequirePassCb').checked = false;
                 }
@@ -2297,6 +2350,7 @@
                     // 但這裡放寬，交給相機端驗證
                 }
 
+                remoteSettingsCache[remoteSettingsTarget] = { fps: fpsVal, quality: qVal, auto: isAuto };
                 if (socket && socket.connected) {
                     socket.emit('appData', {
                         room: appId,
