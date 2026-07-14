@@ -151,6 +151,9 @@
                         登出系統
                     </button>
                 </div>
+                <button onclick="handleDeleteAccount()" type="button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-md transition-all mt-3">
+                    🗑️ 永久註銷帳號
+                </button>
             </div>
         </div>
 
@@ -644,6 +647,31 @@
                 toggleView('login');
                 showMsg("已成功登出", "info");
             });
+        }
+
+        function handleDeleteAccount() {
+            if (confirm('確定要永久註銷您的帳號嗎？\n此操作無法還原，所有相關資料將被清除！')) {
+                if (socket && socket.connected) {
+                    socket.emit('deleteMyAccount', {}, (res) => {
+                        if (res && res.success) {
+                            showMsg('帳號已成功註銷', 'info');
+                            currentUserData = null;
+                            localStorage.removeItem('panda_auto_user');
+                            localStorage.removeItem('panda_auto_pass');
+                            localStorage.removeItem('sso_auth');
+                            localStorage.removeItem('sso_user');
+                            localStorage.removeItem('sso_server');
+                            document.getElementById('username').value = '';
+                            document.getElementById('password').value = '';
+                            toggleView('login');
+                        } else {
+                            showMsg('註銷失敗: ' + (res ? res.msg : '未知錯誤'), 'error');
+                        }
+                    });
+                } else {
+                    showMsg('尚未連接至伺服器，無法註銷帳號', 'error');
+                }
+            }
         }
 
         function checkAutoLogin() {
