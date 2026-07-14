@@ -337,12 +337,13 @@
         let videoInterval = null;
         let micRecorder = null;
         let activeViewers = {}; 
-        let currentCameraId = ''; 
+        let currentCameraId = localStorage.getItem('panda_camera_id') || ''; 
         
         // 智慧調節與自訂控制參數
-        let isAutoAllocate = false;
+        let isAutoAllocate = localStorage.getItem('panda_auto_allocate') === 'true';
         let autoAllocateTimer = null;
-        let currentCaptureInterval = 100; // 預設 100ms (10 FPS)
+        let savedInterval = localStorage.getItem('panda_capture_interval');
+        let currentCaptureInterval = savedInterval ? parseInt(savedInterval) : 100; // 預設 100ms (10 FPS)
         
         const qualityPresets = [
             { w: 320, q: 0.15 }, 
@@ -351,7 +352,8 @@
             { w: 800, q: 0.7 },  
             { w: 1280, q: 0.8 }  
         ];
-        let currentQualityIndex = 2; // 預設 2 (標準寬度 640)
+        let savedQuality = localStorage.getItem('panda_quality_index');
+        let currentQualityIndex = savedQuality ? (savedQuality === 'custom' ? 'custom' : parseInt(savedQuality)) : 2; // 預設 2 (標準寬度 640)
 
         let cameraRecorder = null;
         let cameraRecordedChunks = [];
@@ -2432,6 +2434,7 @@
             localStorage.setItem('panda_device_public', isPublicDevice);
             localStorage.setItem('panda_require_settings_password', requireSettingsPassword);
             localStorage.setItem('panda_device_password', finalPass);
+            localStorage.setItem('panda_auto_allocate', isAutoAllocate);
 
             const fpsVal = document.getElementById('modalFpsSelect').value;
             let needReinit = false;
@@ -2444,23 +2447,29 @@
             }
             if(newInterval !== currentCaptureInterval) {
                 currentCaptureInterval = newInterval;
+                localStorage.setItem('panda_capture_interval', currentCaptureInterval);
                 needReinit = true;
             }
 
             const qVal = document.getElementById('modalQualitySelect').value;
             if (qVal !== currentQualityIndex) {
                 currentQualityIndex = qVal;
+                localStorage.setItem('panda_quality_index', currentQualityIndex);
                 needReinit = true;
             }
             if (qVal === 'custom') {
                 const cwi = document.getElementById('modalCustomWidthInput').value;
-                if(cwi) document.getElementById('customWidthInput').value = cwi;
+                if(cwi) {
+                    document.getElementById('customWidthInput').value = cwi;
+                    localStorage.setItem('panda_custom_width', cwi);
+                }
                 needReinit = true; 
             }
 
             const camVal = document.getElementById('modalCameraSelect').value;
             if (camVal !== currentCameraId) {
                 currentCameraId = camVal;
+                localStorage.setItem('panda_camera_id', currentCameraId);
                 needReinit = true;
             }
 
