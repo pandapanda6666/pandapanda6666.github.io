@@ -1855,6 +1855,10 @@
                     let chunkIndex = 0;
                     const startTime = Date.now();
                     function sendNextChunk() {
+                        if (!socket || !socket.connected) {
+                            setTimeout(sendNextChunk, 1000);
+                            return;
+                        }
                         if (chunkIndex < totalChunks) {
                             const chunkData = base64Video.slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize);
                             socket.emit('appData', {
@@ -1871,7 +1875,7 @@
                             statusTxt.innerText = `回傳中: ${uploadedMB} MB / ${totalSizeMB} MB (預估剩餘: ${remainSec} 秒)`;
                             
                             chunkIndex++;
-                            setTimeout(sendNextChunk, 20);
+                            setTimeout(sendNextChunk, 100);
                         } else {
                             socket.emit('appData', { room: appId, action: 'recorded_video_finished', id: videoId });
                             
