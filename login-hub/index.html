@@ -614,8 +614,22 @@
 
             socket.on('registerResult', (res) => {
                 if (res.success) {
-                    showMsg(res.msg || "註冊成功！請登入系統。", "success");
-                    setTimeout(() => { toggleView('login'); }, 1500);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: '🎉 註冊成功！',
+                            html: '<p class="text-green-600 font-bold text-lg">' + (res.msg || "註冊成功！請登入系統。") + '</p>',
+                            icon: 'success',
+                            confirmButtonText: '我知道了',
+                            confirmButtonColor: '#16a34a',
+                            background: '#f0fdf4',
+                            backdrop: `rgba(0,0,0,0.4)`
+                        }).then(() => {
+                            toggleView('login');
+                        });
+                    } else {
+                        alert(res.msg || "註冊成功！請登入系統。");
+                        toggleView('login');
+                    }
                 } else {
                     showMsg("註冊失敗: " + res.msg, "error");
                 }
