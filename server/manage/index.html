@@ -1,367 +1,727 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
+
 <head>
+
     <meta charset="UTF-8">
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>PandaPanda 雲端桌面系統</title>
+
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
+
         body { 
+
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+
             margin: 0; overflow: hidden; user-select: none;
+
             /* Win11 Bloom Style Background */
+
             background: radial-gradient(circle at 50% 120%, #004488, #001133 70%);
+
             color: white;
+
             height: 100vh;
+
         }
+
         
+
         /* Taskbar */
+
         #taskbar {
+
             position: fixed; bottom: 0; width: 100%; height: 48px;
+
             background: rgba(15, 23, 42, 0.7);
+
             backdrop-filter: blur(20px);
+
             display: flex; justify-content: center; align-items: center; gap: 8px;
+
             border-top: 1px solid rgba(255,255,255,0.1);
+
             z-index: 10000;
+
         }
+
         .tb-icon {
+
             width: 36px; height: 36px; border-radius: 4px; display: flex;
+
             justify-content: center; align-items: center; cursor: pointer;
+
             transition: 0.1s;
+
         }
+
         .tb-icon:hover { background: rgba(255,255,255,0.1); }
+
         .tb-icon.active { background: rgba(255,255,255,0.2); border-bottom: 3px solid #3b82f6; }
 
+
+
         /* Desktop Icons */
+
         #desktop { padding: 20px; display: flex; flex-direction: column; gap: 20px; flex-wrap: wrap; height: calc(100vh - 48px); }
+
         .dk-icon {
+
             width: 80px; display: flex; flex-direction: column; align-items: center; gap: 5px;
+
             padding: 8px; border-radius: 4px; cursor: pointer;
+
         }
+
         .dk-icon:hover { background: rgba(255,255,255,0.1); }
+
         .dk-icon .icon-img { width: 48px; height: 48px; font-size: 32px; display:flex; justify-content:center; align-items:center; }
+
         .dk-icon .icon-text { font-size: 12px; text-shadow: 1px 1px 2px black; text-align: center; }
 
+
+
         /* Windows Manager */
+
         .window-controls { display: flex; }
+
         .window {
+
             position: absolute; top: 20px; left: 50px; width: 850px; height: 980px;
+
             background: #0f172a; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);
+
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+
             display: flex; flex-direction: column; overflow: hidden;
+
             display: none;
+
         }
+
         .window.active { z-index: 1000; }
+
         .window-header {
+
             height: 32px; background: rgba(0,0,0,0.2); display: flex; justify-content: space-between;
+
             align-items: center; padding: 0 10px; cursor: grab; font-size: 12px;
+
         }
+
         .window-header:active { cursor: grabbing; }
+
         
+
         .win-btn { width: 46px; height: 32px; display: flex; justify-content: center; align-items: center; cursor: pointer; color: white; transition: 0.1s; font-family: sans-serif; font-size: 14px; margin-top: -8px; margin-bottom: -8px; border-radius: 4px;} .win-btn svg { width: 12px; height: 12px; }
+
 .win-btn:hover { background: rgba(255,255,255,0.1); }
+
 .win-close:hover { background: #e81123 !important; }
+
         .win-close { background: transparent; }
+
         .win-max { background: transparent; }
+
         .win-min { background: transparent; }
+
         
+
         .window-content { flex-grow: 1; display: flex; flex-direction: column; position: relative; }
 
+
+
         /* Console App Custom Styles (Matching local Tkinter EXACTLY) */
+
         .tk-title { text-align: center; font-size: 32px; font-weight: bold; color: #818cf8; margin-top: 15px; font-family: 'Microsoft JhengHei', sans-serif;}
+
         .tk-subtitle { text-align: center; font-size: 18px; color: #94a3b8; margin-bottom: 5px; font-family: 'Microsoft JhengHei', sans-serif;}
+
         
+
         .tk-btn-row { display: flex; justify-content: center; gap: 10px; margin: 15px 40px; }
+
         .tk-btn { padding: 10px; font-size: 14px; font-weight: bold; cursor: pointer; border: none; border-radius: 2px; font-family: 'Microsoft JhengHei', sans-serif; flex-grow: 1; text-align: center;}
+
         
+
         /* Auto Restart Options */
+
         .tk-opt-frame { border: 1px solid #334155; margin: 10px 40px; padding: 10px; border-radius: 2px; position: relative; }
+
         .tk-opt-title { position: absolute; top: -12px; left: 10px; background: #0f172a; padding: 0 5px; color: #fcd34d; font-weight: bold; font-family: 'Microsoft JhengHei'; font-size: 16px;}
+
         .tk-checkbox-row { display: flex; align-items: center; margin: 5px 10px; color: #e2e8f0; font-family: 'Microsoft JhengHei'; font-size: 14px;}
+
         .tk-checkbox { margin-right: 10px; width: 16px; height: 16px; accent-color: #1e293b; }
+
         
+
         .tk-url-frame { background: #1e293b; margin: 10px 40px; padding: 10px 15px; display: flex; align-items: center; }
+
         .tk-url-input { background: #0f172a; border: none; color: #60a5fa; font-family: Consolas; font-size: 18px; font-weight: bold; flex-grow: 1; outline: none; margin-left: 10px; padding: 5px;}
+
         
+
         .tk-progress-frame { margin: 10px 40px; height: 15px; background: #1e293b; }
+
         .tk-progress-fill { height: 100%; background: #4ade80; width: 0%; transition: width 0.3s; }
+
         
+
         .tk-log-frame { flex-grow: 1; margin: 10px 40px; background: #020617; color: #34d399; font-family: Consolas, monospace; padding: 5px; overflow-y: auto; font-size: 14.6px; white-space: pre-wrap; display: flex; flex-direction: column;}
+
         
+
         /* Scrollbar */
+
         ::-webkit-scrollbar { width: 16px; height: 16px; }
+
         ::-webkit-scrollbar-track { background: #0f172a; border-left: 1px solid #334155; border-top: 1px solid #334155;}
+
         ::-webkit-scrollbar-thumb { background: #334155; border: 1px solid #0f172a; }
+
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
     </style>
+
 </head>
+
 <body>
 
+
+
     <!-- Desktop Icons -->
+
     <div id="desktop">
+
         <div class="dk-icon" onclick="openWindow('console')">
+
             <div class="icon-img">🐼</div>
+
             <div class="icon-text">Panda主控台</div>
+
         </div>
+
         
+
     </div>
+
+
 
     <!-- Window: Console (Exact Replica of Tkinter) -->
+
     <div id="win-console" class="window" style="width: 850px; height: 850px; display: none;">
+
         <div class="window-header" onmousedown="dragWindow(event, 'win-console')">
+
             <div>PandaPanda的AI日常___面板</div>
+
             <div class="window-controls">
+
                 <div class="win-btn win-min" onclick="minWindow('console')"><svg viewBox="0 0 10 10" width="10" height="10" stroke="currentColor" stroke-width="1"><path d="M 0,5 H 10" /></svg></div>
+
                 <div class="win-btn win-max" onclick="maxWindow('console')"><svg viewBox="0 0 10 10" width="10" height="10" stroke="currentColor" stroke-width="1"><path d="M 0,0 H 10 V 10 H 0 Z" fill="none" /></svg></div>
+
                 <div class="win-btn win-close" onclick="closeWindow('console')"><svg viewBox="0 0 10 10" width="10" height="10" stroke="currentColor" stroke-width="1"><path d="M 0,0 L 10,10 M 10,0 L 0,10" /></svg></div>
-            </div>
-        </div>
-        <div class="window-content" style="background: #0f172a;">
-            
-            <div class="tk-title">PandaPanda的AI日常</div>
-            <div class="tk-subtitle">全自動架站與管理機器人</div>
-            
-            <div class="tk-btn-row">
-                <button class="tk-btn" style="background:#4ade80; color:#022c22; font-size:16px;" onclick="emitCmd('start_mc')">🚀 手動啟動伺服器</button>
-                <button class="tk-btn" style="background:#ef4444; color:white; font-size:14px;" onclick="emitCmd('stop_mc')">⏹️ 停止所有服務</button>
-                <button class="tk-btn" style="background:#f59e0b; color:white; font-size:14px;" onclick="openWindow('settings'); emitCmd('open_account')">👥 系統與權限管理</button>
-                <button class="tk-btn" style="background:#8b5cf6; color:white; font-size:14px;" onclick="emitCmd('open_settings')">⚙️ 設定 GitHub 聯動</button>
-                <button class="tk-btn" style="background:#818cf8; color:white; font-size:12px;" onclick="emitCmd('restart_system')">🔄 套用更新 (重啟面板)</button>
-            </div>
-            
-            <div class="tk-opt-frame">
-                <div class="tk-opt-title">🔄 自動重啟防護設定</div>
-                <div class="tk-checkbox-row" style="margin-top: 15px;">
-                    <input type="checkbox" class="tk-checkbox" checked> 1. 啟用外網穿透心跳偵測 (連續 3 次無回應自動重啟)
-                </div>
-                <div class="tk-checkbox-row">
-                    <input type="checkbox" class="tk-checkbox" checked> 2. 啟用伺服器崩潰攔截 (後端報錯時自動重啟)
-                </div>
-                <div class="tk-checkbox-row">
-                    <input type="checkbox" class="tk-checkbox" checked> 3. 偵測到伺服器未知錯誤訊息自動重啟 (包含穿透斷線偵測)
-                </div>
-                <div class="tk-checkbox-row">
-                    <input type="checkbox" class="tk-checkbox"> 4. 每隔指定時間自動重啟 (分鐘):
-                    <input type="text" value="120" style="width: 50px; background: #1e293b; color: white; font-family: Consolas; border: none; margin-left: 5px; padding: 2px;">
-                </div>
+
             </div>
 
-            <div class="tk-url-frame">
-                <span style="font-size: 18px; color: #e2e8f0; font-weight: bold; font-family: 'Microsoft JhengHei';">🌐 外網連線網址：</span>
-                <input type="text" id="lbl-url" class="tk-url-input" value="等待伺服器啟動中..." readonly>
-            </div>
-            
-            <div class="tk-progress-frame">
-                <div id="progress-fill" class="tk-progress-fill"></div>
-            </div>
-            
-            <div class="tk-log-frame" id="terminal">========================================
-[系統] PandaPanda 遠端管理面板已啟動
-========================================
-</div>
-            
-            <div style="text-align: center; color: #64748b; margin-bottom: 10px; font-size: 13px; cursor: pointer; font-family: 'Microsoft JhengHei';" onclick="window.open('https://pandapanda6666.github.io')">
-                版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.
-            </div>
         </div>
+
+        <div class="window-content" style="background: #0f172a;">
+
+            
+
+            <div class="tk-title">PandaPanda的AI日常</div>
+
+            <div class="tk-subtitle">全自動架站與管理機器人</div>
+
+            
+
+            <div class="tk-btn-row">
+
+                <button class="tk-btn" style="background:#4ade80; color:#022c22; font-size:16px;" onclick="emitCmd('start_mc')">🚀 手動啟動伺服器</button>
+
+                <button class="tk-btn" style="background:#ef4444; color:white; font-size:14px;" onclick="emitCmd('stop_mc')">⏹️ 停止所有服務</button>
+
+                <button class="tk-btn" style="background:#f59e0b; color:white; font-size:14px;" onclick="openWindow('settings'); emitCmd('open_account')">👥 系統與權限管理</button>
+
+                <button class="tk-btn" style="background:#8b5cf6; color:white; font-size:14px;" onclick="emitCmd('open_settings')">⚙️ 設定 GitHub 聯動</button>
+
+                <button class="tk-btn" style="background:#818cf8; color:white; font-size:12px;" onclick="emitCmd('restart_system')">🔄 套用更新 (重啟面板)</button>
+
+            </div>
+
+            
+
+            <div class="tk-opt-frame">
+
+                <div class="tk-opt-title">🔄 自動重啟防護設定</div>
+
+                <div class="tk-checkbox-row" style="margin-top: 15px;">
+
+                    <input type="checkbox" class="tk-checkbox" checked> 1. 啟用外網穿透心跳偵測 (連續 3 次無回應自動重啟)
+
+                </div>
+
+                <div class="tk-checkbox-row">
+
+                    <input type="checkbox" class="tk-checkbox" checked> 2. 啟用伺服器崩潰攔截 (後端報錯時自動重啟)
+
+                </div>
+
+                <div class="tk-checkbox-row">
+
+                    <input type="checkbox" class="tk-checkbox" checked> 3. 偵測到伺服器未知錯誤訊息自動重啟 (包含穿透斷線偵測)
+
+                </div>
+
+                <div class="tk-checkbox-row">
+
+                    <input type="checkbox" class="tk-checkbox"> 4. 每隔指定時間自動重啟 (分鐘):
+
+                    <input type="text" value="120" style="width: 50px; background: #1e293b; color: white; font-family: Consolas; border: none; margin-left: 5px; padding: 2px;">
+
+                </div>
+
+            </div>
+
+
+
+            <div class="tk-url-frame">
+
+                <span style="font-size: 18px; color: #e2e8f0; font-weight: bold; font-family: 'Microsoft JhengHei';">🌐 外網連線網址：</span>
+
+                <input type="text" id="lbl-url" class="tk-url-input" value="等待伺服器啟動中..." readonly>
+
+            </div>
+
+            
+
+            <div class="tk-progress-frame">
+
+                <div id="progress-fill" class="tk-progress-fill"></div>
+
+            </div>
+
+            
+
+            <div class="tk-log-frame" id="terminal">========================================
+
+[系統] PandaPanda 遠端管理面板已啟動
+
+========================================
+
+</div>
+
+            
+
+            <div style="text-align: center; color: #64748b; margin-bottom: 10px; font-size: 13px; cursor: pointer; font-family: 'Microsoft JhengHei';" onclick="window.open('https://pandapanda6666.github.io')">
+
+                版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.
+
+            </div>
+
+        </div>
+
     </div>
+
+
 
     
 
+
+
     <div id="win-settings" class="window" style="width: 1200px; height: 800px; display: none;">
+
         <div class="window-header" onmousedown="dragWindow(event, 'win-settings')">
+
             <div>系統與權限管理</div>
+
             <div class="window-controls">
+
                 <div class="win-btn win-min" onclick="minWindow('settings')"><svg viewBox="0 0 10 10" width="10" height="10" stroke="currentColor" stroke-width="1"><path d="M 0,5 H 10" /></svg></div>
+
                 <div class="win-btn win-max" onclick="maxWindow('settings')"><svg viewBox="0 0 10 10" width="10" height="10" stroke="currentColor" stroke-width="1"><path d="M 0,0 H 10 V 10 H 0 Z" fill="none" /></svg></div>
+
                 <div class="win-btn win-close" onclick="closeWindow('settings')"><svg viewBox="0 0 10 10" width="10" height="10" stroke="currentColor" stroke-width="1"><path d="M 0,0 L 10,10 M 10,0 L 0,10" /></svg></div>
+
             </div>
+
         </div>
+
         <div class="window-content">
+
             <iframe id="iframe-settings" src="settings.html" style="width: 100%; height: 100%; border: none;"></iframe>
+
         </div>
+
     </div>
+
+
+
 
 
     <!-- Taskbar -->
+
     <div id="taskbar">
+
         <div class="tb-icon" onclick="alert('Start Menu (Work in Progress)')" style="font-size: 20px;">🪟</div>
+
         <div id="tb-console" class="tb-icon hidden" onclick="toggleWindow('console')" style="font-size: 20px;">🐼</div>
+
         <div id="tb-settings" class="tb-icon hidden" onclick="toggleWindow('settings')" style="font-size: 20px;">⚙️</div>
+
     </div>
 
+
+
     <!-- Scripts -->
+
     <script>
+
         let socket;
+
         async function initSocket() {
+
             try {
+
                 const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+
                 const t = await res.text();
+
                 const serverUrl = atob(t.trim().split('').reverse().join(''));
+
                 
+
                 socket = io(serverUrl, { transports: ['websocket'] });
+
                 
+
                 socket.on('connect', () => {
+
                     appendLog('[系統] 已成功連接遠端伺服器！', '#22c55e');
+
                     const savedU = localStorage.getItem('panda_auto_user');
+
                     const savedP = localStorage.getItem('panda_auto_pass');
+
                     if (!savedU || !savedP) {
+
                         window.location.href = 'https://pandapanda6666.github.io/login-hub/';
+
                     } else {
                         socket.emit('login', { username: savedU, password: savedP });
-                    } else {
-                        appendLog('[錯誤] 尚未登入，無法執行管理指令。', '#ef4444');
                     }
+
                 });
+
+
 
                 socket.on('disconnect', () => {
+
                     appendLog('[系統] 與遠端伺服器斷線。', '#ef4444');
+
                 });
 
+
+
                 
+
                 socket.on('loginResult', (res) => {
+
                     if(res.success && res.isAdmin) {
+
                         socket.username = res.username;
+
                         appendLog('[系統] 身分驗證通過！', '#22c55e');
+
                     } else {
+
                         appendLog('[錯誤] 身分驗證失敗或權限不足，即將跳轉登入畫面...', '#ef4444');
+
                         setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/', 1500);
+
                     }
+
                 });
+
+
 
                 socket.on('system_log', (data) => {
+
                     appendLog(data.text);
+
                 });
+
+
 
                 socket.on('system_status', (data) => {
+
                     if(data.url) document.getElementById('lbl-url').value = data.url;
+
                     if(data.open === false) {
+
                         document.getElementById('lbl-url').value = "等待伺服器啟動中...";
+
                         document.getElementById('progress-fill').style.width = "0%";
+
                     } else {
+
                         document.getElementById('progress-fill').style.width = "100%";
+
                     }
+
                 });
+
             } catch (e) {
+
                 appendLog('[錯誤] 無法獲取遠端伺服器網址，連線失敗。', '#ef4444');
+
             }
+
         }
+
         initSocket();
 
+
+
         function appendLog(text, color='') {
+
             const t = document.getElementById('terminal');
+
             const span = document.createElement('span');
+
             span.textContent = text + (text.endsWith('\n')?'':'\n');
+
             if(color) span.style.color = color;
+
             if(!color) {
+
                 if(text.includes('[系統]')) span.style.color = '#38bdf8';
+
                 if(text.includes('[錯誤]')) span.style.color = '#ef4444';
+
             }
+
             t.appendChild(span);
+
             t.scrollTop = t.scrollHeight;
+
         }
+
+
 
         function emitCmd(cmd) {
+
             socket.emit('adminAction', { action: 'systemControl', command: cmd });
+
             appendLog(`[傳送] 執行指令: ${cmd}`, '#eab308');
+
         }
+
+
 
         /* Window Manager Logic */
+
         let zIndex = 1000;
+
         
+
         function openWindow(id) {
+
             const win = document.getElementById('win-' + id);
+
             const tb = document.getElementById('tb-' + id);
+
             if (win.style.display === 'none') {
+
                 win.style.display = 'flex';
+
                 tb.classList.remove('hidden');
+
                 tb.classList.add('active');
+
                 
+
                 if(id === 'settings' && !document.getElementById('iframe-settings').src) {
+
                     document.getElementById('iframe-settings').src = 'settings.html';
+
                 }
+
             }
+
             focusWindow(id);
+
         }
+
+
 
         function closeWindow(id) {
+
             document.getElementById('win-' + id).style.display = 'none';
+
             document.getElementById('tb-' + id).classList.remove('active');
+
             document.getElementById('tb-' + id).classList.add('hidden');
+
         }
+
+
 
         function minWindow(id) {
+
             document.getElementById('win-' + id).style.display = 'none';
+
             document.getElementById('tb-' + id).classList.remove('active');
+
         }
+
+
 
         function maxWindow(id) {
+
             const win = document.getElementById('win-' + id);
+
             if(win.dataset.maximized === 'true') {
+
                 win.style.width = win.dataset.oldW;
+
                 win.style.height = win.dataset.oldH;
+
                 win.style.top = win.dataset.oldY;
+
                 win.style.left = win.dataset.oldX;
+
                 win.dataset.maximized = 'false';
+
             } else {
+
                 win.dataset.oldW = win.style.width;
+
                 win.dataset.oldH = win.style.height;
+
                 win.dataset.oldX = win.style.left;
+
                 win.dataset.oldY = win.style.top;
+
                 
+
                 win.style.width = '100vw';
+
                 win.style.height = 'calc(100vh - 48px)';
+
                 win.style.top = '0';
+
                 win.style.left = '0';
+
                 win.dataset.maximized = 'true';
+
             }
+
         }
+
+
 
         function toggleWindow(id) {
+
             const win = document.getElementById('win-' + id);
+
             const tb = document.getElementById('tb-' + id);
+
             if (win.style.display === 'none') {
+
                 win.style.display = 'flex';
+
                 tb.classList.add('active');
+
                 focusWindow(id);
+
             } else {
+
                 if(tb.classList.contains('active')) minWindow(id);
+
                 else focusWindow(id);
+
             }
+
         }
+
+
 
         function focusWindow(id) {
+
             const win = document.getElementById('win-' + id);
+
             win.style.zIndex = ++zIndex;
+
             document.querySelectorAll('.tb-icon').forEach(el => el.classList.remove('active'));
+
             document.getElementById('tb-' + id).classList.add('active');
+
         }
+
+
 
         function dragWindow(e, winId) {
+
             const win = document.getElementById(winId);
+
             if(win.dataset.maximized === 'true') return;
+
             focusWindow(winId.replace('win-', ''));
+
             
+
             let startX = e.clientX;
+
             let startY = e.clientY;
+
             let startLeft = parseInt(window.getComputedStyle(win).left, 10) || 0;
+
             let startTop = parseInt(window.getComputedStyle(win).top, 10) || 0;
 
+
+
             function onMouseMove(moveEvent) {
+
                 win.style.left = startLeft + moveEvent.clientX - startX + 'px';
+
                 win.style.top = startTop + moveEvent.clientY - startY + 'px';
+
             }
+
             function onMouseUp() {
+
                 document.removeEventListener('mousemove', onMouseMove);
+
                 document.removeEventListener('mouseup', onMouseUp);
+
             }
+
             document.addEventListener('mousemove', onMouseMove);
+
             document.addEventListener('mouseup', onMouseUp);
+
         }
+
         
+
         // Auto open console
+
         openWindow('console');
+
     </script>
+
 </body>
+
 </html>

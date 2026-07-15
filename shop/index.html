@@ -247,28 +247,46 @@
             dropdown.classList.toggle('hidden');
         }
 
-        function mockLoginLogout() {
-            isLoggedIn = !isLoggedIn;
+        function updateLoginUI() {
+            const savedU = localStorage.getItem('panda_auto_user');
+            isLoggedIn = !!savedU;
             const displayName = document.getElementById('user-display-name');
             const loginBtn = document.getElementById('login-logout-btn');
             const userIconBtn = document.getElementById('user-menu-btn');
 
             if (isLoggedIn) {
-                displayName.textContent = "VIP 會員 Panda";
+                displayName.textContent = "VIP | " + savedU;
                 displayName.classList.add('text-green-600');
                 loginBtn.textContent = "登出";
                 loginBtn.classList.replace('text-green-600', 'text-red-500');
-                userIconBtn.classList.add('text-green-600'); // 登入後讓圖示變綠色
+                userIconBtn.classList.add('text-green-600');
             } else {
                 displayName.textContent = "訪客";
                 displayName.classList.remove('text-green-600');
                 loginBtn.textContent = "登入 / 註冊";
-                loginBtn.classList.replace('text-red-500', 'text-green-600');
+                if (loginBtn.classList.contains('text-red-500')) {
+                    loginBtn.classList.replace('text-red-500', 'text-green-600');
+                }
                 userIconBtn.classList.remove('text-green-600');
             }
-            // 點擊後隱藏選單
-            document.getElementById('user-dropdown').classList.add('hidden');
         }
+
+        function mockLoginLogout() {
+            const savedU = localStorage.getItem('panda_auto_user');
+            if (savedU) {
+                // Logout
+                localStorage.removeItem('panda_auto_user');
+                localStorage.removeItem('panda_auto_pass');
+                updateLoginUI();
+                document.getElementById('user-dropdown').classList.add('hidden');
+            } else {
+                // Redirect to unified login hub
+                window.location.href = 'https://pandapanda6666.github.io/login-hub/';
+            }
+        }
+
+        // Initialize UI on load
+        document.addEventListener('DOMContentLoaded', updateLoginUI);
 
         // 點擊畫面其他地方隱藏會員選單
         window.addEventListener('click', function(e) {
