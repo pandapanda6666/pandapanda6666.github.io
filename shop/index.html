@@ -425,14 +425,26 @@
                 socket.on('loginResult', (res) => {
                     if(res.success) {
                         isLoggedIn = true;
-                        document.getElementById('user-display-name').textContent = "VIP | " + res.username;
+                        currentUser = res;
+                        
+                        document.getElementById('user-pcoin').innerText = res.pCoin || 0;
+                        if(res.avatar) {
+                            document.getElementById('user-avatar').src = res.avatar;
+                        } else {
+                            const localAvatar = localStorage.getItem('panda_avatar');
+                            if (localAvatar) document.getElementById('user-avatar').src = localAvatar;
+                        }
+                        
+                        if(allProducts.length > 0) renderProducts(allProducts);
+                        
+                        document.getElementById('user-display-name').textContent = "VIP | " + (res.nickname || res.username);
                         document.getElementById('user-display-name').classList.add('text-green-600');
                         document.getElementById('login-logout-btn').textContent = "登出";
                         document.getElementById('login-logout-btn').classList.replace('text-green-600', 'text-red-500');
                         document.getElementById('pcoin-display').classList.remove('hidden');
                         document.getElementById('pcoin-display').classList.add('flex');
                         
-                        socket.emit('getUserData', { username: res.username });
+                        
                     } else {
                         localStorage.removeItem('panda_auto_pass');
                         isLoggedIn = false;
@@ -440,19 +452,7 @@
                 });
 
                 
-                socket.on('userData', (data) => {
-                    currentUser = data;
-                    document.getElementById('user-pcoin').innerText = data.p_coin || 0;
-                    if(data.avatar) {
-                        document.getElementById('user-avatar').src = data.avatar;
-                    } else {
-                        // fallback to localStorage if available
-                        const localAvatar = localStorage.getItem('panda_avatar');
-                        if (localAvatar) document.getElementById('user-avatar').src = localAvatar;
-                    }
-                    // re-render to update 'Owned' status
-                    if(allProducts.length > 0) renderProducts(allProducts);
-                });
+                
 
 
                 socket.on('productsData', (data) => {
@@ -495,7 +495,7 @@
             document.getElementById('modalPrice').innerText = selectedProduct.price;
             
             const btn = document.getElementById('btnConfirmBuy');
-            if(currentUser.p_coin < selectedProduct.price) {
+            if(currentUser.pCoin < selectedProduct.price) {
                 btn.innerText = 'P 幣餘額不足';
                 btn.classList.replace('bg-green-600', 'bg-slate-700');
                 btn.disabled = true;
