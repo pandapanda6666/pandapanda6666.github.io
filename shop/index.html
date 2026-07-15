@@ -35,6 +35,7 @@
             overflow: hidden;
         }
     </style>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -87,6 +88,11 @@
                     </div>
 
                     <!-- 購物車按鈕 -->
+                    <!-- P-Coin Display -->
+                    <div id="pcoin-display" class="hidden flex items-center bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                        <span class="text-yellow-500 font-bold mr-1">P</span>
+                        <span id="user-pcoin" class="text-green-700 font-bold font-mono">0</span>
+                    </div>
                     <button class="text-gray-500 hover:text-green-600 transition-colors relative">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                         <span id="cart-count" class="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-white">0</span>
@@ -359,7 +365,7 @@
                 return;
             }
             
-            await scanAndLoadFolders();
+            initSocket();
             setupInteractions();
         }
 
@@ -391,6 +397,138 @@
             document.title = defaultTitle;
             document.getElementById('main-subtitle').textContent = t.defaultSubtitle;
         }
+
+        
+        // --- WebSocket & Socket.io Logic ---
+        let socket;
+        let currentUser = null;
+        let selectedProduct = null;
+
+        async function initSocket() {
+            try {
+                let res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                if(!res.ok) res = await fetch('../login-hub/server_url.txt');
+                const t = await res.text();
+                const serverUrl = atob(t.trim().split('').reverse().join(''));
+                
+                socket = io(serverUrl, { transports: ['websocket'] });
+                
+                socket.on('connect', () => {
+                    const savedU = localStorage.getItem('panda_auto_user');
+                    const savedP = localStorage.getItem('panda_auto_pass');
+                    if (savedU && savedP) {
+                        socket.emit('login', { username: savedU, password: savedP });
+                    }
+                    socket.emit('getProducts');
+                });
+
+                socket.on('loginResult', (res) => {
+                    if(res.success) {
+                        isLoggedIn = true;
+                        document.getElementById('user-display-name').textContent = "VIP | " + res.username;
+                        document.getElementById('user-display-name').classList.add('text-green-600');
+                        document.getElementById('login-logout-btn').textContent = "登出";
+                        document.getElementById('login-logout-btn').classList.replace('text-green-600', 'text-red-500');
+                        document.getElementById('pcoin-display').classList.remove('hidden');
+                        document.getElementById('pcoin-display').classList.add('flex');
+                        
+                        socket.emit('getUserData', { username: res.username });
+                    } else {
+                        localStorage.removeItem('panda_auto_pass');
+                        isLoggedIn = false;
+                    }
+                });
+
+                socket.on('userData', (data) => {
+                    currentUser = data;
+                    document.getElementById('user-pcoin').innerText = data.p_coin || 0;
+                    // re-render to update 'Owned' status
+                    if(allProducts.length > 0) renderProducts(allProducts);
+                });
+
+                socket.on('productsData', (data) => {
+                    allProducts = data || [];
+                    document.getElementById('loading-indicator').style.display = 'none';
+                    if (allProducts.length > 0) {
+                        document.getElementById('shop-header').style.display = 'flex';
+                        document.getElementById('sidebar-count').textContent = allProducts.length;
+                        renderProducts(allProducts);
+                    } else {
+                        renderEmpty();
+                    }
+                });
+                
+                socket.on('productsUpdated', (data) => {
+                    allProducts = data || [];
+                    const term = document.getElementById('search-input').value.toLowerCase().trim();
+                    const sortType = document.getElementById('sort-select').value;
+                    applyFiltersAndSort(term, sortType);
+                });
+
+            } catch (e) {
+                console.error("Socket error", e);
+                document.getElementById('loading-indicator').innerHTML = '<p class="text-red-500">無法連線至伺服器</p>';
+            }
+        }
+
+        function openBuyModal(id) {
+            if(!isLoggedIn || !currentUser) {
+                mockLoginLogout(); // Redirects to login
+                return;
+            }
+            selectedProduct = allProducts.find(p => p.id === id || p.id === parseInt(id));
+            if(!selectedProduct) return;
+            
+            document.getElementById('modalTitle').innerText = '購買 ' + selectedProduct.name;
+            document.getElementById('modalDesc').innerText = '購買後將可於 ' + (selectedProduct.origin || '全域') + ' 中使用。';
+            document.getElementById('modalPrice').innerText = selectedProduct.price;
+            
+            const btn = document.getElementById('btnConfirmBuy');
+            if(currentUser.p_coin < selectedProduct.price) {
+                btn.innerText = 'P 幣餘額不足';
+                btn.classList.replace('bg-green-600', 'bg-slate-700');
+                btn.disabled = true;
+            } else {
+                btn.innerText = '確認扣款';
+                btn.classList.replace('bg-slate-700', 'bg-green-600');
+                btn.disabled = false;
+            }
+            
+            const modal = document.getElementById('buyModal');
+            modal.classList.remove('hidden');
+        }
+
+        function closeBuyModal() {
+            document.getElementById('buyModal').classList.add('hidden');
+            selectedProduct = null;
+        }
+
+        function confirmBuy() {
+            if(!selectedProduct || !currentUser) return;
+            const btn = document.getElementById('btnConfirmBuy');
+            btn.innerText = '處理中...';
+            btn.disabled = true;
+
+            socket.emit('buyItem', { 
+                itemId: selectedProduct.id, 
+                username: currentUser.username 
+            }, (res) => {
+                closeBuyModal();
+                if(res && res.success) {
+                    socket.emit('getUserData', { username: currentUser.username });
+                    const card = document.getElementById('card_' + selectedProduct.id);
+                    if(card) {
+                        card.style.boxShadow = '0 0 30px rgba(74, 222, 128, 0.8)';
+                        card.style.borderColor = '#4ade80';
+                        setTimeout(() => renderProducts(allProducts), 1500);
+                    }
+                } else {
+                    alert('購買失敗: ' + (res ? res.error : '未知錯誤'));
+                    btn.disabled = false;
+                }
+            });
+        }
+
 
         async function scanAndLoadFolders() {
             const loading = document.getElementById('loading-indicator');
@@ -465,37 +603,52 @@
             }
 
             products.forEach(p => {
+                const isOwned = currentUser && currentUser.inventory && currentUser.inventory[p.origin] && currentUser.inventory[p.origin].includes(p.name);
                 const card = document.createElement('div');
-                card.className = "cursor-pointer group h-full bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 relative overflow-hidden flex flex-col";
-                card.onclick = () => goToProject(p.projectUrl);
+                card.id = 'card_' + p.id;
+                // 暗黑玻璃擬物化風格 (Dark Glassmorphism)
+                card.className = "group h-full bg-slate-900 rounded-xl border border-slate-700 shadow-lg hover:shadow-2xl transition-all duration-300 relative overflow-hidden flex flex-col";
+                card.style.background = "rgba(30, 41, 59, 0.7)";
+                card.style.backdropFilter = "blur(12px)";
+                
+                // 點擊圖片或標題跳轉，按鈕則觸發購買
+                const goToProjectHtml = p.projectUrl ? `onclick="goToProject('${p.projectUrl}')"` : '';
                 
                 // 隨機產生一個假的熱銷標籤 (僅做視覺豐富度)
                 const isHot = p.id % 3 === 0;
                 const tagHtml = isHot ? `<div class="absolute top-2 left-2 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded z-10">熱銷</div>` : '';
 
+                
+                let originBadge = p.origin ? `<div class="absolute top-2 right-2 bg-indigo-600 text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded-full shadow-lg z-10 border border-indigo-400/30">${new URL(p.origin).hostname.split('.')[0]}</div>` : '';
+                
+                let btnHtml = isOwned ? 
+                    `<button disabled class="w-full bg-slate-800 text-slate-500 font-medium py-2 rounded-lg text-sm border border-slate-700 cursor-not-allowed">已擁有</button>` :
+                    `<button onclick="openBuyModal('${p.id}')" class="w-full bg-green-600 hover:bg-green-500 text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm border border-green-500 shadow-lg shadow-green-600/20">
+                        <span class="text-yellow-300 font-bold">P</span>
+                        <span>${p.price} - 購買</span>
+                    </button>`;
+
                 card.innerHTML = `
                     ${tagHtml}
+                    ${originBadge}
                     <!-- 商品圖片區域 -->
-                    <div class="relative w-full pt-[100%] bg-gray-50 overflow-hidden border-b border-gray-50">
-                        <img src="${p.iconUrl}" alt="${p.name}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="handleImageError(this)">
+                    <div class="relative w-full pt-[80%] bg-slate-800 overflow-hidden border-b border-slate-700 cursor-pointer" ${goToProjectHtml}>
+                        <img src="${p.image || p.iconUrl || 'https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no'}" alt="${p.name}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="handleImageError(this)">
                     </div>
                     
                     <!-- 商品資訊區域 -->
-                    <div class="p-4 flex flex-col flex-grow">
-                        <h2 class="text-sm md:text-base font-bold text-gray-800 line-clamp-2 mb-1 group-hover:text-green-600 transition-colors" title="${p.name}">${p.name}</h2>
-                        <p class="text-xs text-gray-500 line-clamp-2 mb-3 flex-grow">${p.desc}</p>
+                    <div class="p-4 flex flex-col flex-grow text-white">
+                        <h2 class="text-sm md:text-base font-bold line-clamp-2 mb-1 group-hover:text-green-400 transition-colors cursor-pointer" title="${p.name}" ${goToProjectHtml}>${p.name}</h2>
+                        <p class="text-xs text-slate-400 line-clamp-2 mb-3 flex-grow">${p.desc}</p>
                         
                         <!-- 模擬星級評分 -->
                         <div class="flex items-center mb-3">
                             <div class="flex text-yellow-400 text-xs">★★★★★</div>
-                            <span class="text-xs text-gray-400 ml-1">(${Math.floor(Math.random() * 100) + 10})</span>
+                            <span class="text-xs text-slate-500 ml-1">(${Math.floor(Math.random() * 100) + 10})</span>
                         </div>
                         
-                        <!-- 購物車按鈕 -->
-                        <button onclick="addToCart(event)" class="w-full bg-green-50 group-hover:bg-green-600 text-green-700 group-hover:text-white font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2 text-sm border border-green-100 group-hover:border-green-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                            <span>${t.addToCart}</span>
-                        </button>
+                        <!-- 購買按鈕 -->
+                        ${btnHtml}
                     </div>
                 `;
                 container.appendChild(card);
@@ -589,5 +742,27 @@
 
         window.onload = init;
     </script>
+
+    <!-- 暗黑玻璃擬物化購買彈窗 -->
+    <div id="buyModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden" style="background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px);">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="buyModalContent" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px);">
+            <h3 class="text-2xl font-bold mb-2 text-white" id="modalTitle">確認購買</h3>
+            <p class="text-slate-400 text-sm mb-6" id="modalDesc"></p>
+            
+            <div class="bg-slate-800/50 rounded-xl p-4 mb-6 flex justify-between items-center border border-slate-700">
+                <span class="text-slate-300">總計金額</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-yellow-400 font-bold">P</span>
+                    <span id="modalPrice" class="text-2xl font-mono font-bold text-green-400"></span>
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="closeBuyModal()" class="flex-1 py-3 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition">取消</button>
+                <button onclick="confirmBuy()" class="flex-1 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-500 transition" id="btnConfirmBuy">確認扣款</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
