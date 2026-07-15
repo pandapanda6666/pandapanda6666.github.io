@@ -41,6 +41,7 @@
                 <button onclick="switchTab('tab_errors')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">❌ 錯誤診斷</button>
                 <button onclick="switchTab('tab_apps')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🌐 網頁部署 (Apps)</button>
                 <button onclick="switchTab('tab_cors')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🛡️ CORS 白名單</button>
+                <button onclick="switchTab('tab_shop')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🏪 商城與商品管理</button>
                 <button onclick="switchTab('tab_prompt_gen')" class="w-full text-left px-4 py-3 rounded hover:bg-slate-700 font-bold focus:bg-blue-600 focus:text-white transition">🪄 提示詞生成</button>
             </div>
             <div class="p-4 border-t border-slate-700">
@@ -242,6 +243,30 @@
                 </div>
             </div>
 
+            
+            <div id="tab_shop" class="tab-content p-6 h-full flex flex-col hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-400">🏪 商城與商品管理</h2>
+                    <div class="flex gap-2">
+                        <button onclick="addShopItem()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-bold shadow transition">➕ 新增商品</button>
+                    </div>
+                </div>
+                <div class="flex-grow overflow-auto custom-scrollbar bg-slate-800 rounded-lg border border-slate-700">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-slate-700 text-slate-300 sticky top-0">
+                            <tr>
+                                <th class="p-3 font-bold">ID</th>
+                                <th class="p-3 font-bold">商品名稱</th>
+                                <th class="p-3 font-bold">專屬網域 (Origin)</th>
+                                <th class="p-3 font-bold">售價 (P幣)</th>
+                                <th class="p-3 font-bold text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shopList" class="divide-y divide-slate-700/50 text-xs text-white"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <div id="tab_cors" class="tab-content p-6 h-full flex flex-col hidden">
                 <h2 class="text-2xl font-bold text-blue-400 mb-4">🛡️ CORS 白名單管理</h2>
                 <div class="flex-grow flex gap-4 overflow-hidden">
@@ -280,6 +305,53 @@
     </div>
 
     <script>
+        
+        window.addShopItem = function() {
+            const id = prompt('請輸入商品 ID (唯一, 英文數字組合):');
+            if(!id) return;
+            const name = prompt('請輸入商品名稱:');
+            const price = parseInt(prompt('請輸入商品價格 (P幣):', '1000'));
+            const image = prompt('請輸入商品圖片網址 (可留空):');
+            const origin = prompt('請輸入專屬網域 (可留空，代表全域):', 'https://pandapanda6666.github.io');
+            const desc = prompt('請輸入商品描述:');
+            
+            if(name && !isNaN(price)) {
+                let pList = globalData.products || [];
+                pList.push({id, name, price, image, origin, desc});
+                socket.emit('adminAction', { action: 'updateProducts', products: pList });
+                alert('商品新增請求已送出！');
+                setTimeout(()=>window.fetchData(), 500);
+            }
+        };
+        
+        window.editShopItem = function(id) {
+            let pList = globalData.products || [];
+            let item = pList.find(p => p.id === id);
+            if(!item) return;
+            const name = prompt('修改商品名稱:', item.name);
+            const price = parseInt(prompt('修改商品價格 (P幣):', item.price));
+            const image = prompt('修改商品圖片網址:', item.image||'');
+            const origin = prompt('修改專屬網域:', item.origin||'');
+            const desc = prompt('修改商品描述:', item.desc||'');
+            
+            if(name && !isNaN(price)) {
+                item.name = name; item.price = price; item.image = image; item.origin = origin; item.desc = desc;
+                socket.emit('adminAction', { action: 'updateProducts', products: pList });
+                alert('商品修改請求已送出！');
+                setTimeout(()=>window.fetchData(), 500);
+            }
+        };
+        
+        window.delShopItem = function(id) {
+            if(!confirm('確定要刪除商品 ' + id + ' 嗎？')) return;
+            let pList = globalData.products || [];
+            pList = pList.filter(p => p.id !== id);
+            socket.emit('adminAction', { action: 'updateProducts', products: pList });
+            alert('商品刪除請求已送出！');
+            setTimeout(()=>window.fetchData(), 500);
+        };
+        
+
         window.switchTab = function(tabId) {
             document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
             document.getElementById(tabId).classList.remove('hidden');
@@ -839,6 +911,53 @@ window.fetchData = function() {
         };
 
         const originalSwitchTab = window.switchTab;
+        
+        window.addShopItem = function() {
+            const id = prompt('請輸入商品 ID (唯一, 英文數字組合):');
+            if(!id) return;
+            const name = prompt('請輸入商品名稱:');
+            const price = parseInt(prompt('請輸入商品價格 (P幣):', '1000'));
+            const image = prompt('請輸入商品圖片網址 (可留空):');
+            const origin = prompt('請輸入專屬網域 (可留空，代表全域):', 'https://pandapanda6666.github.io');
+            const desc = prompt('請輸入商品描述:');
+            
+            if(name && !isNaN(price)) {
+                let pList = globalData.products || [];
+                pList.push({id, name, price, image, origin, desc});
+                socket.emit('adminAction', { action: 'updateProducts', products: pList });
+                alert('商品新增請求已送出！');
+                setTimeout(()=>window.fetchData(), 500);
+            }
+        };
+        
+        window.editShopItem = function(id) {
+            let pList = globalData.products || [];
+            let item = pList.find(p => p.id === id);
+            if(!item) return;
+            const name = prompt('修改商品名稱:', item.name);
+            const price = parseInt(prompt('修改商品價格 (P幣):', item.price));
+            const image = prompt('修改商品圖片網址:', item.image||'');
+            const origin = prompt('修改專屬網域:', item.origin||'');
+            const desc = prompt('修改商品描述:', item.desc||'');
+            
+            if(name && !isNaN(price)) {
+                item.name = name; item.price = price; item.image = image; item.origin = origin; item.desc = desc;
+                socket.emit('adminAction', { action: 'updateProducts', products: pList });
+                alert('商品修改請求已送出！');
+                setTimeout(()=>window.fetchData(), 500);
+            }
+        };
+        
+        window.delShopItem = function(id) {
+            if(!confirm('確定要刪除商品 ' + id + ' 嗎？')) return;
+            let pList = globalData.products || [];
+            pList = pList.filter(p => p.id !== id);
+            socket.emit('adminAction', { action: 'updateProducts', products: pList });
+            alert('商品刪除請求已送出！');
+            setTimeout(()=>window.fetchData(), 500);
+        };
+        
+
         window.switchTab = function(tabId) {
             if(typeof originalSwitchTab === 'function') originalSwitchTab(tabId);
             
