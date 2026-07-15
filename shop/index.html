@@ -68,8 +68,8 @@
                 <div class="flex items-center space-x-6">
                     <!-- 會員帳號選單 (模擬功能) -->
                     <div class="relative">
-                        <button id="user-menu-btn" onclick="toggleUserMenu(event)" class="text-gray-500 hover:text-green-600 transition-colors focus:outline-none flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        <button id="user-menu-btn" onclick="toggleUserMenu(event)" class="text-gray-500 hover:text-green-600 transition-colors focus:outline-none flex items-center rounded-full overflow-hidden border-2 border-transparent hover:border-green-600">
+                            <img id="user-avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'></path><circle cx='12' cy='7' r='4'></circle></svg>" class="h-7 w-7 object-cover bg-gray-100" alt="User">
                         </button>
                         <!-- 下拉選單 -->
                         <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
@@ -77,8 +77,8 @@
                                 <p class="text-xs text-gray-500">當前狀態</p>
                                 <p id="user-display-name" class="text-sm font-bold text-gray-800 truncate">訪客</p>
                             </div>
-                            <a href="#" onclick="alert('系統提示：我的訂單功能建置中，敬請期待！'); return false;" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600">我的訂單</a>
-                            <a href="#" onclick="alert('系統提示：我的收藏功能建置中，敬請期待！'); return false;" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600">我的收藏</a>
+                            
+                            
                             <a href="https://pandapanda6666.github.io/login-hub/" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-600">帳號設定</a>
                             <div class="border-t border-gray-100"></div>
                             <button id="login-logout-btn" onclick="mockLoginLogout()" class="w-full text-left block px-4 py-2 text-sm font-medium text-green-600 hover:bg-green-50 hover:text-green-700">
@@ -172,10 +172,10 @@
     <footer class="bg-white border-t border-gray-200 pt-10 pb-6 mt-auto">
         <div class="max-w-7xl mx-auto px-4 text-center">
             <div class="flex justify-center space-x-6 mb-6">
-                <a href="#" onclick="alert('胖達商城是您專屬的全域虛擬資產交易中心！'); return false;" class="text-gray-400 hover:text-green-500">關於我們</a>
-                <a href="#" onclick="alert('購買的資產會自動綁定至對應的專屬網域背包中。請確保您的 P 幣充足！'); return false;" class="text-gray-400 hover:text-green-500">購物需知</a>
-                <a href="#" onclick="alert('虛擬商品售出後恕不退換，購買前請三思。'); return false;" class="text-gray-400 hover:text-green-500">退換貨政策</a>
-                <a href="#" onclick="alert('請直接聯繫管理員：PandaPanda'); return false;" class="text-gray-400 hover:text-green-500">聯絡客服</a>
+                
+                
+                
+                
             </div>
             <p id="copyright-text" class="text-gray-500 text-sm">
                 版權所有 © 2026 
@@ -439,12 +439,21 @@
                     }
                 });
 
+                
                 socket.on('userData', (data) => {
                     currentUser = data;
                     document.getElementById('user-pcoin').innerText = data.p_coin || 0;
+                    if(data.avatar) {
+                        document.getElementById('user-avatar').src = data.avatar;
+                    } else {
+                        // fallback to localStorage if available
+                        const localAvatar = localStorage.getItem('panda_avatar');
+                        if (localAvatar) document.getElementById('user-avatar').src = localAvatar;
+                    }
                     // re-render to update 'Owned' status
                     if(allProducts.length > 0) renderProducts(allProducts);
                 });
+
 
                 socket.on('productsData', (data) => {
                     allProducts = data || [];
