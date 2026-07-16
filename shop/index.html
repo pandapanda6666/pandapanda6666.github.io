@@ -39,6 +39,7 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="icon" type="image/png" href="logo.png">
 
+<script>
 function showToast(msg) {
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-5 right-5 bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300';
@@ -47,6 +48,7 @@ function showToast(msg) {
     setTimeout(() => { toast.classList.remove('translate-y-20', 'opacity-0'); }, 10);
     setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
 }
+</script>
 
 </head>
 <body class="min-h-screen flex flex-col">
@@ -204,7 +206,7 @@ function selectSort(val, text) {
         dummy.value = val;
         document.body.appendChild(dummy);
     } else {
-        document.getElementById('sort-select').value = val;
+        document.getElementById('custom-sort-btn') ? document.getElementById('custom-sort-btn').innerText : 'default' = val;
     }
     renderProducts();
 }
@@ -280,6 +282,7 @@ function selectSort(val, text) {
         let allProducts = [];
         // 購物車數量
         let cartItemsCount = 0;
+        let cart = [];
         // 模擬會員登入狀態
         let isLoggedIn = false;
 
@@ -536,7 +539,7 @@ function selectSort(val, text) {
                 socket.on('productsUpdated', (data) => {
                     allProducts = data || [];
                     const term = document.getElementById('search-input').value.toLowerCase().trim();
-                    const sortType = document.getElementById('sort-select').value;
+                    const sortType = document.getElementById('custom-sort-btn') ? document.getElementById('custom-sort-btn').innerText : 'default';
                     applyFiltersAndSort(term, sortType);
                 });
 
@@ -746,6 +749,37 @@ function openNavModal(type) {
             });
         }
 
+        
+        function editReview(productId, reviewIndex) {
+            const product = allProducts.find(p => p.id == productId);
+            if(!product) return;
+            const r = product.reviews[reviewIndex];
+            const newComment = prompt('修改您的評價:', r.comment);
+            if(newComment && newComment.trim() !== '' && newComment !== r.comment) {
+                socket.emit('editReview', { productId, reviewIndex, comment: newComment.trim() }, (res) => {
+                    if(res.success) {
+                        showToast('評價已更新');
+                        setTimeout(() => openBuyModal(productId), 500);
+                    } else {
+                        alert(res.error || '修改失敗');
+                    }
+                });
+            }
+        }
+
+        function deleteReview(productId, reviewIndex) {
+            if(confirm('確定要刪除這則評價嗎？')) {
+                socket.emit('deleteReview', { productId, reviewIndex }, (res) => {
+                    if(res.success) {
+                        showToast('評價已刪除');
+                        setTimeout(() => openBuyModal(productId), 500);
+                    } else {
+                        alert(res.error || '刪除失敗');
+                    }
+                });
+            }
+        }
+
         function submitReview() {
             if(!currentUser) { alert('請先登入！'); return; }
             if(!selectedProduct) return;
@@ -787,7 +821,11 @@ function openNavModal(type) {
             if(reviewsContainer) {
                 reviewsContainer.innerHTML = '';
                 if(selectedProduct.reviews && selectedProduct.reviews.length > 0) {
-                    selectedProduct.reviews.forEach(r => {
+                    selectedProduct.reviews.forEach((r, idx) => {
+                        
+                        let isOwn = currentUser && currentUser.username === r.username;
+                        let editBadge = r.edited ? '<span class="text-[10px] text-slate-500 ml-1">(已編輯)</span>' : '';
+                        let actions = isOwn ? `<div class="flex gap-2 mt-2"><button onclick="editReview('${selectedProduct.id}', ${idx})" class="text-[10px] bg-blue-600/30 text-blue-400 px-2 py-1 rounded hover:bg-blue-600/50 transition">📝 編輯</button><button onclick="deleteReview('${selectedProduct.id}', ${idx})" class="text-[10px] bg-red-600/30 text-red-400 px-2 py-1 rounded hover:bg-red-600/50 transition">🗑️ 刪除</button></div>` : '';
                         let stars = '';
                         for(let i=1; i<=5; i++) stars += (i <= r.rating) ? '★' : '☆';
                         reviewsContainer.innerHTML += `
@@ -795,10 +833,11 @@ function openNavModal(type) {
                                 <img src="${r.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed='+r.username}" class="w-8 h-8 rounded-full border border-slate-600" />
                                 <div class="flex-1">
                                     <div class="flex justify-between items-center mb-1">
-                                        <span class="text-sm font-bold text-white">${r.nickname || r.username}</span>
+                                        <span class="text-sm font-bold text-white">${r.nickname || r.username}${editBadge}</span>
                                         <span class="text-xs text-yellow-400">${stars}</span>
                                     </div>
-                                    <p class="text-xs text-slate-300">${r.comment}</p>
+                                    <p class="text-xs text-slate-300" style="white-space: pre-wrap;">${r.comment}</p>
+                                    ${actions}
                                 </div>
                             </div>
                         `;
@@ -1023,7 +1062,7 @@ let btnHtml = isOwned ?
             const pCat = urlParams.get('category');
             
             if(pSearch) document.getElementById('search-input').value = pSearch;
-            if(pSort) document.getElementById('sort-select').value = pSort;
+            if(pSort) document.getElementById('custom-sort-btn') ? document.getElementById('custom-sort-btn').innerText : 'default' = pSort;
             if(pCat) {
                 document.querySelectorAll('.category-link').forEach(l => {
                     l.classList.remove('bg-green-50', 'text-green-600');
@@ -1039,7 +1078,7 @@ let btnHtml = isOwned ?
             window.addEventListener('popstate', () => {
                 const u = new URLSearchParams(window.location.search);
                 document.getElementById('search-input').value = u.get('search') || '';
-                document.getElementById('sort-select').value = u.get('sort') || 'default';
+                document.getElementById('custom-sort-btn') ? document.getElementById('custom-sort-btn').innerText : 'default' = u.get('sort') || 'default';
                 
                 const c = u.get('category') || 'all';
                 document.querySelectorAll('.category-link').forEach(l => {
