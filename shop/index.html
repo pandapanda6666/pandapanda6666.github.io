@@ -813,37 +813,57 @@ function openNavModal(type) {
             document.getElementById('modalTitle').innerText = selectedProduct.name;
             document.getElementById('modalDesc').innerText = selectedProduct.desc;
             document.getElementById('modalPrice').innerHTML = `<img src="coin.svg" class="w-6 h-6 inline-block -mt-1 drop-shadow-md"> ` + selectedProduct.price;
+            document.getElementById('modalImg').src = selectedProduct.image || pandaImgUrl;
             
-            const btn = document.getElementById('btnConfirmBuy');
-            if(btn) btn.style.display = 'none'; // Hide direct buy in modal since we use cart now, but we keep modal for reviews.
+            const btnContainer = document.getElementById('btnConfirmBuyContainer');
+            if(btnContainer) btnContainer.style.display = 'none'; // Hide direct buy in modal since we use cart
 
             const reviewsContainer = document.getElementById('reviewsContainer');
             if(reviewsContainer) {
                 reviewsContainer.innerHTML = '';
                 if(selectedProduct.reviews && selectedProduct.reviews.length > 0) {
                     selectedProduct.reviews.forEach((r, idx) => {
-                        
                         let isOwn = currentUser && currentUser.username === r.username;
                         let editBadge = r.edited ? '<span class="text-[10px] text-slate-500 ml-1">(已編輯)</span>' : '';
-                        let actions = isOwn ? `<div class="flex gap-2 mt-2"><button onclick="editReview('${selectedProduct.id}', ${idx})" class="text-[10px] bg-blue-600/30 text-blue-400 px-2 py-1 rounded hover:bg-blue-600/50 transition">📝 編輯</button><button onclick="deleteReview('${selectedProduct.id}', ${idx})" class="text-[10px] bg-red-600/30 text-red-400 px-2 py-1 rounded hover:bg-red-600/50 transition">🗑️ 刪除</button></div>` : '';
+                        
+                        let actions = '';
+                        if (isOwn) {
+                            actions = `
+                            <div class="relative inline-block text-left ml-auto group">
+                                <button class="text-slate-400 hover:text-white p-1 rounded transition">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                                </button>
+                                <div class="hidden group-hover:block absolute right-0 mt-1 w-24 bg-slate-700 rounded shadow-lg z-10 border border-slate-600">
+                                    <button onclick="editReview('${selectedProduct.id}', ${idx})" class="w-full text-left px-3 py-2 text-xs text-blue-400 hover:bg-slate-600 transition">📝 編輯</button>
+                                    <button onclick="deleteReview('${selectedProduct.id}', ${idx})" class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-slate-600 transition">🗑️ 刪除</button>
+                                </div>
+                            </div>
+                            `;
+                        }
+
                         let stars = '';
-                        for(let i=1; i<=5; i++) stars += (i <= r.rating) ? '★' : '☆';
+                        for(let i=1; i<=5; i++) stars += (i <= r.rating) ? '★ ' : '☆ ';
                         reviewsContainer.innerHTML += `
                             <div class="bg-slate-800/80 p-3 rounded-lg flex gap-3 mb-2">
-                                <img src="${r.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed='+r.username}" class="w-8 h-8 rounded-full border border-slate-600" />
+                                <img src="${r.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed='+r.username}" onerror="this.src='https://api.dicebear.com/7.x/avataaars/svg?seed='+Math.random()" class="w-8 h-8 rounded-full border border-slate-600 shrink-0" />
                                 <div class="flex-1">
                                     <div class="flex justify-between items-center mb-1">
-                                        <span class="text-sm font-bold text-white">${r.nickname || r.username}${editBadge}</span>
-                                        <span class="text-xs text-yellow-400">${stars}</span>
+                                        <div class="flex items-center">
+                                            <span class="text-sm font-bold text-white">${r.nickname || r.username}</span>
+                                            ${editBadge}
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs text-yellow-400">${stars}</span>
+                                            ${actions}
+                                        </div>
                                     </div>
-                                    <p class="text-xs text-slate-300" style="white-space: pre-wrap;">${r.comment}</p>
-                                    ${actions}
+                                    <p class="text-xs text-slate-300 break-words" style="white-space: pre-wrap;">${r.comment}</p>
                                 </div>
                             </div>
                         `;
                     });
                 } else {
-                    reviewsContainer.innerHTML = '<p class="text-xs text-slate-500 italic">目前無人評價，成為第一個留言的人吧！</p>';
+                    reviewsContainer.innerHTML = '<p class="text-xs text-slate-500 italic">尚無人評價，成為第一位留言的人吧！</p>';
                 }
             }
             
@@ -1180,32 +1200,33 @@ let btnHtml = isOwned ?
 
     <!-- 暗黑玻璃擬物化購買彈窗 -->
         <div id="buyModal" class="fixed inset-0 z-[100] flex items-center justify-center hidden" style="background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); overflow-y: auto;">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 my-8" id="buyModalContent" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px);">
-            <h3 class="text-2xl font-bold mb-2 text-white" id="modalTitle">商品詳情</h3>
-            <img id="modalImg" src="" class="w-full h-40 object-cover rounded-xl mb-4" />
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 my-8 relative" id="buyModalContent" style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px);">
+            <!-- Close Button -->
+            <button onclick="closeBuyModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white transition bg-slate-800 hover:bg-slate-700 rounded-full p-1.5 border border-slate-600 shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            
+            <h3 class="text-2xl font-bold mb-2 text-white pr-8" id="modalTitle">商品詳情</h3>
+            <img id="modalImg" src="" onerror="handleImageError(this)" class="w-full h-40 object-cover rounded-xl mb-4" />
             <p class="text-slate-400 text-sm mb-4" id="modalDesc"></p>
             
             <div class="bg-slate-800/50 rounded-xl p-4 mb-4 flex justify-between items-center border border-slate-700">
-                <span class="text-slate-300">總計金額</span>
+                <span class="text-slate-300">總金額</span>
                 <div class="flex items-center gap-1">
                     <span id="modalPrice" class="text-2xl font-mono font-bold text-green-400 flex items-center gap-1"></span>
                 </div>
             </div>
             
-            <div class="flex gap-3 mb-6">
-                <button onclick="closeBuyModal()" class="flex-1 py-3 rounded-xl font-bold text-slate-300 bg-slate-800 hover:bg-slate-700 transition">關閉</button>
-                <button onclick="confirmBuy()" class="flex-1 py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-500 transition shadow-lg shadow-green-900/50" id="btnConfirmBuy">確認購買</button>
+            <div class="mb-6 hidden" id="btnConfirmBuyContainer">
+                <button onclick="confirmBuy()" class="w-full py-3 rounded-xl font-bold text-white bg-green-600 hover:bg-green-500 transition shadow-lg shadow-green-900/50" id="btnConfirmBuy">確認購買</button>
             </div>
 
             <hr class="border-slate-700 mb-4" />
             
-            <h4 class="text-lg font-bold text-white mb-3">玩家評價</h4>
-            <div id="reviewsContainer" class="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar mb-4">
-                <!-- Reviews go here -->
-            </div>
-            
-            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <h5 class="text-sm font-bold text-slate-300 mb-2">撰寫評價 (需購買後才可留言)</h5>
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-4">
+                <h5 class="text-sm font-bold text-slate-300 mb-2">撰寫評價</h5>
                 <div class="flex gap-1 mb-2" id="starSelector">
                     <span class="cursor-pointer text-2xl text-slate-500 hover:text-yellow-400 transition" data-val="1">★</span>
                     <span class="cursor-pointer text-2xl text-slate-500 hover:text-yellow-400 transition" data-val="2">★</span>
@@ -1216,6 +1237,11 @@ let btnHtml = isOwned ?
                 <input type="hidden" id="reviewRating" value="5" />
                 <textarea id="reviewComment" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-green-500 mb-2" rows="2" placeholder="寫下您的心得..."></textarea>
                 <button onclick="submitReview()" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold text-sm transition">送出評價</button>
+            </div>
+
+            <h4 class="text-lg font-bold text-white mb-3">玩家評價</h4>
+            <div id="reviewsContainer" class="space-y-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar mb-2">
+                <!-- Reviews go here -->
             </div>
         </div>
     </div>
