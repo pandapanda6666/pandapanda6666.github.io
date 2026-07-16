@@ -34,9 +34,20 @@
             -webkit-box-orient: vertical;  
             overflow: hidden;
         }
-    </style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="icon" type="image/png" href="logo.png">
+
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed bottom-5 right-5 bg-slate-800 text-white px-6 py-4 rounded-2xl shadow-2xl z-50 flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300';
+    toast.innerHTML = `<svg class="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg><span class="font-bold">${msg}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.classList.remove('translate-y-20', 'opacity-0'); }, 10);
+    setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -77,7 +88,7 @@
                         <!-- 下拉選單 -->
                         <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-100">
                             <div class="px-4 py-3 border-b border-gray-100">
-                                <p class="text-xs text-gray-500">當前狀態</p>
+                                <p class="text-xs text-gray-500">您好，</p>
                                 <p id="user-display-name" class="text-sm font-bold text-gray-800 truncate">訪客</p>
                             </div>
                             
@@ -165,11 +176,40 @@
                 </h2>
                 <div class="flex items-center space-x-2 text-sm text-gray-500">
                     <span>排序方式:</span>
-                    <select id="sort-select" class="bg-white border border-gray-200 rounded px-2 py-1 outline-none focus:border-green-500 text-gray-700 cursor-pointer">
-                        <option value="default">綜合推薦</option>
-                        <option value="newest">最新上架</option>
-                        <option value="name">名稱排序(A-Z)</option>
-                    </select>
+                    
+<div class="relative inline-block text-left">
+    <button type="button" id="custom-sort-btn" onclick="document.getElementById('sort-menu').classList.toggle('hidden')" class="inline-flex justify-between w-40 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none">
+        <span id="sort-btn-text">預設排序</span>
+        <svg class="-mr-1 ml-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+    </button>
+    <div id="sort-menu" class="hidden origin-top-right absolute right-0 mt-2 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20">
+        <div class="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+            <a href="javascript:void(0)" onclick="selectSort('default', '預設排序')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-900" role="menuitem">預設排序</a>
+            <a href="javascript:void(0)" onclick="selectSort('price-asc', '價格: 低到高')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-900" role="menuitem">價格: 低到高</a>
+            <a href="javascript:void(0)" onclick="selectSort('price-desc', '價格: 高到低')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-900" role="menuitem">價格: 高到低</a>
+        </div>
+    </div>
+</div>
+<script>
+function selectSort(val, text) {
+    document.getElementById('sort-btn-text').innerText = text;
+    document.getElementById('sort-menu').classList.add('hidden');
+    // trigger sort
+    const el = document.getElementById('sort-select');
+    if(!el) {
+        const dummy = document.createElement('select');
+        dummy.id = 'sort-select';
+        dummy.value = val;
+        document.body.appendChild(dummy);
+    } else {
+        document.getElementById('sort-select').value = val;
+    }
+    renderProducts();
+}
+</script>
+
                 </div>
             </div>
 
@@ -524,9 +564,44 @@
         }
 
         
-        function openNavModal(id) {
-            document.getElementById(id).classList.remove('hidden');
-        }
+        
+function openNavModal(type) {
+    const modal = document.getElementById('navModal');
+    const title = document.getElementById('navModalTitle');
+    const content = document.getElementById('navModalContent');
+    
+    if (type === 'notifications') {
+        title.innerText = '系統通知';
+        content.innerHTML = `
+            <div class="space-y-4">
+                <div class="p-4 bg-green-50 border border-green-100 rounded-xl">
+                    <p class="font-bold text-green-800">🎉 胖達商城大更新</p>
+                    <p class="text-sm text-green-600 mt-1">全新評價系統、信箱驗證功能上線囉！</p>
+                </div>
+                <div class="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                    <p class="font-bold text-gray-800">🎁 每日登入獎勵</p>
+                    <p class="text-sm text-gray-600 mt-1">別忘了每天登入領取免費 P 幣！</p>
+                </div>
+            </div>`;
+    } else if (type === 'help') {
+        title.innerText = '幫助中心';
+        content.innerHTML = `
+            <div class="space-y-4 text-sm text-gray-700">
+                <p><strong>如何獲得 P 幣？</strong><br>您可以透過每日登入、參與活動，或是儲值獲得 P 幣。</p>
+                <p><strong>購物車如何結帳？</strong><br>點擊右上方購物車圖示，確認商品後點擊結帳按鈕即可扣除 P 幣完成購買。</p>
+                <p><strong>遇到問題怎麼辦？</strong><br>請聯絡管理員 (50913panda@gmail.com)。</p>
+            </div>`;
+    } else if (type === 'language') {
+        title.innerText = '語言設定';
+        content.innerHTML = `
+            <div class="space-y-2">
+                <button class="w-full text-left px-4 py-3 bg-green-50 text-green-700 font-bold rounded-xl border border-green-200">繁體中文 (預設)</button>
+                <button class="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl border border-gray-200 transition" onclick="showToast('英文介面正在開發中！敬請期待。')">English</button>
+            </div>`;
+    }
+    modal.classList.remove('hidden');
+}
+
         function closeNavModal(id) {
             document.getElementById(id).classList.add('hidden');
         }
@@ -567,15 +642,44 @@
         }
 
         
-        function openNavModal(type) {
-            const m = document.getElementById('navModal');
-            const title = document.getElementById('navModalTitle');
-            const content = document.getElementById('navModalContent');
-            
-            if (type === 'notification') {
-                title.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg> 通知中心';
-                content.innerHTML = '<div class="flex flex-col items-center py-6"><svg class="w-12 h-12 text-slate-500 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg><p class="text-slate-400">目前沒有新通知</p></div>';
-            } else if (type === 'help') {
+        
+function openNavModal(type) {
+    const modal = document.getElementById('navModal');
+    const title = document.getElementById('navModalTitle');
+    const content = document.getElementById('navModalContent');
+    
+    if (type === 'notifications') {
+        title.innerText = '系統通知';
+        content.innerHTML = `
+            <div class="space-y-4">
+                <div class="p-4 bg-green-50 border border-green-100 rounded-xl">
+                    <p class="font-bold text-green-800">🎉 胖達商城大更新</p>
+                    <p class="text-sm text-green-600 mt-1">全新評價系統、信箱驗證功能上線囉！</p>
+                </div>
+                <div class="p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                    <p class="font-bold text-gray-800">🎁 每日登入獎勵</p>
+                    <p class="text-sm text-gray-600 mt-1">別忘了每天登入領取免費 P 幣！</p>
+                </div>
+            </div>`;
+    } else if (type === 'help') {
+        title.innerText = '幫助中心';
+        content.innerHTML = `
+            <div class="space-y-4 text-sm text-gray-700">
+                <p><strong>如何獲得 P 幣？</strong><br>您可以透過每日登入、參與活動，或是儲值獲得 P 幣。</p>
+                <p><strong>購物車如何結帳？</strong><br>點擊右上方購物車圖示，確認商品後點擊結帳按鈕即可扣除 P 幣完成購買。</p>
+                <p><strong>遇到問題怎麼辦？</strong><br>請聯絡管理員 (50913panda@gmail.com)。</p>
+            </div>`;
+    } else if (type === 'language') {
+        title.innerText = '語言設定';
+        content.innerHTML = `
+            <div class="space-y-2">
+                <button class="w-full text-left px-4 py-3 bg-green-50 text-green-700 font-bold rounded-xl border border-green-200">繁體中文 (預設)</button>
+                <button class="w-full text-left px-4 py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-xl border border-gray-200 transition" onclick="showToast('英文介面正在開發中！敬請期待。')">English</button>
+            </div>`;
+    }
+    modal.classList.remove('hidden');
+}
+ else if (type === 'help') {
                 title.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> 幫助中心';
                 content.innerHTML = '<div class="space-y-4"><p>歡迎來到胖達商城！</p><p>在這裡，您可以使用您的 P 幣購買各種稀有與優質的商品。將喜愛的商品加入購物車後，點擊右上角即可進行結帳。</p><p>每一筆交易都安全可靠。如果您在購買過程中遇到任何問題，請聯絡系統管理員。</p></div>';
             } else if (type === 'language') {
@@ -1091,7 +1195,8 @@ let btnHtml = isOwned ?
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    </style>
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
 
 
     
