@@ -1217,6 +1217,38 @@ async function scanAndLoadFolders() {
         }
 
         // 設定所有互動事件 (搜尋、排序、分類點擊)
+            function updateURL(search, sort, cat) {
+                const url = new URL(window.location);
+                if(search) url.searchParams.set('search', search); else url.searchParams.delete('search');
+                if(sort && sort !== 'default') url.searchParams.set('sort', sort); else url.searchParams.delete('sort');
+                if(cat && cat !== 'all') url.searchParams.set('category', cat); else url.searchParams.delete('category');
+                window.history.pushState({}, '', url);
+            }
+
+        function applyFiltersAndSort(searchTerm, sortType) {
+            let filtered = [...allProducts];
+
+            // 執行文字搜尋過濾
+            if (searchTerm) {
+                filtered = filtered.filter(p => 
+                    p.name.toLowerCase().includes(searchTerm) || 
+                    p.desc.toLowerCase().includes(searchTerm)
+                );
+            }
+
+            // 執行排序
+            if (sortType === 'newest') {
+                filtered.reverse(); // 簡易模擬：越後面的越新
+            } else if (sortType === 'name') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            } else {
+                // default (依原本 GitHub API 讀取順序)
+                filtered.sort((a, b) => a.id - b.id);
+            }
+
+            renderProducts(filtered);
+        }
+
         function setupInteractions() {
             // Apply URL params on load
             const urlParams = new URLSearchParams(window.location.search);
@@ -1257,13 +1289,6 @@ async function scanAndLoadFolders() {
             });
 
             // Sync URL on interactions
-            function updateURL(search, sort, cat) {
-                const url = new URL(window.location);
-                if(search) url.searchParams.set('search', search); else url.searchParams.delete('search');
-                if(sort && sort !== 'default') url.searchParams.set('sort', sort); else url.searchParams.delete('sort');
-                if(cat && cat !== 'all') url.searchParams.set('category', cat); else url.searchParams.delete('category');
-                window.history.pushState({}, '', url);
-            }
 
             const searchInput = document.getElementById('search-input');
             const sortSelect = document.getElementById('sort-select');
@@ -1314,29 +1339,6 @@ async function scanAndLoadFolders() {
         }
 
         // 統一處理過濾與排序
-        function applyFiltersAndSort(searchTerm, sortType) {
-            let filtered = [...allProducts];
-
-            // 執行文字搜尋過濾
-            if (searchTerm) {
-                filtered = filtered.filter(p => 
-                    p.name.toLowerCase().includes(searchTerm) || 
-                    p.desc.toLowerCase().includes(searchTerm)
-                );
-            }
-
-            // 執行排序
-            if (sortType === 'newest') {
-                filtered.reverse(); // 簡易模擬：越後面的越新
-            } else if (sortType === 'name') {
-                filtered.sort((a, b) => a.name.localeCompare(b.name));
-            } else {
-                // default (依原本 GitHub API 讀取順序)
-                filtered.sort((a, b) => a.id - b.id);
-            }
-
-            renderProducts(filtered);
-        }
 
         window.onload = init;
     </script>
