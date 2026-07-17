@@ -1,0 +1,1073 @@
+<!-- 
+開發者提醒：
+請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線
+-->
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塗鴉躲貓貓 3D</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- 引入 Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        // --- 1. 強制建立連線與全域錯誤捕捉 ---
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, args);
+        };
+        window.onerror = function(msg, url, line) { 
+            if (typeof window.socket !== 'undefined' && window.socket.connected) window.socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            if (typeof window.socket !== 'undefined' && window.socket.connected) window.socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+        });
+
+        // 獲取網頁的絕對路徑(不含參數)作為此應用的專屬識別碼
+        const appId = window.location.hostname + window.location.pathname;
+        let pCoinIconHTML = `<img src="https://cdn-icons-png.flaticon.com/512/1000/1000136.png" alt="P幣" style="width: 20px; height: 20px; vertical-align: sub; display: inline-block; margin: 0 2px;">`;
+    </script>
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Noto Sans TC', sans-serif; user-select: none; }
+        #gameCanvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        
+        .crosshair {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px; height: 6px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0,0,0,0.5);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #color-palette {
+            position: absolute;
+            bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 12px 24px;
+            border-radius: 30px;
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255,255,255,0.2);
+            pointer-events: auto; /* Allow clicking UI */
+        }
+
+        .color-slot {
+            width: 45px; height: 45px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            transition: transform 0.2s;
+            background-color: #ffffff; /* Default player color */
+        }
+        
+        #hud-instructions {
+            position: absolute;
+            bottom: 100px; left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            color: white;
+            text-shadow: 1px 1px 3px black;
+            font-size: 1rem;
+            font-weight: bold;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        #timer-display {
+            position: absolute;
+            top: 50px; right: 20px;
+            font-size: 3rem;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+        }
+        
+        #seeker-alert {
+            position: absolute;
+            top: 120px; right: 20px;
+            color: #ff3333;
+            font-weight: bold;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 0 #000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* Overlay Screens */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            pointer-events: auto;
+        }
+        .title-text { color: #4ade80; text-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: bold; }
+        .btn-play {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border: 2px solid #60a5fa;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .btn-play:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6); }
+        .btn-play:active { transform: translateY(1px); }
+        
+        .hidden { display: none !important; }
+
+        /* 新增 UI 樣式 */
+        #notificationBar {
+            position: fixed; top: 0; left: 0; width: 100%; background: rgba(220, 38, 38, 0.9);
+            color: white; font-weight: bold; text-align: center; padding: 5px 0;
+            z-index: 1000; display: none; overflow: hidden; white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); font-size: 14px;
+        }
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 15s linear infinite;
+        }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        #auth-container {
+            position: absolute; top: 40px; left: 20px; z-index: 50; pointer-events: auto;
+        }
+        .auth-card {
+            background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(255,255,255,0.2);
+            padding: 10px 15px; border-radius: 50px; display: flex; align-items: center; gap: 12px;
+            cursor: pointer; transition: background 0.3s, transform 0.2s; backdrop-filter: blur(5px);
+        }
+        .auth-card:hover { background: rgba(30, 41, 59, 0.95); transform: scale(1.02); }
+        .auth-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #4ade80; object-fit: cover; }
+        .auth-info { display: flex; flex-direction: column; color: white; }
+        .auth-name { font-weight: bold; font-size: 1.1rem; }
+        .auth-coins { font-size: 0.9rem; color: #fbbf24; display: flex; align-items: center; }
+
+        .btn-login {
+            background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: bold;
+            padding: 10px 24px; border-radius: 30px; border: 2px solid #34d399; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.4); transition: all 0.2s;
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.6); }
+
+        #report-btn {
+            position: fixed; bottom: 20px; right: 20px; z-index: 50;
+            background: rgba(220, 38, 38, 0.8); color: white; padding: 10px 20px;
+            border-radius: 30px; font-weight: bold; cursor: pointer; text-decoration: none;
+            border: 2px solid #ef4444; transition: all 0.2s; backdrop-filter: blur(5px);
+            pointer-events: auto;
+        }
+        #report-btn:hover { background: #dc2626; transform: scale(1.05); }
+
+        #copyright-footer {
+            position: fixed; bottom: 5px; left: 0; width: 100%; text-align: center;
+            font-size: 12px; color: rgba(255,255,255,0.5); z-index: 50; pointer-events: none;
+        }
+        #copyright-footer a { color: inherit; text-decoration: none; pointer-events: auto; }
+        #copyright-footer a:hover { color: white; text-decoration: underline; }
+
+        /* Multi-player tags */
+        .player-label {
+            position: absolute; color: white; font-weight: bold; text-shadow: 1px 1px 2px black;
+            font-size: 12px; transform: translate(-50%, -100%); pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 跑馬燈區塊 -->
+    <div id="notificationBar"><div class="marquee-content" id="notificationMsg"></div></div>
+
+    <!-- 登入/帳號區塊 -->
+    <div id="auth-container">
+        <!-- JS 將動態填入內容 -->
+    </div>
+
+    <!-- 3D Canvas -->
+    <div id="gameCanvas"></div>
+
+    <!-- UI Layer -->
+    <div id="ui-layer" class="hidden">
+        <div class="crosshair"></div>
+        <div id="timer-display">60</div>
+        <div id="seeker-alert">👀 鬼正在看你！</div>
+        
+        <div id="hud-instructions">
+            [點擊畫面] 鎖定游標 | [WASD] 移動 <br>
+            [E] 吸取顏色 | [空白鍵] 將顏色塗在自己身上
+        </div>
+
+        <div id="color-palette">
+            <div style="color: white; display:flex; align-items:center; font-weight:bold; margin-right:10px; font-size:1.1rem;">你的顏色:</div>
+            <div class="color-slot" id="current-color" style="background-color: #ffffff;"></div>
+            <div style="color: white; display:flex; align-items:center; font-weight:bold; margin-left:15px; margin-right:10px; font-size:1.1rem;">吸取的顏色:</div>
+            <div class="color-slot" id="picked-color" style="background-color: #ff0000; border-color: #aaa; border-style: dashed;"></div>
+        </div>
+        <div id="multiplayer-labels"></div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="overlay">
+        <h1 class="title-text text-5xl md:text-7xl mb-4 text-center">塗鴉<br><span class="text-white">躲貓貓</span></h1>
+        <p class="text-slate-300 text-lg mb-8 max-w-md text-center">
+            把環境的顏色塗在自己身上來隱形！<br>
+            使用滴管吸取牆壁的顏色。在鬼發現你的破綻之前藏好。
+        </p>
+        <div class="bg-slate-800 p-6 rounded-lg mb-8 text-base text-slate-300 shadow-lg border border-slate-700">
+            <strong class="text-white text-lg border-b border-slate-600 pb-2 mb-2 block">操作說明：</strong>
+            W, A, S, D - 移動<br>
+            滑鼠 - 轉動視角<br>
+            'E' - 吸管 (吸取準星對準的顏色)<br>
+            '空白鍵 (Space)' - 將吸到的顏色塗在自己身上
+        </div>
+        <button id="start-btn" class="btn-play text-white font-bold py-4 px-10 rounded-full text-2xl tracking-wide">
+            開始遊戲
+        </button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="overlay hidden">
+        <h1 class="title-text text-6xl mb-4 text-red-500">被抓到了！</h1>
+        <p class="text-white text-2xl mb-8" id="caught-reason">你的顏色跟背景對比太明顯了。</p>
+        <button id="restart-btn-loss" class="btn-play text-white font-bold py-3 px-8 rounded-full text-xl">
+            再試一次
+        </button>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="win-screen" class="overlay hidden">
+        <h1 class="title-text text-6xl mb-4 text-yellow-400">存活成功！</h1>
+        <p class="text-white text-2xl mb-8">你成功地融入了環境，沒被發現。</p>
+        <button id="restart-btn-win" class="btn-play text-white font-bold py-3 px-8 rounded-full text-xl">
+            再玩一次
+        </button>
+    </div>
+
+    <!-- 回報問題按鈕 -->
+    <a id="report-btn" href="#" onclick="reportIssue(event)">回報問題</a>
+
+    <!-- 版權宣告 -->
+    <div id="copyright-footer">
+        <a href="https://pandapanda6666.github.io" target="_blank">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+    </div>
+
+    <script>
+        // --- Socket.IO 與 SSO 整合系統 ---
+        let socket;
+        let currentUserProfile = null;
+        let cloudData = { gamesPlayed: 0, wins: 0, totalSurvivalTime: 0 };
+        
+        // 載入廣播與跑馬燈
+        function initBroadcasts() {
+            fetch('https://pandapanda6666.github.io/login-hub/server_broadcast.json')
+                .then(res => res.json())
+                .then(list => { 
+                    window.broadcasts = list; 
+                    localStorage.setItem('broadcasts', JSON.stringify(list)); 
+                })
+                .catch(() => { 
+                    window.broadcasts = JSON.parse(localStorage.getItem('broadcasts') || '[]'); 
+                });
+
+            setInterval(() => {
+                const now = Date.now(); 
+                const bar = document.getElementById('notificationBar'); 
+                const msgText = document.getElementById('notificationMsg');
+                let activeMsg = null; 
+                const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+                
+                for (let b of list) {
+                    const st = new Date(b.startTime).getTime();
+                    if (b.mode === 1) {
+                        const intervalMs = b.intervalMin * 60000; 
+                        const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                        if (now >= st && now <= end) { 
+                            const elapsed = now - st; 
+                            if (elapsed % intervalMs < 60000) activeMsg = b.message; 
+                        }
+                    } else if (b.mode === 2) { 
+                        const et = new Date(b.endTime).getTime(); 
+                        if (now >= st && now <= et) activeMsg = b.message; 
+                    }
+                }
+                
+                if (activeMsg) { 
+                    msgText.innerText = activeMsg; 
+                    bar.style.display = 'block'; 
+                } else { 
+                    bar.style.display = 'none'; 
+                }
+            }, 1000);
+        }
+
+        function initSSOAndSocket() {
+            // 解析網址參數
+            const urlParams = new URLSearchParams(window.location.search);
+            const isAuth = urlParams.get('auth') === 'true';
+            const usernameParam = urlParams.get('user');
+
+            if (isAuth && usernameParam) {
+                localStorage.setItem('sso_user', usernameParam);
+                localStorage.setItem('sso_auth', 'true');
+                // 清除網址列參數
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({path: cleanUrl}, '', cleanUrl);
+            }
+
+            const savedUser = localStorage.getItem('sso_user');
+            const isLoggedIn = localStorage.getItem('sso_auth') === 'true';
+
+            // 建立 UI
+            const authContainer = document.getElementById('auth-container');
+            if (isLoggedIn && savedUser) {
+                authContainer.innerHTML = `
+                    <div class="auth-card" onclick="goToLoginHub()">
+                        <img id="ui-avatar" class="auth-avatar" src="https://via.placeholder.com/40" alt="Avatar">
+                        <div class="auth-info">
+                            <span id="ui-nickname" class="auth-name">載入中...</span>
+                            <span id="ui-pcoins" class="auth-coins">-- ${pCoinIconHTML}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authContainer.innerHTML = `<button class="btn-login" onclick="goToLoginHub(true)">登入 / 註冊</button>`;
+            }
+
+            // 連線伺服器
+            const urlParamServer = urlParams.get('server');
+            if (urlParamServer) {
+                connectSocket(urlParamServer, savedUser);
+            } else {
+                fetch('https://pandapanda6666.github.io/login-hub/server_url.txt')
+                .then(res => res.text())
+                .then(text => {
+                    const serverUrl = atob(text.trim().split('').reverse().join(''));
+                    connectSocket(serverUrl, savedUser);
+                })
+                .catch(err => {
+                    console.error("無法獲取伺服器網址", err);
+                    showConnectionError();
+                });
+            }
+        }
+
+        function showConnectionError() {
+            document.getElementById('auth-container').innerHTML = `<div style="background:rgba(255,0,0,0.8); color:white; padding:10px; border-radius:10px;">伺服器連線失敗，請稍後再試</div>`;
+        }
+
+        function connectSocket(serverUrl, savedUser) {
+            window.socket = io(serverUrl, { transports: ['websocket'] });
+
+            window.socket.on('connect', () => {
+                console.log('連線成功');
+                window.socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                
+                // 加入遊戲房間
+                window.socket.emit('joinGameRoom', { room: appId, characterData: { name: savedUser || '訪客' } });
+
+                // 獲取個人資料
+                if (savedUser) {
+                    window.socket.emit('requestProfile', { username: savedUser });
+                }
+
+                // 獲取雲端存檔
+                window.socket.emit('getAppData', { appId: appId }, (res) => {
+                    if(res && res.data) {
+                        cloudData = Object.assign(cloudData, res.data);
+                        console.log("雲端存檔已載入:", cloudData);
+                    }
+                });
+
+                // 廣播接收
+                window.socket.on('broadcastSchedule', (list) => {
+                    window.broadcasts = list;
+                    localStorage.setItem('broadcasts', JSON.stringify(list));
+                });
+            });
+
+            window.socket.on('profileData', (data) => {
+                if(data && data.nickname) {
+                    currentUserProfile = data;
+                    document.getElementById('ui-nickname').innerText = data.nickname;
+                    document.getElementById('ui-pcoins').innerHTML = `${data.pCoin || 0} ${pCoinIconHTML}`;
+                    if(data.avatar) document.getElementById('ui-avatar').src = data.avatar;
+                }
+            });
+
+            // 多人連線事件
+            window.socket.on('playerJoined', (data) => {
+                if(data.allPlayers) {
+                    data.allPlayers.forEach(p => updateOtherPlayerUI(p));
+                }
+            });
+            window.socket.on('playerStateUpdated', (data) => {
+                if(data.id !== window.socket.id) {
+                    updateOtherPlayerUI(data);
+                }
+            });
+            window.socket.on('playerLeft', (data) => {
+                removeOtherPlayerUI(data.id);
+            });
+            window.socket.on('connect_error', () => { showConnectionError(); });
+        }
+
+        function goToLoginHub(requireAuth = false) {
+            let url = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href);
+            if(requireAuth) url += '&require=1';
+            window.location.href = url;
+        }
+
+        function reportIssue(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+        }
+
+        // --- 多人連線視覺處理 ---
+        let otherPlayers = {}; // { id: { mesh, labelDiv } }
+        const labelsContainer = document.getElementById('multiplayer-labels');
+
+        function updateOtherPlayerUI(p) {
+            if(!scene) return; // Scene not ready
+            if(p.id === window.socket?.id) return;
+
+            let op = otherPlayers[p.id];
+            if(!op) {
+                // Create new player mesh (a block)
+                const geo = new THREE.BoxGeometry(1.2, 1.8, 1.2);
+                const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+
+                // // Create label
+                // const labelDiv = document.createElement('div');
+                // labelDiv.className = 'player-label';
+                // labelDiv.innerText = p.characterData?.name || '玩家';
+                // labelsContainer.appendChild(labelDiv);
+
+                op = { mesh: mesh }; // omitted label to simplify HTML manipulation for now
+                otherPlayers[p.id] = op;
+            }
+
+            if(p.state) {
+                // Update position, rotation, color
+                op.mesh.position.set(p.state.x, p.state.y - (playerHeight/2), p.state.z); // Adjust y center
+                op.mesh.rotation.y = p.state.rotY;
+                if(p.state.color !== undefined && op.mesh.material.color.getHex() !== p.state.color) {
+                    op.mesh.material.color.setHex(p.state.color);
+                }
+            }
+        }
+
+        function removeOtherPlayerUI(id) {
+            if(otherPlayers[id]) {
+                scene.remove(otherPlayers[id].mesh);
+                // if(otherPlayers[id].labelDiv) otherPlayers[id].labelDiv.remove();
+                delete otherPlayers[id];
+            }
+        }
+
+        let lastSyncTime = 0;
+        function syncStateWithServer() {
+            if (window.socket && window.socket.connected && gameState === 'playing') {
+                const now = Date.now();
+                if (now - lastSyncTime > 100) { // 10fps limit
+                    window.socket.emit('syncPlayerState', {
+                        room: appId,
+                        state: {
+                            x: camera.position.x,
+                            y: camera.position.y,
+                            z: camera.position.z,
+                            rotY: euler.y,
+                            color: playerColor.getHex()
+                        }
+                    });
+                    lastSyncTime = now;
+                }
+            }
+        }
+
+        function saveGameToCloud(won, timeSurvived) {
+            cloudData.gamesPlayed++;
+            if(won) cloudData.wins++;
+            cloudData.totalSurvivalTime += timeSurvived;
+            
+            if(window.socket && window.socket.connected) {
+                window.socket.emit('saveAppData', { appId: appId, data: cloudData });
+                window.socket.emit('logAppMessage', { 
+                    appId: appId, 
+                    message: `玩家遊戲結束: ${won ? '勝利' : '被抓'} (存活 ${Math.floor(timeSurvived)}秒)`, 
+                    type: 'info' 
+                });
+            }
+        }
+
+
+        // ====================================================================================
+        // 原版遊戲程式碼 (無任何刪除或簡化)
+        // ====================================================================================
+
+        // Game State Variables
+        let gameState = 'start'; // start, playing, gameover, win
+        let timeLeft = 60;
+        let timerInterval;
+        let playerColor = new THREE.Color(0xffffff); // Default white
+        let pickedColor = new THREE.Color(0xff0000); // Default red picker
+
+        // Three.js Core Variables
+        let scene, camera, renderer;
+        let environmentObjects = []; // To raycast against
+        
+        // Movement Variables
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let prevTime = performance.now();
+        const speed = 45.0; // 稍微加快移動速度
+        const playerHeight = 1.5;
+
+        // Mouse Controls (PointerLock)
+        let euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        const PI_2 = Math.PI / 2;
+
+        // Seeker AI
+        let seekerMesh;
+        let seekerLight;
+        let seekerAngle = 0;
+
+        // DOM Elements
+        const container = document.getElementById('gameCanvas');
+        const uiLayer = document.getElementById('ui-layer');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const winScreen = document.getElementById('win-screen');
+        const timerDisplay = document.getElementById('timer-display');
+        const currentColorUI = document.getElementById('current-color');
+        const pickedColorUI = document.getElementById('picked-color');
+        const seekerAlert = document.getElementById('seeker-alert');
+        const caughtReasonTxt = document.getElementById('caught-reason');
+
+        function init() {
+            // 1. Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222233); // 偏暗的室內顏色，讓燈光更明顯
+            scene.fog = new THREE.Fog(0x222233, 20, 60);
+
+            // 2. Camera Setup
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = playerHeight;
+
+            // 3. Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // 4. Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4); // 整體較暗
+            scene.add(ambientLight);
+
+            // 房間頂部的微弱燈光
+            const pointLight = new THREE.PointLight(0xffffff, 0.5, 100);
+            pointLight.position.set(0, 20, 0);
+            scene.add(pointLight);
+
+            // 5. Build Environment
+            buildLevel();
+
+            // 6. Build Seeker AI
+            buildSeeker();
+
+            // 7. Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            setupInputControls();
+
+            // Start Animation Loop
+            animate();
+        }
+
+        function buildLevel() {
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(80, 80);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            environmentObjects.push(floor);
+
+            // Walls (Room enclosure)
+            const roomSize = 35;
+            const wallHeight = 15;
+            const wallGeo = new THREE.BoxGeometry(roomSize*2, wallHeight, 2);
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.9 });
+            
+            const wallN = new THREE.Mesh(wallGeo, wallMat); wallN.position.set(0, wallHeight/2, -roomSize); wallN.receiveShadow = true; scene.add(wallN); environmentObjects.push(wallN);
+            const wallS = new THREE.Mesh(wallGeo, wallMat); wallS.position.set(0, wallHeight/2, roomSize); wallS.receiveShadow = true; scene.add(wallS); environmentObjects.push(wallS);
+            
+            const wallGeoSide = new THREE.BoxGeometry(2, wallHeight, roomSize*2);
+            const wallE = new THREE.Mesh(wallGeoSide, wallMat); wallE.position.set(roomSize, wallHeight/2, 0); wallE.receiveShadow = true; scene.add(wallE); environmentObjects.push(wallE);
+            const wallW = new THREE.Mesh(wallGeoSide, wallMat); wallW.position.set(-roomSize, wallHeight/2, 0); wallW.receiveShadow = true; scene.add(wallW); environmentObjects.push(wallW);
+
+            // Props (Hiding spots)
+            // 定義一些鮮豔的顏色供玩家偽裝
+            const colors = [0xff2a2a, 0x2a2aff, 0x2aff2a, 0xffff2a, 0xff2aff, 0x2affff, 0xff992a, 0x992aff, 0x111111];
+            
+            // Create a bunch of random colored boxes and spheres
+            for(let i=0; i<60; i++) {
+                const isBox = Math.random() > 0.4;
+                const size = 1.5 + Math.random() * 4;
+                let geo, mat;
+                
+                if(isBox) {
+                    geo = new THREE.BoxGeometry(size, size * (1+Math.random()), size);
+                } else {
+                    geo = new THREE.SphereGeometry(size/1.5, 32, 16);
+                }
+
+                const colorValue = colors[Math.floor(Math.random() * colors.length)];
+                mat = new THREE.MeshStandardMaterial({ 
+                    color: colorValue, 
+                    roughness: 0.6, 
+                    metalness: 0.1 
+                });
+
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.x = (Math.random() - 0.5) * (roomSize * 1.5);
+                mesh.position.z = (Math.random() - 0.5) * (roomSize * 1.5);
+                
+                // 避免生成在中間區域（讓給 seeker 巡邏）
+                if(Math.abs(mesh.position.x) < 10 && Math.abs(mesh.position.z) < 10) {
+                    mesh.position.x += 15 * (Math.random()>0.5?1:-1);
+                }
+
+                mesh.position.y = isBox ? geo.parameters.height / 2 : geo.parameters.radius;
+                mesh.rotation.y = Math.random() * Math.PI;
+
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                environmentObjects.push(mesh);
+            }
+
+            // Create a specific "Camouflage Wall" area (like a Mondrian painting)
+            createMondrianWall(roomSize);
+        }
+
+        function createMondrianWall(roomSize) {
+            const wallZ = -roomSize + 1.1; // 貼在北牆上
+            const colors = [0xff2a2a, 0x2a2aff, 0xffff2a, 0xffffff, 0x111111, 0x2aff2a];
+            
+            // 建立一面由多個彩色色塊組成的牆
+            for(let i=0; i<10; i++) {
+                for(let j=0; j<4; j++) {
+                    const w = 3 + Math.random() * 5;
+                    const h = 3 + Math.random() * 4;
+                    const geo = new THREE.PlaneGeometry(w, h);
+                    const mat = new THREE.MeshStandardMaterial({ 
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        side: THREE.DoubleSide
+                    });
+                    const mesh = new THREE.Mesh(geo, mat);
+                    mesh.position.set(-20 + (i*4.5), h/2 + (j*3.5), wallZ);
+                    mesh.receiveShadow = true;
+                    scene.add(mesh);
+                    environmentObjects.push(mesh);
+                }
+            }
+        }
+
+        function buildSeeker() {
+            // Seeker representation (a floating eye/drone)
+            const seekerGeo = new THREE.SphereGeometry(1.5, 32, 32);
+            const seekerMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x330000 });
+            seekerMesh = new THREE.Mesh(seekerGeo, seekerMat);
+            seekerMesh.position.set(0, 6, 0); // 浮在半空中
+            scene.add(seekerMesh);
+
+            // 鬼的眼睛（發光球體）
+            const eyeGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff4444 });
+            const eye = new THREE.Mesh(eyeGeo, eyeMat);
+            eye.position.set(0, 0, -1.2);
+            seekerMesh.add(eye);
+
+            // Spotlight representing its vision (探照燈)
+            seekerLight = new THREE.SpotLight(0xffdddd, 2.5); // 稍微帶點紅色的燈光
+            seekerLight.angle = Math.PI / 5; // 視野角度
+            seekerLight.penumbra = 0.3; // 邊緣羽化
+            seekerLight.distance = 50; // 照射距離
+            seekerLight.castShadow = true;
+            seekerLight.shadow.mapSize.width = 1024;
+            seekerLight.shadow.mapSize.height = 1024;
+            
+            seekerMesh.add(seekerLight);
+            seekerMesh.add(seekerLight.target);
+            seekerLight.target.position.set(0, -2, -10); // Point down and forward
+        }
+
+        function setupInputControls() {
+            const onKeyDown = function ( event ) {
+                if(gameState !== 'playing') return;
+                switch ( event.code ) {
+                    case 'ArrowUp':
+                    case 'KeyW': moveForward = true; break;
+                    case 'ArrowLeft':
+                    case 'KeyA': moveLeft = true; break;
+                    case 'ArrowDown':
+                    case 'KeyS': moveBackward = true; break;
+                    case 'ArrowRight':
+                    case 'KeyD': moveRight = true; break;
+                    case 'KeyE': pickColor(); break;
+                    case 'Space': paintPlayer(); break;
+                }
+            };
+
+            const onKeyUp = function ( event ) {
+                switch ( event.code ) {
+                    case 'ArrowUp':
+                    case 'KeyW': moveForward = false; break;
+                    case 'ArrowLeft':
+                    case 'KeyA': moveLeft = false; break;
+                    case 'ArrowDown':
+                    case 'KeyS': moveBackward = false; break;
+                    case 'ArrowRight':
+                    case 'KeyD': moveRight = false; break;
+                }
+            };
+
+            document.addEventListener( 'keydown', onKeyDown );
+            document.addEventListener( 'keyup', onKeyUp );
+
+            // Mouse Look (Custom simple implementation similar to PointerLockControls)
+            document.addEventListener('mousemove', (e) => {
+                if (document.pointerLockElement === document.body && gameState === 'playing') {
+                    const movementX = e.movementX || e.mozMovementX || e.webkitMovementX || 0;
+                    const movementY = e.movementY || e.mozMovementY || e.webkitMovementY || 0;
+
+                    euler.setFromQuaternion( camera.quaternion );
+                    euler.y -= movementX * 0.002;
+                    euler.x -= movementY * 0.002;
+                    euler.x = Math.max( - PI_2, Math.min( PI_2, euler.x ) ); // Clamp vertical look
+
+                    camera.quaternion.setFromEuler( euler );
+                }
+            });
+
+            // Click to lock pointer
+            document.body.addEventListener('click', (e) => {
+                // 修改：避免點擊 UI (例如登入或回報) 時鎖定游標
+                if(e.target.closest('#auth-container') || e.target.closest('#report-btn') || e.target.closest('#copyright-footer')) return;
+                
+                if(gameState === 'playing') {
+                    document.body.requestPointerLock();
+                }
+            });
+
+            // UI Buttons
+            document.getElementById('start-btn').addEventListener('click', startGame);
+            document.getElementById('restart-btn-loss').addEventListener('click', resetGame);
+            document.getElementById('restart-btn-win').addEventListener('click', resetGame);
+        }
+
+        function pickColor() {
+            if(gameState !== 'playing') return;
+
+            const raycaster = new THREE.Raycaster();
+            // Shoot ray from center of screen (crosshair)
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+            const intersects = raycaster.intersectObjects(environmentObjects, false);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if(object.material && object.material.color) {
+                    pickedColor.copy(object.material.color);
+                    // Update UI
+                    pickedColorUI.style.backgroundColor = '#' + pickedColor.getHexString();
+                    
+                    // Flash effect
+                    pickedColorUI.style.transform = 'scale(1.3)';
+                    setTimeout(() => pickedColorUI.style.transform = 'scale(1)', 150);
+                }
+            }
+        }
+
+        function paintPlayer() {
+            if(gameState !== 'playing') return;
+            playerColor.copy(pickedColor);
+            currentColorUI.style.backgroundColor = '#' + playerColor.getHexString();
+            
+            // Flash effect
+            currentColorUI.style.transform = 'scale(1.3)';
+            setTimeout(() => currentColorUI.style.transform = 'scale(1)', 150);
+        }
+
+        let gameStartTime = 0; // 用於計算存活時間
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            uiLayer.classList.remove('hidden');
+            document.body.requestPointerLock();
+            gameState = 'playing';
+            gameStartTime = Date.now();
+            
+            // Reset player pos
+            camera.position.set(0, playerHeight, 25);
+            euler.set(0,0,0);
+            camera.quaternion.setFromEuler(euler);
+            velocity.set(0,0,0);
+            
+            // Reset Colors
+            playerColor.setHex(0xffffff);
+            pickedColor.setHex(0xff0000);
+            currentColorUI.style.backgroundColor = '#ffffff';
+            pickedColorUI.style.backgroundColor = '#ff0000';
+            seekerAlert.style.opacity = 0;
+            seekerLight.color.setHex(0xffdddd);
+            exposureTime = 0;
+
+            // 記錄遊戲開始
+            if(window.socket && window.socket.connected) {
+                window.socket.emit('logAppMessage', { appId: appId, message: '玩家開始遊戲', type: 'info' });
+            }
+
+            // Reset Timer
+            timeLeft = 60; // 60秒生存時間
+            updateTimerDisplay();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if(gameState === 'playing') {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    if(timeLeft <= 0) {
+                        endGame(true);
+                    }
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            gameOverScreen.classList.add('hidden');
+            winScreen.classList.add('hidden');
+            startGame();
+        }
+
+        function updateTimerDisplay() {
+            timerDisplay.innerText = timeLeft;
+            if(timeLeft <= 10) {
+                timerDisplay.style.color = '#ff4444';
+                timerDisplay.style.transform = 'scale(1.1)';
+                setTimeout(() => timerDisplay.style.transform = 'scale(1)', 500);
+            }
+            else timerDisplay.style.color = 'white';
+        }
+
+        function endGame(win, reason = "") {
+            gameState = win ? 'win' : 'gameover';
+            clearInterval(timerInterval);
+            document.exitPointerLock();
+            uiLayer.classList.add('hidden');
+            
+            const survivedTime = (Date.now() - gameStartTime) / 1000;
+            saveGameToCloud(win, survivedTime); // 上傳雲端紀錄
+
+            if(win) {
+                winScreen.classList.remove('hidden');
+            } else {
+                gameOverScreen.classList.remove('hidden');
+                caughtReasonTxt.innerText = reason;
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame( animate );
+
+            const time = performance.now();
+            const delta = ( time - prevTime ) / 1000;
+
+            if ( gameState === 'playing' ) {
+                // --- Player Movement Physics ---
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number( moveForward ) - Number( moveBackward );
+                direction.x = Number( moveRight ) - Number( moveLeft );
+                direction.normalize();
+
+                if ( moveForward || moveBackward ) velocity.z -= direction.z * speed * delta;
+                if ( moveLeft || moveRight ) velocity.x -= direction.x * speed * delta;
+
+                // Move camera based on view direction
+                camera.translateX( velocity.x * delta );
+                camera.translateZ( velocity.z * delta );
+
+                // Simple floor collision bounds
+                if ( camera.position.y < playerHeight ) {
+                    velocity.y = 0;
+                    camera.position.y = playerHeight;
+                }
+                
+                // Keep inside room (Room size is roughly 35)
+                const bound = 33;
+                if(camera.position.x > bound) camera.position.x = bound;
+                if(camera.position.x < -bound) camera.position.x = -bound;
+                if(camera.position.z > bound) camera.position.z = bound;
+                if(camera.position.z < -bound) camera.position.z = -bound;
+
+
+                // --- Seeker AI Logic ---
+                // Seeker moves in a rough circle/figure-8 around the center
+                seekerAngle += delta * 0.4;
+                seekerMesh.position.x = Math.sin(seekerAngle) * 18 + Math.cos(seekerAngle * 0.5) * 5;
+                seekerMesh.position.z = Math.cos(seekerAngle) * 18 + Math.sin(seekerAngle * 0.7) * 5;
+                
+                // Seeker 稍微上下浮動
+                seekerMesh.position.y = 6 + Math.sin(time * 0.002) * 1;
+                
+                // Seeker looks around erratically (四處張望)
+                seekerLight.target.position.x = seekerMesh.position.x + Math.sin(time * 0.0008) * 15;
+                seekerLight.target.position.z = seekerMesh.position.z + Math.cos(time * 0.0011) * 15;
+                seekerLight.target.position.y = 0;
+                seekerLight.target.updateMatrixWorld();
+                
+                // 讓 seeker 本體也面向探照燈的目標
+                seekerMesh.lookAt(seekerLight.target.position);
+
+                // Check if Seeker sees player
+                checkVisibility(delta);
+                
+                // --- Multiplayer Sync ---
+                syncStateWithServer();
+            }
+
+            renderer.render( scene, camera );
+            prevTime = time;
+        }
+
+        let exposureTime = 0; // How long player has been visible
+
+        function checkVisibility(delta) {
+            // 1. Distance & Cone Check
+            const distanceToSeeker = camera.position.distanceTo(seekerMesh.position);
+            
+            // Vector from seeker to player
+            const dirToPlayer = new THREE.Vector3().subVectors(camera.position, seekerMesh.position).normalize();
+            
+            // Vector seeker is looking at
+            const lookDir = new THREE.Vector3().subVectors(seekerLight.target.position, seekerMesh.position).normalize();
+
+            const angle = dirToPlayer.angleTo(lookDir);
+
+            // Is player inside the spotlight cone? (spotlight angle is half-angle)
+            // 給玩家一點寬容度，角度要小於燈光角度的 80% 才算完全進入
+            if (angle < seekerLight.angle * 0.8 && distanceToSeeker < seekerLight.distance) {
+                
+                // 2. Line of Sight Check (Raycast to ensure no walls between seeker and player)
+                const raycaster = new THREE.Raycaster(seekerMesh.position, dirToPlayer, 0.1, distanceToSeeker);
+                const intersects = raycaster.intersectObjects(environmentObjects, false);
+                
+                // If we hit an object before the player, player is hidden behind it
+                let isBlocked = false;
+                // 允許一點誤差距離
+                if (intersects.length > 0 && intersects[0].distance < distanceToSeeker - 1.5) {
+                    isBlocked = true;
+                }
+
+                if (!isBlocked) {
+                    // SEEN! Now check camouflage logic
+                    seekerAlert.style.opacity = 1;
+
+                    // Camouflage Check:
+                    // Compare player color to the object immediately behind them
+                    let backgroundDiff = 1.0; // Default to highly visible
+                    
+                    // Raycast from player backwards to find background wall
+                    const backDir = new THREE.Vector3(0,0,1).applyQuaternion(camera.quaternion).normalize();
+                    const backRay = new THREE.Raycaster(camera.position, backDir, 0.1, 4); // 只檢查後方 4 單位內
+                    const backHits = backRay.intersectObjects(environmentObjects, false);
+
+                    let bgObj = null;
+                    if(backHits.length > 0) {
+                        bgObj = backHits[0].object;
+                        if(bgObj.material && bgObj.material.color) {
+                            // Calculate color difference (simple RGB distance)
+                            const rDiff = playerColor.r - bgObj.material.color.r;
+                            const gDiff = playerColor.g - bgObj.material.color.g;
+                            const bDiff = playerColor.b - bgObj.material.color.b;
+                            backgroundDiff = Math.sqrt(rDiff*rDiff + gDiff*gDiff + bDiff*bDiff);
+                        }
+                    }
+
+                    // Movement check (T-Rex vision)
+                    const isMoving = (Math.abs(velocity.x) > 2 || Math.abs(velocity.z) > 2);
+
+                    // 顏色差異閥值：稍微嚴格一點，要求顏色幾乎一致
+                    const colorThreshold = 0.15; 
+
+                    // If moving, or color difference is too high, or not standing against a wall
+                    if (isMoving || backgroundDiff > colorThreshold || !bgObj) {
+                        exposureTime += delta;
+                        seekerLight.color.setHex(0xff0000); // Turn spotlight red!
+                        
+                        if (exposureTime > 0.6) { // Caught after 0.6s of being exposed
+                            let reason = "你的顏色跟背後的物體不一樣！";
+                            if(isMoving) reason = "鬼照到你的時候你還在動！";
+                            else if (!bgObj) reason = "你沒有貼著牆壁或障礙物隱藏！";
+                            
+                            endGame(false, reason);
+                        }
+                    } else {
+                        // Good camouflage, exposure decreases slightly
+                        exposureTime = Math.max(0, exposureTime - delta * 0.5);
+                        seekerLight.color.setHex(0xffffff); // 恢復原本的燈光
+                    }
+                    
+                } else {
+                    seekerAlert.style.opacity = 0;
+                    exposureTime = Math.max(0, exposureTime - delta);
+                    seekerLight.color.setHex(0xffdddd);
+                }
+            } else {
+                seekerAlert.style.opacity = 0;
+                exposureTime = Math.max(0, exposureTime - delta);
+                seekerLight.color.setHex(0xffdddd);
+            }
+        }
+
+        // Initialize game and SSO/Socket on load
+        window.onload = function() {
+            initBroadcasts();
+            initSSOAndSocket();
+            init();
+        };
+
+    </script>
+</body>
+</html>
