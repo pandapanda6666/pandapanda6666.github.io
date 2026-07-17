@@ -118,20 +118,20 @@ function showToast(title, msg) {
                     
                 <!-- Top Nav -->
                 <div class="hidden md:flex items-center gap-4 text-sm font-medium text-slate-600 mr-4">
-                    <button onclick="openNavModal('notificationModal')" class="hover:text-green-600 transition flex items-center">
+                    <button onclick="openNotification()" class="hover:text-green-600 transition flex items-center">
                         <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> 通知
                     </button>
-                    <button onclick="openNavModal('helpModal')" class="hover:text-green-600 transition flex items-center">
+                    <button onclick="openHelp()" class="hover:text-green-600 transition flex items-center">
                         <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 幫助
                     </button>
-                    <button onclick="openNavModal('languageModal')" class="hover:text-green-600 transition flex items-center">
+                    <button onclick="openLanguage()" class="hover:text-green-600 transition flex items-center">
                         <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129"/></svg> 語言
                     </button>
                 </div>
                 <!-- P-Coin Display -->
 
                     <div id="pcoin-display" class="hidden flex items-center bg-green-50 border border-green-200 rounded-full px-3 py-1">
-                                            <span class="text-yellow-400 font-bold ml-1 text-sm md:text-base flex items-center gap-1"><img src="coin.svg" class="w-6 h-6 inline-block -mt-1 drop-shadow-md">
+                                            <span class="text-yellow-400 font-bold ml-1 text-sm md:text-base flex items-center gap-1"><img src="coin.svg" alt="🪙" class="w-6 h-6 inline-block -mt-1 drop-shadow-md">
 <span id="user-pcoin">0</span>
                     </span>
                     </div>
@@ -209,17 +209,11 @@ function showToast(title, msg) {
 function selectSort(val, text) {
     document.getElementById('sort-btn-text').innerText = text;
     document.getElementById('sort-menu').classList.add('hidden');
-    // trigger sort
-    const el = document.getElementById('sort-select');
-    if(!el) {
-        const dummy = document.createElement('select');
-        dummy.id = 'sort-select';
-        dummy.value = val;
-        document.body.appendChild(dummy);
-    } else {
-        let sortBtn1 = document.getElementById('custom-sort-btn'); if(sortBtn1) sortBtn1.innerText = val;
-    }
-    renderProducts();
+    window.currentSortVal = val;
+    const term = document.getElementById('search-input').value.toLowerCase().trim();
+    applyFiltersAndSort(term, val);
+    const activeCat = document.querySelector('.category-link.text-green-600').getAttribute('data-category');
+    updateURL(term, val, activeCat);
 }
 </script>
 
@@ -673,8 +667,8 @@ function openNavModal(type) {
     modal.classList.remove('hidden');
 }
 
-        function closeNavModal(id) {
-            document.getElementById(id).classList.add('hidden');
+        function closeNavModal() {
+            document.getElementById('navModal').classList.add('hidden');
         }
 
         function openCartModal() {
@@ -1359,7 +1353,7 @@ async function scanAndLoadFolders() {
             </button>
             
             <h3 class="text-2xl font-bold mb-2 text-white pr-8" id="modalTitle">商品詳情</h3>
-            <img id="modalImg" src="" onerror="handleImageError(this)" class="w-full h-40 object-cover rounded-xl mb-4" />
+            <img id="modalImg" src="" onerror="handleImageError(this)" class="w-full h-40 object-contain rounded-xl mb-4 bg-slate-900/50" />
             <p class="text-slate-400 text-sm mb-4" id="modalDesc"></p>
             
             <div class="bg-slate-800/50 rounded-xl p-4 mb-4 flex justify-between items-center border border-slate-700">
@@ -1488,7 +1482,7 @@ async function scanAndLoadFolders() {
             <div class="p-4 sm:p-6 border-t border-slate-700 bg-slate-800/50">
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-slate-300 font-medium">總計金額</span>
-                    <span class="text-2xl font-mono font-bold text-green-400 flex items-center gap-2"><img src="coin.svg" class="w-6 h-6"> <span id="cartTotal">0</span></span>
+                    <span class="text-2xl font-mono font-bold text-green-400 flex items-center gap-2"><img src="coin.svg" alt="🪙" class="w-6 h-6"> <span id="cartTotal">0</span></span>
                 </div>
                 <button id="btnCheckout" onclick="checkoutCart()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 text-lg">確認結帳</button>
             </div>
