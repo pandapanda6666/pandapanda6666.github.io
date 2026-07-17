@@ -15,7 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     
     <script>
-        //        const originalWarn = console.warn;
+        const originalWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
             originalWarn.apply(console, args);
@@ -32,7 +32,6 @@
     </script>
 
     <style>
-        /* */
         body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Noto Sans TC', sans-serif; user-select: none; }
         #gameCanvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
@@ -73,7 +72,7 @@
         
         #player-stats {
             position: absolute; bottom: 30px; left: 20px; background: rgba(0,0,0,0.7);
-            padding: 15px; border-radius: 10px; color: white; font-weight: bold; border-left: 4px solid;
+            padding: 15px; border-radius: 10px; color: white; font-weight: bold; border-left: 4px solid; pointer-events: auto;
         }
         .stat-hider { border-color: #4ade80; }
         .stat-seeker { border-color: #ef4444; }
@@ -90,7 +89,7 @@
         #blind-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: black; opacity: 0; pointer-events: none; z-index: 9;
-            display: flex; justify-content: center; align-items: center; color: red; font-size: 3rem; font-weight: bold;
+            display: flex; justify-content: center; align-items: center; color: red; font-size: 3rem; font-weight: bold; transition: opacity 1s;
         }
 
         /* Yeah! 分數特效 */
@@ -170,7 +169,6 @@
     </style>
 </head>
 <body>
-
     <!-- 跑馬燈區塊 -->
     <div id="notificationBar"><div class="marquee-content" id="notificationMsg"></div></div>
 
@@ -195,9 +193,9 @@
         </svg>
         
         <div id="painting-hud">
-            🎨 噴漆模式<br>
-            <span class="text-sm text-gray-300">[滑鼠移動] 旋轉視角 | [空白+左鍵] 吸取顏色 | [右鍵拖曳] 筆刷大小 | [左鍵] 噴漆 | [F] 退出</span><br>
-            <button id="btn-clear-paint" class="mt-2 bg-red-600 text-white px-4 py-1 rounded hover:bg-red-500">清除全部顏料</button>
+            🎨 變色龍噴漆模式<br>
+            <span class="text-sm text-gray-300">[滑鼠移動] 旋轉全身尋找穿幫破綻 | [空白+左鍵] 吸取環境顏色 | [右鍵拖曳] 筆刷大小 | [左鍵] 噴漆 | [F] 退出</span><br>
+            <button id="btn-clear-paint" class="mt-2 bg-red-600 text-white px-4 py-1 rounded hover:bg-red-500 pointer-events-auto">一鍵洗白</button>
         </div>
 
         <div id="timer-display">
@@ -207,14 +205,14 @@
         
         <div id="player-stats" class="stat-hider">
             <div id="stat-role-title" class="text-xl mb-1">躲藏者</div>
-            <div id="stat-primary">極限得分: <span id="score-text">0</span></div>
+            <div id="stat-primary">Yeah! 得分: <span id="score-text">0</span></div>
             <div id="stat-secondary" class="text-sm text-gray-300 mt-1">越在鬼視線內越久，分數越高</div>
         </div>
 
         <div id="hud-instructions">
             [點擊畫面] 鎖定游標 | [WASD] 移動 <br>
             <span id="instruction-hider" class="text-green-300">[F] 噴漆偽裝 | [R] 切換定格姿勢 | [T] 吹口哨嘲諷</span>
-            <span id="instruction-seeker" class="hidden text-red-400">[左鍵] 散彈槍 (盲猜會扣血!)</span>
+            <span id="instruction-seeker" class="hidden text-red-400">[左鍵] 散彈槍 (盲猜打空會扣血甚至死亡!)</span>
         </div>
     </div>
 
@@ -230,15 +228,15 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-3xl px-4">
             <div class="mode-btn active" data-mode="classic" onclick="selectMode('classic')">
                 <h3>經典模式</h3>
-                <p>1分鐘躲藏準備，4分鐘尋找。抓完或存活決定勝負。</p>
+                <p>1分鐘純白安全期，4分鐘狩獵。躲藏者可大膽刷分！</p>
             </div>
             <div class="mode-btn" data-mode="infection" onclick="selectMode('infection')">
                 <h3>感染模式</h3>
-                <p>躲藏者被抓到後會立刻變成尋找者，獵人越滾越多！</p>
+                <p>被打破的變色龍會立刻變身紅鬼，獵人越滾越多！</p>
             </div>
             <div class="mode-btn" data-mode="double" onclick="selectMode('double')">
-                <h3>雙重模式 (大亂鬥)</h3>
-                <p>所有人開局都是躲藏者。準備時間一結束，全體強制變鬼互相殘殺！</p>
+                <h3>雙重大亂鬥</h3>
+                <p>開局全員皆變色龍，安全期結束瞬間，全體強制變鬼互相殘殺！</p>
             </div>
         </div>
 
@@ -251,7 +249,7 @@
         <p class="text-white text-2xl mb-4" id="end-reason">結算中...</p>
         <div class="bg-gray-800 p-6 rounded-lg text-left mb-8 border border-gray-600 w-80">
             <h3 class="text-xl text-yellow-400 font-bold mb-2">排行榜 (Your Stats)</h3>
-            <p class="text-gray-200 text-lg">Yeah! 分數: <span id="end-score" class="font-bold text-white">0</span></p>
+            <p class="text-gray-200 text-lg">Yeah! 嘲諷分數: <span id="end-score" class="font-bold text-white">0</span></p>
             <p class="text-gray-200 text-lg">極限暴露時間: <span id="end-time" class="font-bold text-white">0</span> 秒</p>
         </div>
         <button id="restart-btn" class="btn-play text-white font-bold py-3 px-8 rounded-full text-xl">返回大廳</button>
@@ -261,7 +259,6 @@
     <div id="copyright-footer"><a href="https://pandapanda6666.github.io" target="_blank">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a></div>
 
     <script>
-        //        let socket;
         let currentUserProfile = null;
         let cloudData = { gamesPlayed: 0, highestScore: 0, timesCaught: 0 };
         
@@ -384,7 +381,7 @@
             if(window.socket && window.socket.connected) window.socket.emit('saveAppData', { appId: appId, data: cloudData });
         }
 
-        //        let scene, camera, renderer;
+        let scene, camera, renderer;
         let environmentObjects = [];
         let playerRig, localPlayerGroup;
         let seekerSpotlight;
@@ -393,8 +390,8 @@
         let selectedMode = 'classic';
         let gameState = 'start'; // start, prep, playing, gameover
         let gameTime = 0;
-        let prepTimeLimit = 60;
-        let playTimeLimit = 240;
+        let prepTimeLimit = 60; // 1 分鐘準備
+        let playTimeLimit = 240; // 4 分鐘遊玩
         
         let hiderScore = 0;
         let exposureTime = 0;
@@ -414,7 +411,7 @@
         
         let particlesArray = []; // 碎裂粒子
 
-        //        function init3D() {
+        function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0f1d);
             scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
@@ -447,7 +444,7 @@
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                if(paintingCanvas) { paintingCanvas.width = window.innerWidth; paintingCanvas.height = window.innerHeight; }
+                if(paintCanvas) { paintCanvas.width = 512; paintCanvas.height = 512; }
             }, false);
 
             animate();
@@ -504,7 +501,7 @@
             }
         }
 
-        //        // 為了讓一個 CanvasTexture 套用到全身且不會互相干擾，我們必須自訂各部位的 UV。
+        // 為了讓一個 CanvasTexture 套用到全身且不會互相干擾，我們必須自訂各部位的 UV。
         function mapUVs(geometry, offsetX, offsetY, scaleX, scaleY) {
             const uvAttribute = geometry.attributes.uv;
             for (let i = 0; i < uvAttribute.count; i++) {
@@ -561,7 +558,7 @@
             return group;
         }
 
-        //        const poses = [
+        const poses = [
             { name: '站立', root: [0,0,0], rot: [0,0,0], limbs: [[0,0,0],[0,0,0],[0,0,0],[0,0,0]] },
             { name: '縮成球', root: [0,-0.6,0], rot: [Math.PI/4,0,0], limbs: [[-1,0,0],[-1,0,0],[-1.5,0,0],[-1.5,0,0]] },
             { name: '大字趴牆', root: [0,0,0.4], rot: [0,0,0], limbs: [[0,0,0.5],[0,0,-0.5],[0,0,0.5],[0,0,-0.5]] }, // 需配合視角面牆
@@ -584,13 +581,16 @@
             });
         }
 
-        //        let isPaintingMode = false;
+        let isPaintingMode = false;
         let paintCanvas, paintCtx, paintTexture;
         let brushSize = 20;
         let brushColor = '#000000';
         let orbitAngleX = 0, orbitAngleY = 0; // 噴漆時環繞相機
         let isPickingColor = false;
         let isAdjustingBrush = false;
+        let isMouseDownLeft = false;
+        let isMouseDownRight = false;
+        let lastMouseX = window.innerWidth/2, lastMouseY = window.innerHeight/2;
 
         function initPaintingSystem() {
             paintCanvas = document.createElement('canvas');
@@ -625,6 +625,7 @@
                 orbitAngleX = 0; orbitAngleY = 0;
                 updatePaintCamera();
                 if(localPlayerGroup) localPlayerGroup.visible = true; // 強制顯示自身
+                document.exitPointerLock(); // 解除鎖定，方便滑鼠移動操作畫布
             } else {
                 document.getElementById('painting-hud').style.display = 'none';
                 document.getElementById('ui-crosshair').classList.remove('hidden');
@@ -634,6 +635,7 @@
                 camera.position.set(0, 1.4, 0.2);
                 camera.rotation.set(0,0,0);
                 if(localPlayerGroup) localPlayerGroup.visible = false;
+                document.body.requestPointerLock();
                 syncStateWithServer(true);
             }
         }
@@ -645,10 +647,6 @@
             camera.position.z = dist * Math.cos(orbitAngleX) * Math.cos(orbitAngleY);
             camera.lookAt(0, 0.5, 0);
         }
-
-        //        let isMouseDownLeft = false;
-        let isMouseDownRight = false;
-        let lastMouseX = window.innerWidth/2, lastMouseY = window.innerHeight/2;
 
         function setupInputControls() {
             const onKeyDown = function ( event ) {
@@ -697,7 +695,7 @@
                 if(gameState === 'start' || gameState === 'gameover') return;
 
                 if (isPaintingMode) {
-                    // 噴漆模式下的滑鼠控制
+                    // 噴漆模式下的滑鼠控制 (未鎖定狀態)
                     const brushUI = document.getElementById('brush-cursor');
                     brushUI.style.left = e.clientX + 'px';
                     brushUI.style.top = e.clientY + 'px';
@@ -708,9 +706,10 @@
                         brushUI.style.width = brushSize*2 + 'px'; brushUI.style.height = brushSize*2 + 'px';
                     } else if (isPickingColor || (!isMouseDownLeft && !isMouseDownRight)) {
                         // 自由旋轉模型視角
-                        const deltaX = e.movementX || 0; const deltaY = e.movementY || 0;
-                        orbitAngleX -= deltaX * 0.005;
-                        orbitAngleY += deltaY * 0.005;
+                        const deltaX = e.movementX || (e.clientX - lastMouseX) || 0; 
+                        const deltaY = e.movementY || (e.clientY - lastMouseY) || 0;
+                        orbitAngleX -= deltaX * 0.01;
+                        orbitAngleY += deltaY * 0.01;
                         orbitAngleY = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, orbitAngleY));
                         updatePaintCamera();
                     } else if (isMouseDownLeft && !isPickingColor) {
@@ -755,13 +754,13 @@
                 if(e.button === 0) { isMouseDownLeft = false; if(isPaintingMode && paintTexture) paintTexture.needsUpdate = true; }
                 if(e.button === 2) { isMouseDownRight = false; isAdjustingBrush = false; }
             });
-            document.addEventListener('contextmenu', e => e.preventDefault());
+            document.addEventListener('contextmenu', e => { if(isPaintingMode) e.preventDefault(); });
 
             document.getElementById('start-btn').addEventListener('click', startGame);
             document.getElementById('restart-btn').addEventListener('click', () => { window.location.reload(); });
         }
 
-        //        function pickColorFromEnvironment(clientX, clientY) {
+        function pickColorFromEnvironment(clientX, clientY) {
             const mouse = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, camera);
@@ -804,7 +803,7 @@
             }
         }
 
-        //        function attemptCatch() {
+        function attemptCatch() {
             if(attackCooldown > 0) return;
             
             attackCooldown = 0.5; // 冷卻 0.5 秒
@@ -859,7 +858,7 @@
             }
         }
 
-        //        function playShatterEffect(pos, role) {
+        function playShatterEffect(pos, role) {
             const color = role === 'seeker' ? 0xff0000 : 0xffffff;
             const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
             const mat = new THREE.MeshStandardMaterial({color: color, roughness: 0.5});
@@ -899,11 +898,12 @@
             }, 50);
         }
 
-        //        function selectRole(role) {
+        function selectRole(role) {
             selectedRole = role;
             document.getElementById('btn-role-hider').className = role === 'hider' ? "px-6 py-2 rounded-full border-2 border-green-400 bg-green-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
             document.getElementById('btn-role-seeker').className = role === 'seeker' ? "px-6 py-2 rounded-full border-2 border-red-400 bg-red-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
         }
+        
         function selectMode(mode) {
             selectedMode = mode;
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
@@ -1008,7 +1008,7 @@
         function showStatusText(text, color) {
             const alert = document.createElement('div');
             alert.innerText = text; 
-            alert.style.cssText = `position:absolute; top:20%; left:50%; transform:translateX(-50%); color:${color}; font-size:2rem; font-weight:bold; text-shadow:2px 2px 0 #000; z-index:100; animation:floatUp 2s forwards;`;
+            alert.style.cssText = `position:absolute; top:20%; left:50%; transform:translateX(-50%); color:${color}; font-size:2rem; font-weight:bold; text-shadow:2px 2px 0 #000; z-index:100; animation:floatUp 2s forwards; pointer-events:none;`;
             document.body.appendChild(alert);
             setTimeout(() => alert.remove(), 2000);
         }
@@ -1028,7 +1028,7 @@
             }
         }
 
-        //        let otherPlayers = {}; 
+        let otherPlayers = {}; 
         let lastSyncTime = 0;
 
         function syncStateWithServer(force = false) {
@@ -1088,7 +1088,7 @@
             if(otherPlayers[id]) { scene.remove(otherPlayers[id].mesh); delete otherPlayers[id]; }
         }
 
-        //        let lastTimeUpdate = 0;
+        let lastTimeUpdate = 0;
 
         function animate() {
             requestAnimationFrame( animate );
@@ -1156,20 +1156,27 @@
                                 const dirToMe = playerRig.position.clone().sub(p.mesh.position).normalize();
                                 const seekerLook = new THREE.Vector3(0,0,-1).applyQuaternion(p.mesh.quaternion);
                                 if(dirToMe.angleTo(seekerLook) < Math.PI / 4) { // 約 45 度視角內
-                                    isInDangerSight = true;
-                                    const scoreGain = (40 - dist) * 2 * delta;
-                                    hiderScore += scoreGain;
-                                    exposureTime += delta;
                                     
-                                    // 噴出 Yeah 特效
-                                    if(Math.random() < 0.1) {
-                                        const yeah = document.createElement('div');
-                                        yeah.className = 'yeah-text';
-                                        yeah.innerText = `+${Math.floor(scoreGain*10)} Yeah!`;
-                                        yeah.style.left = (Math.random()*40 + 30) + '%';
-                                        yeah.style.top = (Math.random()*40 + 30) + '%';
-                                        document.getElementById('yeah-container').appendChild(yeah);
-                                        setTimeout(()=>yeah.remove(), 1000);
+                                    // 簡單的射線檢測，確保中間沒有牆壁擋住
+                                    const ray = new THREE.Raycaster(p.mesh.position, dirToMe);
+                                    const intersects = ray.intersectObjects(environmentObjects, false);
+                                    
+                                    if(intersects.length === 0 || intersects[0].distance > dist) {
+                                        isInDangerSight = true;
+                                        const scoreGain = (40 - dist) * 2 * delta;
+                                        hiderScore += scoreGain;
+                                        exposureTime += delta;
+                                        
+                                        // 噴出 Yeah 特效
+                                        if(Math.random() < 0.1) {
+                                            const yeah = document.createElement('div');
+                                            yeah.className = 'yeah-text';
+                                            yeah.innerText = `+${Math.floor(scoreGain*10)} Yeah!`;
+                                            yeah.style.left = (Math.random()*40 + 30) + '%';
+                                            yeah.style.top = (Math.random()*40 + 30) + '%';
+                                            document.getElementById('yeah-container').appendChild(yeah);
+                                            setTimeout(()=>yeah.remove(), 1000);
+                                        }
                                     }
                                 }
                             }
