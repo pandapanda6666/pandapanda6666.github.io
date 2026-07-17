@@ -15,8 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     
     <script>
-        // --- 1. 強制建立連線與全域錯誤捕捉 ---
-        const originalWarn = console.warn;
+        //        const originalWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
             originalWarn.apply(console, args);
@@ -28,24 +27,36 @@
             if (typeof window.socket !== 'undefined' && window.socket.connected) window.socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
         });
 
-        // 獲取網頁的絕對路徑(不含參數)作為此應用的專屬識別碼
         const appId = window.location.hostname + window.location.pathname;
         let pCoinIconHTML = `<img src="https://cdn-icons-png.flaticon.com/512/1000/1000136.png" alt="P幣" style="width: 20px; height: 20px; vertical-align: sub; display: inline-block; margin: 0 2px;">`;
     </script>
 
     <style>
+        /* */
         body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Noto Sans TC', sans-serif; user-select: none; }
         #gameCanvas { display: block; width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; overflow: hidden; }
         
         .crosshair {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 6px; height: 6px; background-color: rgba(255, 255, 255, 0.8);
-            border: 1px solid rgba(0,0,0,0.5); border-radius: 50%; pointer-events: none; transition: all 0.2s;
+            width: 8px; height: 8px; background-color: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0,0,0,0.8); border-radius: 50%; pointer-events: none; transition: all 0.1s;
         }
-        .crosshair.cooldown { background-color: rgba(255, 0, 0, 0.5); transform: translate(-50%, -50%) scale(1.5); }
+        .crosshair.picker { background-color: transparent; border: 2px solid #fbbf24; width: 16px; height: 16px; border-radius: 2px;}
         
+        #brush-cursor {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            border: 2px solid rgba(255,255,255,0.8); border-radius: 50%; pointer-events: none;
+            display: none; box-shadow: 0 0 5px rgba(0,0,0,0.5); z-index: 11;
+        }
+
+        #shotgun-cooldown-svg {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-90deg);
+            width: 60px; height: 60px; pointer-events: none; display: none;
+        }
+        .cooldown-circle { fill: none; stroke: rgba(255,0,0,0.6); stroke-width: 4; stroke-dasharray: 157; stroke-dashoffset: 157; transition: stroke-dashoffset 0.1s linear; }
+
         #hud-instructions {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             text-align: center; color: white; text-shadow: 1px 1px 3px black;
@@ -60,12 +71,6 @@
         }
         #phase-display { font-size: 1.2rem; color: #fbbf24; }
         
-        #status-alert {
-            position: absolute; top: 130px; right: 20px; color: #ff3333; font-weight: bold;
-            font-size: 1.5rem; text-shadow: 2px 2px 0 #000; opacity: 0; transition: opacity 0.3s;
-        }
-
-        /* 玩家數值面板 */
         #player-stats {
             position: absolute; bottom: 30px; left: 20px; background: rgba(0,0,0,0.7);
             padding: 15px; border-radius: 10px; color: white; font-weight: bold; border-left: 4px solid;
@@ -73,29 +78,14 @@
         .stat-hider { border-color: #4ade80; }
         .stat-seeker { border-color: #ef4444; }
 
-        /* 畫板介面 */
-        #drawing-ui {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(30, 41, 59, 0.95); padding: 20px; border-radius: 15px;
-            border: 2px solid #4ade80; z-index: 30; pointer-events: auto;
-            display: flex; flex-direction: column; align-items: center; gap: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); backdrop-filter: blur(5px);
-        }
-        #skinCanvas {
-            background-color: white; border: 2px solid #333; cursor: crosshair;
-            border-radius: 5px; image-rendering: pixelated;
-        }
-        .color-btn {
-            width: 30px; height: 30px; border-radius: 50%; border: 2px solid white;
-            cursor: pointer; transition: transform 0.1s;
-        }
-        .color-btn.active { border: 3px solid #fbbf24; transform: scale(1.2); }
+        /* 傷害/震動 特效 */
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
+        .screen-shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
         
-        /* 傷害特效 */
         #damage-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 40%, rgba(255,0,0,0.6) 100%);
-            opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 5;
+            background: radial-gradient(circle, transparent 30%, rgba(255,0,0,0.8) 100%);
+            opacity: 0; transition: opacity 0.1s; pointer-events: none; z-index: 5;
         }
         #blind-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -103,11 +93,20 @@
             display: flex; justify-content: center; align-items: center; color: red; font-size: 3rem; font-weight: bold;
         }
 
+        /* Yeah! 分數特效 */
+        #yeah-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+        .yeah-text {
+            position: absolute; font-size: 2rem; font-weight: 900; color: #fbbf24;
+            text-shadow: 2px 2px 0 #000, 0 0 10px #fbbf24;
+            animation: floatUp 1s ease-out forwards; pointer-events: none;
+        }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 1; } 50% { transform: translateY(-50px) scale(1.2); opacity: 1; } 100% { transform: translateY(-100px) scale(1); opacity: 0; } }
+
         /* Overlay Screens */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 20; pointer-events: auto;
+            justify-content: center; align-items: center; z-index: 30; pointer-events: auto;
         }
         .title-text { color: #4ade80; text-shadow: 0 4px 10px rgba(0,0,0,0.5); font-weight: 900; }
         .btn-play {
@@ -165,6 +164,9 @@
         .mode-btn.active { border-color: #fbbf24; background: rgba(251, 191, 36, 0.2); }
         .mode-btn h3 { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
         .mode-btn p { font-size: 0.8rem; color: #cbd5e1; }
+        
+        /* 畫圖模式提示UI */
+        #painting-hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 15; border: 2px solid #3b82f6; display: none; text-align: center;}
     </style>
 </head>
 <body>
@@ -181,29 +183,27 @@
     <!-- 傷害/蒙蔽 特效層 -->
     <div id="damage-overlay"></div>
     <div id="blind-overlay">準備時間 - 尋找者無法行動</div>
-
-    <!-- 畫板 UI (躲藏者 Q 鍵) -->
-    <div id="drawing-ui" class="hidden">
-        <h2 class="text-white text-xl font-bold">自訂你的偽裝</h2>
-        <canvas id="skinCanvas" width="128" height="128"></canvas>
-        <div class="flex gap-2" id="color-palette"></div>
-        <div class="flex gap-4">
-            <button id="btn-clear-draw" class="px-4 py-2 bg-red-600 text-white rounded font-bold hover:bg-red-500">清除</button>
-            <button id="btn-finish-draw" class="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-500">完成塗鴉 (Q)</button>
-        </div>
-        <p class="text-gray-300 text-sm mt-2 font-bold text-yellow-400">當前吸取顏色: <span id="picked-color-display" style="display:inline-block;width:20px;height:20px;background:white;border:1px solid #000;vertical-align:middle;"></span></p>
-    </div>
+    <div id="yeah-container"></div>
 
     <!-- 遊戲中 UI Layer -->
     <div id="ui-layer" class="hidden">
         <div class="crosshair" id="ui-crosshair"></div>
+        <div id="brush-cursor"></div>
         
+        <svg id="shotgun-cooldown-svg" viewBox="0 0 60 60">
+            <circle class="cooldown-circle" cx="30" cy="30" r="25"></circle>
+        </svg>
+        
+        <div id="painting-hud">
+            🎨 噴漆模式<br>
+            <span class="text-sm text-gray-300">[滑鼠移動] 旋轉視角 | [空白+左鍵] 吸取顏色 | [右鍵拖曳] 筆刷大小 | [左鍵] 噴漆 | [F] 退出</span><br>
+            <button id="btn-clear-paint" class="mt-2 bg-red-600 text-white px-4 py-1 rounded hover:bg-red-500">清除全部顏料</button>
+        </div>
+
         <div id="timer-display">
             <div id="phase-display">等待中</div>
             <span id="time-text">00:00</span>
         </div>
-        
-        <div id="status-alert">動作發生！</div>
         
         <div id="player-stats" class="stat-hider">
             <div id="stat-role-title" class="text-xl mb-1">躲藏者</div>
@@ -212,9 +212,9 @@
         </div>
 
         <div id="hud-instructions">
-            [點擊畫面] 鎖定游標 | [WASD] 移動 | [V] 切換視角<br>
-            <span id="instruction-hider" class="text-green-300">[Q] 開啟畫板 | [E] 滴管吸色 | [Z] 縮骨變形 | [T] 吹口哨嘲諷</span>
-            <span id="instruction-seeker" class="hidden text-red-400">[左鍵] 射擊抓人 (盲猜會扣血!)</span>
+            [點擊畫面] 鎖定游標 | [WASD] 移動 <br>
+            <span id="instruction-hider" class="text-green-300">[F] 噴漆偽裝 | [R] 切換定格姿勢 | [T] 吹口哨嘲諷</span>
+            <span id="instruction-seeker" class="hidden text-red-400">[左鍵] 散彈槍 (盲猜會扣血!)</span>
         </div>
     </div>
 
@@ -222,13 +222,11 @@
     <div id="start-screen" class="overlay">
         <h1 class="title-text text-5xl md:text-7xl mb-2 text-center">塗鴉<span class="text-white">躲貓貓</span> <span class="text-3xl text-yellow-400">Epic</span></h1>
         
-        <!-- 陣營選擇 -->
         <div class="flex gap-4 mb-6 mt-8 justify-center">
             <button class="px-6 py-2 rounded-full border-2 border-green-400 bg-green-900/50 text-white font-bold" id="btn-role-hider" onclick="selectRole('hider')">扮演 躲藏者</button>
             <button class="px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold" id="btn-role-seeker" onclick="selectRole('seeker')">扮演 尋找者</button>
         </div>
 
-        <!-- 模式選擇 -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-3xl px-4">
             <div class="mode-btn active" data-mode="classic" onclick="selectMode('classic')">
                 <h3>經典模式</h3>
@@ -240,20 +238,22 @@
             </div>
             <div class="mode-btn" data-mode="double" onclick="selectMode('double')">
                 <h3>雙重模式 (大亂鬥)</h3>
-                <p>所有人開局都是躲藏者。準備時間一結束，全體強制變成尋找者互相殘殺！</p>
+                <p>所有人開局都是躲藏者。準備時間一結束，全體強制變鬼互相殘殺！</p>
             </div>
         </div>
 
-        <button id="start-btn" class="btn-play text-white font-bold py-4 px-12 rounded-full text-2xl tracking-wide">
-            進入遊戲
-        </button>
+        <button id="start-btn" class="btn-play text-white font-bold py-4 px-12 rounded-full text-2xl tracking-wide">進入遊戲</button>
     </div>
 
     <!-- 遊戲結束畫面 -->
     <div id="game-over-screen" class="overlay hidden">
         <h1 class="title-text text-6xl mb-4" id="end-title">遊戲結束</h1>
-        <p class="text-white text-2xl mb-8" id="end-reason">結算中...</p>
-        <p class="text-yellow-400 text-xl mb-8">您的極限得分: <span id="end-score">0</span></p>
+        <p class="text-white text-2xl mb-4" id="end-reason">結算中...</p>
+        <div class="bg-gray-800 p-6 rounded-lg text-left mb-8 border border-gray-600 w-80">
+            <h3 class="text-xl text-yellow-400 font-bold mb-2">排行榜 (Your Stats)</h3>
+            <p class="text-gray-200 text-lg">Yeah! 分數: <span id="end-score" class="font-bold text-white">0</span></p>
+            <p class="text-gray-200 text-lg">極限暴露時間: <span id="end-time" class="font-bold text-white">0</span> 秒</p>
+        </div>
         <button id="restart-btn" class="btn-play text-white font-bold py-3 px-8 rounded-full text-xl">返回大廳</button>
     </div>
 
@@ -261,7 +261,7 @@
     <div id="copyright-footer"><a href="https://pandapanda6666.github.io" target="_blank">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a></div>
 
     <script>
-        let socket;
+        //        let socket;
         let currentUserProfile = null;
         let cloudData = { gamesPlayed: 0, highestScore: 0, timesCaught: 0 };
         
@@ -351,15 +351,17 @@
                 }
             });
 
-            // 網路同步事件
             window.socket.on('playerJoined', (data) => { if(data.allPlayers) data.allPlayers.forEach(p => updateOtherPlayerUI(p)); });
             window.socket.on('playerStateUpdated', (data) => { if(data.id !== window.socket.id) updateOtherPlayerUI(data); });
             window.socket.on('playerLeft', (data) => { removeOtherPlayerUI(data.id); });
             
-            // 萬用通訊：接收抓捕、模式切換、嘲諷等事件
             window.socket.on('appData', (payload) => {
                 if(payload.action === 'playerCaught' && payload.targetId === window.socket.id) {
                     handleCaughtBySeeker();
+                }
+                if(payload.action === 'playerShattered') {
+                    playShatterEffect(payload.position, payload.role);
+                    removeOtherPlayerUI(payload.targetId);
                 }
                 if(payload.action === 'taunt' && payload.sourceId !== window.socket.id) {
                     playTauntEffect(payload.position);
@@ -382,61 +384,55 @@
             if(window.socket && window.socket.connected) window.socket.emit('saveAppData', { appId: appId, data: cloudData });
         }
 
-        let scene, camera, renderer;
+        //        let scene, camera, renderer;
         let environmentObjects = [];
         let playerRig, localPlayerGroup;
-        let isThirdPerson = true;
+        let seekerSpotlight;
         
-        // 核心設定
         let selectedRole = 'hider'; 
         let selectedMode = 'classic';
         let gameState = 'start'; // start, prep, playing, gameover
         let gameTime = 0;
-        let prepTimeLimit = 60; // 準備時間 1 分鐘
-        let playTimeLimit = 240; // 尋找時間 4 分鐘
+        let prepTimeLimit = 60;
+        let playTimeLimit = 240;
         
-        // 玩家狀態
         let hiderScore = 0;
+        let exposureTime = 0;
         let seekerHP = 100;
         let attackCooldown = 0;
-        let isPosed = false; // 變形縮骨狀態
-        let isDrawingMode = false;
         
-        // 移動控制
+        // 移動與視角
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        let isMoving = false;
         let velocity = new THREE.Vector3();
         let direction = new THREE.Vector3();
         let prevTime = performance.now();
-        const speed = 40.0;
-        const playerHeight = 1.5;
+        const speed = 30.0;
+        const playerHeight = 1.2;
         let euler = new THREE.Euler(0, 0, 0, 'YXZ');
         const PI_2 = Math.PI / 2;
+        
+        let particlesArray = []; // 碎裂粒子
 
-        // 塗鴉相關
-        let skinCanvas, skinCtx, skinTexture;
-        let skinBase64Cache = ""; 
-        let isPainting = false;
-        let brushColor = '#ffffff';
-
-        function init3D() {
+        //        function init3D() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f172a);
-            scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
+            scene.background = new THREE.Color(0x0a0f1d);
+            scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
 
             playerRig = new THREE.Group();
             scene.add(playerRig);
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             playerRig.add(camera);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // 需要 preserve 來讀取像素
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             document.getElementById('gameCanvas').appendChild(renderer.domElement);
 
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambientLight);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
             dirLight.position.set(50, 100, 50);
             dirLight.castShadow = true;
             dirLight.shadow.mapSize.width = 2048;
@@ -445,58 +441,51 @@
 
             buildArtGalleryLevel();
             setupInputControls();
-            initDrawingCanvas();
+            initPaintingSystem();
             
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
+                if(paintingCanvas) { paintingCanvas.width = window.innerWidth; paintingCanvas.height = window.innerHeight; }
             }, false);
 
             animate();
         }
 
         function buildArtGalleryLevel() {
-            // 地板 (木紋風格)
-            const floorGeo = new THREE.PlaneGeometry(120, 120);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.9 });
+            // 美術館木地板
+            const floorGeo = new THREE.PlaneGeometry(150, 150);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a3b2c, roughness: 0.8 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.receiveShadow = true;
-            scene.add(floor);
-            environmentObjects.push(floor);
+            scene.add(floor); environmentObjects.push(floor);
 
-            // 外牆
             const wallMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
-            const w1 = new THREE.Mesh(new THREE.BoxGeometry(120, 30, 2), wallMat); w1.position.set(0, 15, 60); scene.add(w1); environmentObjects.push(w1);
-            const w2 = new THREE.Mesh(new THREE.BoxGeometry(120, 30, 2), wallMat); w2.position.set(0, 15, -60); scene.add(w2); environmentObjects.push(w2);
-            const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 120), wallMat); w3.position.set(60, 15, 0); scene.add(w3); environmentObjects.push(w3);
-            const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 120), wallMat); w4.position.set(-60, 15, 0); scene.add(w4); environmentObjects.push(w4);
+            const w1 = new THREE.Mesh(new THREE.BoxGeometry(150, 30, 2), wallMat); w1.position.set(0, 15, 75); scene.add(w1); environmentObjects.push(w1);
+            const w2 = new THREE.Mesh(new THREE.BoxGeometry(150, 30, 2), wallMat); w2.position.set(0, 15, -75); scene.add(w2); environmentObjects.push(w2);
+            const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 150), wallMat); w3.position.set(75, 15, 0); scene.add(w3); environmentObjects.push(w3);
+            const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 150), wallMat); w4.position.set(-75, 15, 0); scene.add(w4); environmentObjects.push(w4);
 
-            // 畫廊展廳隔間與名畫 (色塊拼圖)
-            const colors = [0xff3333, 0x3333ff, 0x33ff33, 0xffff33, 0xffffff, 0x222222, 0xff9933, 0x8b5a2b, 0x4ade80, 0xc084fc];
-            
-            for(let k=0; k<4; k++) {
-                const partitionMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
-                const partition = new THREE.Mesh(new THREE.BoxGeometry(40, 20, 2), partitionMat);
-                partition.position.set((Math.random()-0.5)*60, 10, (Math.random()-0.5)*60);
+            // 隨機隔間與名畫區
+            const colors = [0xff3333, 0x3333ff, 0x33ff33, 0xffff33, 0xffffff, 0x000000, 0xff9933, 0x8b5a2b, 0x4ade80, 0xc084fc];
+            for(let k=0; k<8; k++) {
+                const partitionMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // 白牆最適合躲藏
+                const partition = new THREE.Mesh(new THREE.BoxGeometry(30, 20, 2), partitionMat);
+                partition.position.set((Math.random()-0.5)*100, 10, (Math.random()-0.5)*100);
                 partition.rotation.y = Math.random() > 0.5 ? 0 : Math.PI/2;
                 partition.castShadow = true; partition.receiveShadow = true;
-                scene.add(partition);
-                environmentObjects.push(partition);
+                scene.add(partition); environmentObjects.push(partition);
 
-                // 在隔板上掛畫 (供躲藏者融入)
                 for(let p=0; p<2; p++) {
-                    const frame = new THREE.Mesh(new THREE.BoxGeometry(6, 8, 2.2), new THREE.MeshStandardMaterial({color:0x333333}));
-                    frame.position.copy(partition.position);
-                    frame.rotation.y = partition.rotation.y;
-                    frame.position.x += (Math.random()-0.5)*15;
-                    frame.position.y += (Math.random()-0.5)*2;
+                    const frame = new THREE.Mesh(new THREE.BoxGeometry(10, 12, 2.2), new THREE.MeshStandardMaterial({color:0x221100}));
+                    frame.position.copy(partition.position); frame.rotation.y = partition.rotation.y;
+                    frame.position.y += (Math.random()-0.5)*3;
                     scene.add(frame); environmentObjects.push(frame);
 
-                    const canvas = new THREE.Mesh(new THREE.PlaneGeometry(5, 7), new THREE.MeshStandardMaterial({color: colors[Math.floor(Math.random()*colors.length)]}));
-                    canvas.position.copy(frame.position);
-                    canvas.rotation.y = frame.rotation.y;
+                    const canvas = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 10.5), new THREE.MeshStandardMaterial({color: colors[Math.floor(Math.random()*colors.length)]}));
+                    canvas.position.copy(frame.position); canvas.rotation.y = frame.rotation.y;
                     if(partition.rotation.y === 0) canvas.position.z += (p===0? 1.15 : -1.15);
                     else canvas.position.x += (p===0? 1.15 : -1.15);
                     if(p===1) canvas.rotation.y += Math.PI;
@@ -504,198 +493,195 @@
                 }
             }
 
-            // 散落雕像/障礙物
-            for(let i=0; i<30; i++) {
-                const isCylinder = Math.random() > 0.5;
-                const geo = isCylinder ? new THREE.CylinderGeometry(1.5, 1.5, 4) : new THREE.BoxGeometry(3, 4, 3);
+            // 雕像與障礙物 (供玩家假裝)
+            for(let i=0; i<40; i++) {
+                const geo = Math.random() > 0.5 ? new THREE.CylinderGeometry(1.5, 1.5, 4) : new THREE.BoxGeometry(3, 4, 3);
                 const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)] });
                 const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set((Math.random() - 0.5) * 100, 2, (Math.random() - 0.5) * 100);
+                mesh.position.set((Math.random() - 0.5) * 120, 2, (Math.random() - 0.5) * 120);
                 mesh.castShadow = true; mesh.receiveShadow = true;
-                scene.add(mesh);
-                environmentObjects.push(mesh);
+                scene.add(mesh); environmentObjects.push(mesh);
             }
         }
 
-        function createHumanoidMesh(roleType = 'hider', customTex = null) {
+        //        // 為了讓一個 CanvasTexture 套用到全身且不會互相干擾，我們必須自訂各部位的 UV。
+        function mapUVs(geometry, offsetX, offsetY, scaleX, scaleY) {
+            const uvAttribute = geometry.attributes.uv;
+            for (let i = 0; i < uvAttribute.count; i++) {
+                let u = uvAttribute.getX(i); let v = uvAttribute.getY(i);
+                uvAttribute.setXY(i, offsetX + u * scaleX, offsetY + v * scaleY);
+            }
+        }
+
+        function createChameleonMesh(roleType = 'hider', customTex = null) {
             const group = new THREE.Group();
             let material;
             if(roleType === 'seeker') {
                 material = new THREE.MeshStandardMaterial({ color: 0xff1111, emissive: 0xaa0000, roughness: 0.2 });
             } else {
-                material = new THREE.MeshStandardMaterial({ color: 0xffffff });
-                if(customTex) material.map = customTex;
+                // 變色龍特徵：純白、光滑塑膠感
+                material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0 });
+                if(customTex) { material.map = customTex; material.color.setHex(0xffffff); }
             }
 
-            // 頭 (Index 0)
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), material);
-            head.position.y = 1.4; head.castShadow = true; group.add(head);
+            // 建立身體部位，並將 512x512 的畫布切成 6 個區塊進行 UV 映射
+            const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8); mapUVs(headGeo, 0, 0.5, 0.33, 0.5);
+            const head = new THREE.Mesh(headGeo, material); head.position.y = 1.4; head.castShadow = true; head.name="Head"; group.add(head);
             
-            // 尋找者配件
-            if(roleType === 'seeker') {
-                const eyes = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 0.85), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
-                eyes.position.y = 1.4; group.add(eyes);
-                const spot = new THREE.SpotLight(0xff5555, 2.0, 40, Math.PI/5, 0.5, 1);
-                spot.position.set(0, 1.4, 0); spot.target.position.set(0, 0, -5);
-                group.add(spot); group.add(spot.target);
+            // 變色龍大眼睛
+            if(roleType !== 'seeker') {
+                const eyeGeo = new THREE.SphereGeometry(0.2, 16, 16);
+                const eyeMat = new THREE.MeshBasicMaterial({color: 0x000000});
+                const lEye = new THREE.Mesh(eyeGeo, eyeMat); lEye.position.set(-0.4, 0, 0); head.add(lEye);
+                const rEye = new THREE.Mesh(eyeGeo, eyeMat); rEye.position.set(0.4, 0, 0); head.add(rEye);
             }
 
-            // 身體 (Index 1)
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.6), material);
-            body.position.y = 0.4; body.castShadow = true; group.add(body);
+            const bodyGeo = new THREE.BoxGeometry(1, 1.2, 0.6); mapUVs(bodyGeo, 0.33, 0.5, 0.33, 0.5);
+            const body = new THREE.Mesh(bodyGeo, material); body.position.y = 0.4; body.castShadow = true; body.name="Body"; group.add(body);
 
-            // 四肢 (Index 2,3,4,5)
-            const limbGeo = new THREE.BoxGeometry(0.3, 1, 0.3);
-            const lArm = new THREE.Mesh(limbGeo, material); lArm.position.set(-0.7, 0.4, 0); lArm.castShadow = true; group.add(lArm);
-            const rArm = new THREE.Mesh(limbGeo, material); rArm.position.set(0.7, 0.4, 0); rArm.castShadow = true; group.add(rArm);
-            const lLeg = new THREE.Mesh(limbGeo, material); lLeg.position.set(-0.25, -0.7, 0); lLeg.castShadow = true; group.add(lLeg);
-            const rLeg = new THREE.Mesh(limbGeo, material); rLeg.position.set(0.25, -0.7, 0); rLeg.castShadow = true; group.add(rLeg);
+            // 捲曲尾巴
+            if(roleType !== 'seeker') {
+                const tailGeo = new THREE.TorusGeometry(0.25, 0.1, 8, 16, Math.PI * 1.5); mapUVs(tailGeo, 0.66, 0.5, 0.33, 0.5);
+                const tail = new THREE.Mesh(tailGeo, material); tail.position.set(0, -0.4, -0.4); tail.rotation.y = Math.PI/2; tail.name="Tail"; body.add(tail);
+            }
+
+            const armGeo = new THREE.BoxGeometry(0.3, 1, 0.3);
+            const lArmGeo = armGeo.clone(); mapUVs(lArmGeo, 0, 0, 0.25, 0.5);
+            const lArm = new THREE.Mesh(lArmGeo, material); lArm.position.set(-0.7, 0.4, 0); lArm.name="LArm"; group.add(lArm);
+            
+            const rArmGeo = armGeo.clone(); mapUVs(rArmGeo, 0.25, 0, 0.25, 0.5);
+            const rArm = new THREE.Mesh(rArmGeo, material); rArm.position.set(0.7, 0.4, 0); rArm.name="RArm"; group.add(rArm);
+            
+            const lLegGeo = armGeo.clone(); mapUVs(lLegGeo, 0.5, 0, 0.25, 0.5);
+            const lLeg = new THREE.Mesh(lLegGeo, material); lLeg.position.set(-0.25, -0.7, 0); lLeg.name="LLeg"; group.add(lLeg);
+            
+            const rLegGeo = armGeo.clone(); mapUVs(rLegGeo, 0.75, 0, 0.25, 0.5);
+            const rLeg = new THREE.Mesh(rLegGeo, material); rLeg.position.set(0.25, -0.7, 0); rLeg.name="RLeg"; group.add(rLeg);
 
             return group;
         }
 
-        function spawnLocalPlayer() {
-            if(localPlayerGroup) playerRig.remove(localPlayerGroup);
-            localPlayerGroup = createHumanoidMesh(selectedRole, skinTexture);
-            playerRig.add(localPlayerGroup);
-            toggleCamera(isThirdPerson);
-            updateHUDStats();
+        //        const poses = [
+            { name: '站立', root: [0,0,0], rot: [0,0,0], limbs: [[0,0,0],[0,0,0],[0,0,0],[0,0,0]] },
+            { name: '縮成球', root: [0,-0.6,0], rot: [Math.PI/4,0,0], limbs: [[-1,0,0],[-1,0,0],[-1.5,0,0],[-1.5,0,0]] },
+            { name: '大字趴牆', root: [0,0,0.4], rot: [0,0,0], limbs: [[0,0,0.5],[0,0,-0.5],[0,0,0.5],[0,0,-0.5]] }, // 需配合視角面牆
+            { name: '倒立', root: [0,1.5,0], rot: [Math.PI,0,0], limbs: [[Math.PI,0,0],[Math.PI,0,0],[0,0,0],[0,0,0]] },
+            { name: '側躺', root: [0,-0.8,0], rot: [0,0,Math.PI/2], limbs: [[0,0,0],[0,0,0],[0,0,0],[0,0,0]] },
+            { name: '下跪抱頭', root: [0,-0.5,0], rot: [0,0,0], limbs: [[Math.PI,0,Math.PI/4],[Math.PI,0,-Math.PI/4],[-Math.PI/2,0,0],[-Math.PI/2,0,0]] }
+        ];
+        let currentPoseIndex = 0;
+
+        function applyPose(group, pIndex) {
+            if(!group || pIndex === 0) return; // 0 是走路狀態，由動畫控制
+            const p = poses[pIndex];
+            group.position.set(p.root[0], p.root[1], p.root[2]);
+            group.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
+            group.children.forEach(c => {
+                if(c.name==="LArm") c.rotation.set(...p.limbs[0]);
+                if(c.name==="RArm") c.rotation.set(...p.limbs[1]);
+                if(c.name==="LLeg") c.rotation.set(...p.limbs[2]);
+                if(c.name==="RLeg") c.rotation.set(...p.limbs[3]);
+            });
         }
 
-        function toggleCamera(forceThirdPerson = null) {
-            if(forceThirdPerson !== null) isThirdPerson = forceThirdPerson;
-            else isThirdPerson = !isThirdPerson;
+        //        let isPaintingMode = false;
+        let paintCanvas, paintCtx, paintTexture;
+        let brushSize = 20;
+        let brushColor = '#000000';
+        let orbitAngleX = 0, orbitAngleY = 0; // 噴漆時環繞相機
+        let isPickingColor = false;
+        let isAdjustingBrush = false;
+
+        function initPaintingSystem() {
+            paintCanvas = document.createElement('canvas');
+            paintCanvas.width = 512; paintCanvas.height = 512;
+            paintCtx = paintCanvas.getContext('2d');
+            paintCtx.fillStyle = '#ffffff'; paintCtx.fillRect(0,0,512,512);
             
-            if (isThirdPerson) {
-                camera.position.set(0, 2.5, 6); // 稍微拉遠以便觀察偽裝
-                if(localPlayerGroup) localPlayerGroup.visible = true;
+            paintTexture = new THREE.CanvasTexture(paintCanvas);
+            // 關閉 mipmap 避免邊緣模糊，保持純粹色塊
+            paintTexture.generateMipmaps = false; 
+            paintTexture.minFilter = THREE.LinearFilter;
+
+            document.getElementById('btn-clear-paint').onclick = () => {
+                paintCtx.fillStyle = '#ffffff'; paintCtx.fillRect(0,0,512,512);
+                if(paintTexture) paintTexture.needsUpdate = true;
+                syncStateWithServer(true);
+            };
+        }
+
+        function togglePaintingMode() {
+            if(selectedRole === 'seeker' || gameState === 'gameover') return;
+            isPaintingMode = !isPaintingMode;
+            
+            if(isPaintingMode) {
+                document.getElementById('painting-hud').style.display = 'block';
+                document.getElementById('ui-crosshair').classList.add('hidden');
+                document.getElementById('brush-cursor').style.display = 'block';
+                document.getElementById('brush-cursor').style.width = brushSize*2 + 'px';
+                document.getElementById('brush-cursor').style.height = brushSize*2 + 'px';
+                
+                // 相機拉遠觀看全身
+                orbitAngleX = 0; orbitAngleY = 0;
+                updatePaintCamera();
+                if(localPlayerGroup) localPlayerGroup.visible = true; // 強制顯示自身
             } else {
+                document.getElementById('painting-hud').style.display = 'none';
+                document.getElementById('ui-crosshair').classList.remove('hidden');
+                document.getElementById('brush-cursor').style.display = 'none';
+                
+                // 恢復第一人稱
                 camera.position.set(0, 1.4, 0.2);
+                camera.rotation.set(0,0,0);
                 if(localPlayerGroup) localPlayerGroup.visible = false;
-            }
-            camera.rotation.set(0,0,0); 
-        }
-
-        function initDrawingCanvas() {
-            skinCanvas = document.getElementById('skinCanvas');
-            skinCtx = skinCanvas.getContext('2d');
-            skinCtx.fillStyle = '#ffffff'; skinCtx.fillRect(0, 0, 128, 128);
-            
-            skinTexture = new THREE.CanvasTexture(skinCanvas);
-            skinTexture.magFilter = THREE.NearestFilter; 
-            
-            const defaultColors = ['#ffffff', '#ff3333', '#3333ff', '#33ff33', '#ffff33', '#222222', '#5c4033'];
-            const palette = document.getElementById('color-palette');
-            defaultColors.forEach(c => addColorToPalette(c));
-
-            skinCanvas.addEventListener('mousedown', (e) => { isPainting = true; drawOnSkin(e); });
-            skinCanvas.addEventListener('mousemove', drawOnSkin);
-            skinCanvas.addEventListener('mouseup', () => { isPainting = false; skinCtx.beginPath(); updateSkinTexture(); });
-            skinCanvas.addEventListener('mouseleave', () => { isPainting = false; skinCtx.beginPath(); });
-
-            document.getElementById('btn-clear-draw').onclick = () => {
-                skinCtx.fillStyle = brushColor; skinCtx.fillRect(0, 0, 128, 128); updateSkinTexture();
-            };
-            document.getElementById('btn-finish-draw').onclick = toggleDrawingMode;
-        }
-        
-        function addColorToPalette(color) {
-            const palette = document.getElementById('color-palette');
-            const btn = document.createElement('div');
-            btn.className = 'color-btn';
-            btn.style.backgroundColor = color;
-            if(color === brushColor) btn.classList.add('active');
-            btn.onclick = () => {
-                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                brushColor = color;
-            };
-            palette.appendChild(btn);
-        }
-
-        function drawOnSkin(e) {
-            if(!isPainting) return;
-            const rect = skinCanvas.getBoundingClientRect();
-            const scaleX = skinCanvas.width / rect.width;
-            const scaleY = skinCanvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-
-            skinCtx.lineWidth = 15; skinCtx.lineCap = 'round'; skinCtx.strokeStyle = brushColor;
-            skinCtx.lineTo(x, y); skinCtx.stroke();
-            skinCtx.beginPath(); skinCtx.moveTo(x, y);
-            if(skinTexture) skinTexture.needsUpdate = true;
-        }
-
-        function updateSkinTexture() {
-            if(skinTexture) skinTexture.needsUpdate = true;
-            skinBase64Cache = skinCanvas.toDataURL('image/jpeg', 0.5);
-            syncStateWithServer(true); 
-        }
-
-        function toggleDrawingMode() {
-            if(gameState !== 'playing' && gameState !== 'prep') return;
-            if(selectedRole === 'seeker') return;
-            isDrawingMode = !isDrawingMode;
-            const ui = document.getElementById('drawing-ui');
-            if(isDrawingMode) {
-                document.exitPointerLock(); ui.classList.remove('hidden');
-            } else {
-                ui.classList.add('hidden'); document.body.requestPointerLock();
+                syncStateWithServer(true);
             }
         }
 
-        // 高階吸色滴管
-        function useEyedropper() {
-            if(selectedRole === 'seeker') return;
-            const raycaster = new THREE.Raycaster();
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(environmentObjects, false);
-            
-            if (intersects.length > 0) {
-                const obj = intersects[0].object;
-                if(obj.material && obj.material.color) {
-                    const hexColor = '#' + obj.material.color.getHexString();
-                    brushColor = hexColor;
-                    document.getElementById('picked-color-display').style.background = hexColor;
-                    
-                    // 動態加入調色盤
-                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-                    addColorToPalette(hexColor);
-                    
-                    showStatusText("已吸取顏色!", "#4ade80");
-                }
-            }
+        function updatePaintCamera() {
+            const dist = 3.5;
+            camera.position.x = dist * Math.sin(orbitAngleX) * Math.cos(orbitAngleY);
+            camera.position.y = dist * Math.sin(orbitAngleY) + 0.5;
+            camera.position.z = dist * Math.cos(orbitAngleX) * Math.cos(orbitAngleY);
+            camera.lookAt(0, 0.5, 0);
         }
 
-        function selectRole(role) {
-            selectedRole = role;
-            document.getElementById('btn-role-hider').className = role === 'hider' ? "px-6 py-2 rounded-full border-2 border-green-400 bg-green-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
-            document.getElementById('btn-role-seeker').className = role === 'seeker' ? "px-6 py-2 rounded-full border-2 border-red-400 bg-red-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
-        }
-        function selectMode(mode) {
-            selectedMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
-        }
+        //        let isMouseDownLeft = false;
+        let isMouseDownRight = false;
+        let lastMouseX = window.innerWidth/2, lastMouseY = window.innerHeight/2;
 
         function setupInputControls() {
             const onKeyDown = function ( event ) {
                 if(gameState === 'start' || gameState === 'gameover') return;
-                switch ( event.code ) {
-                    case 'ArrowUp': case 'KeyW': moveForward = true; break;
-                    case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
-                    case 'ArrowDown': case 'KeyS': moveBackward = true; break;
-                    case 'ArrowRight': case 'KeyD': moveRight = true; break;
-                    case 'KeyV': if(!isDrawingMode) toggleCamera(); break;
-                    case 'KeyQ': toggleDrawingMode(); break;
-                    case 'KeyE': if(!isDrawingMode) useEyedropper(); break;
-                    case 'KeyZ': togglePose(); break;
-                    case 'KeyT': emitTaunt(); break;
+                
+                if (event.code === 'Space') isPickingColor = true;
+
+                if(!isPaintingMode) {
+                    switch ( event.code ) {
+                        case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                        case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                        case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                        case 'ArrowRight': case 'KeyD': moveRight = true; break;
+                        case 'KeyF': togglePaintingMode(); break;
+                        case 'KeyR': 
+                            if(selectedRole === 'hider') {
+                                currentPoseIndex = (currentPoseIndex + 1) % poses.length;
+                                showStatusText(`切換姿勢: ${poses[currentPoseIndex].name}`, "#4ade80");
+                                syncStateWithServer(true);
+                            }
+                            break;
+                        case 'KeyT': emitTaunt(); break;
+                    }
+                } else {
+                    if (event.code === 'KeyF') togglePaintingMode();
                 }
             };
 
             const onKeyUp = function ( event ) {
+                if (event.code === 'Space') { 
+                    isPickingColor = false; 
+                    document.getElementById('brush-cursor').style.borderColor = `rgba(255,255,255,0.8)`;
+                }
                 switch ( event.code ) {
                     case 'ArrowUp': case 'KeyW': moveForward = false; break;
                     case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
@@ -708,10 +694,33 @@
             document.addEventListener( 'keyup', onKeyUp );
 
             document.addEventListener('mousemove', (e) => {
-                if (document.pointerLockElement === document.body && (gameState === 'playing' || gameState === 'prep') && !isDrawingMode) {
-                    const movementX = e.movementX || 0;
-                    const movementY = e.movementY || 0;
-                    
+                if(gameState === 'start' || gameState === 'gameover') return;
+
+                if (isPaintingMode) {
+                    // 噴漆模式下的滑鼠控制
+                    const brushUI = document.getElementById('brush-cursor');
+                    brushUI.style.left = e.clientX + 'px';
+                    brushUI.style.top = e.clientY + 'px';
+
+                    if (isAdjustingBrush) {
+                        const deltaX = e.clientX - lastMouseX;
+                        brushSize = Math.max(5, Math.min(100, brushSize + deltaX * 0.5));
+                        brushUI.style.width = brushSize*2 + 'px'; brushUI.style.height = brushSize*2 + 'px';
+                    } else if (isPickingColor || (!isMouseDownLeft && !isMouseDownRight)) {
+                        // 自由旋轉模型視角
+                        const deltaX = e.movementX || 0; const deltaY = e.movementY || 0;
+                        orbitAngleX -= deltaX * 0.005;
+                        orbitAngleY += deltaY * 0.005;
+                        orbitAngleY = Math.max(-Math.PI/2.2, Math.min(Math.PI/2.2, orbitAngleY));
+                        updatePaintCamera();
+                    } else if (isMouseDownLeft && !isPickingColor) {
+                        perform3DPainting(e.clientX, e.clientY);
+                    }
+                    lastMouseX = e.clientX; lastMouseY = e.clientY;
+
+                } else if (document.pointerLockElement === document.body) {
+                    // 第一人稱視角控制
+                    const movementX = e.movementX || 0; const movementY = e.movementY || 0;
                     euler.setFromQuaternion( playerRig.quaternion );
                     euler.y -= movementX * 0.002;
                     playerRig.quaternion.setFromEuler( new THREE.Euler(0, euler.y, 0, 'YXZ') );
@@ -724,78 +733,87 @@
                 }
             });
 
-            document.body.addEventListener('click', (e) => {
-                if(e.target.closest('#auth-container') || e.target.closest('#drawing-ui') || e.target.closest('.overlay')) return;
+            document.body.addEventListener('mousedown', (e) => {
+                if(e.target.closest('#auth-container') || e.target.closest('.overlay') || e.target.closest('#painting-hud')) return;
                 
-                if((gameState === 'playing' || gameState === 'prep') && !isDrawingMode) {
+                if (isPaintingMode) {
+                    if(e.button === 0) {
+                        isMouseDownLeft = true;
+                        if(isPickingColor) pickColorFromEnvironment(e.clientX, e.clientY);
+                        else perform3DPainting(e.clientX, e.clientY);
+                    } else if (e.button === 2) {
+                        isMouseDownRight = true; isAdjustingBrush = true;
+                        lastMouseX = e.clientX; lastMouseY = e.clientY;
+                    }
+                } else {
                     document.body.requestPointerLock();
-                    
-                    // 尋找者攻擊判定
-                    if(selectedRole === 'seeker' && gameState === 'playing') attemptCatch();
+                    if(selectedRole === 'seeker' && gameState === 'playing' && e.button === 0) attemptCatch();
                 }
             });
+
+            document.body.addEventListener('mouseup', (e) => {
+                if(e.button === 0) { isMouseDownLeft = false; if(isPaintingMode && paintTexture) paintTexture.needsUpdate = true; }
+                if(e.button === 2) { isMouseDownRight = false; isAdjustingBrush = false; }
+            });
+            document.addEventListener('contextmenu', e => e.preventDefault());
 
             document.getElementById('start-btn').addEventListener('click', startGame);
             document.getElementById('restart-btn').addEventListener('click', () => { window.location.reload(); });
         }
 
-        // 縮骨變形機制 (按 Z 鍵)
-        function togglePose() {
-            if(selectedRole === 'seeker' || !localPlayerGroup) return;
-            isPosed = !isPosed;
-            if(isPosed) {
-                localPlayerGroup.scale.set(1, 0.4, 1); // 壓扁
-                localPlayerGroup.position.y = -0.5; // 貼地
-                showStatusText("已蜷縮隱蔽", "#4ade80");
-            } else {
-                localPlayerGroup.scale.set(1, 1, 1);
-                localPlayerGroup.position.y = 0;
-                showStatusText("恢復站立", "#fff");
-            }
-            syncStateWithServer(true);
-        }
-
-        // 嘲諷機制 (高風險高報酬)
-        function emitTaunt() {
-            if(selectedRole === 'seeker') return;
-            showStatusText("吹口哨~ (位置已暴露)", "#fbbf24");
-            hiderScore += 50; // 嘲諷獎勵
-            updateHUDStats();
-            playTauntEffect(playerRig.position);
+        //        function pickColorFromEnvironment(clientX, clientY) {
+            const mouse = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
             
-            if(window.socket && window.socket.connected) {
-                window.socket.emit('appData', {
-                    room: appId, action: 'taunt', sourceId: window.socket.id,
-                    position: { x: playerRig.position.x, y: playerRig.position.y, z: playerRig.position.z }
-                });
+            // 忽略自己的模型，只吸取環境
+            const intersects = raycaster.intersectObjects(environmentObjects, false);
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                if(obj.material && obj.material.color) {
+                    brushColor = '#' + obj.material.color.getHexString();
+                    document.getElementById('brush-cursor').style.borderColor = brushColor;
+                    document.getElementById('brush-cursor').style.backgroundColor = brushColor;
+                    setTimeout(()=> document.getElementById('brush-cursor').style.backgroundColor = 'transparent', 200);
+                }
             }
         }
-        
-        function playTauntEffect(pos) {
-            // 產生一個擴散的圈圈視覺特效
-            const ring = new THREE.Mesh(
-                new THREE.RingGeometry(0.1, 0.5, 32),
-                new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true })
-            );
-            ring.position.set(pos.x, pos.y + 2, pos.z);
-            ring.rotation.x = Math.PI/2;
-            scene.add(ring);
+
+        function perform3DPainting(clientX, clientY) {
+            if(!localPlayerGroup) return;
+            const mouse = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
             
-            let scale = 1;
-            const anim = setInterval(() => {
-                scale += 0.2; ring.scale.set(scale, scale, 1);
-                ring.material.opacity -= 0.05;
-                if(ring.material.opacity <= 0) { clearInterval(anim); scene.remove(ring); }
-            }, 50);
+            // 射線檢測「自身模型」
+            const intersects = raycaster.intersectObject(localPlayerGroup, true);
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                if(hit.uv) {
+                    // 將 3D UV 轉為 Canvas 座標
+                    const texX = hit.uv.x * 512;
+                    const texY = (1 - hit.uv.y) * 512; 
+                    
+                    paintCtx.fillStyle = brushColor;
+                    paintCtx.beginPath();
+                    // 根據筆刷大小與貼圖比例繪製圓形
+                    paintCtx.arc(texX, texY, brushSize * (512/window.innerWidth), 0, Math.PI*2);
+                    paintCtx.fill();
+                    paintTexture.needsUpdate = true;
+                }
+            }
         }
 
-        function attemptCatch() {
+        //        function attemptCatch() {
             if(attackCooldown > 0) return;
             
-            attackCooldown = 1.5; // 1.5秒冷卻
-            const crosshair = document.getElementById('ui-crosshair');
-            crosshair.classList.add('cooldown');
-            setTimeout(() => crosshair.classList.remove('cooldown'), 1500);
+            attackCooldown = 0.5; // 冷卻 0.5 秒
+            const svg = document.getElementById('shotgun-cooldown-svg');
+            const circle = svg.querySelector('.cooldown-circle');
+            svg.style.display = 'block';
+            circle.style.strokeDashoffset = 157;
+            setTimeout(() => circle.style.strokeDashoffset = 0, 10); // 動畫
+            setTimeout(() => svg.style.display = 'none', 500);
 
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
@@ -819,20 +837,77 @@
                     applySeekerPenalty();
                 }
             } else {
-                applySeekerPenalty(); // 打空也扣血
+                applySeekerPenalty(); 
             }
         }
         
         function applySeekerPenalty() {
-            seekerHP -= 20; // 盲猜扣血
+            seekerHP -= 25; 
             updateHUDStats();
+            document.body.classList.add('screen-shake');
             document.getElementById('damage-overlay').style.opacity = 1;
-            setTimeout(() => document.getElementById('damage-overlay').style.opacity = 0, 200);
+            setTimeout(() => {
+                document.body.classList.remove('screen-shake');
+                document.getElementById('damage-overlay').style.opacity = 0;
+            }, 300);
             
             if(seekerHP <= 0) {
-                showStatusText("盲猜過度，你累死了", "#ff3333");
-                endGame("尋找者因過度疲勞出局");
+                showStatusText("盲猜扣光生命，你炸了！", "#ff3333");
+                if(window.socket) window.socket.emit('appData', { room: appId, action: 'playerShattered', targetId: window.socket.id, position: playerRig.position, role: 'seeker' });
+                playShatterEffect(playerRig.position, 'seeker');
+                endGame("你盲目開火導致槍枝炸膛死亡！");
             }
+        }
+
+        //        function playShatterEffect(pos, role) {
+            const color = role === 'seeker' ? 0xff0000 : 0xffffff;
+            const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+            const mat = new THREE.MeshStandardMaterial({color: color, roughness: 0.5});
+            
+            for(let i=0; i<30; i++) {
+                const p = new THREE.Mesh(geo, mat);
+                p.position.copy(pos); p.position.y += Math.random()*1.5;
+                const v = new THREE.Vector3((Math.random()-0.5)*10, Math.random()*10, (Math.random()-0.5)*10);
+                scene.add(p);
+                particlesArray.push({ mesh: p, velocity: v, age: 0 });
+            }
+            // 碎裂音效模擬 (視覺強烈震動)
+            document.body.classList.add('screen-shake');
+            setTimeout(() => document.body.classList.remove('screen-shake'), 300);
+        }
+
+        function emitTaunt() {
+            if(selectedRole === 'seeker' || gameState !== 'playing') return;
+            showStatusText("吹口哨~ (位置已暴露)", "#fbbf24");
+            hiderScore += 100; updateHUDStats();
+            playTauntEffect(playerRig.position);
+            
+            if(window.socket && window.socket.connected) {
+                window.socket.emit('appData', { room: appId, action: 'taunt', sourceId: window.socket.id, position: playerRig.position });
+            }
+        }
+        
+        function playTauntEffect(pos) {
+            const ring = new THREE.Mesh( new THREE.RingGeometry(0.1, 0.5, 32), new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true }) );
+            ring.position.set(pos.x, pos.y + 1, pos.z); ring.rotation.x = Math.PI/2;
+            scene.add(ring);
+            
+            let scale = 1;
+            const anim = setInterval(() => {
+                scale += 0.3; ring.scale.set(scale, scale, 1); ring.material.opacity -= 0.05;
+                if(ring.material.opacity <= 0) { clearInterval(anim); scene.remove(ring); }
+            }, 50);
+        }
+
+        //        function selectRole(role) {
+            selectedRole = role;
+            document.getElementById('btn-role-hider').className = role === 'hider' ? "px-6 py-2 rounded-full border-2 border-green-400 bg-green-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
+            document.getElementById('btn-role-seeker').className = role === 'seeker' ? "px-6 py-2 rounded-full border-2 border-red-400 bg-red-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
+        }
+        function selectMode(mode) {
+            selectedMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
         }
 
         function startGame() {
@@ -840,28 +915,38 @@
             document.getElementById('ui-layer').classList.remove('hidden');
             document.body.requestPointerLock();
             
-            hiderScore = 0; seekerHP = 100; isPosed = false;
+            hiderScore = 0; exposureTime = 0; seekerHP = 100; currentPoseIndex = 0; isPaintingMode = false;
             
-            // 進入準備期 (安全期)
             gameState = 'prep';
             gameTime = prepTimeLimit; 
             
+            if(localPlayerGroup) playerRig.remove(localPlayerGroup);
+            localPlayerGroup = createChameleonMesh(selectedRole, paintTexture);
+            playerRig.add(localPlayerGroup);
+            localPlayerGroup.visible = false; // 第一人稱隱藏自己
+            camera.position.set(0, 1.4, 0.2); camera.rotation.set(0,0,0);
+
             if(selectedRole === 'seeker') {
                 document.getElementById('instruction-seeker').classList.add('hidden');
                 document.getElementById('instruction-hider').classList.add('hidden');
-                document.getElementById('blind-overlay').style.opacity = 1; // 蒙蔽視線
+                document.getElementById('blind-overlay').style.opacity = 1;
                 playerRig.position.set(0, playerHeight, 0);
+                
+                // 尋找者的手電筒
+                seekerSpotlight = new THREE.SpotLight(0xffffff, 1.5, 60, Math.PI/6, 0.3, 1);
+                playerRig.add(seekerSpotlight); playerRig.add(seekerSpotlight.target);
+                seekerSpotlight.position.set(0, 1.4, 0); seekerSpotlight.target.position.set(0, 1.4, -5);
             } else {
                 document.getElementById('instruction-seeker').classList.add('hidden');
                 document.getElementById('instruction-hider').classList.remove('hidden');
                 document.getElementById('blind-overlay').style.opacity = 0;
-                playerRig.position.set((Math.random()-0.5)*80, playerHeight, (Math.random()-0.5)*80);
+                playerRig.position.set((Math.random()-0.5)*100, playerHeight, (Math.random()-0.5)*100);
             }
             
             euler.set(0,0,0); playerRig.quaternion.setFromEuler(new THREE.Euler(0,0,0)); velocity.set(0,0,0);
-            
-            spawnLocalPlayer(); updateSkinTexture(); syncStateWithServer(true);
-            if(window.socket && window.socket.connected) window.socket.emit('logAppMessage', { appId: appId, message: `加入模式: ${selectedMode}`, type: 'info' });
+            syncStateWithServer(true);
+            if(window.socket) window.socket.emit('logAppMessage', { appId: appId, message: `加入模式: ${selectedMode}`, type: 'info' });
+            updateHUDStats();
         }
 
         function switchPhaseToPlaying() {
@@ -869,11 +954,14 @@
             gameTime = playTimeLimit;
             document.getElementById('blind-overlay').style.opacity = 0;
             
-            // 雙重模式(大亂鬥)：時間到所有人強制變鬼
             if(selectedMode === 'double' && selectedRole === 'hider') {
                 selectedRole = 'seeker';
-                spawnLocalPlayer();
-                showStatusText("大亂鬥開始！全體化身尋找者！", "#ff3333");
+                if(localPlayerGroup) playerRig.remove(localPlayerGroup);
+                localPlayerGroup = createChameleonMesh('seeker'); playerRig.add(localPlayerGroup); localPlayerGroup.visible=false;
+                seekerSpotlight = new THREE.SpotLight(0xffffff, 1.5, 60, Math.PI/6, 0.3, 1);
+                playerRig.add(seekerSpotlight); playerRig.add(seekerSpotlight.target);
+                seekerSpotlight.position.set(0, 1.4, 0); seekerSpotlight.target.position.set(0, 1.4, -5);
+                showStatusText("大亂鬥！全體化身尋找者！", "#ff3333");
             }
 
             if(selectedRole === 'seeker') {
@@ -883,18 +971,23 @@
         }
 
         function handleCaughtBySeeker() {
+            if(window.socket) window.socket.emit('appData', { room: appId, action: 'playerShattered', targetId: window.socket.id, position: playerRig.position, role: 'hider' });
+            playShatterEffect(playerRig.position, 'hider');
+            
             if(selectedMode === 'infection') {
-                // 感染模式：變鬼重生
-                selectedRole = 'seeker';
-                seekerHP = 100;
-                spawnLocalPlayer();
-                showStatusText("你被感染了！現在去抓人！", "#ff3333");
-                syncStateWithServer(true);
+                setTimeout(() => {
+                    selectedRole = 'seeker'; seekerHP = 100;
+                    if(localPlayerGroup) playerRig.remove(localPlayerGroup);
+                    localPlayerGroup = createChameleonMesh('seeker'); playerRig.add(localPlayerGroup); localPlayerGroup.visible=false;
+                    seekerSpotlight = new THREE.SpotLight(0xffffff, 1.5, 60, Math.PI/6, 0.3, 1);
+                    playerRig.add(seekerSpotlight); playerRig.add(seekerSpotlight.target);
+                    seekerSpotlight.position.set(0, 1.4, 0); seekerSpotlight.target.position.set(0, 1.4, -5);
+                    showStatusText("你被感染了！", "#ff3333");
+                    syncStateWithServer(true);
+                }, 1000);
             } else {
-                // 經典模式：死亡結算
-                cloudData.timesCaught++;
-                saveGameToCloud();
-                endGame("你被尋找者發現了！");
+                cloudData.timesCaught++; saveGameToCloud();
+                endGame("你被尋找者擊碎了！");
             }
         }
 
@@ -902,22 +995,22 @@
             gameState = 'gameover';
             document.exitPointerLock();
             document.getElementById('ui-layer').classList.add('hidden');
-            document.getElementById('drawing-ui').classList.add('hidden');
             
             if(hiderScore > cloudData.highestScore) cloudData.highestScore = Math.floor(hiderScore);
-            cloudData.gamesPlayed++;
-            saveGameToCloud();
+            cloudData.gamesPlayed++; saveGameToCloud();
             
             document.getElementById('end-reason').innerText = reason;
             document.getElementById('end-score').innerText = Math.floor(hiderScore);
+            document.getElementById('end-time').innerText = Math.floor(exposureTime);
             document.getElementById('game-over-screen').classList.remove('hidden');
         }
 
         function showStatusText(text, color) {
-            const alert = document.getElementById('status-alert');
-            alert.innerText = text; alert.style.color = color;
-            alert.style.opacity = 1;
-            setTimeout(() => alert.style.opacity = 0, 2000);
+            const alert = document.createElement('div');
+            alert.innerText = text; 
+            alert.style.cssText = `position:absolute; top:20%; left:50%; transform:translateX(-50%); color:${color}; font-size:2rem; font-weight:bold; text-shadow:2px 2px 0 #000; z-index:100; animation:floatUp 2s forwards;`;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 2000);
         }
         
         function updateHUDStats() {
@@ -925,26 +1018,32 @@
             if(selectedRole === 'hider') {
                 stats.className = 'stat-hider';
                 document.getElementById('stat-role-title').innerText = "陣營: 躲藏者";
-                document.getElementById('stat-primary').innerHTML = `極限得分: <span class="text-yellow-400">${Math.floor(hiderScore)}</span>`;
-                document.getElementById('stat-secondary').innerText = "越在鬼視線內越久，分數越高";
+                document.getElementById('stat-primary').innerHTML = `Yeah! 得分: <span class="text-yellow-400">${Math.floor(hiderScore)}</span>`;
+                document.getElementById('stat-secondary').innerText = `極限暴露: ${Math.floor(exposureTime)} 秒`;
             } else {
                 stats.className = 'stat-seeker';
                 document.getElementById('stat-role-title').innerText = "陣營: 尋找者";
                 document.getElementById('stat-primary').innerHTML = `生命值: <span class="${seekerHP<40?'text-red-500':'text-green-400'}">${seekerHP} HP</span>`;
-                document.getElementById('stat-secondary').innerText = "盲猜打空將扣除生命值！";
+                document.getElementById('stat-secondary').innerText = "盲猜開火將扣除生命值！";
             }
         }
 
-        // 多人同步機制
-        let otherPlayers = {}; 
+        //        let otherPlayers = {}; 
         let lastSyncTime = 0;
 
         function syncStateWithServer(force = false) {
             if (window.socket && window.socket.connected && (gameState === 'playing' || gameState === 'prep')) {
                 const now = Date.now();
                 if (force || now - lastSyncTime > 100) {
-                    const stateObj = { x: playerRig.position.x, y: playerRig.position.y, z: playerRig.position.z, rotY: playerRig.rotation.y, role: selectedRole, isPosed: isPosed };
-                    if(force && selectedRole === 'hider') stateObj.skinBase64 = skinBase64Cache;
+                    const stateObj = { 
+                        x: playerRig.position.x, y: playerRig.position.y, z: playerRig.position.z, 
+                        rotY: playerRig.rotation.y, role: selectedRole, poseIndex: currentPoseIndex,
+                        isMoving: isMoving
+                    };
+                    // 為了效能，只有 force 時才同步大圖 Base64
+                    if(force && selectedRole === 'hider' && paintCanvas) {
+                        stateObj.skinBase64 = paintCanvas.toDataURL('image/jpeg', 0.5);
+                    }
                     window.socket.emit('syncPlayerState', { room: appId, state: stateObj });
                     lastSyncTime = now;
                 }
@@ -959,7 +1058,7 @@
 
             if(!op || op.role !== pRole) {
                 if(op && op.mesh) scene.remove(op.mesh);
-                const mesh = createHumanoidMesh(pRole);
+                const mesh = createChameleonMesh(pRole);
                 mesh.userData.playerId = p.id; 
                 scene.add(mesh);
                 op = { mesh: mesh, role: pRole, textureCache: '' };
@@ -970,16 +1069,15 @@
                 op.mesh.position.set(p.state.x, p.state.y, p.state.z);
                 op.mesh.rotation.y = p.state.rotY;
                 
-                // 處理其他玩家的縮骨動畫
-                if(p.state.isPosed) { op.mesh.scale.set(1, 0.4, 1); op.mesh.position.y -= 0.5; } 
-                else { op.mesh.scale.set(1, 1, 1); }
+                applyPose(op.mesh, p.state.poseIndex);
+                op.isMoving = p.state.isMoving;
 
                 if(pRole === 'hider' && p.state.skinBase64 && p.state.skinBase64 !== op.textureCache) {
                     op.textureCache = p.state.skinBase64;
                     const img = new Image();
                     img.onload = () => {
-                        const tex = new THREE.Texture(img); tex.magFilter = THREE.NearestFilter; tex.needsUpdate = true;
-                        op.mesh.children.forEach(c => { if(c.isMesh && c.material) { c.material.map = tex; c.material.color.setHex(0xffffff); c.material.needsUpdate = true; } });
+                        const tex = new THREE.Texture(img); tex.minFilter = THREE.LinearFilter; tex.generateMipmaps=false; tex.needsUpdate = true;
+                        op.mesh.children.forEach(c => { if(c.isMesh && c.material) { c.material.map = tex; c.material.needsUpdate = true; } });
                     };
                     img.src = p.state.skinBase64;
                 }
@@ -990,7 +1088,7 @@
             if(otherPlayers[id]) { scene.remove(otherPlayers[id].mesh); delete otherPlayers[id]; }
         }
 
-        let lastTimeUpdate = 0;
+        //        let lastTimeUpdate = 0;
 
         function animate() {
             requestAnimationFrame( animate );
@@ -999,7 +1097,6 @@
 
             if ( attackCooldown > 0 ) attackCooldown -= delta;
 
-            // 計時器邏輯
             if ( time - lastTimeUpdate > 1000 ) {
                 lastTimeUpdate = time;
                 if(gameState === 'prep' || gameState === 'playing') {
@@ -1009,7 +1106,7 @@
                     document.getElementById('time-text').innerText = `${m}:${s}`;
                     
                     if(gameState === 'prep') {
-                        document.getElementById('phase-display').innerText = "準備躲藏...";
+                        document.getElementById('phase-display').innerText = "準備躲藏 (安全期)";
                         if(gameTime <= 0) switchPhaseToPlaying();
                     } else if (gameState === 'playing') {
                         document.getElementById('phase-display').innerText = "狩獵中";
@@ -1018,10 +1115,9 @@
                 }
             }
 
-            if ( (gameState === 'playing' || gameState === 'prep') && !isDrawingMode ) {
-                // 準備期尋找者無法移動
+            if ( (gameState === 'playing' || gameState === 'prep') && !isPaintingMode ) {
                 if(gameState === 'prep' && selectedRole === 'seeker') {
-                    // Do nothing
+                    // Seeker 定身
                 } else {
                     velocity.x -= velocity.x * 10.0 * delta;
                     velocity.z -= velocity.z * 10.0 * delta;
@@ -1029,37 +1125,52 @@
                     direction.x = Number( moveRight ) - Number( moveLeft );
                     direction.normalize();
 
-                    const currentSpeed = isPosed ? speed * 0.3 : speed; // 蹲下變慢
-                    if ( moveForward || moveBackward ) velocity.z -= direction.z * currentSpeed * delta;
-                    if ( moveLeft || moveRight ) velocity.x -= direction.x * currentSpeed * delta;
+                    isMoving = moveForward || moveBackward || moveLeft || moveRight;
+                    
+                    if(isMoving && currentPoseIndex !== 0) {
+                        currentPoseIndex = 0; // 移動自動解除姿勢
+                        showStatusText("解除定格", "#fff");
+                        syncStateWithServer(true);
+                    }
+
+                    if ( moveForward || moveBackward ) velocity.z -= direction.z * speed * delta;
+                    if ( moveLeft || moveRight ) velocity.x -= direction.x * speed * delta;
 
                     playerRig.translateX( velocity.x * delta );
                     playerRig.translateZ( velocity.z * delta );
-
-                    if ( playerRig.position.y < playerHeight ) { velocity.y = 0; playerRig.position.y = playerHeight; }
                     
-                    const bound = 58;
+                    const bound = 73;
                     if(playerRig.position.x > bound) playerRig.position.x = bound;
                     if(playerRig.position.x < -bound) playerRig.position.x = -bound;
                     if(playerRig.position.z > bound) playerRig.position.z = bound;
                     if(playerRig.position.z < -bound) playerRig.position.z = -bound;
                 }
 
-                // 躲藏者的「視線得分」高階機制
+                // Yeah! 高階視線計分機制
                 if(selectedRole === 'hider' && gameState === 'playing') {
                     let isInDangerSight = false;
                     Object.values(otherPlayers).forEach(p => {
                         if(p.role === 'seeker') {
                             const dist = playerRig.position.distanceTo(p.mesh.position);
-                            if(dist < 30) {
-                                // 判斷是否在鬼的面對方向 (簡單的內積計算)
+                            if(dist < 40) {
                                 const dirToMe = playerRig.position.clone().sub(p.mesh.position).normalize();
                                 const seekerLook = new THREE.Vector3(0,0,-1).applyQuaternion(p.mesh.quaternion);
-                                const angle = dirToMe.angleTo(seekerLook);
-                                if(angle < Math.PI / 3) { // 約 60 度視角內
+                                if(dirToMe.angleTo(seekerLook) < Math.PI / 4) { // 約 45 度視角內
                                     isInDangerSight = true;
-                                    // 距離越近分數越高
-                                    hiderScore += (30 - dist) * 0.5 * delta; 
+                                    const scoreGain = (40 - dist) * 2 * delta;
+                                    hiderScore += scoreGain;
+                                    exposureTime += delta;
+                                    
+                                    // 噴出 Yeah 特效
+                                    if(Math.random() < 0.1) {
+                                        const yeah = document.createElement('div');
+                                        yeah.className = 'yeah-text';
+                                        yeah.innerText = `+${Math.floor(scoreGain*10)} Yeah!`;
+                                        yeah.style.left = (Math.random()*40 + 30) + '%';
+                                        yeah.style.top = (Math.random()*40 + 30) + '%';
+                                        document.getElementById('yeah-container').appendChild(yeah);
+                                        setTimeout(()=>yeah.remove(), 1000);
+                                    }
                                 }
                             }
                         }
@@ -1071,27 +1182,35 @@
                         document.getElementById('stat-primary').classList.remove('text-yellow-400');
                     }
                 }
-
-                // 本機手腳動畫
-                if(localPlayerGroup && !isPosed && (Math.abs(velocity.x) > 1 || Math.abs(velocity.z) > 1)) {
-                    const walkCycle = Math.sin(time * 0.015);
-                    localPlayerGroup.children.forEach(c => {
-                        if(c.position.y === 0.4 && c.position.x < 0) c.rotation.x = walkCycle; 
-                        if(c.position.y === 0.4 && c.position.x > 0) c.rotation.x = -walkCycle; 
-                        if(c.position.y < 0 && c.position.x < 0) c.rotation.x = -walkCycle; 
-                        if(c.position.y < 0 && c.position.x > 0) c.rotation.x = walkCycle; 
-                    });
-                }
                 syncStateWithServer();
             }
             
-            // 其他玩家走路動畫
+            // 處理碎裂粒子動畫
+            for(let i=particlesArray.length-1; i>=0; i--) {
+                const p = particlesArray[i];
+                p.velocity.y -= 20 * delta; // 重力
+                p.mesh.position.addScaledVector(p.velocity, delta);
+                p.age += delta;
+                if(p.mesh.position.y < 0) { p.mesh.position.y = 0; p.velocity.y *= -0.5; p.velocity.x *= 0.8; p.velocity.z *= 0.8; }
+                if(p.age > 3) { scene.remove(p.mesh); particlesArray.splice(i, 1); }
+            }
+            
+            // 其他玩家走路動畫 (滑稽僵硬感)
             Object.values(otherPlayers).forEach(op => {
-                if(op.mesh.scale.y < 1) return; // 蹲下不擺動
-                op.mesh.children.forEach(c => {
-                    if(c.position.y === 0.4 && c.position.x < 0) c.rotation.x = Math.sin(time * 0.01);
-                    if(c.position.y === 0.4 && c.position.x > 0) c.rotation.x = -Math.sin(time * 0.01);
-                });
+                if(op.isMoving) {
+                    const walkCycle = Math.sin(time * 0.015);
+                    op.mesh.children.forEach(c => {
+                        if(c.name==="LArm") c.rotation.x = walkCycle; 
+                        if(c.name==="RArm") c.rotation.x = -walkCycle; 
+                        if(c.name==="LLeg") c.rotation.x = -walkCycle; 
+                        if(c.name==="RLeg") c.rotation.x = walkCycle; 
+                    });
+                } else if (!op.isMoving && op.mesh.children[0].rotation.x !== 0) {
+                    // 未套用姿勢時歸零
+                    if(poses[op.mesh.userData.poseIndex || 0].name === '站立') {
+                        op.mesh.children.forEach(c => { if(c.name.includes("Arm") || c.name.includes("Leg")) c.rotation.x = 0; });
+                    }
+                }
             });
 
             renderer.render( scene, camera );
