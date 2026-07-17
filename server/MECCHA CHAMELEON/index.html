@@ -10,21 +10,25 @@
     <title>塗鴉躲貓貓 3D - 史詩模式</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- 引入 Socket.IO -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
     
     <script>
+        // 全域錯誤捕捉與 Tailwind 警告屏蔽
         const originalWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
             originalWarn.apply(console, args);
         };
         window.onerror = function(msg, url, line) { 
-            if (typeof window.socket !== 'undefined' && window.socket.connected) window.socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+            if (typeof window.socket !== 'undefined' && window.socket.connected) {
+                window.socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+            }
         };
         window.addEventListener('unhandledrejection', function(event) {
-            if (typeof window.socket !== 'undefined' && window.socket.connected) window.socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+            if (typeof window.socket !== 'undefined' && window.socket.connected) {
+                window.socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+            }
         });
 
         const appId = window.location.hostname + window.location.pathname;
@@ -77,7 +81,6 @@
         .stat-hider { border-color: #4ade80; }
         .stat-seeker { border-color: #ef4444; }
 
-        /* 傷害/震動 特效 */
         @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); } 20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); } 40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); } 60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); } 80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); } 100% { transform: translate(1px, -2px) rotate(-1deg); } }
         .screen-shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
         
@@ -92,7 +95,6 @@
             display: flex; justify-content: center; align-items: center; color: red; font-size: 3rem; font-weight: bold; transition: opacity 1s;
         }
 
-        /* Yeah! 分數特效 */
         #yeah-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
         .yeah-text {
             position: absolute; font-size: 2rem; font-weight: 900; color: #fbbf24;
@@ -101,7 +103,6 @@
         }
         @keyframes floatUp { 0% { transform: translateY(0) scale(0.5); opacity: 1; } 50% { transform: translateY(-50px) scale(1.2); opacity: 1; } 100% { transform: translateY(-100px) scale(1); opacity: 0; } }
 
-        /* Overlay Screens */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(15, 23, 42, 0.95); display: flex; flex-direction: column;
@@ -164,26 +165,20 @@
         .mode-btn h3 { font-size: 1.2rem; font-weight: bold; margin-bottom: 5px; }
         .mode-btn p { font-size: 0.8rem; color: #cbd5e1; }
         
-        /* 畫圖模式提示UI */
         #painting-hud { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; z-index: 15; border: 2px solid #3b82f6; display: none; text-align: center;}
     </style>
 </head>
 <body>
-    <!-- 跑馬燈區塊 -->
     <div id="notificationBar"><div class="marquee-content" id="notificationMsg"></div></div>
 
-    <!-- 登入/帳號區塊 -->
     <div id="auth-container"></div>
 
-    <!-- 3D Canvas -->
     <div id="gameCanvas"></div>
 
-    <!-- 傷害/蒙蔽 特效層 -->
     <div id="damage-overlay"></div>
     <div id="blind-overlay">準備時間 - 尋找者無法行動</div>
     <div id="yeah-container"></div>
 
-    <!-- 遊戲中 UI Layer -->
     <div id="ui-layer" class="hidden">
         <div class="crosshair" id="ui-crosshair"></div>
         <div id="brush-cursor"></div>
@@ -194,7 +189,7 @@
         
         <div id="painting-hud">
             🎨 變色龍噴漆模式<br>
-            <span class="text-sm text-gray-300">[滑鼠移動] 旋轉全身尋找穿幫破綻 | [空白+左鍵] 吸取環境顏色 | [右鍵拖曳] 筆刷大小 | [左鍵] 噴漆 | [F] 退出</span><br>
+            <span class="text-sm text-gray-300">[滑鼠移動] 旋轉尋找穿幫縫隙 | [空白+左鍵] 吸取環境顏色 | [右鍵拖曳] 筆刷大小 | [左鍵] 噴漆 | [F] 退出</span><br>
             <button id="btn-clear-paint" class="mt-2 bg-red-600 text-white px-4 py-1 rounded hover:bg-red-500 pointer-events-auto">一鍵洗白</button>
         </div>
 
@@ -212,11 +207,10 @@
         <div id="hud-instructions">
             [點擊畫面] 鎖定游標 | [WASD] 移動 <br>
             <span id="instruction-hider" class="text-green-300">[F] 噴漆偽裝 | [R] 切換定格姿勢 | [T] 吹口哨嘲諷</span>
-            <span id="instruction-seeker" class="hidden text-red-400">[左鍵] 散彈槍 (盲猜打空會扣血甚至死亡!)</span>
+            <span id="instruction-seeker" class="hidden text-red-400">[左鍵] 散彈槍 (盲猜打空會扣血甚至炸膛!)</span>
         </div>
     </div>
 
-    <!-- 開始畫面 -->
     <div id="start-screen" class="overlay">
         <h1 class="title-text text-5xl md:text-7xl mb-2 text-center">塗鴉<span class="text-white">躲貓貓</span> <span class="text-3xl text-yellow-400">Epic</span></h1>
         
@@ -243,7 +237,6 @@
         <button id="start-btn" class="btn-play text-white font-bold py-4 px-12 rounded-full text-2xl tracking-wide">進入遊戲</button>
     </div>
 
-    <!-- 遊戲結束畫面 -->
     <div id="game-over-screen" class="overlay hidden">
         <h1 class="title-text text-6xl mb-4" id="end-title">遊戲結束</h1>
         <p class="text-white text-2xl mb-4" id="end-reason">結算中...</p>
@@ -388,17 +381,16 @@
         
         let selectedRole = 'hider'; 
         let selectedMode = 'classic';
-        let gameState = 'start'; // start, prep, playing, gameover
+        let gameState = 'start'; 
         let gameTime = 0;
-        let prepTimeLimit = 60; // 1 分鐘準備
-        let playTimeLimit = 240; // 4 分鐘遊玩
+        let prepTimeLimit = 60; 
+        let playTimeLimit = 240; 
         
         let hiderScore = 0;
         let exposureTime = 0;
         let seekerHP = 100;
         let attackCooldown = 0;
         
-        // 移動與視角
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
         let isMoving = false;
         let velocity = new THREE.Vector3();
@@ -409,7 +401,7 @@
         let euler = new THREE.Euler(0, 0, 0, 'YXZ');
         const PI_2 = Math.PI / 2;
         
-        let particlesArray = []; // 碎裂粒子
+        let particlesArray = []; 
 
         function init3D() {
             scene = new THREE.Scene();
@@ -421,7 +413,7 @@
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             playerRig.add(camera);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); // 需要 preserve 來讀取像素
+            renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); 
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -444,14 +436,12 @@
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                if(paintCanvas) { paintCanvas.width = 512; paintCanvas.height = 512; }
             }, false);
 
             animate();
         }
 
         function buildArtGalleryLevel() {
-            // 美術館木地板
             const floorGeo = new THREE.PlaneGeometry(150, 150);
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x4a3b2c, roughness: 0.8 });
             const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -465,10 +455,9 @@
             const w3 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 150), wallMat); w3.position.set(75, 15, 0); scene.add(w3); environmentObjects.push(w3);
             const w4 = new THREE.Mesh(new THREE.BoxGeometry(2, 30, 150), wallMat); w4.position.set(-75, 15, 0); scene.add(w4); environmentObjects.push(w4);
 
-            // 隨機隔間與名畫區
             const colors = [0xff3333, 0x3333ff, 0x33ff33, 0xffff33, 0xffffff, 0x000000, 0xff9933, 0x8b5a2b, 0x4ade80, 0xc084fc];
             for(let k=0; k<8; k++) {
-                const partitionMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // 白牆最適合躲藏
+                const partitionMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); 
                 const partition = new THREE.Mesh(new THREE.BoxGeometry(30, 20, 2), partitionMat);
                 partition.position.set((Math.random()-0.5)*100, 10, (Math.random()-0.5)*100);
                 partition.rotation.y = Math.random() > 0.5 ? 0 : Math.PI/2;
@@ -490,7 +479,6 @@
                 }
             }
 
-            // 雕像與障礙物 (供玩家假裝)
             for(let i=0; i<40; i++) {
                 const geo = Math.random() > 0.5 ? new THREE.CylinderGeometry(1.5, 1.5, 4) : new THREE.BoxGeometry(3, 4, 3);
                 const mat = new THREE.MeshStandardMaterial({ color: colors[Math.floor(Math.random() * colors.length)] });
@@ -501,7 +489,6 @@
             }
         }
 
-        // 為了讓一個 CanvasTexture 套用到全身且不會互相干擾，我們必須自訂各部位的 UV。
         function mapUVs(geometry, offsetX, offsetY, scaleX, scaleY) {
             const uvAttribute = geometry.attributes.uv;
             for (let i = 0; i < uvAttribute.count; i++) {
@@ -516,16 +503,13 @@
             if(roleType === 'seeker') {
                 material = new THREE.MeshStandardMaterial({ color: 0xff1111, emissive: 0xaa0000, roughness: 0.2 });
             } else {
-                // 變色龍特徵：純白、光滑塑膠感
                 material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0 });
                 if(customTex) { material.map = customTex; material.color.setHex(0xffffff); }
             }
 
-            // 建立身體部位，並將 512x512 的畫布切成 6 個區塊進行 UV 映射
             const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8); mapUVs(headGeo, 0, 0.5, 0.33, 0.5);
             const head = new THREE.Mesh(headGeo, material); head.position.y = 1.4; head.castShadow = true; head.name="Head"; group.add(head);
             
-            // 變色龍大眼睛
             if(roleType !== 'seeker') {
                 const eyeGeo = new THREE.SphereGeometry(0.2, 16, 16);
                 const eyeMat = new THREE.MeshBasicMaterial({color: 0x000000});
@@ -536,7 +520,6 @@
             const bodyGeo = new THREE.BoxGeometry(1, 1.2, 0.6); mapUVs(bodyGeo, 0.33, 0.5, 0.33, 0.5);
             const body = new THREE.Mesh(bodyGeo, material); body.position.y = 0.4; body.castShadow = true; body.name="Body"; group.add(body);
 
-            // 捲曲尾巴
             if(roleType !== 'seeker') {
                 const tailGeo = new THREE.TorusGeometry(0.25, 0.1, 8, 16, Math.PI * 1.5); mapUVs(tailGeo, 0.66, 0.5, 0.33, 0.5);
                 const tail = new THREE.Mesh(tailGeo, material); tail.position.set(0, -0.4, -0.4); tail.rotation.y = Math.PI/2; tail.name="Tail"; body.add(tail);
@@ -561,7 +544,7 @@
         const poses = [
             { name: '站立', root: [0,0,0], rot: [0,0,0], limbs: [[0,0,0],[0,0,0],[0,0,0],[0,0,0]] },
             { name: '縮成球', root: [0,-0.6,0], rot: [Math.PI/4,0,0], limbs: [[-1,0,0],[-1,0,0],[-1.5,0,0],[-1.5,0,0]] },
-            { name: '大字趴牆', root: [0,0,0.4], rot: [0,0,0], limbs: [[0,0,0.5],[0,0,-0.5],[0,0,0.5],[0,0,-0.5]] }, // 需配合視角面牆
+            { name: '大字趴牆', root: [0,0,0.4], rot: [0,0,0], limbs: [[0,0,0.5],[0,0,-0.5],[0,0,0.5],[0,0,-0.5]] },
             { name: '倒立', root: [0,1.5,0], rot: [Math.PI,0,0], limbs: [[Math.PI,0,0],[Math.PI,0,0],[0,0,0],[0,0,0]] },
             { name: '側躺', root: [0,-0.8,0], rot: [0,0,Math.PI/2], limbs: [[0,0,0],[0,0,0],[0,0,0],[0,0,0]] },
             { name: '下跪抱頭', root: [0,-0.5,0], rot: [0,0,0], limbs: [[Math.PI,0,Math.PI/4],[Math.PI,0,-Math.PI/4],[-Math.PI/2,0,0],[-Math.PI/2,0,0]] }
@@ -569,7 +552,7 @@
         let currentPoseIndex = 0;
 
         function applyPose(group, pIndex) {
-            if(!group || pIndex === 0) return; // 0 是走路狀態，由動畫控制
+            if(!group || pIndex === 0) return;
             const p = poses[pIndex];
             group.position.set(p.root[0], p.root[1], p.root[2]);
             group.rotation.set(p.rot[0], p.rot[1], p.rot[2]);
@@ -585,7 +568,7 @@
         let paintCanvas, paintCtx, paintTexture;
         let brushSize = 20;
         let brushColor = '#000000';
-        let orbitAngleX = 0, orbitAngleY = 0; // 噴漆時環繞相機
+        let orbitAngleX = 0, orbitAngleY = 0;
         let isPickingColor = false;
         let isAdjustingBrush = false;
         let isMouseDownLeft = false;
@@ -599,7 +582,6 @@
             paintCtx.fillStyle = '#ffffff'; paintCtx.fillRect(0,0,512,512);
             
             paintTexture = new THREE.CanvasTexture(paintCanvas);
-            // 關閉 mipmap 避免邊緣模糊，保持純粹色塊
             paintTexture.generateMipmaps = false; 
             paintTexture.minFilter = THREE.LinearFilter;
 
@@ -621,17 +603,15 @@
                 document.getElementById('brush-cursor').style.width = brushSize*2 + 'px';
                 document.getElementById('brush-cursor').style.height = brushSize*2 + 'px';
                 
-                // 相機拉遠觀看全身
                 orbitAngleX = 0; orbitAngleY = 0;
                 updatePaintCamera();
-                if(localPlayerGroup) localPlayerGroup.visible = true; // 強制顯示自身
-                document.exitPointerLock(); // 解除鎖定，方便滑鼠移動操作畫布
+                if(localPlayerGroup) localPlayerGroup.visible = true; 
+                document.exitPointerLock();
             } else {
                 document.getElementById('painting-hud').style.display = 'none';
                 document.getElementById('ui-crosshair').classList.remove('hidden');
                 document.getElementById('brush-cursor').style.display = 'none';
                 
-                // 恢復第一人稱
                 camera.position.set(0, 1.4, 0.2);
                 camera.rotation.set(0,0,0);
                 if(localPlayerGroup) localPlayerGroup.visible = false;
@@ -695,7 +675,6 @@
                 if(gameState === 'start' || gameState === 'gameover') return;
 
                 if (isPaintingMode) {
-                    // 噴漆模式下的滑鼠控制 (未鎖定狀態)
                     const brushUI = document.getElementById('brush-cursor');
                     brushUI.style.left = e.clientX + 'px';
                     brushUI.style.top = e.clientY + 'px';
@@ -705,7 +684,6 @@
                         brushSize = Math.max(5, Math.min(100, brushSize + deltaX * 0.5));
                         brushUI.style.width = brushSize*2 + 'px'; brushUI.style.height = brushSize*2 + 'px';
                     } else if (isPickingColor || (!isMouseDownLeft && !isMouseDownRight)) {
-                        // 自由旋轉模型視角
                         const deltaX = e.movementX || (e.clientX - lastMouseX) || 0; 
                         const deltaY = e.movementY || (e.clientY - lastMouseY) || 0;
                         orbitAngleX -= deltaX * 0.01;
@@ -718,7 +696,6 @@
                     lastMouseX = e.clientX; lastMouseY = e.clientY;
 
                 } else if (document.pointerLockElement === document.body) {
-                    // 第一人稱視角控制
                     const movementX = e.movementX || 0; const movementY = e.movementY || 0;
                     euler.setFromQuaternion( playerRig.quaternion );
                     euler.y -= movementX * 0.002;
@@ -733,7 +710,7 @@
             });
 
             document.body.addEventListener('mousedown', (e) => {
-                if(e.target.closest('#auth-container') || e.target.closest('.overlay') || e.target.closest('#painting-hud')) return;
+                if(e.target.closest('#auth-container') || e.target.closest('.overlay') || e.target.closest('#painting-hud') || e.target.closest('#report-btn')) return;
                 
                 if (isPaintingMode) {
                     if(e.button === 0) {
@@ -765,7 +742,6 @@
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, camera);
             
-            // 忽略自己的模型，只吸取環境
             const intersects = raycaster.intersectObjects(environmentObjects, false);
             if (intersects.length > 0) {
                 const obj = intersects[0].object;
@@ -784,18 +760,15 @@
             const raycaster = new THREE.Raycaster();
             raycaster.setFromCamera(mouse, camera);
             
-            // 射線檢測「自身模型」
             const intersects = raycaster.intersectObject(localPlayerGroup, true);
             if (intersects.length > 0) {
                 const hit = intersects[0];
                 if(hit.uv) {
-                    // 將 3D UV 轉為 Canvas 座標
                     const texX = hit.uv.x * 512;
                     const texY = (1 - hit.uv.y) * 512; 
                     
                     paintCtx.fillStyle = brushColor;
                     paintCtx.beginPath();
-                    // 根據筆刷大小與貼圖比例繪製圓形
                     paintCtx.arc(texX, texY, brushSize * (512/window.innerWidth), 0, Math.PI*2);
                     paintCtx.fill();
                     paintTexture.needsUpdate = true;
@@ -806,12 +779,12 @@
         function attemptCatch() {
             if(attackCooldown > 0) return;
             
-            attackCooldown = 0.5; // 冷卻 0.5 秒
+            attackCooldown = 0.5; 
             const svg = document.getElementById('shotgun-cooldown-svg');
             const circle = svg.querySelector('.cooldown-circle');
             svg.style.display = 'block';
             circle.style.strokeDashoffset = 157;
-            setTimeout(() => circle.style.strokeDashoffset = 0, 10); // 動畫
+            setTimeout(() => circle.style.strokeDashoffset = 0, 10); 
             setTimeout(() => svg.style.display = 'none', 500);
 
             const raycaster = new THREE.Raycaster();
@@ -870,7 +843,6 @@
                 scene.add(p);
                 particlesArray.push({ mesh: p, velocity: v, age: 0 });
             }
-            // 碎裂音效模擬 (視覺強烈震動)
             document.body.classList.add('screen-shake');
             setTimeout(() => document.body.classList.remove('screen-shake'), 300);
         }
@@ -898,17 +870,17 @@
             }, 50);
         }
 
-        function selectRole(role) {
+        window.selectRole = function(role) {
             selectedRole = role;
             document.getElementById('btn-role-hider').className = role === 'hider' ? "px-6 py-2 rounded-full border-2 border-green-400 bg-green-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
             document.getElementById('btn-role-seeker').className = role === 'seeker' ? "px-6 py-2 rounded-full border-2 border-red-400 bg-red-900/50 text-white font-bold" : "px-6 py-2 rounded-full border-2 border-transparent text-gray-400 font-bold";
-        }
+        };
         
-        function selectMode(mode) {
+        window.selectMode = function(mode) {
             selectedMode = mode;
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`.mode-btn[data-mode="${mode}"]`).classList.add('active');
-        }
+        };
 
         function startGame() {
             document.getElementById('start-screen').classList.add('hidden');
@@ -923,16 +895,15 @@
             if(localPlayerGroup) playerRig.remove(localPlayerGroup);
             localPlayerGroup = createChameleonMesh(selectedRole, paintTexture);
             playerRig.add(localPlayerGroup);
-            localPlayerGroup.visible = false; // 第一人稱隱藏自己
+            localPlayerGroup.visible = false; 
             camera.position.set(0, 1.4, 0.2); camera.rotation.set(0,0,0);
 
             if(selectedRole === 'seeker') {
-                document.getElementById('instruction-seeker').classList.add('hidden');
+                document.getElementById('instruction-seeker').classList.remove('hidden');
                 document.getElementById('instruction-hider').classList.add('hidden');
                 document.getElementById('blind-overlay').style.opacity = 1;
                 playerRig.position.set(0, playerHeight, 0);
                 
-                // 尋找者的手電筒
                 seekerSpotlight = new THREE.SpotLight(0xffffff, 1.5, 60, Math.PI/6, 0.3, 1);
                 playerRig.add(seekerSpotlight); playerRig.add(seekerSpotlight.target);
                 seekerSpotlight.position.set(0, 1.4, 0); seekerSpotlight.target.position.set(0, 1.4, -5);
@@ -962,11 +933,6 @@
                 playerRig.add(seekerSpotlight); playerRig.add(seekerSpotlight.target);
                 seekerSpotlight.position.set(0, 1.4, 0); seekerSpotlight.target.position.set(0, 1.4, -5);
                 showStatusText("大亂鬥！全體化身尋找者！", "#ff3333");
-            }
-
-            if(selectedRole === 'seeker') {
-                document.getElementById('instruction-seeker').classList.remove('hidden');
-                document.getElementById('instruction-hider').classList.add('hidden');
             }
         }
 
@@ -1040,7 +1006,6 @@
                         rotY: playerRig.rotation.y, role: selectedRole, poseIndex: currentPoseIndex,
                         isMoving: isMoving
                     };
-                    // 為了效能，只有 force 時才同步大圖 Base64
                     if(force && selectedRole === 'hider' && paintCanvas) {
                         stateObj.skinBase64 = paintCanvas.toDataURL('image/jpeg', 0.5);
                     }
@@ -1128,7 +1093,7 @@
                     isMoving = moveForward || moveBackward || moveLeft || moveRight;
                     
                     if(isMoving && currentPoseIndex !== 0) {
-                        currentPoseIndex = 0; // 移動自動解除姿勢
+                        currentPoseIndex = 0;
                         showStatusText("解除定格", "#fff");
                         syncStateWithServer(true);
                     }
@@ -1146,7 +1111,6 @@
                     if(playerRig.position.z < -bound) playerRig.position.z = -bound;
                 }
 
-                // Yeah! 高階視線計分機制
                 if(selectedRole === 'hider' && gameState === 'playing') {
                     let isInDangerSight = false;
                     Object.values(otherPlayers).forEach(p => {
@@ -1155,9 +1119,8 @@
                             if(dist < 40) {
                                 const dirToMe = playerRig.position.clone().sub(p.mesh.position).normalize();
                                 const seekerLook = new THREE.Vector3(0,0,-1).applyQuaternion(p.mesh.quaternion);
-                                if(dirToMe.angleTo(seekerLook) < Math.PI / 4) { // 約 45 度視角內
+                                if(dirToMe.angleTo(seekerLook) < Math.PI / 4) {
                                     
-                                    // 簡單的射線檢測，確保中間沒有牆壁擋住
                                     const ray = new THREE.Raycaster(p.mesh.position, dirToMe);
                                     const intersects = ray.intersectObjects(environmentObjects, false);
                                     
@@ -1167,7 +1130,6 @@
                                         hiderScore += scoreGain;
                                         exposureTime += delta;
                                         
-                                        // 噴出 Yeah 特效
                                         if(Math.random() < 0.1) {
                                             const yeah = document.createElement('div');
                                             yeah.className = 'yeah-text';
@@ -1192,17 +1154,15 @@
                 syncStateWithServer();
             }
             
-            // 處理碎裂粒子動畫
             for(let i=particlesArray.length-1; i>=0; i--) {
                 const p = particlesArray[i];
-                p.velocity.y -= 20 * delta; // 重力
+                p.velocity.y -= 20 * delta; 
                 p.mesh.position.addScaledVector(p.velocity, delta);
                 p.age += delta;
                 if(p.mesh.position.y < 0) { p.mesh.position.y = 0; p.velocity.y *= -0.5; p.velocity.x *= 0.8; p.velocity.z *= 0.8; }
                 if(p.age > 3) { scene.remove(p.mesh); particlesArray.splice(i, 1); }
             }
             
-            // 其他玩家走路動畫 (滑稽僵硬感)
             Object.values(otherPlayers).forEach(op => {
                 if(op.isMoving) {
                     const walkCycle = Math.sin(time * 0.015);
@@ -1213,7 +1173,6 @@
                         if(c.name==="RLeg") c.rotation.x = walkCycle; 
                     });
                 } else if (!op.isMoving && op.mesh.children[0].rotation.x !== 0) {
-                    // 未套用姿勢時歸零
                     if(poses[op.mesh.userData.poseIndex || 0].name === '站立') {
                         op.mesh.children.forEach(c => { if(c.name.includes("Arm") || c.name.includes("Leg")) c.rotation.x = 0; });
                     }
