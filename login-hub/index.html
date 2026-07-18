@@ -2006,7 +2006,36 @@
 
         fetchServerUrl();
 
-    </script>
+    
+window.sendRegVerificationCode = function() {
+    const email = document.getElementById('reg_email').value.trim();
+    if(!email) return showMsg("請先輸入電子郵件", "error");
+    const btn = document.getElementById('btnSendCode');
+    btn.disabled = true;
+    btn.innerText = '發送中...';
+    socket.emit('sendVerificationCode', { email }, (res) => {
+        if(res && !res.success) {
+            showMsg(res.msg, 'error');
+            btn.disabled = false;
+            btn.innerText = '發送驗證碼';
+        } else {
+            showMsg('驗證碼已發送至您的信箱', 'success');
+            let cd = 60;
+            const timer = setInterval(() => {
+                cd--;
+                if(cd <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = '重新發送';
+                } else {
+                    btn.innerText = cd + '秒後重試';
+                }
+            }, 1000);
+        }
+    });
+};
+
+</script>
 
 </body>
 
