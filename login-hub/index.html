@@ -2065,11 +2065,25 @@ window.startSecurityCheck = function() {
             document.getElementById("securityBtn").innerText = "檢查安全連線...";
             
             try {
-                const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-                const geoData = await geoRes.json();
+                const fetchPromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+                let geoData = {};
+                try {
+                    const geoRes = await Promise.race([fetchPromise, timeoutPromise]);
+                    geoData = await geoRes.json();
+                } catch (fetchErr) {
+                    console.log('GPS API timeout or blocked, fallback to UNKNOWN');
+                }
                 const gpsCountry = geoData.countryCode || "UNKNOWN";
                 
+                const socketTimeout = setTimeout(() => {
+                    showMsg("伺服器沒有回應，請檢查網路！", "error");
+                    document.getElementById("securityBtn").disabled = false;
+                    document.getElementById("securityBtn").innerText = "重新驗證";
+                }, 8000);
+                
                 socket.emit('checkSecurity', { captchaToken: token, gpsCountry: gpsCountry }, (res) => {
+                    clearTimeout(socketTimeout);
                     if (!res.success) {
                         showMsg(res.msg, "error");
                         grecaptcha.reset();
