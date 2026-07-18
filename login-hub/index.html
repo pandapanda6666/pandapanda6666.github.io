@@ -676,7 +676,27 @@
 
                 
 
-                <button onclick="handleRegister()" id="registerBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
+                
+<div class="mb-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+    <p class="text-sm font-bold text-slate-700 mb-2">🛡️ 安全驗證 (必填)</p>
+    <div id="captchaSuccess" class="hidden text-green-600 font-bold flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> 驗證通過
+    </div>
+    <div id="captchaForm" class="flex flex-col gap-3">
+        <div class="flex items-center gap-2">
+            <canvas id="captchaCanvas" width="200" height="50" class="border rounded bg-white cursor-pointer" onclick="generateCaptcha()" title="點擊更換圖片"></canvas>
+            <button type="button" onclick="generateCaptcha()" class="p-2 text-slate-400 hover:text-slate-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+        </div>
+        <div class="flex gap-2">
+            <input type="text" id="captchaInput" placeholder="請輸入圖中文字" class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+            <button id="securityBtn" type="button" onclick="startSecurityCheck()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold px-4 rounded-lg transition-all">驗證</button>
+        </div>
+        <p class="text-xs text-slate-500">系統將請求定位權限以防範跨國跳板</p>
+    </div>
+</div>
+<button onclick="handleRegister()" id="registerBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
 
                     送出註冊資料
 
@@ -838,7 +858,9 @@
 
         window.handleLogin = function() { console.log('系統載入中...'); };
 
-        window.handleRegister = function() { console.log('系統載入中...'); };
+        window.handleRegister = function() {
+    if (!window.captchaVerified) return showMsg('請先完成「安全驗證」！', 'error');
+ console.log('系統載入中...'); };
 
         window.toggleView = function() {};
 
@@ -1718,6 +1740,8 @@
 
 
         window.handleRegister = function() {
+    if (!window.captchaVerified) return showMsg('請先完成「安全驗證」！', 'error');
+
 
             if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
 
@@ -2071,9 +2095,9 @@ window.generateCaptcha = function() {
 
 window.startSecurityCheck = function() {
     const input = document.getElementById("captchaInput").value.trim();
-    if (input.toLowerCase() !== window.captchaText.toLowerCase()) {
+    if (!window.captchaText || input.toLowerCase() !== window.captchaText.toLowerCase()) {
         showMsg("驗證碼錯誤", "error");
-        window.generateCaptcha();
+        if(window.generateCaptcha) window.generateCaptcha();
         document.getElementById("captchaInput").value = "";
         return;
     }
@@ -2091,7 +2115,7 @@ window.startSecurityCheck = function() {
         async (position) => {
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
-            document.getElementById("securityBtn").innerText = "驗證網路環境...";
+            document.getElementById("securityBtn").innerText = "檢查連線...";
             
             try {
                 const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
@@ -2101,56 +2125,33 @@ window.startSecurityCheck = function() {
                 socket.emit('checkSecurity', { gpsCountry }, (res) => {
                     if (!res.success) {
                         showMsg(res.msg, "error");
-                        document.getElementById("securityBtn").innerText = "驗證被拒絕";
+                        document.getElementById("securityBtn").innerText = "拒絕連線";
                     } else {
                         showMsg("安全驗證通過！", "success");
                         window.captchaVerified = true;
-                        document.getElementById('captchaOverlay').classList.add('hidden');
-                        toggleView('register');
+                        document.getElementById("captchaForm").classList.add("hidden");
+                        document.getElementById("captchaSuccess").classList.remove("hidden");
                     }
                 });
             } catch (err) {
                 showMsg("無法解析定位資料", "error");
                 document.getElementById("securityBtn").disabled = false;
-                document.getElementById("securityBtn").innerText = "確認送出";
+                document.getElementById("securityBtn").innerText = "驗證";
             }
         },
         (error) => {
-            showMsg("請允許定位權限才能繼續註冊", "error");
+            showMsg("請允許定位權限才能完成驗證", "error");
             document.getElementById("securityBtn").disabled = false;
-            document.getElementById("securityBtn").innerText = "確認送出";
+            document.getElementById("securityBtn").innerText = "驗證";
         },
         { timeout: 10000 }
     );
 };
 
+// Initialize CAPTCHA once on load
+setTimeout(() => { if(window.generateCaptcha) window.generateCaptcha(); }, 500);
+
 </script>
-
-
-<div id="captchaOverlay" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-green-500">
-        <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
-            <span class="text-2xl">🛡️</span> 註冊安全驗證
-        </h3>
-        <p class="text-sm text-slate-500 mb-4">為了防範惡意機器人與跨國跳板，系統需要進行安全檢測。請允許瀏覽器定位權限，並輸入圖片中的文字。</p>
-        
-        <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-2">
-                <canvas id="captchaCanvas" width="200" height="50" class="border rounded bg-slate-50 cursor-pointer" onclick="generateCaptcha()" title="點擊更換圖片"></canvas>
-                <button type="button" onclick="generateCaptcha()" class="p-2 text-slate-400 hover:text-slate-600">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                </button>
-            </div>
-            <input type="text" id="captchaInput" placeholder="請輸入圖中文字 (不分大小寫)" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none">
-            
-            <button id="securityBtn" type="button" onclick="startSecurityCheck()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-all">確認送出</button>
-        </div>
-        
-        <div class="mt-4 flex justify-center">
-            <button type="button" onclick="document.getElementById('captchaOverlay').classList.add('hidden')" class="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors">取消返回</button>
-        </div>
-    </div>
-</div>
 
 </body>
 
