@@ -2034,7 +2034,123 @@ window.sendRegVerificationCode = function() {
     });
 };
 
+
+window.captchaVerified = false;
+window.captchaText = "";
+
+window.generateCaptcha = function() {
+    const canvas = document.getElementById("captchaCanvas");
+    if(!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#f1f5f9";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    window.captchaText = "";
+    for (let i = 0; i < 5; i++) window.captchaText += chars.charAt(Math.floor(Math.random() * chars.length));
+    
+    ctx.font = "bold 30px Arial";
+    ctx.fillStyle = "#334155";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.translate(30 + i * 35, 25);
+        ctx.rotate((Math.random() - 0.5) * 0.4);
+        ctx.fillText(window.captchaText[i], 0, 0);
+        ctx.restore();
+    }
+    for (let i = 0; i < 5; i++) {
+        ctx.strokeStyle = `rgba(${Math.random()*255}, ${Math.random()*255}, ${Math.random()*255}, 0.5)`;
+        ctx.beginPath();
+        ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+        ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+        ctx.stroke();
+    }
+};
+
+window.startSecurityCheck = function() {
+    const input = document.getElementById("captchaInput").value.trim();
+    if (input.toLowerCase() !== window.captchaText.toLowerCase()) {
+        showMsg("驗證碼錯誤", "error");
+        window.generateCaptcha();
+        document.getElementById("captchaInput").value = "";
+        return;
+    }
+    
+    document.getElementById("securityBtn").disabled = true;
+    document.getElementById("securityBtn").innerText = "取得定位中...";
+    
+    if (!navigator.geolocation) {
+        showMsg("您的瀏覽器不支援定位功能", "error");
+        document.getElementById("securityBtn").innerText = "驗證失敗";
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            document.getElementById("securityBtn").innerText = "驗證網路環境...";
+            
+            try {
+                const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+                const geoData = await geoRes.json();
+                const gpsCountry = geoData.countryCode || "UNKNOWN";
+                
+                socket.emit('checkSecurity', { gpsCountry }, (res) => {
+                    if (!res.success) {
+                        showMsg(res.msg, "error");
+                        document.getElementById("securityBtn").innerText = "驗證被拒絕";
+                    } else {
+                        showMsg("安全驗證通過！", "success");
+                        window.captchaVerified = true;
+                        document.getElementById('captchaOverlay').classList.add('hidden');
+                        toggleView('register');
+                    }
+                });
+            } catch (err) {
+                showMsg("無法解析定位資料", "error");
+                document.getElementById("securityBtn").disabled = false;
+                document.getElementById("securityBtn").innerText = "確認送出";
+            }
+        },
+        (error) => {
+            showMsg("請允許定位權限才能繼續註冊", "error");
+            document.getElementById("securityBtn").disabled = false;
+            document.getElementById("securityBtn").innerText = "確認送出";
+        },
+        { timeout: 10000 }
+    );
+};
+
 </script>
+
+
+<div id="captchaOverlay" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-green-500">
+        <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+            <span class="text-2xl">🛡️</span> 註冊安全驗證
+        </h3>
+        <p class="text-sm text-slate-500 mb-4">為了防範惡意機器人與跨國跳板，系統需要進行安全檢測。請允許瀏覽器定位權限，並輸入圖片中的文字。</p>
+        
+        <div class="flex flex-col gap-3">
+            <div class="flex items-center gap-2">
+                <canvas id="captchaCanvas" width="200" height="50" class="border rounded bg-slate-50 cursor-pointer" onclick="generateCaptcha()" title="點擊更換圖片"></canvas>
+                <button type="button" onclick="generateCaptcha()" class="p-2 text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </button>
+            </div>
+            <input type="text" id="captchaInput" placeholder="請輸入圖中文字 (不分大小寫)" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none">
+            
+            <button id="securityBtn" type="button" onclick="startSecurityCheck()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-all">確認送出</button>
+        </div>
+        
+        <div class="mt-4 flex justify-center">
+            <button type="button" onclick="document.getElementById('captchaOverlay').classList.add('hidden')" class="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors">取消返回</button>
+        </div>
+    </div>
+</div>
 
 </body>
 
