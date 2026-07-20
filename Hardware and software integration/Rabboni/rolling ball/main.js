@@ -230,7 +230,7 @@ function processSensorData(acc) {
 
     // standard tilt formulas based on accelerometer
     let p = Math.atan2(ay, Math.sqrt(ax*ax + az*az));
-    let r = Math.atan2(-ax, az);
+    let r = Math.atan2(ax, az);
 
     // Low pass filter to smooth out noise
     const alpha = 0.1;
