@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rabboni Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient-start: #0f172a;
+            --bg-gradient-end: #1e1b4b;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            padding: 2.5rem 0;
+            text-align: center;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--glass-border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 {
+            margin: 0;
+            font-weight: 800;
+            font-size: 3rem;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa, #f472b6);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-text 3s linear infinite;
+            letter-spacing: -1px;
+        }
+
+        @keyframes gradient-text {
+            0% { background-position: 0% center; }
+            100% { background-position: 200% center; }
+        }
+
+        .status-badge {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.5rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .status-badge.connected {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            color: var(--success);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+        }
+
+        .status-badge.disconnected {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: var(--danger);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        main {
+            width: 90%;
+            max-width: 1400px;
+            margin-top: 3rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2.5rem;
+            padding-bottom: 4rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 2.5rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent);
+            transform: skewX(-25deg);
+            transition: all 0.8s ease;
+            pointer-events: none;
+        }
+
+        .card:hover::before {
+            left: 150%;
+        }
+
+        .card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 1.5rem;
+        }
+
+        .device-name {
+            font-size: 1.75rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .trigger-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .trigger-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255,255,255,0.05);
+        }
+        
+        .trigger-indicator.active {
+            background: var(--success);
+            border-color: #047857;
+            box-shadow: 0 0 15px var(--success), 0 0 5px white;
+            transform: scale(1.1);
+        }
+
+        .data-group {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .data-title {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 1rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .data-title::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-color);
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .data-item {
+            text-align: center;
+            position: relative;
+        }
+
+        .data-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: -0.5rem;
+            top: 10%;
+            height: 80%;
+            width: 1px;
+            background: var(--glass-border);
+        }
+
+        .data-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .data-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: 'Inter', monospace;
+            color: #fff;
+            transition: color 0.2s;
+        }
+
+        .data-value.updated {
+            color: var(--accent-color);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1.25rem;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: white;
+            font-weight: 800;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(59, 130, 246, 0.5);
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .battery-info {
+            font-size: 0.9rem;
+            color: #cbd5e1;
+            text-align: center;
+            min-height: 1.5rem;
+            font-weight: 600;
+            padding: 0.75rem;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 6rem 2rem;
+            color: var(--text-secondary);
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.02);
+            border-radius: 30px;
+            border: 2px dashed rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.5;
+            animation: pulse 2s infinite;
+        }
+
+        .empty-state p {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0.5; }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-gradient-end); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2); 
+            border-radius: 5px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.3); 
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Rabboni Monitor</h1>
+        <div id="statusBadge" class="status-badge disconnected">連線中斷</div>
+    </header>
+
+    <main id="deviceContainer">
+        <div class="empty-state" id="emptyState">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+            </svg>
+            <p>等待裝置傳送資料...</p>
+            <span style="font-size: 0.85rem; color: #64748b; font-weight: normal;">請確保您的本地中介軟體已啟動 (ws://localhost:50500)</span>
+        </div>
+    </main>
+
+    <script>
+        const WS_URL = 'ws://localhost:50500/rab';
+        const BATTERY_API = 'http://localhost:50500/rab/battery?name=';
+        
+        let socket;
+        let devices = {};
+        let updateTimeouts = {};
+
+        const statusBadge = document.getElementById('statusBadge');
+        const deviceContainer = document.getElementById('deviceContainer');
+        const emptyState = document.getElementById('emptyState');
+
+        function connectWebSocket() {
+            statusBadge.textContent = '連線中...';
+            statusBadge.className = 'status-badge';
+            
+            socket = new WebSocket(WS_URL);
+
+            socket.addEventListener('open', () => {
+                statusBadge.textContent = '已連線 (Connected)';
+                statusBadge.className = 'status-badge connected';
+            });
+
+            socket.addEventListener('close', () => {
+                statusBadge.textContent = '連線中斷，嘗試重新連線...';
+                statusBadge.className = 'status-badge disconnected';
+                setTimeout(connectWebSocket, 3000);
+            });
+
+            socket.addEventListener('error', (err) => {
+                console.error('WebSocket Error:', err);
+            });
+
+            socket.addEventListener('message', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data && data.name) {
+                        updateDevice(data);
+                    }
+                } catch (e) {
+                    // ignore parse error
+                }
+            });
+        }
+
+        function updateValueWithAnimation(id, newValue) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const current = el.textContent;
+            if (current !== newValue) {
+                el.textContent = newValue;
+                el.classList.add('updated');
+                
+                clearTimeout(updateTimeouts[id]);
+                updateTimeouts[id] = setTimeout(() => {
+                    el.classList.remove('updated');
+                }, 100);
+            }
+        }
+
+        function updateDevice(data) {
+            if (!devices[data.name]) {
+                createDeviceCard(data.name);
+                devices[data.name] = true;
+                if (emptyState.style.display !== 'none') {
+                    emptyState.style.display = 'none';
+                }
+            }
+
+            const card = document.getElementById(`device-${data.name}`);
+            if (!card) return;
+
+            // Update Accelerometer
+            if (data.acc) {
+                updateValueWithAnimation(`acc-x-${data.name}`, formatNumber(data.acc[0]));
+                updateValueWithAnimation(`acc-y-${data.name}`, formatNumber(data.acc[1]));
+                updateValueWithAnimation(`acc-z-${data.name}`, formatNumber(data.acc[2]));
+            }
+
+            // Update Gyroscope
+            if (data.gyr) {
+                updateValueWithAnimation(`gyr-x-${data.name}`, formatNumber(data.gyr[0]));
+                updateValueWithAnimation(`gyr-y-${data.name}`, formatNumber(data.gyr[1]));
+                updateValueWithAnimation(`gyr-z-${data.name}`, formatNumber(data.gyr[2]));
+            }
+
+            // Update Trigger
+            if (data.trigger !== undefined) {
+                const triggerIndicator = document.getElementById(`trigger-${data.name}`);
+                if (data.trigger) {
+                    triggerIndicator.classList.add('active');
+                } else {
+                    triggerIndicator.classList.remove('active');
+                }
+            }
+        }
+
+        function formatNumber(num) {
+            let n = Number(num);
+            if (isNaN(n)) return "0.00";
+            let str = Math.abs(n).toFixed(2);
+            return (n < 0 ? '-' : ' ') + str.padStart(5, '0');
+        }
+
+        function createDeviceCard(name) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = `device-${name}`;
+
+            card.innerHTML = `
+                <div class="device-header">
+                    <div class="device-name">${name}</div>
+                    <div class="trigger-wrapper">
+                        TRIGGER
+                        <div class="trigger-indicator" id="trigger-${name}"></div>
+                    </div>
+                </div>
+                
+                <div class="data-group">
+                    <div class="data-title">加速度 (Accelerometer)</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">X</div>
+                            <div class="data-value" id="acc-x-${name}"> 0.00</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">Y</div>
+                            <div class="data-value" id="acc-y-${name}"> 0.00</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">Z</div>
+                            <div class="data-value" id="acc-z-${name}"> 0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="data-group">
+                    <div class="data-title">角速度 (Gyroscope)</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">X</div>
+                            <div class="data-value" id="gyr-x-${name}"> 0.00</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">Y</div>
+                            <div class="data-value" id="gyr-y-${name}"> 0.00</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">Z</div>
+                            <div class="data-value" id="gyr-z-${name}"> 0.00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" onclick="fetchBattery('${name}')">讀取電池與裝置資訊</button>
+                <div class="battery-info" id="battery-${name}">點擊按鈕獲取最新狀態</div>
+            `;
+            
+            deviceContainer.appendChild(card);
+        }
+
+        async function fetchBattery(name) {
+            const batteryEl = document.getElementById(`battery-${name}`);
+            batteryEl.textContent = '讀取中...';
+            try {
+                const res = await fetch(`${BATTERY_API}${name}`);
+                if (!res.ok) throw new Error('Network response was not ok');
+                const data = await res.json();
+                batteryEl.textContent = `狀態: ${JSON.stringify(data)}`;
+            } catch (err) {
+                batteryEl.textContent = '無法取得資訊，請確認伺服器狀態。';
+                console.error(err);
+            }
+        }
+
+        // Init
+        connectWebSocket();
+    </script>
+</body>
+</html>
