@@ -146,18 +146,29 @@ function buildMaze() {
     addBox(12, 0.5, 12, 0, -0.25, 0, false, true);
     
     // Transparent Outer Cover (Top + Sides)
-    // We only add collision for the bottom and sides in a real maze, but let's just make outer walls
     addBox(12, 2, 0.5, 0, 1, -5.75, true); // Top edge
     addBox(12, 2, 0.5, 0, 1, 5.75, true);  // Bottom edge
     addBox(0.5, 2, 11, -5.75, 1, 0, true); // Left edge
     addBox(0.5, 2, 11, 5.75, 1, 0, true);  // Right edge
     addBox(12, 0.1, 12, 0, 2, 0, true);    // Top Cover
 
-    // Inner Walls (Simple maze)
-    addBox(6, 1, 0.5, -3, 0.5, -2);
-    addBox(0.5, 1, 6, 2, 0.5, -2);
-    addBox(6, 1, 0.5, 2, 0.5, 3);
-    addBox(0.5, 1, 3, -3, 0.5, 2);
+    // Inner Walls (Simple maze) - Make them height 2 so ball can't jump over
+    addBox(6, 2, 0.5, -3, 1, -2);
+    addBox(0.5, 2, 6, 2, 1, -2);
+    addBox(6, 2, 0.5, 2, 1, 3);
+    addBox(0.5, 2, 3, -3, 1, 2);
+
+    // Invisible thick physics boundaries to prevent tunneling
+    function addPhysicsBoundary(w, h, d, x, y, z) {
+        const shape = new CANNON.Box(new CANNON.Vec3(w/2, h/2, d/2));
+        mazeBody.addShape(shape, new CANNON.Vec3(x, y, z));
+    }
+    addPhysicsBoundary(20, 10, 5, 0, 0, -8.5); // Top
+    addPhysicsBoundary(20, 10, 5, 0, 0, 8.5);  // Bottom
+    addPhysicsBoundary(5, 10, 20, -8.5, 0, 0); // Left
+    addPhysicsBoundary(5, 10, 20, 8.5, 0, 0);  // Right
+    addPhysicsBoundary(20, 5, 20, 0, 3.5, 0);  // Ceiling
+    addPhysicsBoundary(20, 5, 20, 0, -3.5, 0); // Ground floor
 
     world.addBody(mazeBody);
 
@@ -181,9 +192,10 @@ function buildMaze() {
     ballBody = new CANNON.Body({
         mass: 1,
         shape: new CANNON.Sphere(radius),
-        position: new CANNON.Vec3(-4, 2, 4) // Start position (bottom left)
+        position: new CANNON.Vec3(-4, 0.5, 4) // Start position (bottom left)
     });
-    ballBody.linearDamping = 0.3;
+    ballBody.linearDamping = 0.5;
+    ballBody.angularDamping = 0.5;
     world.addBody(ballBody);
 
     const sphereGeo = new THREE.SphereGeometry(radius, 32, 32);
@@ -254,12 +266,13 @@ function calibrate() {
         calibrateBtn.textContent = "校準 (平放後點擊)";
         calibrateBtn.style.background = "";
     }, 2000);
+    restartGame(); // Reset ball position
 }
 
 // --- Game Logic ---
 function restartGame() {
     // Reset ball position
-    ballBody.position.set(-4, 2, 4);
+    ballBody.position.set(-4, 0.5, 4);
     ballBody.velocity.set(0, 0, 0);
     ballBody.angularVelocity.set(0, 0, 0);
     isGameWon = false;
@@ -292,7 +305,7 @@ function animate() {
     const finalPitch = filteredPitch - calibPitch;
     const finalRoll = filteredRoll - calibRoll;
 
-    const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ');
+    const euler = new THREE.Euler(finalPitch, 0, -finalRoll, 'XYZ'); // Invert finalRoll here to fix left/right
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
     // Instead of rotating the kinematic body, we rotate the GRAVITY!
