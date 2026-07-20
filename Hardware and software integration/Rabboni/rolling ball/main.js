@@ -6,7 +6,7 @@ let scene, camera, renderer;
 let world;
 let mazeBody, ballBody;
 let mazeVisual, ballVisual;
-let winZoneVisual;
+let winZoneVisual, startZoneVisual;
 
 let socket;
 const WS_URL = 'ws://localhost:50500/rab';
@@ -93,10 +93,10 @@ function initCannon() {
 }
 
 function buildMaze() {
-    // --- 1. Physics Kinematic Body for Maze ---
+    // --- 1. Physics Static Body for Maze ---
     mazeBody = new CANNON.Body({
         mass: 0, 
-        type: CANNON.Body.KINEMATIC,
+        type: CANNON.Body.STATIC,
         position: new CANNON.Vec3(0, 0, 0)
     });
 
@@ -161,13 +161,20 @@ function buildMaze() {
 
     world.addBody(mazeBody);
 
-    // --- 3. Win Zone ---
+    // --- 3. Win Zone & Start Zone ---
     const winGeo = new THREE.PlaneGeometry(3, 3);
     const winMat = new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
     winZoneVisual = new THREE.Mesh(winGeo, winMat);
     winZoneVisual.rotation.x = -Math.PI / 2;
     winZoneVisual.position.set(4, 0.05, -4); // Top right corner
     mazeVisual.add(winZoneVisual);
+
+    const startGeo = new THREE.PlaneGeometry(2, 2);
+    const startMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+    startZoneVisual = new THREE.Mesh(startGeo, startMat);
+    startZoneVisual.rotation.x = -Math.PI / 2;
+    startZoneVisual.position.set(-4, 0.05, 4); // Bottom left corner
+    mazeVisual.add(startZoneVisual);
 
     // --- 4. The Ball ---
     const radius = 0.4;
@@ -187,7 +194,7 @@ function buildMaze() {
     });
     ballVisual = new THREE.Mesh(sphereGeo, sphereMat);
     ballVisual.castShadow = true;
-    scene.add(ballVisual);
+    mazeVisual.add(ballVisual);
 }
 
 // --- WebSocket & Sensor Fusion ---
@@ -262,13 +269,9 @@ function restartGame() {
 function checkWinCondition() {
     if (isGameWon) return;
 
-    // Convert ball position to maze local space to check win zone
-    // Actually, win zone is around (4, 0, -4) in maze local space.
-    // The ball is in world space. We can inverse transform.
-    
-    // Get inverse quaternion of maze
-    const invQuat = mazeBody.quaternion.inverse();
-    const localPos = invQuat.vmult(ballBody.position);
+    // The ball is in world space which is identical to maze local space 
+    // because the physics maze is STATIC at origin!
+    const localPos = ballBody.position;
 
     // Check distance to win zone center (4, 0, -4)
     const targetX = 4;
@@ -285,30 +288,31 @@ function checkWinCondition() {
 
 // --- Main Loop ---
 function animate() {
-    // 1. Update Physics / Game State
-    world.step(1 / 60);
-
     // Apply Rabboni rotation to Maze
     const finalPitch = filteredPitch - calibPitch;
     const finalRoll = filteredRoll - calibRoll;
 
-    // We create a quaternion from Euler angles.
-    // Assuming Z is forward, X is right, Y is up in 3D.
-    // Device Pitch tilts around X axis, Roll tilts around Z axis.
     const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ');
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
-    // Update Kinematic Maze Body
-    mazeBody.quaternion.set(quat.x, quat.y, quat.z, quat.w);
+    // Instead of rotating the kinematic body, we rotate the GRAVITY!
+    // The physics maze is static. Gravity rotates inversely.
+    const invQuat = quat.clone().invert();
+    const gravity = new THREE.Vector3(0, -20, 0).applyQuaternion(invQuat);
+    world.gravity.set(gravity.x, gravity.y, gravity.z);
 
     // Update UI text
     valPitch.textContent = (finalPitch * 180 / Math.PI).toFixed(2) + '°';
     valRoll.textContent = (finalRoll * 180 / Math.PI).toFixed(2) + '°';
 
+    // 1. Update Physics / Game State
+    world.step(1 / 60);
+
     checkWinCondition();
 
     // 2. Sync Visuals
-    mazeVisual.quaternion.copy(mazeBody.quaternion);
+    mazeVisual.quaternion.copy(quat);
+    // Since ballVisual is a child of mazeVisual, copying physics position maps it perfectly!
     ballVisual.position.copy(ballBody.position);
     ballVisual.quaternion.copy(ballBody.quaternion);
 
