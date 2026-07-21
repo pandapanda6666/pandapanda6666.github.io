@@ -47,9 +47,24 @@
                 window.socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 window.socket.emit('joinGameRoom', { room: window.appId, characterData: {} });
                 
+                const auth = urlParams.get('auth');
+                const user = urlParams.get('user');
                 const token = urlParams.get('token') || localStorage.getItem('panda_session_token');
-                if (token) {
+
+                if (auth === 'true' && user) {
+                    window.socket.emit('requestProfile', { username: user });
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (token) {
                     window.socket.emit('tokenLogin', { token: token });
+                }
+            });
+
+            window.socket.on('profileData', (data) => {
+                if (data) {
+                    if (data.token) localStorage.setItem('panda_session_token', data.token);
+                    window.dispatchEvent(new CustomEvent('sso_login_success', { detail: data }));
+                } else {
+                    window.dispatchEvent(new CustomEvent('sso_login_failed'));
                 }
             });
 
