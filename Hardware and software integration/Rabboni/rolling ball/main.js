@@ -250,8 +250,8 @@ function processSensorData(acc) {
     const az = acc[2];
 
     // standard tilt formulas based on accelerometer
-    let p = Math.atan2(ay, Math.sqrt(ax*ax + az*az));
-    let r = Math.atan2(ax, az);
+    let p = -(Math.atan2(ay, Math.sqrt(ax*ax + az*az)));
+    let r = -(Math.atan2(ax, az));
 
     // Low pass filter to smooth out noise
     const alpha = 0.1;
@@ -275,7 +275,8 @@ let currentView = 1;
 function toggleCamera() {
     if (currentView === 1) {
         currentView = 2;
-        camera.position.set(0, 30, 0);
+        // Offset Z slightly to avoid Gimbal lock when looking straight down
+        camera.position.set(0, 30, 0.001);
         camera.lookAt(0, 0, 0);
         cameraBtn.textContent = "切換視角 (俯視)";
     } else {
@@ -322,7 +323,7 @@ function animate() {
     const finalPitch = filteredPitch - calibPitch;
     const finalRoll = filteredRoll - calibRoll;
 
-    const euler = new THREE.Euler(finalPitch, 0, -finalRoll, 'XYZ'); // Invert roll for visual orientation
+    const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ');
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
     // Instead of rotating the kinematic body, we rotate the GRAVITY!
