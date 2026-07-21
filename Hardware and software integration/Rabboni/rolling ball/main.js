@@ -26,6 +26,7 @@ const statusBadge = document.getElementById('statusBadge');
 const valPitch = document.getElementById('valPitch');
 const valRoll = document.getElementById('valRoll');
 const calibrateBtn = document.getElementById('calibrateBtn');
+const cameraBtn = document.getElementById('cameraBtn');
 const winOverlay = document.getElementById('winOverlay');
 const restartBtn = document.getElementById('restartBtn');
 
@@ -39,6 +40,7 @@ function init() {
     // Event Listeners
     window.addEventListener('resize', onWindowResize);
     calibrateBtn.addEventListener('click', calibrate);
+    cameraBtn.addEventListener('click', toggleCamera);
     restartBtn.addEventListener('click', restartGame);
 
     // Animation Loop
@@ -269,6 +271,21 @@ function calibrate() {
     restartGame(); // Reset ball position
 }
 
+let currentView = 1;
+function toggleCamera() {
+    if (currentView === 1) {
+        currentView = 2;
+        camera.position.set(0, 30, 0);
+        camera.lookAt(0, 0, 0);
+        cameraBtn.textContent = "切換視角 (俯視)";
+    } else {
+        currentView = 1;
+        camera.position.set(0, 20, 20);
+        camera.lookAt(0, 0, 0);
+        cameraBtn.textContent = "切換視角 (預設)";
+    }
+}
+
 // --- Game Logic ---
 function restartGame() {
     // Reset ball position
@@ -305,7 +322,7 @@ function animate() {
     const finalPitch = filteredPitch - calibPitch;
     const finalRoll = filteredRoll - calibRoll;
 
-    const euler = new THREE.Euler(finalPitch, 0, -finalRoll, 'XYZ'); // Invert finalRoll here to fix left/right
+    const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ'); // Reverted back to finalRoll (removed negative sign)
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
     // Instead of rotating the kinematic body, we rotate the GRAVITY!
