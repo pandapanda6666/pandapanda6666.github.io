@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的東西 - PandaPanda Scratch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary: #4C97FF;
+            --primary-hover: #3373cc;
+            --bg-color: #F3F5F9;
+            --card-bg: #FFFFFF;
+            --text-dark: #333333;
+            --text-light: #575E75;
+            --danger: #FF6680;
+            --danger-hover: #FF4D6A;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+        }
+
+        /* Navbar */
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--primary);
+            padding: 0 20px;
+            height: 50px;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+        }
+
+        .navbar-brand img {
+            height: 30px;
+        }
+
+        .navbar-brand h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .navbar-user span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .btn-back {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        .btn-back:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* Main Content */
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .header-section {
+            margin-bottom: 30px;
+        }
+
+        .header-section h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+
+        /* Project Card */
+        .project-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .project-thumbnail {
+            width: 100%;
+            height: 180px;
+            background: #E5E9F0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .project-thumbnail img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+        }
+
+        .project-thumbnail-placeholder {
+            font-size: 48px;
+            color: #C0C8D6;
+        }
+
+        .project-info {
+            padding: 16px;
+        }
+
+        .project-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-dark);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .project-date {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 16px;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: var(--text-light);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            grid-column: 1 / -1;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: var(--text-dark);
+        }
+
+        .empty-state p {
+            color: var(--text-light);
+        }
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="navbar-brand" onclick="goBack()">
+            <img src="https://scratch.mit.edu/images/logo_sm.png" alt="Scratch Logo" style="filter: brightness(0) invert(1);">
+            <h1>我的東西</h1>
+        </div>
+        <div class="navbar-user">
+            <span id="username-display">載入中...</span>
+            <button class="btn-back" onclick="goBack()">返回編輯器</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header-section">
+            <h2>我的專案</h2>
+        </div>
+
+        <div id="projects-container" class="projects-grid">
+            <div class="loading">正在向伺服器讀取您的專案...</div>
+        </div>
+    </div>
+
+    <script>
+        // 解析 URL 參數
+        const urlParams = new URLSearchParams(window.location.search);
+        const user = urlParams.get('user');
+        const isAuth = urlParams.get('auth') === 'true';
+
+        if (!isAuth || !user) {
+            alert('尚未登入，即將返回登入中心！');
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/';
+        }
+
+        document.getElementById('username-display').innerText = user;
+
+        function goBack() {
+            window.location.href = './index.html?auth=true&user=' + encodeURIComponent(user);
+        }
+
+        // 連線至伺服器
+        const socket = io('https://pandapanda-chat.onrender.com');
+
+        socket.on('connect', () => {
+            console.log('已連線至伺服器，正在請求專案資料...');
+            // 通知伺服器索取該使用者的專案 (預設事件名稱)
+            socket.emit('getUserProjects', { username: user });
+        });
+
+        // 監聽專案資料回傳
+        socket.on('userProjectsData', (data) => {
+            const container = document.getElementById('projects-container');
+            container.innerHTML = ''; // 清空 loading
+            
+            // 由於不知道伺服器的確切回傳格式，這裡做一些兼容處理
+            let projects = [];
+            if (Array.isArray(data)) {
+                projects = data;
+            } else if (data && Array.isArray(data.projects)) {
+                projects = data.projects;
+            }
+
+            if (projects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>目前沒有任何專案</h3>
+                        <p>回到編輯器創建你第一個超棒的專案吧！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            projects.forEach(proj => {
+                // proj 預期有 id, title, updatedAt (或 date) 等欄位
+                const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                const title = proj.title || proj.name || '未命名專案';
+                const date = proj.updatedAt || proj.date || new Date().toISOString();
+                
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                card.innerHTML = `
+                    <div class="project-thumbnail">
+                        <div class="project-thumbnail-placeholder">🎮</div>
+                    </div>
+                    <div class="project-info">
+                        <div class="project-title" title="${title}">${title}</div>
+                        <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                        <div class="project-actions">
+                            <button class="btn btn-primary" onclick="loadProject('${id}')">讀取專案 (See Inside)</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        });
+
+        function loadProject(projectId) {
+            // 跳轉回編輯器，並帶上專案 ID，讓編輯器載入
+            window.location.href = './index.html?auth=true&user=' + encodeURIComponent(user) + '&id=' + encodeURIComponent(projectId);
+        }
+
+        // 錯誤處理
+        socket.on('connect_error', () => {
+            document.getElementById('projects-container').innerHTML = `
+                <div class="empty-state" style="color: var(--danger);">
+                    <h3>無法連線至伺服器</h3>
+                    <p>請檢查您的網路連線，或稍後再試。</p>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
