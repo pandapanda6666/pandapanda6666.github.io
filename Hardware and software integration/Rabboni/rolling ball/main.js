@@ -322,7 +322,7 @@ function animate() {
     const finalPitch = filteredPitch - calibPitch;
     const finalRoll = filteredRoll - calibRoll;
 
-    const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ'); // Reverted back to finalRoll (removed negative sign)
+    const euler = new THREE.Euler(finalPitch, 0, -finalRoll, 'XYZ'); // Invert roll for visual orientation
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
     // Instead of rotating the kinematic body, we rotate the GRAVITY!
