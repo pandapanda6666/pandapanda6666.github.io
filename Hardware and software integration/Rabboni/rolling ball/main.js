@@ -275,14 +275,9 @@ let currentView = 1;
 function toggleCamera() {
     if (currentView === 1) {
         currentView = 2;
-        // Offset Z slightly to avoid Gimbal lock when looking straight down
-        camera.position.set(0, 30, 0.001);
-        camera.lookAt(0, 0, 0);
-        cameraBtn.textContent = "切換視角 (俯視)";
+        cameraBtn.textContent = "切換視角 (俯視固定)";
     } else {
         currentView = 1;
-        camera.position.set(0, 20, 20);
-        camera.lookAt(0, 0, 0);
         cameraBtn.textContent = "切換視角 (預設)";
     }
 }
@@ -346,6 +341,23 @@ function animate() {
     // Since ballVisual is a child of mazeVisual, copying physics position maps it perfectly!
     ballVisual.position.copy(ballBody.position);
     ballVisual.quaternion.copy(ballBody.quaternion);
+
+    // Camera view handling
+    if (currentView === 2) {
+        // Camera locked to maze local top (moves with the maze)
+        const localCamPos = new THREE.Vector3(0, 30, 0);
+        camera.position.copy(localCamPos.applyQuaternion(quat));
+        
+        const localUp = new THREE.Vector3(0, 0, -1);
+        camera.up.copy(localUp.applyQuaternion(quat));
+        
+        camera.lookAt(0, 0, 0);
+    } else {
+        // Default View
+        camera.position.set(0, 20, 20);
+        camera.up.set(0, 1, 0);
+        camera.lookAt(0, 0, 0);
+    }
 
     // 3. Render
     renderer.render(scene, camera);
