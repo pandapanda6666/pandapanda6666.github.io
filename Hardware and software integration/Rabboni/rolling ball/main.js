@@ -27,6 +27,8 @@ const valPitch = document.getElementById('valPitch');
 const valRoll = document.getElementById('valRoll');
 const calibrateBtn = document.getElementById('calibrateBtn');
 const cameraBtn = document.getElementById('cameraBtn');
+const invertPitch = document.getElementById('invertPitch');
+const invertRoll = document.getElementById('invertRoll');
 const winOverlay = document.getElementById('winOverlay');
 const restartBtn = document.getElementById('restartBtn');
 
@@ -250,8 +252,8 @@ function processSensorData(acc) {
     const az = acc[2];
 
     // standard tilt formulas based on accelerometer
-    let p = -(Math.atan2(ay, Math.sqrt(ax*ax + az*az)));
-    let r = -(Math.atan2(ax, az));
+    let p = Math.atan2(ay, Math.sqrt(ax*ax + az*az));
+    let r = Math.atan2(ax, az);
 
     // Low pass filter to smooth out noise
     const alpha = 0.1;
@@ -315,10 +317,18 @@ function checkWinCondition() {
 // --- Main Loop ---
 function animate() {
     // Apply Rabboni rotation to Maze
-    const finalPitch = filteredPitch - calibPitch;
-    const finalRoll = filteredRoll - calibRoll;
+    let finalPitch = filteredPitch - calibPitch;
+    let finalRoll = filteredRoll - calibRoll;
 
-    const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ');
+    // Update UI text
+    valPitch.textContent = (finalPitch * 180 / Math.PI).toFixed(2) + '°';
+    valRoll.textContent = (finalRoll * 180 / Math.PI).toFixed(2) + '°';
+
+    // Apply UI toggles for inversion
+    let visPitch = invertPitch.checked ? -finalPitch : finalPitch;
+    let visRoll = invertRoll.checked ? -finalRoll : finalRoll;
+
+    const euler = new THREE.Euler(visPitch, 0, visRoll, 'XYZ');
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
     // Instead of rotating the kinematic body, we rotate the GRAVITY!
@@ -326,10 +336,6 @@ function animate() {
     const invQuat = quat.clone().invert();
     const gravity = new THREE.Vector3(0, -20, 0).applyQuaternion(invQuat);
     world.gravity.set(gravity.x, gravity.y, gravity.z);
-
-    // Update UI text
-    valPitch.textContent = (finalPitch * 180 / Math.PI).toFixed(2) + '°';
-    valRoll.textContent = (finalRoll * 180 / Math.PI).toFixed(2) + '°';
 
     // 1. Update Physics / Game State
     world.step(1 / 60);
