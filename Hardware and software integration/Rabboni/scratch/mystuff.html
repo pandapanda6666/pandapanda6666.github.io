@@ -257,76 +257,91 @@
             window.location.href = './index.html?auth=true&user=' + encodeURIComponent(user);
         }
 
-        // 連線至伺服器
-        const socket = io('https://pandapanda-chat.onrender.com');
-
-        socket.on('connect', () => {
-            console.log('已連線至伺服器，正在請求專案資料...');
-            // 通知伺服器索取該使用者的專案 (預設事件名稱)
-            socket.emit('getUserProjects', { username: user });
-        });
-
-        // 監聽專案資料回傳
-        socket.on('userProjectsData', (data) => {
-            const container = document.getElementById('projects-container');
-            container.innerHTML = ''; // 清空 loading
-            
-            // 由於不知道伺服器的確切回傳格式，這裡做一些兼容處理
-            let projects = [];
-            if (Array.isArray(data)) {
-                projects = data;
-            } else if (data && Array.isArray(data.projects)) {
-                projects = data.projects;
-            }
-
-            if (projects.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <h3>目前沒有任何專案</h3>
-                        <p>回到編輯器創建你第一個超棒的專案吧！</p>
-                    </div>
-                `;
-                return;
-            }
-
-            projects.forEach(proj => {
-                // proj 預期有 id, title, updatedAt (或 date) 等欄位
-                const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
-                const title = proj.title || proj.name || '未命名專案';
-                const date = proj.updatedAt || proj.date || new Date().toISOString();
+        // 動態取得伺服器網址並連線
+        let socket;
+        async function connectToServer() {
+            try {
+                // 跟主編輯器一樣，從遠端取得被加密過的伺服器網址
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
                 
-                const card = document.createElement('div');
-                card.className = 'project-card';
-                card.innerHTML = `
-                    <div class="project-thumbnail">
-                        <div class="project-thumbnail-placeholder">🎮</div>
-                    </div>
-                    <div class="project-info">
-                        <div class="project-title" title="${title}">${title}</div>
-                        <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
-                        <div class="project-actions">
-                            <button class="btn btn-primary" onclick="loadProject('${id}')">讀取專案 (See Inside)</button>
+                socket = io(serverUrl, { transports: ['websocket'] });
+                
+                socket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案資料...');
+                    // 通知伺服器索取該使用者的專案
+                    socket.emit('getUserProjects', { username: user });
+                });
+
+                socket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>目前沒有任何專案</h3>
+                                <p>回到編輯器創建你第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🎮</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="loadProject('${id}')">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                socket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
                         </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+                document.getElementById('projects-container').innerHTML = `
+                    <div class="empty-state" style="color: var(--danger);">
+                        <h3>伺服器網址獲取失敗</h3>
+                        <p>無法取得伺服器位址，請稍後再試。</p>
                     </div>
                 `;
-                container.appendChild(card);
-            });
-        });
-
-        function loadProject(projectId) {
-            // 跳轉回編輯器，並帶上專案 ID，讓編輯器載入
-            window.location.href = './index.html?auth=true&user=' + encodeURIComponent(user) + '&id=' + encodeURIComponent(projectId);
+            }
         }
 
-        // 錯誤處理
-        socket.on('connect_error', () => {
-            document.getElementById('projects-container').innerHTML = `
-                <div class="empty-state" style="color: var(--danger);">
-                    <h3>無法連線至伺服器</h3>
-                    <p>請檢查您的網路連線，或稍後再試。</p>
-                </div>
-            `;
-        });
+        connectToServer();
+
+        function loadProject(projectId) {
+            window.location.href = './index.html?auth=true&user=' + encodeURIComponent(user) + '&id=' + encodeURIComponent(projectId);
+        }
     </script>
 </body>
 </html>
