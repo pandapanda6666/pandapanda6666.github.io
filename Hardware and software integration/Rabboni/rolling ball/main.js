@@ -27,8 +27,6 @@ const valPitch = document.getElementById('valPitch');
 const valRoll = document.getElementById('valRoll');
 const calibrateBtn = document.getElementById('calibrateBtn');
 const cameraBtn = document.getElementById('cameraBtn');
-const invertPitch = document.getElementById('invertPitch');
-const invertRoll = document.getElementById('invertRoll');
 const winOverlay = document.getElementById('winOverlay');
 const restartBtn = document.getElementById('restartBtn');
 
@@ -324,11 +322,7 @@ function animate() {
     valPitch.textContent = (finalPitch * 180 / Math.PI).toFixed(2) + '°';
     valRoll.textContent = (finalRoll * 180 / Math.PI).toFixed(2) + '°';
 
-    // Apply UI toggles for inversion
-    let visPitch = invertPitch.checked ? -finalPitch : finalPitch;
-    let visRoll = invertRoll.checked ? -finalRoll : finalRoll;
-
-    const euler = new THREE.Euler(visPitch, 0, visRoll, 'XYZ');
+    const euler = new THREE.Euler(finalPitch, 0, finalRoll, 'XYZ');
     const quat = new THREE.Quaternion().setFromEuler(euler);
 
     // Instead of rotating the kinematic body, we rotate the GRAVITY!
