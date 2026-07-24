@@ -371,9 +371,9 @@
             <div class="user-avatar"></div>
             <span id="username-display">載入中...</span> ▾
             <div class="dropdown-menu">
-                <a href="#">👤 個人資訊</a>
+                <a href="/scratch/users/">👤 個人資訊</a>
                 <a href="/scratch/mystuff/">📁 我的東西</a>
-                <a href="#">⚙️ 帳戶設定</a>
+                <a href="/scratch/settings/">⚙️ 帳戶設定</a>
                 <a href="#" onclick="logout(event)">登出</a>
             </div>
         </div>
@@ -412,30 +412,44 @@
     <script>
         // 登入驗證
         let currentUser = '';
-        function checkLogin() {
+                async function checkLogin() {
+            let token = localStorage.getItem('panda_session_token');
             const urlParams = new URLSearchParams(window.location.search);
-            let user = urlParams.get('user');
-            
-            if (user) {
-                localStorage.setItem('panda_username', user);
+            const urlToken = urlParams.get('token');
+            if (urlToken) {
+                token = urlToken;
+                localStorage.setItem('panda_session_token', token);
                 window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-                user = localStorage.getItem('panda_username');
             }
+            if (token) {
+                try {
+                    let serverUrl = "https://pandapanda-chat.onrender.com";
+                    let res = await fetch(serverUrl + '/verify', {
+                        headers: { 'Authorization': 'Bearer ' + token }
+                    });
+                    if (res.ok) {
+                        let data = await res.json();
+                        let displayName = data.nickname || data.user || data.username || data.account;
+                        localStorage.setItem('panda_username', displayName);
+                        if (data.avatar) localStorage.setItem('panda_avatar', data.avatar);
+                    }
+                } catch(e) {}
+            }
+            
+            let user = localStorage.getItem('panda_username');
+            let avatar = localStorage.getItem('panda_avatar');
 
             if (!user) {
-                window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=login&from=' + encodeURIComponent(window.location.href);
+                document.getElementById('userMenu').style.display = 'none';
+                document.getElementById('auth-actions').style.display = 'flex';
             } else {
                 document.getElementById('username-display').innerText = user;
-                currentUser = user;
+                if (avatar) {
+                    document.querySelector('.user-avatar').innerHTML = '<img src="' + avatar + '" style="width:100%;height:100%;border-radius:5px;object-fit:cover;">';
+                }
+                document.getElementById('userMenu').style.display = 'flex';
+                document.getElementById('auth-actions').style.display = 'none';
             }
-        }
-
-        function logout(e) {
-            e.preventDefault();
-            localStorage.removeItem('panda_session_token');
-            localStorage.removeItem('panda_username');
-            window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=logout&from=' + encodeURIComponent(window.location.href);
         }
 
         checkLogin();
