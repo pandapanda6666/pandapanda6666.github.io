@@ -350,31 +350,48 @@
 
     <!-- 導覽列 -->
     <nav class="navbar">
-        <a href="/scratch/" class="navbar-brand">
-            <img src="/scratch/scratch-logo.svg" alt="PandaScratch" style="height: 33px; margin-right: 15px;">
-        </a>
-        <a href="/scratch/projects/editor/">創造</a>
-        <a href="/scratch/explore/projects/all/">探索</a>
-        <a href="/scratch/ideas/">靈感</a>
-        <a href="/scratch/about/">關於</a>
+        <div class="navbar-brand" onclick="window.location.href='/scratch/'">
+            <img src="https://scratch.mit.edu/images/logo_sm.png" alt="PandaScratch">
+        </div>
         
-        <div class="navbar-search">
-            <input type="text" placeholder="搜尋">
+        <div class="navbar-nav">
+            <a href="/scratch/projects/editor/">創造</a>
+            <a href="/scratch/explore/projects/all/">探索</a>
+            <a href="/scratch/ideas/">靈感</a>
+            <a href="/scratch/about/">關於</a>
+            
+            <div class="search-container">
+                <svg viewBox="0 0 24 24" style="fill: rgba(255,255,255,0.7); width: 16px; height: 16px; margin-right: 5px;">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <input type="text" placeholder="搜尋">
+            </div>
         </div>
 
-        <div class="navbar-icons">
-            <a href="/scratch/messages/" class="navbar-icon" title="訊息">✉️</a>
-            <a href="/scratch/mystuff/" class="navbar-icon" title="我的東西">📁</a>
+        <div class="auth-actions" id="auth-actions">
+            <a href="https://pandapanda6666.github.io/login-hub/?require=1&from=https%3A%2F%2Fpandapanda6666.github.io%2Fscratch%2F" style="margin-right: 10px;">登入 / 註冊</a>
         </div>
 
-        <div class="user-menu" id="userMenu">
-            <div class="user-avatar"></div>
-            <span id="username-display">載入中...</span> ▾
-            <div class="dropdown-menu">
-                <a href="https://pandapanda6666.github.io/login-hub/?action=profile">個人資訊</a>
-                <a href="/scratch/mystuff/"><img src="/scratch/projects/editor/static/assets/e1672da8924b2b3e8ad32b137f8f1c4e.png" alt="我的東西" style="width: 24px; height: 24px;"></a>
-                <a href="https://pandapanda6666.github.io/login-hub/?action=settings">帳戶設定</a>
-                <a href="#" onclick="logout(event)">登出</a>
+        <div class="user-menu" id="user-menu">
+            <button class="icon-btn" title="訊息" onclick="window.location.href='/scratch/messages/'">
+                <svg viewBox="0 0 24 24" style="fill: white; width: 24px; height: 24px;">
+                    <path d="M20,4H4C2.9,4,2.01,4.9,2.01,6L2,18c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V6C22,4.9,21.1,4,20,4z M20,18H4V8l8,5l8-5V18z M12,11L4,6h16L12,11z"/>
+                </svg>
+            </button>
+            <button class="icon-btn" title="我的東西" onclick="openMyStuff()">
+                <img src="/scratch/projects/editor/static/assets/e1672da8924b2b3e8ad32b137f8f1c4e.png" alt="我的東西" style="width: 24px; height: 24px;">
+            </button>
+            
+            <div class="avatar-container">
+                <img src="" alt="Avatar" class="avatar" id="nav-avatar">
+                <span class="username" id="nav-username">使用者</span>
+                
+                <div class="dropdown-content">
+                    <a href="https://pandapanda6666.github.io/login-hub/?action=profile">個人資訊</a>
+                    <a href="/scratch/mystuff/">我的東西</a>
+                    <a href="https://pandapanda6666.github.io/login-hub/?action=settings">帳戶設定</a>
+                    <a href="javascript:void(0)" onclick="logout()">登出</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -410,9 +427,24 @@
     </div>
 
     <script>
-        // 登入驗證
-        let currentUser = '';
-                async function checkLogin() {
+        // 登入驗證機制
+        function openMyStuff() {
+            const token = localStorage.getItem('panda_session_token');
+            const currentUser = localStorage.getItem('panda_session_user') || 'User';
+            if (!token) {
+                window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent('https://pandapanda6666.github.io/scratch/mystuff/');
+            } else {
+                window.location.href = '/scratch/mystuff/?auth=true&user=' + encodeURIComponent(currentUser);
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('panda_session_token');
+            localStorage.removeItem('panda_session_user');
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=logout&from=' + encodeURIComponent(window.location.href);
+        }
+
+        async function checkLogin() {
             let token = localStorage.getItem('panda_session_token');
             const urlParams = new URLSearchParams(window.location.search);
             const urlToken = urlParams.get('token');
@@ -421,114 +453,48 @@
                 localStorage.setItem('panda_session_token', token);
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
+            
             if (token) {
                 try {
-                    let serverUrl = "https://pandapanda-chat.onrender.com";
-                    let res = await fetch(serverUrl + '/verify', {
-                        headers: { 'Authorization': 'Bearer ' + token }
+                    const response = await fetch('https://pandapanda-chat.onrender.com/verify', {
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
                     });
-                    if (res.ok) {
-                        let data = await res.json();
-                        let displayName = data.nickname || data.user || data.username || data.account;
-                        localStorage.setItem('panda_username', displayName);
-                        if (data.avatar) localStorage.setItem('panda_avatar', data.avatar);
-                    }
-                } catch(e) {}
-            }
-            
-            let user = localStorage.getItem('panda_username');
-            let avatar = localStorage.getItem('panda_avatar');
-
-            if (!user) {
-                document.getElementById('userMenu').style.display = 'none';
-                document.getElementById('auth-actions').style.display = 'flex';
-            } else {
-                document.getElementById('username-display').innerText = user;
-                if (avatar) {
-                    document.querySelector('.user-avatar').innerHTML = '<img src="' + avatar + '" style="width:100%;height:100%;border-radius:5px;object-fit:cover;">';
-                }
-                document.getElementById('userMenu').style.display = 'flex';
-                document.getElementById('auth-actions').style.display = 'none';
-            }
-        }
-
-        checkLogin();
-
-        // 載入專案
-        let socket;
-        async function connectToServer() {
-            try {
-                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
-                const text = await res.text();
-                const serverUrl = atob(text.trim().split('').reverse().join(''));
-                
-                socket = io(serverUrl, { transports: ['websocket'] });
-                
-                socket.on('connect', () => {
-                    socket.emit('getUserProjects', { username: currentUser });
-                });
-
-                socket.on('userProjectsData', (data) => {
-                    const container = document.getElementById('projects-container');
-                    container.innerHTML = '';
                     
-                    let projects = [];
-                    if (Array.isArray(data)) {
-                        projects = data;
-                    } else if (data && Array.isArray(data.projects)) {
-                        projects = data.projects;
-                    }
-
-                    if (projects.length === 0) {
-                        container.innerHTML = `
-                            <div class="empty-state">
-                                <h3>你還沒有任何專案</h3>
-                                <p>點擊右上角的「+ 新增專案」來創造你的第一個專案吧！</p>
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    projects.forEach(proj => {
-                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
-                        const title = proj.title || proj.name || '未命名專案';
-                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById('auth-actions').style.display = 'none';
+                        document.getElementById('user-menu').style.display = 'flex';
                         
-                        const item = document.createElement('div');
-                        item.className = 'project-item';
-                        item.innerHTML = `
-                            <div class="project-thumbnail">🖼️</div>
-                            <div class="project-details">
-                                <div class="project-title">${title}</div>
-                                <div class="project-meta">最後修改：${new Date(date).toLocaleDateString()}</div>
-                                <div class="project-buttons">
-                                    <button onclick="window.location.href='/scratch/projects/editor/?id=${id}'">看裡面</button>
-                                </div>
-                            </div>
-                        `;
-                        container.appendChild(item);
-                    });
-                });
-
-                socket.on('connect_error', () => {
-                    document.getElementById('projects-container').innerHTML = `
-                        <div class="empty-state" style="color: red;">
-                            <h3>無法連接伺服器</h3>
-                        </div>
-                    `;
-                });
-            } catch (e) {
-                document.getElementById('projects-container').innerHTML = `
-                    <div class="empty-state" style="color: red;">
-                        <h3>無法獲取伺服器資訊</h3>
-                    </div>
-                `;
+                        // 設定頭像和使用者名稱
+                        const userNickname = data.nickname || data.username || data.account || '使用者';
+                        const userAvatar = data.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                        
+                        document.getElementById('nav-username').textContent = userNickname;
+                        document.getElementById('nav-avatar').src = userAvatar;
+                        
+                        // 儲存最新的暱稱
+                        localStorage.setItem('panda_session_user', userNickname);
+                    } else {
+                        throw new Error('Token invalid');
+                    }
+                } catch (error) {
+                    console.error('Login check failed:', error);
+                    localStorage.removeItem('panda_session_token');
+                    document.getElementById('auth-actions').style.display = 'flex';
+                    document.getElementById('user-menu').style.display = 'none';
+                }
+            } else {
+                document.getElementById('auth-actions').style.display = 'flex';
+                document.getElementById('user-menu').style.display = 'none';
             }
         }
 
-        if (currentUser) {
-            connectToServer();
-        }
+        // 頁面載入時檢查登入狀態
+        window.addEventListener('load', () => {
+            checkLogin();
+        });
     </script>
 </body>
 </html>
