@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多功能節日計時器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <!-- 更新 solarlunar 函式庫連結 -->
+    <script src="https://cdn.jsdelivr.net/npm/solarlunar@2.0.7/lib/solarlunar.min.js"></script>
+    <script>
+        if (window.solarlunar) {
+            console.log('✅ 成功從網路 CDN 載入 solarlunar.min.js');
+        } else {
+            console.warn('⚠️ 無法從網路 CDN 載入 solarlunar.min.js，正在嘗試讀取本機檔案...');
+            document.write('<script src="solarlunar.min.js"><\/script>');
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        if (window.XLSX) {
+            console.log('✅ 成功從網路 CDN 載入 xlsx.full.min.js');
+        } else {
+            console.warn('⚠️ 無法從網路 CDN 載入 xlsx.full.min.js，正在嘗試讀取本機檔案...');
+            document.write('<script src="xlsx.full.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        :root {
+            --bg-color-1: #1a2a6c;
+            --bg-color-2: #b21f1f;
+            --text-color: #ffffff;
+            --glass-background: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --button-background: rgba(255, 255, 255, 0.15);
+            --button-primary-bg: #007bff;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            margin: 0;
+            padding: 2rem 1rem;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+            color: var(--text-color);
+            background: linear-gradient(-45deg, var(--bg-color-1), var(--bg-color-2));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            transition: background 1s ease;
+            box-sizing: border-box;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            background: var(--glass-background);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            animation: fadeIn 1s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .main-display {
+            margin-bottom: 2rem;
+        }
+        
+        .notice-container {
+             margin-bottom: 1.5rem;
+             padding: 0.75rem 1rem;
+             background: rgba(0, 123, 255, 0.15);
+             border-left: 5px solid var(--button-primary-bg);
+             border-radius: 8px;
+             text-align: center;
+             font-size: 0.9rem;
+        }
+        
+        #parsing-errors {
+            margin-bottom: 2rem;
+        }
+
+        .parsing-error-container {
+            padding: 1rem;
+            background: rgba(255, 165, 0, 0.15);
+            border-left: 5px solid #ffa500;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .parsing-error-container h3 {
+            margin-top: 0;
+            color: #ffc966;
+            font-size: 1rem;
+        }
+        .parsing-error-container ul {
+            padding-left: 20px;
+            margin: 0;
+            list-style-type: none;
+        }
+        .parsing-error-container li {
+            margin-bottom: 0.8rem;
+        }
+        .parsing-error-container code {
+            background: rgba(0,0,0,0.4);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            display: inline-block;
+            margin-top: 4px;
+        }
+
+        .controls-container {
+            margin-top: 2rem;
+        }
+        
+        .year-selector-container {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        #year-selector {
+            font-size: 1rem;
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--glass-border);
+            background: rgba(0,0,0,0.3);
+            color: var(--text-color);
+        }
+
+        .styled-button {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
+            background: var(--button-background);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        
+        .styled-button:hover {
+            background-color: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        #load-file-btn {
+            margin-top: 1rem;
+            background-color: var(--button-primary-bg);
+        }
+        
+        #holiday-list-container {
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+            text-align: left;
+            padding-right: 15px; /* For scrollbar spacing */
+        }
+        
+        .holiday-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            padding: 0.8rem 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .holiday-item:hover {
+            background: rgba(0,0,0,0.4);
+        }
+        
+        .holiday-info {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .color-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 12px;
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        
+        .holiday-name {
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+        .holiday-calculated-date {
+            font-family: 'Inter', sans-serif;
+            opacity: 0.8;
+            font-size: 0.85em;
+        }
+        .holiday-countdown-text {
+            font-family: 'Inter', sans-serif;
+            margin-top: 4px; /* Give some space on wrap */
+            width: 100%;
+            text-align: right;
+            font-size: 0.9em;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        h1 {
+            font-size: clamp(1.8rem, 5vw, 2.8rem);
+            font-weight: 700;
+            margin: 0 0 1.5rem 0;
+            letter-spacing: 1px;
+        }
+        
+        .celebrate-message {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 900;
+            color: #fdbb2d;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .error-message {
+            font-size: 1rem;
+            text-align: left;
+            background: rgba(255,0,0,0.1);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 5px solid #ff4444;
+            line-height: 1.6;
+        }
+        .error-message code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .countdown {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+        }
+        
+        @media (max-width: 600px) {
+            .countdown {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1.5rem;
+            }
+             .container {
+                padding: 2rem 1.5rem;
+            }
+        }
+        
+         @media (max-width: 400px) {
+            .countdown {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .time-unit {
+            display: flex;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem 0.5rem;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+        
+        .time-unit:hover {
+            transform: translateY(-5px);
+        }
+
+        .time-unit span {
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(2rem, 8vw, 3.5rem);
+            font-weight: 900;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .time-unit label {
+            font-size: clamp(0.7rem, 3vw, 0.9rem);
+            font-weight: 400;
+            text-transform: uppercase;
+            opacity: 0.8;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <div id="notice-container"></div>
+        <div id="parsing-errors"></div>
+        <div class="main-display">
+            <h1 id="holiday-title"></h1>
+            <div id="countdown" class="countdown"></div>
+            <button id="load-file-btn" class="styled-button hidden">從本機檔案載入</button>
+            <input type="file" id="file-input" class="hidden" accept=".xlsx, .xls, .csv">
+        </div>
+        <div id="controls-container" class="controls-container hidden">
+            <button id="toggle-list-btn" class="styled-button">查看未來節日</button>
+             <div id="future-controls" class="year-selector-container hidden">
+                <label for="year-selector">選擇年份：</label>
+                <select id="year-selector"></select>
+            </div>
+        </div>
+        <div id="holiday-list-container" class="hidden">
+            <!-- 節日列表會由 JavaScript 動態生成 -->
+        </div>
+    </main>
+
+    <script>
+        // --- Self-XSS 保護警告 ---
+        (() => {
+            const message = `%c住手！\n\n%c這是一個專為開發人員設計的瀏覽器功能。如果有人告訴您在這裡複製貼上任何東西來啟用特殊功能或「駭入」他人帳號，這很可能是一場騙局，並且會讓攻擊者有機會竊取您的個人資訊或控制您的帳號。`;
+            const styles = [
+                'color: red; font-size: 48px; font-weight: bold; text-shadow: 2px 2px 5px rgba(0,0,0,0.5);',
+                'font-size: 18px; line-height: 1.6;'
+            ];
+            console.log(message, ...styles);
+        })();
+
+        // 【保留】禁用開發者工具的常用快捷鍵
+        document.addEventListener('keydown', function(event) {
+            // 禁用 F12
+            if (event.keyCode === 123) {
+                event.preventDefault();
+            }
+            // 禁用 Ctrl+Shift+I (Windows/Linux)
+            if (event.ctrlKey && event.shiftKey && event.keyCode === 73) {
+                event.preventDefault();
+            }
+            // 禁用 Command+Option+I (Mac)
+            if (event.metaKey && event.altKey && event.keyCode === 73) {
+                event.preventDefault();
+            }
+        });
+
+        // 【保留】禁用右鍵選單
+        document.addEventListener('contextmenu', function(event) {
+            event.preventDefault();
+        });
+
+        // --- 設定區 ---
+        // 【更新】使用您提供的 Google Sheets 連結，並轉換為 CSV 輸出格式
+        const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQCTWbsAW4dgDJKZ_PpraMgQ0z9iRL1qGZCcPVGZWsmk1KZHqQWfqps5z-xWwxS_g/pub?gid=1031848826&single=true&output=csv';
+        const EXPECTED_FORMAT = '節日,倒數日期,是否為農曆,顏色1,顏色2';
+        // --- 設定區結束 ---
+        
+        // --- 內建節日資料 (備用) ---
+        const localRawHolidayData = [
+            { "name": "元旦", "dateStr": "1/1", "isLunar": false, "colors": ["#ef4444", "#fbbf24"] },
+            { "name": "農曆除夕", "dateStr": "12/30", "isLunar": true, "colors": ["#dc2626", "#facc15"] },
+            { "name": "農曆春節", "dateStr": "1/1", "isLunar": true, "colors": ["#c00", "#f9a602"] },
+            { "name": "元宵節", "dateStr": "1/15", "isLunar": true, "colors": ["#ff4500", "#ff8c00"] },
+            { "name": "和平紀念日", "dateStr": "2/28", "isLunar": false, "colors": ["#d1d5db", "#4b5563"] },
+            { "name": "兒童節", "dateStr": "4/4", "isLunar": false, "colors": ["#34d399", "#60a5fa"] },
+            { "name": "清明節", "dateStr": "4/5", "isLunar": false, "colors": ["#a3a3a3", "#e5e5e5"] },
+            { "name": "勞動節", "dateStr": "5/1", "isLunar": false, "colors": ["#0369a1", "#e0f2fe"] },
+            { "name": "母親節", "dateStr": "5/2/0", "isLunar": false, "colors": ["#ec4899", "#fbcfe8"] },
+            { "name": "端午節", "dateStr": "5/5", "isLunar": true, "colors": ["#16a34a", "#fde047"] },
+            { "name": "父親節", "dateStr": "8/8", "isLunar": false, "colors": ["#2563eb", "#bfdbfe"] },
+            { "name": "七夕", "dateStr": "7/7", "isLunar": true, "colors": ["#9333ea", "#f5d0fe"] },
+            { "name": "中元節", "dateStr": "7/15", "isLunar": true, "colors": ["#78716c", "#e7e5e4"] },
+            { "name": "中秋節", "dateStr": "8/15", "isLunar": true, "colors": ["#f59e0b", "#1e3a8a"] },
+            { "name": "教師節", "dateStr": "9/28", "isLunar": false, "colors": ["#059669", "#d1fae5"] },
+            { "name": "國慶日", "dateStr": "10/10", "isLunar": false, "colors": ["#dc2626", "#3b82f6"] },
+            { "name": "萬聖節", "dateStr": "10/31", "isLunar": false, "colors": ["#f97316", "#171717"] },
+            { "name": "冬至", "dateStr": "12/21", "isLunar": false, "colors": ["#67e8f9", "#0e7490"] },
+            { "name": "聖誕節", "dateStr": "12/25", "isLunar": false, "colors": ["#16a34a", "#dc2626"] }
+        ];
+
+        // 內建節氣日期資料
+        const SOLAR_TERM_MAP = {
+            '冬至': {
+                2025: '2025-12-21', 2026: '2026-12-22', 2027: '2027-12-22', 2028: '2028-12-21', 2029: '2029-12-21', 2030: '2030-12-22', 2031: '2031-12-22', 2032: '2032-12-21', 2033: '2033-12-21', 2034: '2034-12-22', 2035: '2035-12-22', 2036: '2036-12-21', 2037: '2037-12-21', 2038: '2038-12-22', 2039: '2039-12-22', 2040: '2040-12-21', 2041: '2041-12-21', 2042: '2042-12-21', 2043: '2043-12-22', 2044: '2044-12-21', 2045: '2045-12-21', 2046: '2046-12-22', 2047: '2047-12-22', 2048: '2048-12-21', 2049: '2049-12-21', 2050: '2050-12-22', 2051: '2051-12-22', 2052: '2052-12-21', 2053: '2053-12-21', 2054: '2054-12-22', 2055: '2055-12-22', 2056: '2056-12-21', 2057: '2057-12-21', 2058: '2058-12-21', 2059: '2059-12-22', 2060: '2060-12-21', 2061: '2061-12-21', 2062: '2062-12-22', 2063: '2063-12-22', 2064: '2064-12-21', 2065: '2065-12-21', 2066: '2066-12-22', 2067: '2067-12-22', 2068: '2068-12-21', 2069: '2069-12-21', 2070: '2070-12-22', 2071: '2071-12-22', 2072: '2072-12-21', 2073: '2073-12-21', 2074: '2074-12-22', 2075: '2075-12-22', 2076: '2076-12-21', 2077: '2077-12-21', 2078: '2078-12-22', 2079: '2079-12-22', 2080: '2080-12-21', 2081: '2081-12-21', 2082: '2082-12-22', 2083: '2083-12-22', 2084: '2084-12-21', 2085: '2085-12-21', 2086: '2086-12-21', 2087: '2087-12-22', 2088: '2088-12-21', 2089: '2089-12-21', 2090: '2090-12-21', 2091: '2091-12-22', 2092: '2092-12-21', 2093: '2093-12-21', 2094: '2094-12-21', 2095: '2095-12-22', 2096: '2096-12-21', 2097: '2097-12-21', 2098: '2098-12-21', 2099: '2099-12-22', 2100: '2100-12-22', 2101: '2101-12-22', 2102: '2102-12-22', 2103: '2103-12-23', 2104: '2104-12-22', 2105: '2105-12-22', 2106: '2106-12-22', 2107: '2107-12-23', 2108: '2108-12-22', 2109: '2109-12-22', 2110: '2110-12-22', 2111: '2111-12-23', 2112: '2112-12-22', 2113: '2113-12-22', 2114: '2114-12-22', 2115: '2115-12-23', 2116: '2116-12-22', 2117: '2117-12-22', 2118: '2118-12-22', 2119: '2119-12-23', 2120: '2120-12-22', 2121: '2121-12-22', 2122: '2122-12-22', 2123: '2123-12-23', 2124: '2124-12-22'
+            }
+        };
+
+        const holidayTitleEl = document.getElementById('holiday-title');
+        const countdownEl = document.getElementById('countdown');
+        const controlsContainerEl = document.getElementById('controls-container');
+        const toggleListBtn = document.getElementById('toggle-list-btn');
+        const futureControlsEl = document.getElementById('future-controls');
+        const yearSelectorEl = document.getElementById('year-selector');
+        const holidayListContainer = document.getElementById('holiday-list-container');
+        const loadFileBtn = document.getElementById('load-file-btn');
+        const fileInput = document.getElementById('file-input');
+        
+        let upcomingHolidays = [];
+        let currentHoliday = {};
+        let rawHolidayDataSource = [];
+        let mainInterval;
+
+        function calculateFloatingHoliday(year, month, weekNum, dayOfWeek) {
+            const firstDayOfMonth = new Date(year, month - 1, 1);
+            const firstDayOfWeekInMonth = firstDayOfMonth.getDay(); 
+            let dayDiff = dayOfWeek - firstDayOfWeekInMonth;
+            if (dayDiff < 0) dayDiff += 7;
+            const targetDate = 1 + dayDiff + (weekNum - 1) * 7;
+            return new Date(year, month - 1, targetDate);
+        }
+
+        function calculateHolidayDateForYear(holiday, year) {
+            const { name, dateStr, isLunar } = holiday;
+            
+            if (SOLAR_TERM_MAP[name] && SOLAR_TERM_MAP[name][year]) {
+                return `${SOLAR_TERM_MAP[name][year]}T00:00:00`;
+            }
+            
+            if (!isLunar) {
+                const floatingMatch = dateStr.match(/^(\d{1,2})\/(\d)\/(\d)$/);
+                if (floatingMatch) {
+                    const [, month, weekNum, dayOfWeek] = floatingMatch.map(Number);
+                    const calculatedDate = calculateFloatingHoliday(year, month, weekNum, dayOfWeek);
+                    return `${year}-${formatTime(calculatedDate.getMonth() + 1)}-${formatTime(calculatedDate.getDate())}T00:00:00`;
+                } else {
+                    const [month, day] = dateStr.split('/');
+                    if (!month || !day || isNaN(parseInt(month)) || isNaN(parseInt(day))) throw new Error(`日期格式錯誤`);
+                    return `${year}-${formatTime(month)}-${formatTime(day)}T00:00:00`;
+                }
+            }
+            
+            if (name === "農曆除夕") {
+                const lnySolar = solarlunar.lunar2solar(year, 1, 1);
+                const lnyDate = new Date(lnySolar.cYear, lnySolar.cMonth - 1, lnySolar.cDay);
+                lnyDate.setDate(lnyDate.getDate() - 1);
+                const eveYear = lnyDate.getFullYear();
+
+                const eveSolar = solarlunar.lunar2solar(eveYear, 1, 1);
+                const eveLnyDate = new Date(eveSolar.cYear, eveSolar.cMonth-1, eveSolar.cDay)
+                eveLnyDate.setDate(eveLnyDate.getDate()-1);
+
+                return `${eveLnyDate.getFullYear()}-${formatTime(eveLnyDate.getMonth() + 1)}-${formatTime(eveLnyDate.getDate())}T00:00:00`;
+            }
+
+            const [lunarMonth, lunarDay] = dateStr.split('/').map(Number);
+            const solarData = solarlunar.lunar2solar(year, lunarMonth, lunarDay);
+            if (solarData.cYear) {
+                const resultDate = new Date(Date.UTC(solarData.cYear, solarData.cMonth - 1, solarData.cDay));
+                return resultDate.toISOString().split('T')[0] + 'T00:00:00';
+            }
+            
+            throw new Error(`無法計算農曆 ${year}年 ${dateStr} 的日期`);
+        }
+
+        async function fetchAndParseHolidays() {
+            const response = await fetch(SPREADSHEET_URL);
+            if (!response.ok) throw new Error('NETWORK_ERROR');
+            const csvText = await response.text();
+            const rows = csvText.trim().split('\n');
+            const headerRow = rows[0].trim();
+            if (headerRow !== EXPECTED_FORMAT) throw new Error(`FORMAT_MISMATCH:${rows[0]}`);
+
+            const parsingErrors = [];
+            let parsedHolidays = [];
+            for (let i = 1; i < rows.length; i++) {
+                try {
+                    const rowData = rows[i];
+                    if (!rowData.trim()) continue;
+                    const cells = rowData.split(',');
+                    if (cells.length < 5) throw new Error('欄位不足');
+                    
+                    const [name, dateStr, isLunarStr, color1, color2] = cells.map(c => c.trim());
+                    if (!name || !dateStr || !isLunarStr || !color1 || !color2) throw new Error('資料不完整');
+                    
+                    parsedHolidays.push({ name, dateStr, isLunar: isLunarStr === '是', colors: [color1, color2] });
+                } catch (error) {
+                    parsingErrors.push({ row: i + 1, data: rows[i], message: error.message });
+                }
+            }
+            return { holidays: parsedHolidays, errors: parsingErrors };
+        }
+        
+       function calculateUpcomingHolidays(sourceData) {
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            let allPossibleHolidays = [];
+
+            [currentYear, currentYear + 1, currentYear + 2].forEach(year => {
+                sourceData.forEach(h => {
+                    try {
+                        const date = calculateHolidayDateForYear(h, year);
+                        if (!allPossibleHolidays.some(p => p.date === date && p.name.includes(h.name))) {
+                             allPossibleHolidays.push({ ...h, name: `${new Date(date).getFullYear()} ${h.name}`, date });
+                        }
+                    } catch (e) { /* Ignore */ }
+                });
+            });
+            
+            upcomingHolidays = allPossibleHolidays
+                .filter(h => new Date(h.date) > now)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
+        function formatTime(time) {
+            const num = parseInt(time, 10);
+            return num < 10 ? `0${num}` : String(num);
+        }
+        
+        function updateTheme(holiday) {
+            if (!holiday || !holiday.colors) return;
+            document.documentElement.style.setProperty('--bg-color-1', holiday.colors[0]);
+            document.documentElement.style.setProperty('--bg-color-2', holiday.colors[1]);
+        }
+
+        function createMainCountdownHTML() {
+             countdownEl.style.gridTemplateColumns = '';
+             countdownEl.innerHTML = `
+                 <div class="time-unit"><span id="years">00</span><label>年</label></div>
+                 <div class="time-unit"><span id="months">00</span><label>月</label></div>
+                 <div class="time-unit"><span id="days">00</span><label>天</label></div>
+                 <div class="time-unit"><span id="hours">00</span><label>時</label></div>
+                 <div class="time-unit"><span id="minutes">00</span><label>分</label></div>
+                 <div class="time-unit"><span id="seconds">00</span><label>秒</label></div>`;
+        }
+        
+        function getExtendedCountdown(targetDate) {
+            const now = new Date();
+            if (targetDate <= now) return null;
+
+            let years = targetDate.getFullYear() - now.getFullYear();
+            let months = targetDate.getMonth() - now.getMonth();
+            let days = targetDate.getDate() - now.getDate();
+            let hours = targetDate.getHours() - now.getHours();
+            let minutes = targetDate.getMinutes() - now.getMinutes();
+            let seconds = targetDate.getSeconds() - now.getSeconds();
+            
+            if (seconds < 0) { minutes--; seconds += 60; }
+            if (minutes < 0) { hours--; minutes += 60; }
+            if (hours < 0) { days--; hours += 24; }
+            if (days < 0) {
+                months--;
+                const lastDayOfPrevMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 0).getDate();
+                days += lastDayOfPrevMonth;
+            }
+            if (months < 0) { years--; months += 12; }
+            
+            return { years, months, days, hours, minutes, seconds };
+        }
+
+        function updateMainCountdown() {
+            if (!currentHoliday || !currentHoliday.date) return;
+            
+            const countdown = getExtendedCountdown(new Date(currentHoliday.date));
+
+            if (!countdown) {
+                holidayTitleEl.textContent = `${currentHoliday.name} 到了！`;
+                countdownEl.innerHTML = `<p class="celebrate-message">🎉 節日快樂！ 🎉</p>`;
+                countdownEl.style.gridTemplateColumns = '1fr';
+                if (mainInterval) clearInterval(mainInterval);
+                return;
+            }
+
+            const { years, months, days, hours, minutes, seconds } = countdown;
+            
+            const yearsEl = document.getElementById('years');
+            if(yearsEl) {
+                yearsEl.textContent = formatTime(years);
+                document.getElementById('months').textContent = formatTime(months);
+                document.getElementById('days').textContent = formatTime(days);
+                document.getElementById('hours').textContent = formatTime(hours);
+                document.getElementById('minutes').textContent = formatTime(minutes);
+                document.getElementById('seconds').textContent = formatTime(seconds);
+            }
+        }
+        
+        function getExtendedCountdownText(targetDate) {
+            const countdown = getExtendedCountdown(targetDate);
+            if (!countdown) return "節日已過";
+            
+            const { years, months, days, hours, minutes, seconds } = countdown;
+
+            let parts = [];
+            if (years > 0) parts.push(`${years}年`);
+            if (months > 0) parts.push(`${months}月`);
+            if (days > 0) parts.push(`${days}天`);
+            parts.push(`${formatTime(hours)}時 ${formatTime(minutes)}分 ${formatTime(seconds)}秒`);
+
+            return parts.join(' ');
+        }
+
+        function displayMessages({ errors = [], notice = '' }) {
+            const errorContainer = document.getElementById('parsing-errors');
+            const noticeContainer = document.getElementById('notice-container');
+            
+            errorContainer.innerHTML = '';
+            noticeContainer.innerHTML = '';
+
+            if (notice) {
+                noticeContainer.innerHTML = `<div class="notice-container">ℹ️ ${notice}</div>`;
+            }
+            
+            if (errors.length > 0) {
+                let html = `<div class="parsing-error-container"><h3>⚠️ 讀取資料時發現以下問題 (已略過)：</h3><ul>`;
+                errors.forEach(err => {
+                    html += `<li><strong>第 ${err.row} 行：</strong> ${err.message}<br><code>${err.data}</code></li>`;
+                });
+                errorContainer.innerHTML = html + `</ul></div>`;
+            }
+        }
+
+        function populateAndupdateHolidayList(sourceData, year) {
+            holidayListContainer.innerHTML = '';
+            const holidaysForYear = sourceData.map(h => {
+                 try {
+                     const date = calculateHolidayDateForYear(h, year);
+                     return { ...h, name: `${year} ${h.name}`, date };
+                 } catch(e) {
+                     return null;
+                 }
+            }).filter(Boolean).sort((a,b) => new Date(a.date) - new Date(b.date));
+            
+            holidaysForYear.forEach((holiday, index) => {
+                const targetDate = new Date(holiday.date);
+                const item = document.createElement('div');
+                item.className = 'holiday-item';
+                
+                item.addEventListener('click', () => {
+                    currentHoliday = holiday;
+                    holidayTitleEl.textContent = `距離 ${currentHoliday.name} 還有`;
+                    updateTheme(currentHoliday);
+                    createMainCountdownHTML();
+                    updateMainCountdown();
+                });
+
+                const holidayInfo = document.createElement('div');
+                holidayInfo.className = 'holiday-info';
+
+                const colorIndicator = document.createElement('div');
+                colorIndicator.className = 'color-indicator';
+                if (holiday.colors && holiday.colors.length === 2) {
+                    colorIndicator.style.background = `linear-gradient(45deg, ${holiday.colors[0]}, ${holiday.colors[1]})`;
+                }
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'holiday-name';
+                nameSpan.textContent = holiday.name;
+                
+                holidayInfo.appendChild(colorIndicator);
+                holidayInfo.appendChild(nameSpan);
+
+                const dateSpan = document.createElement('span');
+                dateSpan.className = 'holiday-calculated-date';
+                dateSpan.textContent = `(${holiday.date.substring(0, 10).replace(/-/g, '/')})`;
+                holidayInfo.appendChild(dateSpan);
+
+                const countdownSpan = document.createElement('span');
+                countdownSpan.className = 'holiday-countdown-text';
+                countdownSpan.id = `list-countdown-${index}`;
+                countdownSpan.textContent = getExtendedCountdownText(targetDate);
+                
+                item.appendChild(holidayInfo);
+                item.appendChild(countdownSpan);
+                holidayListContainer.appendChild(item);
+            });
+        }
+        
+        function populateYearSelector() {
+            const currentYear = new Date().getFullYear();
+            for (let i = 0; i < 20; i++) {
+                const year = currentYear + i;
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelectorEl.appendChild(option);
+            }
+        }
+        
+        function setupAppWithData(sourceData) {
+            rawHolidayDataSource = sourceData;
+            calculateUpcomingHolidays(sourceData);
+            populateYearSelector();
+            
+            countdownEl.innerHTML = ''; // Clear loading/error messages
+            loadFileBtn.classList.add('hidden'); // Hide file load button
+
+            if (upcomingHolidays.length === 0) {
+                 holidayTitleEl.textContent = '找不到可用的節日資料';
+                 return;
+            };
+
+            controlsContainerEl.classList.remove('hidden');
+            currentHoliday = upcomingHolidays[0];
+            
+            if (currentHoliday) {
+                holidayTitleEl.textContent = `距離 ${currentHoliday.name} 還有`;
+                updateTheme(currentHoliday);
+                createMainCountdownHTML();
+                
+                if (mainInterval) clearInterval(mainInterval);
+                mainInterval = setInterval(() => {
+                    updateMainCountdown();
+                    if (!holidayListContainer.classList.contains('hidden')) {
+                       const year = parseInt(yearSelectorEl.value);
+                       const holidaysForYear = rawHolidayDataSource.map(h => {
+                             try { return { ...h, date: calculateHolidayDateForYear(h, year) }; } catch { return null; }
+                       }).filter(Boolean).sort((a,b) => new Date(a.date) - new Date(b.date));
+                       
+                       holidaysForYear.forEach((holiday, index) => {
+                            const el = document.getElementById(`list-countdown-${index}`);
+                            if(el) {
+                                el.textContent = getExtendedCountdownText(new Date(holiday.date));
+                            }
+                       });
+                    }
+                }, 1000);
+            }
+        }
+
+        toggleListBtn.addEventListener('click', () => {
+            const isHidden = holidayListContainer.classList.toggle('hidden');
+            futureControlsEl.classList.toggle('hidden');
+            toggleListBtn.textContent = isHidden ? '查看未來節日' : '隱藏節日列表';
+            if (!isHidden) {
+                populateAndupdateHolidayList(rawHolidayDataSource, parseInt(yearSelectorEl.value));
+            }
+        });
+        
+        yearSelectorEl.addEventListener('change', (e) => {
+             populateAndupdateHolidayList(rawHolidayDataSource, parseInt(e.target.value));
+        });
+        
+        loadFileBtn.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    const headerRow = jsonData[0].join(',').trim();
+                     if (headerRow !== EXPECTED_FORMAT) {
+                         alert(`檔案欄位格式錯誤！\n預期欄位: ${EXPECTED_FORMAT}\n偵測到欄位: ${headerRow}`);
+                         return;
+                    }
+
+                    const fileHolidayData = [];
+                    const parsingErrors = [];
+                    for(let i = 1; i < jsonData.length; i++) {
+                        try {
+                            const row = jsonData[i];
+                             if (row.length < 5) throw new Error('欄位不足');
+                             const [name, dateStr, isLunarStr, color1, color2] = row.map(cell => String(cell).trim());
+                             if (!name || !dateStr || !isLunarStr || !color1 || !color2) throw new Error('資料不完整');
+                             fileHolidayData.push({ name, dateStr, isLunar: isLunarStr === '是', colors: [color1, color2] });
+                        } catch(error) {
+                             parsingErrors.push({ row: i + 1, data: row.join(','), message: error.message });
+                        }
+                    }
+                    
+                    displayMessages({ errors: parsingErrors, notice: `成功從 "${file.name}" 載入 ${fileHolidayData.length} 筆節日資料。`});
+                    setupAppWithData(fileHolidayData);
+                    
+                } catch (error) {
+                    console.error('讀取檔案時發生錯誤:', error);
+                    displayMessages({ errors: [{ row: '檔案', data: file.name, message: `讀取失敗，請確認檔案格式 (.xlsx, .csv)` }] });
+                } finally {
+                    fileInput.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+
+        async function initializeApp() {
+            holidayTitleEl.textContent = '正在讀取節日清單...';
+            try {
+                const { holidays: fetchedHolidays, errors: parsingErrors } = await fetchAndParseHolidays();
+                displayMessages({ errors: parsingErrors });
+                setupAppWithData(fetchedHolidays);
+            } catch (error) {
+                console.warn('讀取網路試算表失敗:', error);
+                if (error.message.startsWith('FORMAT_MISMATCH:')) {
+                     const detectedFormat = error.message.split(':')[1];
+                    holidayTitleEl.textContent = '試算表格式錯誤';
+                    countdownEl.innerHTML = `<div class="error-message"><strong>請檢查 Google Sheets 標題列！</strong><br><br>偵測格式：<br><code>${detectedFormat}</code><br><br>預期格式：<br><code>${EXPECTED_FORMAT}</code></div>`;
+                } else {
+                    holidayTitleEl.textContent = '無法讀取網路資料';
+                    countdownEl.innerHTML = '';
+                    displayMessages({ notice: '無法連接網路試算表，請從您的電腦載入節日檔案 (.xlsx, .csv) 以繼續。' });
+                    loadFileBtn.classList.remove('hidden');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
