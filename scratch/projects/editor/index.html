@@ -49,12 +49,22 @@
                 
                 const auth = urlParams.get('auth');
                 const user = urlParams.get('user');
-                if (user) localStorage.setItem('panda_session_user', user);
-                const token = urlParams.get('token') || localStorage.getItem('panda_session_token');
+                if (auth === 'true' || user) {
+                    const u = user || '使用者';
+                    localStorage.setItem('sso_auth', 'true');
+                    localStorage.setItem('sso_user', u);
+                    localStorage.setItem('panda_session_user', u);
+                    localStorage.setItem('panda_auto_user', u);
+                    window.dispatchEvent(new CustomEvent('sso_login_success', { detail: { username: u, nickname: u } }));
+                    if (window.history.replaceState) window.history.replaceState({}, document.title, window.location.pathname);
+                } else if (localStorage.getItem('sso_auth') === 'true' || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user')) {
+                    const u = localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || '使用者';
+                    window.dispatchEvent(new CustomEvent('sso_login_success', { detail: { username: u, nickname: u } }));
+                }
 
-                if (auth === 'true' && user) {
-                    window.socket.emit('requestProfile', { username: user });
-                    window.history.replaceState({}, document.title, window.location.pathname);
+                const token = urlParams.get('token') || localStorage.getItem('panda_session_token');
+                if ((auth === 'true' || localStorage.getItem('sso_auth') === 'true') && (user || localStorage.getItem('sso_user'))) {
+                    window.socket.emit('requestProfile', { username: user || localStorage.getItem('sso_user') });
                 } else if (token) {
                     window.socket.emit('tokenLogin', { token: token });
                 }
