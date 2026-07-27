@@ -54,7 +54,71 @@
             0%   { transform: translate(0, 0); }
             100% { transform: translate(-100%, 0); }
         }
-    </style>
+    
+        /* 統一 SSO 導覽列與選單排版設定 */
+        .user-menu {
+            display: none;
+            align-items: center;
+            height: 100%;
+            margin-left: auto;
+        }
+        .avatar-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 0 15px;
+            height: 100%;
+            position: relative;
+        }
+        .avatar-container:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        .avatar {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 50% !important;
+            margin-right: 8px !important;
+            object-fit: cover !important;
+            border: 1px solid rgba(255,255,255,0.4) !important;
+            background: #fff !important;
+            display: block !important;
+        }
+        .username {
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 10000;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .avatar-container:hover .dropdown-content {
+            display: block;
+        }
+        .dropdown-content a {
+            color: #333 !important;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+            line-height: 1.5;
+            height: auto;
+        }
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+            color: #000 !important;
+        }
+</style>
 
     <nav class="navbar">
         <div class="navbar-brand" onclick="window.location.href='/scratch/'">
@@ -130,13 +194,23 @@
 
         async function checkLogin() {
             const urlParams = new URLSearchParams(window.location.search);
-            const isAuthQuery = urlParams.get('auth') === 'true' || urlParams.get('user');
+            const isAuthQuery = urlParams.get('auth') === 'true' || urlParams.get('user') || urlParams.get('nickname') || urlParams.get('avatar');
             if (isAuthQuery) {
-                const u = urlParams.get('user') || '使用者';
+                const u = urlParams.get('user') || localStorage.getItem('sso_user') || '使用者';
+                if (urlParams.get('user')) {
+                    localStorage.setItem('sso_user', u);
+                    localStorage.setItem('panda_session_user', u);
+                    localStorage.setItem('panda_auto_user', u);
+                }
+                if (urlParams.get('nickname')) {
+                    localStorage.setItem('sso_nickname', urlParams.get('nickname'));
+                    localStorage.setItem('panda_nickname', urlParams.get('nickname'));
+                }
+                if (urlParams.get('avatar')) {
+                    localStorage.setItem('sso_avatar', urlParams.get('avatar'));
+                    localStorage.setItem('panda_avatar', urlParams.get('avatar'));
+                }
                 localStorage.setItem('sso_auth', 'true');
-                localStorage.setItem('sso_user', u);
-                localStorage.setItem('panda_session_user', u);
-                localStorage.setItem('panda_auto_user', u);
                 if (urlParams.get('token')) localStorage.setItem('panda_session_token', urlParams.get('token'));
                 if (urlParams.get('server')) localStorage.setItem('sso_server', urlParams.get('server'));
                 if (window.history.replaceState) {
@@ -147,7 +221,8 @@
             const isLogged = localStorage.getItem('sso_auth') === 'true' || 
                              localStorage.getItem('panda_session_token') || 
                              localStorage.getItem('panda_session_user') || 
-                             localStorage.getItem('panda_auto_user');
+                             localStorage.getItem('panda_auto_user') || 
+                             localStorage.getItem('sso_user');
 
             const authActions = document.getElementById('auth-actions');
             const userMenu = document.getElementById('user-menu');
@@ -155,16 +230,16 @@
             const navAvatar = document.getElementById('nav-avatar');
 
             if (isLogged) {
-                const username = localStorage.getItem('sso_user') || 
-                                 localStorage.getItem('panda_session_user') || 
-                                 localStorage.getItem('panda_auto_user') || '使用者';
-                const avatar = localStorage.getItem('sso_avatar') || 
-                               localStorage.getItem('panda_avatar') || 
-                               'https://cdn.discordapp.com/embed/avatars/0.png';
+                const username = localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || '使用者';
+                const nickname = urlParams.get('nickname') || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || username;
+                const avatar = urlParams.get('avatar') || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                const balance = localStorage.getItem('panda_balance') || 0;
                 
                 if (authActions) authActions.style.display = 'none';
                 if (userMenu) userMenu.style.display = 'flex';
-                if (navUsername) navUsername.textContent = username;
+                if (navUsername) {
+                    navUsername.innerHTML = `<span class="user-nickname-text" style="display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;">${nickname}</span> <span style="margin-left: 8px; color: #ffb700; font-weight: bold; white-space: nowrap; display:inline-flex; align-items:center;"><img src="/scratch/projects/editor/static/assets/pandacoin.png" style="width:16px;height:16px;margin-right:2px;" onerror="this.style.display='none'" />${balance}</span>`;
+                }
                 if (navAvatar) navAvatar.src = avatar;
             } else {
                 if (authActions) authActions.style.display = 'flex';
