@@ -770,25 +770,60 @@
                     : `<svg viewBox="0 0 24 24" style="fill: #2c5e32; width: 24px; height: 24px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
 
                 authContainer.innerHTML = `
-                    <div class="user-profile-panel" style="display:flex;align-items:center;gap:10px;">
-                        <div class="user-info" style="display:flex;align-items:center;gap:8px;">
-                            <div class="avatar" style="width:36px;height:36px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">${avatarHTML}</div>
-                            <div class="details" style="display:flex;flex-direction:column;">
-                                <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
-                                <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
-                            </div>
-                        </div>
-                        <button id="account-settings-btn" class="settings-btn" title="帳戶設定" style="padding:6px 12px;background:#2e7d32;color:white;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:bold;">
-                            帳戶設定
-                        </button>
-                    </div>
-                `;
-                const settingsBtn = document.getElementById('account-settings-btn');
-                if (settingsBtn) {
-                    settingsBtn.addEventListener('click', () => {
-                        window.location.href = `${loginCenterUrl}?action=editProfile&from=${encodeURIComponent(currentUrl)}`;
-                    });
-                }
+        <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
+            <div class="user-info" style="display:flex;align-items:center;gap:8px;">
+                <div class="avatar" style="width:36px;height:36px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">${avatarHTML}</div>
+                <div class="details" style="display:flex;flex-direction:column;">
+                    <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
+                    <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
+                </div>
+            </div>
+            <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+
+            <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
+                <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;">⚙️ 帳號設定</div>
+                <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;">🚪 登出</div>
+            </div>
+        </div>
+        `;
+
+        const toggle = document.getElementById('user-profile-toggle');
+        const dropdown = document.getElementById('user-dropdown');
+        toggle.addEventListener('click', (e) => {
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            e.stopPropagation();
+        });
+        document.addEventListener('click', () => {
+            if (dropdown) dropdown.style.display = 'none';
+        });
+
+        const btnSettings = document.getElementById('btn-settings');
+        if (btnSettings) {
+            btnSettings.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.location.href = `${loginCenterUrl}?action=editProfile&from=${encodeURIComponent(currentUrl)}`;
+            });
+        }
+        
+        const btnLogout = document.getElementById('btn-logout');
+        if (btnLogout) {
+            btnLogout.addEventListener('click', (e) => {
+                e.stopPropagation();
+                localStorage.removeItem('panda_session_token');
+                localStorage.removeItem('panda_auto_pass');
+                localStorage.removeItem('panda_auto_user');
+                localStorage.removeItem('sso_auth');
+                localStorage.removeItem('sso_user');
+                localStorage.removeItem('sso_nickname');
+                localStorage.removeItem('sso_avatar');
+                localStorage.removeItem('sso_server');
+                localStorage.removeItem('panda_nickname');
+                localStorage.removeItem('panda_avatar');
+                localStorage.removeItem('panda_session_user');
+                
+                window.location.href = currentUrl;
+            });
+        }
             } else {
                 authContainer.innerHTML = `
                     <button id="login-btn" class="login-btn">
