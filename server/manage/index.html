@@ -194,14 +194,34 @@
                 
                 socket.on('connect', () => {
                     appendLog('[系統] 已成功連接遠端伺服器！', '#22c55e');
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.has('token')) {
+                        localStorage.setItem('panda_session_token', urlParams.get('token'));
+                        if (urlParams.has('user')) localStorage.setItem('panda_auto_user', urlParams.get('user'));
+                        history.replaceState(null, '', window.location.pathname);
+                    }
+                    const savedToken = localStorage.getItem('panda_session_token');
                     const savedU = localStorage.getItem('panda_auto_user');
                     const savedP = localStorage.getItem('panda_auto_pass');
-                    if (!savedU || !savedP) {
-                        window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1';
-                    } else {
+
+                    if (savedToken) {
+                        socket.emit('tokenLogin', { token: savedToken });
+                    } else if (savedP === 'GOOGLE_AUTH') {
+                        // Google Auth fallback (if applicable)
+                        if (typeof auth !== 'undefined' && typeof onAuthStateChanged !== 'undefined') {
+                            onAuthStateChanged(auth, (user) => {
+                                if (user) {
+                                    socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                                } else {
+                                    window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1';
+                                }
+                            });
+                        }
+                    } else if (savedU && savedP) {
                         socket.emit('login', { username: savedU, password: savedP });
-                    }
-                });
+                    } else {
+                        window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1';
+                    });
 
                 socket.on('disconnect', () => {
                     appendLog('[系統] 與遠端伺服器斷線。', '#ef4444');
@@ -214,7 +234,10 @@
                         appendLog('[系統] 身分驗證通過！', '#22c55e');
                     } else {
                         appendLog('[錯誤] 身分驗證失敗或權限不足，即將跳轉登入畫面...', '#ef4444');
-                        setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1', 1500);
+        localStorage.removeItem('panda_session_token');
+        localStorage.removeItem('panda_auto_pass');
+        localStorage.removeItem('panda_auto_user');
+        setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1', 1500);
                     }
                 });
 

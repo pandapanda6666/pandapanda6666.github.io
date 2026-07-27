@@ -326,22 +326,27 @@
         }
 
         function initApp() {
-            fetch('https://pandapanda6666.github.io/login-hub/server_url.txt')
-                .then(r => r.text())
-                .then(txt => { 
-                    serverUrl = atob(txt.trim().split('').reverse().join('')); 
-                    connectSocket(); 
-                })
-                .catch(() => {
-                    fetch('../login-hub/server_url.txt').then(r=>r.text()).then(txt => { 
+            if (window.location.protocol !== 'file:' && window.location.hostname !== 'pandapanda6666.github.io') {
+                serverUrl = window.location.origin;
+                connectSocket();
+            } else {
+                fetch('https://pandapanda6666.github.io/login-hub/server_url.txt')
+                    .then(r => r.text())
+                    .then(txt => { 
                         serverUrl = atob(txt.trim().split('').reverse().join('')); 
                         connectSocket(); 
                     })
                     .catch(() => {
-                        serverUrl = prompt("無法自動取得伺服器網址，請手動輸入：", "https://");
-                        if (serverUrl) connectSocket(); else setStatus("初始化失敗", true);
+                        fetch('../login-hub/server_url.txt').then(r=>r.text()).then(txt => { 
+                            serverUrl = atob(txt.trim().split('').reverse().join('')); 
+                            connectSocket(); 
+                        })
+                        .catch(() => {
+                            serverUrl = prompt("無法自動取得伺服器網址，請手動輸入 (例如 https://...trycloudflare.com)：", "https://");
+                            if (serverUrl) connectSocket(); else setStatus("初始化失敗", true);
+                        });
                     });
-                });
+            }
         }
 
         function connectSocket() {
@@ -350,10 +355,19 @@
             
             socket.on('connect', () => { 
                 setStatus("連線成功！正在驗證統一登入憑證...");
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('token')) {
+                    localStorage.setItem('panda_session_token', urlParams.get('token'));
+                    if (urlParams.has('user')) localStorage.setItem('panda_auto_user', urlParams.get('user'));
+                    history.replaceState(null, '', window.location.pathname);
+                }
+                const savedToken = localStorage.getItem('panda_session_token');
                 const savedU = localStorage.getItem('panda_auto_user');
                 const savedP = localStorage.getItem('panda_auto_pass');
 
-                if (savedP === 'GOOGLE_AUTH') {
+                if (savedToken) {
+                    socket.emit('tokenLogin', { token: savedToken });
+                } else if (savedP === 'GOOGLE_AUTH') {
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
                             socket.emit('googleLogin', { email: user.email, name: user.displayName });
@@ -378,9 +392,13 @@
                     switchTab('tab_system');
                     window.fetchData();
                 } else {
-                    alert(res.success ? "登入成功，但您的帳號沒有管理員權限！\n請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
-                    socket.emit('logout');
-                    setTimeout(redirectToLogin, 500);
+                    alert(res.success ? "登入成功，但您的帳號沒有管理員權限！
+請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
+        localStorage.removeItem('panda_session_token');
+        localStorage.removeItem('panda_auto_pass');
+        localStorage.removeItem('panda_auto_user');
+        socket.emit('logout');
+        setTimeout(redirectToLogin, 500);
                 }
             });
 
