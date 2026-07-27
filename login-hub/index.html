@@ -1362,266 +1362,32 @@
 
 
         function checkAutoLogin() {
+    const savedToken = localStorage.getItem('panda_session_token');
+    const savedU = localStorage.getItem('panda_auto_user');
+    const savedP = localStorage.getItem('panda_auto_pass');
 
-            const savedU = localStorage.getItem('panda_auto_user');
-
-            const savedP = localStorage.getItem('panda_auto_pass');
-
-            
-
-            if (savedP === 'GOOGLE_AUTH') {
-
-                document.getElementById('loadingText').innerText = "驗證 Google 登入狀態中...";
-
-                const unsubscribe = onAuthStateChanged(auth, (user) => {
-
-                    if (user) {
-
-                        socket.emit('googleLogin', { email: user.email, name: user.displayName });
-
-                    } else {
-
-                        if (requireLogin) toggleView('login'); else toggleView('guest');
-
-                    }
-
-                    unsubscribe();
-
-                });
-
-            } else const savedToken = localStorage.getItem('panda_session_token');
-
-                if (savedToken) {
-                    socket.emit('tokenLogin', { token: savedToken, device: isMobile });
-                } else if (savedU && savedP) {
-
-                socket.emit('login', { username: savedU, password: savedP });
-
-            } else {
-
-                document.getElementById('loadingText').innerText = "系統連線中，請稍候...";
-
-                if (requireLogin) {
-
-                    toggleView('login');
-
+    if (savedToken) {
+        socket.emit('tokenLogin', { token: savedToken, device: isMobile });
+    } else if (savedP === 'GOOGLE_AUTH') {
+        document.getElementById('loadingText').innerText = "驗證 Google 登入狀態中...";
+        if (typeof auth !== 'undefined' && typeof onAuthStateChanged !== 'undefined') {
+            const unsubscribe = onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    socket.emit('googleLogin', { email: user.email, name: user.displayName });
                 } else {
-
-                    toggleView('guest');
-
+                    if (requireLogin) toggleView('login'); else toggleView('guest');
                 }
-
-            }
-
-        }
-
-
-
-        window.toggleView = function(view) {
-
-            if (socket && socket.connected) {
-
-                socket.emit('clientAction', { action: '切換視圖', details: `進入了 [${view}] 畫面` });
-
-            }
-
-
-
-            ['loadingView', 'guestView', 'loginView', 'registerView', 'profileView', 'editProfileView'].forEach(v => {
-
-                document.getElementById(v).classList.add('hidden');
-
+                unsubscribe();
             });
+        }
+    } else if (savedU && savedP) {
+        socket.emit('login', { username: savedU, password: savedP });
+    } else {
+        if (requireLogin) toggleView('login');
+        else toggleView('guest');
+    }
+}
 
-            document.getElementById('messageBox').classList.add('hidden');
-
-            document.getElementById('headerSection').classList.remove('hidden');
-
-
-
-            const title = document.getElementById('formTitle');
-
-
-
-            if (view === 'register') {
-
-                document.getElementById('registerView').classList.remove('hidden');
-
-                title.innerText = "登入";
-
-            } else if (view === 'login') {
-
-                document.getElementById('loginView').classList.remove('hidden');
-
-                title.innerText = "登入";
-
-            } else if (view === 'guest') {
-
-                document.getElementById('guestView').classList.remove('hidden');
-
-                title.innerText = "登入";
-
-            } else if (view === 'profile') {
-
-                document.getElementById('profileView').classList.remove('hidden');
-
-                document.getElementById('headerSection').classList.add('hidden');
-
-                if (redirectUrl) {
-
-                    document.getElementById('returnAppBtn').classList.remove('hidden');
-
-                }
-
-            } else if (view === 'editProfile') {
-
-                document.getElementById('editProfileView').classList.remove('hidden');
-
-                document.getElementById('headerSection').classList.add('hidden');
-
-                
-
-                document.getElementById('editNickname').value = currentUserData.nickname || currentUserData.username;
-
-                document.getElementById('editRealName').value = currentUserData.realName || '';
-
-                document.getElementById('editGender').value = currentUserData.gender || '';
-
-                document.getElementById('editBirthday').value = currentUserData.birthday || '';
-
-                document.getElementById('editPhone').value = currentUserData.phone || '';
-
-                document.getElementById('editEmail').value = currentUserData.email || '';
-
-                
-
-                const pwdInput = document.getElementById('editPassword');
-
-                pwdInput.value = currentUserData.password || '';
-
-                pwdInput.disabled = false;
-
-                pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
-
-
-
-                document.getElementById('editAvatarPreview').src = currentUserData.avatar || getDefaultAvatar();
-
-                window.currentEditAvatarBase64 = currentUserData.avatar || '';
-
-            }
-
-        };
-
-
-
-        window.setRegMode = function(mode) {
-
-            window.regMode = mode;
-
-            if (socket && socket.connected) {
-
-                socket.emit('clientAction', { action: '操作介面', details: `切換註冊模式為: ${mode === 'normal' ? '一般註冊' : 'Google註冊'}` });
-
-            }
-
-
-
-            const tabN = document.getElementById('regTabNormal');
-
-            const tabG = document.getElementById('regTabGoogle');
-
-            const fieldsG = document.getElementById('regGoogleFields');
-
-            const emailDiv = document.getElementById('regEmailDiv');
-
-
-
-            if (mode === 'normal') {
-
-                tabN.className = "w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition";
-
-                tabG.className = "w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition";
-
-                fieldsG.classList.add('hidden');
-
-                emailDiv.classList.remove('hidden');
-
-            } else {
-
-                tabN.className = "w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition";
-
-                tabG.className = "w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition";
-
-                fieldsG.classList.remove('hidden');
-
-                emailDiv.classList.add('hidden');
-
-            }
-
-        };
-
-
-
-        window.handleRegGoogleAuth = async function() {
-
-            try {
-
-                const result = await signInWithPopup(auth, provider);
-
-                window.tempRegEmail = result.user.email;
-
-                document.getElementById('googleNotLinked').classList.add('hidden');
-
-                document.getElementById('googleLinked').classList.remove('hidden');
-
-                document.getElementById('linkedGoogleEmail').innerText = window.tempRegEmail;
-
-                
-
-                if(document.getElementById('reg_email')) {
-
-                    document.getElementById('reg_email').value = window.tempRegEmail;
-
-                    updateContactRequirements();
-
-                }
-
-                
-
-                showMsg("已成功連結 Google 帳號，請繼續填寫下方資料", "success");
-
-                if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `成功綁定準備註冊的 Google 信箱` });
-
-            } catch (error) {
-
-                showMsg("連結 Google 失敗: " + error.message, "error");
-
-            }
-
-        };
-
-
-
-        window.clearRegGoogle = function() {
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `清除了準備註冊的 Google 綁定` });
-
-            window.tempRegEmail = null;
-
-            document.getElementById('googleLinked').classList.add('hidden');
-
-            document.getElementById('googleNotLinked').classList.remove('hidden');
-
-            if(document.getElementById('reg_email')) {
-
-                document.getElementById('reg_email').value = "";
-
-                updateContactRequirements();
-
-            }
-
-        };
 
 
 
