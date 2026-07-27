@@ -1,0 +1,15 @@
+2026/07/27 10:49:46
+有些介面排版壞掉了  我的東西圖示有問題 進入系統設定沒帶網址參數 -> 開始
+這三個問題我已經透過程式碼追蹤全部查明核心原因，並且完成了完美的修復方案與上線推送：
+
+1. 「我的東西」圖示有問題 & 介面排版壞掉：
+   - 原因：全站「我的東西」按鈕指向 `/scratch/projects/editor/static/assets/e1672da8924b2b3e8ad32b137f8f1c4e.png`，且該圖示與 `pandacoin.png` 於庫中遺失（404 Not Found），導致瀏覽器顯示破裂文字與圖框，撐大按鈕並破壞 Flex 導覽列與首頁排版。
+   - 修復：從 MIT 官方 CDN 與本地資產完美補齊 `mystuff.png` 與 `pandacoin.png` 寫入該路徑，解決 404 與介面變形。
+
+2. 進入系統設定沒帶網址參數：
+   - 原因：首頁 (`index.html`)、商城 (`shop/index.html`) 與全站 8 個 Scratch 頁面在導向設定或個人資訊時，未同時攜帶 `&action=editProfile` 與 `&from=...` 來源參數；同時 SSO 綁定腳本 (`panda_sso.js`) 會覆蓋吃掉動作參數；且登入中心 (`login-hub`) 未對 incoming `action` 參數進行分流導覽。
+   - 修復：全面改寫所有設定與個人資訊連結，保留 `action=editProfile` 動作與 `from=...` 來源網址；重構 `login-hub` 的視圖導覽邏輯，登入後自動精準導向帳號編輯 (`editProfile`) 或對應頁面。
+1. 補齊遺失圖示 assets：/scratch/projects/editor/static/assets/e1672da8924b2b3e8ad32b137f8f1c4e.png 與 pandacoin.png。
+2. 修正 index.html、shop/index.html、scratch/panda_sso.js 與 8 個 Scratch 頁面中的系統設定與個人資訊網址參數綁定邏輯。
+3. 修正 login-hub/index.html 登入後的 targetAction 解析與 toggleView 導覽分流。
+4. 建立【版本22】備份，並調用 GitHub PAT Push 至遠端 main 分支。
