@@ -50,42 +50,6 @@
 
         window.addEventListener('DOMContentLoaded', () => {
 
-             const canvas = document.createElement('canvas');
-
-             canvas.width = window.innerWidth;
-
-             canvas.height = window.innerHeight;
-
-             canvas.style.position = 'fixed';
-
-             canvas.style.top = '0';
-
-             canvas.style.left = '0';
-
-             canvas.style.pointerEvents = 'none';
-
-             canvas.style.zIndex = '99999';
-
-             canvas.style.opacity = '0.01'; 
-
-             document.body.appendChild(canvas);
-
-             const ctx = canvas.getContext('2d');
-
-             ctx.font = '10px Arial';
-
-             ctx.fillStyle = '#000000';
-
-             const text = '版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved. 並且不提供網頁修改';
-
-             for(let i=0; i<300; i++) {
-
-                 ctx.fillText(text, Math.random() * canvas.width, Math.random() * canvas.height);
-
-             }
-
-
-
              const urlParams = new URLSearchParams(window.location.search);
 
              if (urlParams.get('action') === 'reportIssue') {
@@ -175,6 +139,7 @@
     </style>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 
 <body class="bg-[#eef2e6] min-h-screen flex items-center justify-center p-4">
@@ -269,7 +234,7 @@
 
                 <div class="mt-2 inline-flex items-center bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold shadow-sm border border-green-200">
 
-                    🪙 P幣: <span id="displayPCoin" class="ml-1">0</span>
+                    <img src="../shop/coin.svg" alt="🪙" class="w-5 h-5 inline-block -mt-1 drop-shadow-md"> P幣: <span id="displayPCoin" class="ml-1">0</span>
 
                 </div>
 
@@ -590,11 +555,14 @@
                         </div>
 
                         <div id="regEmailDiv">
-
-                            <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span id="email_req_indicator" class="text-xs text-slate-400 font-normal">(與電話擇一必填) <span class="text-red-500">*</span></span></label>
-
-                            <input type="email" id="reg_email" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入電子郵件">
-
+                            <label class="block text-sm font-bold text-slate-700 mb-1">電子郵件 <span class="text-red-500">*</span></label>
+                            <div class="flex gap-2">
+                                <input type="email" id="reg_email" class="flex-1 w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入電子郵件">
+                                <button type="button" onclick="sendRegVerificationCode()" id="btnSendCode" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-4 py-3 rounded-xl transition whitespace-nowrap">發送驗證碼</button>
+                            </div>
+                            
+                            <label class="block text-sm font-bold text-slate-700 mt-3 mb-1">驗證碼 <span class="text-red-500">*</span></label>
+                            <input type="text" id="reg_code" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入6位數驗證碼" maxlength="6">
                         </div>
 
                     </div>
@@ -663,7 +631,7 @@
 
                     <div>
 
-                        <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 <span id="phone_req_indicator" class="text-xs text-slate-400 font-normal">(與信箱擇一必填) <span class="text-red-500">*</span></span></label>
+                        <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話 </label>
 
                         <input type="tel" id="reg_phone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入聯絡電話">
 
@@ -695,11 +663,7 @@
 
 
 
-        <footer class="mt-8 pt-6 border-t border-green-100 text-center relative z-20 text-xs text-slate-500 font-bold">
-
-            版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-green-600 transition">PandaPanda的AI日常</a> All Rights Reserved.
-
-        </footer>
+        
 
     </div>
 
@@ -861,945 +825,21 @@
 
         window.handleLogout = function() {};
 
-        window.returnToApp = function() {};
-
-        window.insertCodeBlock = function() {
-
-            const textarea = document.getElementById('issueFullText');
-
-            const startPos = textarea.selectionStart;
-
-            const endPos = textarea.selectionEnd;
-
-            const codeTemplate = "\n[CODE]\n請將程式碼貼在這裡...\n[/CODE]\n";
-
-            textarea.value = textarea.value.substring(0, startPos) + codeTemplate + textarea.value.substring(endPos, textarea.value.length);
-
-            textarea.selectionStart = startPos + 8; 
-
-            textarea.selectionEnd = startPos + 22; 
-
-            textarea.focus();
-
-        };
-
-        
-
-        window.regMode = 'normal'; 
-
-        window.tempRegEmail = null;
-
-        window.currentRegAvatarBase64 = '';
-
-        window.currentEditAvatarBase64 = '';
-
-    </script>
-
-
-
-    <script type="module">
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-
-        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-
-
-
-        const authConfig = {
-
-            apiKey: "AIzaSyBx_C4b1krEoKQVc1VDuCsPE0t2XrHHzbQ",
-
-            authDomain: "brawl-survival-27c30.firebaseapp.com",
-
-            projectId: "brawl-survival-27c30",
-
-            storageBucket: "brawl-survival-27c30.firebasestorage.app",
-
-            messagingSenderId: "968683230232",
-
-            appId: "1:968683230232:web:5fec3f105cfe9907e81f6d"
-
-        };
-
-
-
-        const app = initializeApp(authConfig);
-
-        const auth = getAuth(app);
-
-        const provider = new GoogleAuthProvider();
-
-
-
-        let socket;
-
-        let serverUrl = "";
-
-        let currentUserData = null;
-
-
-
-        const urlParams = new URLSearchParams(window.location.search);
-
-        const redirectUrl = urlParams.get('from') || "";
-
-        const requireLogin = urlParams.get('require') === '1' || urlParams.get('require') === 'true';
-
-
-
-        let clientLocationInfo = "定位中...";
-
-        const isMobile = /Mobile|Android|iP(hone|od)/.test(navigator.userAgent) ? "手機/平板" : "電腦桌面";
-
-        let clientDeviceInfo = `${isMobile} (${navigator.userAgent})`;
-
-        
-
-        let locationPromise = fetch('https://ipapi.co/json/')
-
-            .then(res => res.json())
-
-            .then(data => {
-
-                return `${data.city || ''} ${data.country_name || ''} (IP: ${data.ip || ''})`.trim() || "未知地點";
-
-            })
-
-            .catch(() => "未知地點 (無法取得 IP)");
-
-
-
-        const regEmailInput = document.getElementById('reg_email');
-
-        const regPhoneInput = document.getElementById('reg_phone');
-
-        const emailReqIndicator = document.getElementById('email_req_indicator');
-
-        const phoneReqIndicator = document.getElementById('phone_req_indicator');
-
-
-
-        function updateContactRequirements() {
-
-            if (regEmailInput && regPhoneInput) {
-
-                if (regEmailInput.value.trim() !== '') {
-
-                    phoneReqIndicator.style.display = 'none';
-
-                } else {
-
-                    phoneReqIndicator.style.display = 'inline';
-
-                }
-
-
-
-                if (regPhoneInput.value.trim() !== '') {
-
-                    emailReqIndicator.style.display = 'none';
-
-                } else {
-
-                    emailReqIndicator.style.display = 'inline';
-
-                }
-
-            }
-
-        }
-
-
-
-        if (regEmailInput && regPhoneInput) {
-
-            regEmailInput.addEventListener('input', updateContactRequirements);
-
-            regPhoneInput.addEventListener('input', updateContactRequirements);
-
-        }
-
-
-
-        async function fetchServerUrl() {
-
-            try {
-
-                const response = await fetch(`server_url.txt?t=${Date.now()}`);
-
-                if (!response.ok) throw new Error("無法獲取伺服器網址");
-
-                serverUrl = atob((await response.text()).trim().split('').reverse().join(''));
-
-                initSocket();
-
-            } catch (err) {
-
-                document.getElementById('loadingText').innerText = "無法獲取伺服器網址，請確認設定";
-
-                document.getElementById('loadingText').classList.replace('text-slate-600', 'text-red-500');
-
-                document.getElementById('loadingText').classList.remove('animate-pulse');
-
-                showMsg("連線失敗，請檢查伺服器狀態。", "error");
-
-            }
-
-        }
-
-
-
-        function initSocket() {
-
-            socket = io(serverUrl, { transports: ['websocket'] });
-
-            
-
-            socket.on('connect', () => {
-
-                const statusEl = document.getElementById('serverStatus');
-
-                if (statusEl) {
-
-                    statusEl.innerHTML = `
-
-                        <svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-
-                        </svg>
-
-                    `;
-
-                    statusEl.className = "inline-flex mt-4 items-center justify-center h-6";
-
-                }
-
-                
-
-                document.getElementById('loadingText').innerText = "驗證帳號狀態中...";
-
-                checkAutoLogin();
-
-
-
-                locationPromise.then(loc => {
-
-                    clientLocationInfo = loc;
-
-                    socket.emit('initClientInfo', { location: loc, device: clientDeviceInfo });
-
-                });
-
-            });
-
-
-
-            socket.on('connect_error', () => {
-
-                const statusEl = document.getElementById('serverStatus');
-
-                if (statusEl) {
-
-                    statusEl.innerHTML = "連線異常";
-
-                    statusEl.className = "inline-flex mt-4 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 border border-red-200 shadow-sm";
-
-                }
-
-                document.getElementById('loadingText').innerText = "伺服器未回應，請稍後再試";
-
-                document.getElementById('loadingText').classList.replace('text-slate-600', 'text-red-500');
-
-                document.getElementById('loadingText').classList.remove('animate-pulse');
-
-            });
-
-
-
-            socket.on('illegalWebpage', () => {
-
-                document.body.innerHTML = '<div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; background-color:#ffffff; color:#dc2626; font-family:sans-serif; font-size:32px; font-weight:bold; text-align:center;">這是詐騙<br>請立刻撥打165反詐騙專線</div>';
-
-            });
-
-
-
-            socket.on('loginResult', (res) => {
-
-                if (res.success) {
-
-                    showMsg("登入成功！", "success");
-
-                    currentUserData = res;
-
-                    localStorage.setItem('panda_auto_user', res.username);
-    if (res.token) localStorage.setItem('panda_session_token', res.token);
-    if (res.password) localStorage.setItem('panda_auto_pass', res.password);
-
-                    
-
-                    updateProfileDashboard();
-
-                    
-
-                    if (requireLogin && redirectUrl) {
-
-                        setTimeout(returnToApp, 1000);
-
-                    } else {
-
-                        toggleView('profile');
-
-                    }
-
-                } else {
-
-                    if (res.msg === 'google_need_register') {
-
-                        showMsg("此 Google 帳號尚未註冊，請先進行註冊。", "error");
-
-                        toggleView('register');
-
-                        setRegMode('google');
-
-                        window.tempRegEmail = res.email;
-
-                        document.getElementById('googleNotLinked').classList.add('hidden');
-
-                        document.getElementById('googleLinked').classList.remove('hidden');
-
-                        document.getElementById('linkedGoogleEmail').innerText = res.email;
-
-                    } else {
-
-                        if (res.msg === 'user_not_found' || res.msg.includes('不存在') || res.msg.includes('密碼錯誤')) {
-
-                            localStorage.removeItem('panda_auto_user');
-
-                            localStorage.removeItem('panda_auto_pass');
-
-                            
-
-                            const typedUser = document.getElementById('username').value;
-
-                            const typedPass = document.getElementById('password').value;
-
-                            
-
-                            document.getElementById('reg_username').value = typedUser;
-
-                            document.getElementById('reg_password').value = typedPass;
-
-                            
-
-                            if (res.msg === 'user_not_found' || res.msg.includes('不存在')) {
-
-                                showMsg("該帳號不存在，已自動帶入資料請完成註冊", "info");
-
-                                toggleView('register');
-
-                                setRegMode('normal');
-
-                            } else {
-
-                                showMsg("登入狀態已過期，請重新登入", "error");
-
-                                toggleView('login');
-
-                            }
-
-                        } else {
-
-                            showMsg("登入失敗: " + res.msg, "error");
-
-                            toggleView('login');
-
-                        }
-
-                    }
-
-                }
-
-            });
-
-
-
-            socket.on('registerResult', (res) => {
-                if (res.success) {
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            title: '🎉 註冊成功！',
-                            html: '<p class="text-green-600 font-bold text-lg">' + (res.msg || "註冊成功！請登入系統。") + '</p>',
-                            icon: 'success',
-                            confirmButtonText: '我知道了',
-                            confirmButtonColor: '#16a34a',
-                            background: '#f0fdf4',
-                            backdrop: `rgba(0,0,0,0.4)`
-                        }).then(() => {
-                            toggleView('login');
-                        });
-                    } else {
-                        alert(res.msg || "註冊成功！請登入系統。");
-                        toggleView('login');
-                    }
-                } else {
-
-                    showMsg("註冊失敗: " + res.msg, "error");
-
-                }
-
-            });
-
-
-
-            socket.on('updateProfileResult', (res) => {
-
-                if (res.success) {
-
-                    showMsg("個人資料已更新！", "success");
-
-                    currentUserData.nickname = res.nickname;
-
-                    currentUserData.avatar = res.avatar;
-
-                    currentUserData.password = res.password;
-
-                    currentUserData.realName = res.realName;
-
-                    currentUserData.gender = res.gender;
-
-                    currentUserData.birthday = res.birthday;
-
-                    currentUserData.email = res.email;
-
-                    currentUserData.phone = res.phone;
-
-                    updateProfileDashboard();
-
-                    toggleView('profile');
-
-                } else {
-
-                    showMsg("更新失敗: " + res.msg, "error");
-
-                }
-
-            });
-
-
-
-            socket.on('logoutSuccess', () => {
-
-                currentUserData = null;
-
-                localStorage.removeItem('panda_auto_user');
-
-                localStorage.removeItem('panda_auto_pass');
-
-                document.getElementById('username').value = '';
-
-                document.getElementById('password').value = '';
-
-                toggleView('login');
-
-                showMsg("已成功登出", "info");
-
-            });
-
-        }
-
-
-
-        function handleDeleteAccount() {
-
-            if (confirm('確定要永久註銷您的帳號嗎？\n此操作無法還原，所有相關資料將被清除！')) {
-
-                if (socket && socket.connected) {
-
-                    socket.emit('deleteMyAccount', {}, (res) => {
-
-                        if (res && res.success) {
-
-                            showMsg('帳號已成功註銷', 'info');
-
-                            currentUserData = null;
-
-                            localStorage.removeItem('panda_auto_user');
-
-                            localStorage.removeItem('panda_auto_pass');
-
-                            localStorage.removeItem('sso_auth');
-
-                            localStorage.removeItem('sso_user');
-
-                            localStorage.removeItem('sso_server');
-
-                            document.getElementById('username').value = '';
-
-                            document.getElementById('password').value = '';
-
-                            toggleView('login');
-
-                        } else {
-
-                            showMsg('註銷失敗: ' + (res ? res.msg : '未知錯誤'), 'error');
-
-                        }
-
-                    });
-
-                } else {
-
-                    showMsg('尚未連接至伺服器，無法註銷帳號', 'error');
-
-                }
-
-            }
-
-        }
-
-
-
-        function checkAutoLogin() {
-    const savedToken = localStorage.getItem('panda_session_token');
-    const savedU = localStorage.getItem('panda_auto_user');
-    const savedP = localStorage.getItem('panda_auto_pass');
-
-    if (savedToken) {
-        socket.emit('tokenLogin', { token: savedToken, device: isMobile });
-    } else if (savedP === 'GOOGLE_AUTH') {
-        document.getElementById('loadingText').innerText = "驗證 Google 登入狀態中...";
-        if (typeof auth !== 'undefined' && typeof onAuthStateChanged !== 'undefined') {
-            const unsubscribe = onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    socket.emit('googleLogin', { email: user.email, name: user.displayName });
-                } else {
-                    if (requireLogin) toggleView('login'); else toggleView('guest');
-                }
-                unsubscribe();
-            });
-        }
-    } else if (savedU && savedP) {
-        socket.emit('login', { username: savedU, password: savedP });
-    } else {
-        if (requireLogin) toggleView('login');
-        else toggleView('guest');
-    }
-}
-
-
-
-
-        function updateProfileDashboard() {
-
-            if (!currentUserData) return;
-
-            document.getElementById('displayNickname').innerText = currentUserData.nickname || currentUserData.username;
-
-            document.getElementById('displayUsername').innerText = "@" + currentUserData.username;
-
-            document.getElementById('displayAvatar').src = currentUserData.avatar || getDefaultAvatar();
-
-            
-
-            const pCoinDisplay = document.getElementById('displayPCoin');
-
-            if (pCoinDisplay) {
-
-                pCoinDisplay.innerText = currentUserData.pCoin || 0;
-
-            }
-
-        }
-
-
-
-        function getDefaultAvatar() {
-
-            return "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23cbd5e1'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/></svg>";
-
-        }
-
-
-
-        window.previewImage = function(input, previewId) {
-
-            if (input.files && input.files[0]) {
-
-                if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `使用者點擊上傳並預覽了新的大頭貼` });
-
-                const reader = new FileReader();
-
-                reader.onload = function(e) {
-
-                    const img = new Image();
-
-                    img.onload = function() {
-
-                        const canvas = document.createElement('canvas');
-
-                        const MAX = 200;
-
-                        let w = img.width, h = img.height;
-
-                        if (w > h && w > MAX) { h *= MAX / w; w = MAX; }
-
-                        else if (h > MAX) { w *= MAX / h; h = MAX; }
-
-                        canvas.width = w; canvas.height = h;
-
-                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
-                        document.getElementById(previewId).src = dataUrl;
-
-                        if (previewId === 'regAvatarPreview') window.currentRegAvatarBase64 = dataUrl;
-
-                        if (previewId === 'editAvatarPreview') window.currentEditAvatarBase64 = dataUrl;
-
-                    };
-
-                    img.src = e.target.result;
-
-                };
-
-                reader.readAsDataURL(input.files[0]);
-
-            }
-
-        };
-
-
-
-        window.handleLogin = function() {
-
-            if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
-
-            
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊了 一般登入系統 按鈕` });
-
-
-
-            const u = document.getElementById('username').value;
-
-            const p = document.getElementById('password').value;
-
-            if (!u || !p) return showMsg("請輸入帳號與密碼", "error");
-
-            showMsg("驗證中...", "info");
-
-            socket.emit('login', { username: u, password: p });
-
-        };
-
-
-
-        window.handleGoogleLogin = async function() {
-
-            try {
-
-                const result = await signInWithPopup(auth, provider);
-
-                showMsg("驗證成功，正在登入伺服器...", "info");
-
-
-
-                if (!socket || !socket.connected) {
-
-                    return showMsg("伺服器連線異常，請確認伺服器已啟動", "error");
-
-                }
-
-
-
-                socket.emit('googleLogin', { email: result.user.email, name: result.user.displayName });
-
-            } catch (error) {
-
-                showMsg("Google 登入失敗: " + error.message, "error");
-
-            }
-
-        };
-
-
-
-        window.handleRegister = function() {
-
-            if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊了 送出註冊資料 按鈕` });
-
-
-
-            const u = document.getElementById('reg_username').value.trim();
-
-            const p = document.getElementById('reg_password').value;
-
-            const nk = document.getElementById('reg_nickname').value.trim();
-
-            const ln = document.getElementById('reg_lastName').value.trim();
-
-            const fn = document.getElementById('reg_firstName').value.trim();
-
-            const gender = document.getElementById('reg_gender').value;
-
-            const birthday = document.getElementById('reg_birthday').value;
-
-            const phone = document.getElementById('reg_phone').value.trim();
-
-            const email = document.getElementById('reg_email') ? document.getElementById('reg_email').value.trim() : '';
-
-
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            const phoneRegex = /^[\d\+\-\s]{8,20}$/;
-
-
-
-            let payload = {
-
-                username: u,
-
-                password: p,
-
-                nickname: nk,
-
-                realName: ln + fn,
-
-                birthday: birthday,
-
-                gender: gender,
-
-                phone: phone,
-
-                email: email,
-
-                avatar: window.currentRegAvatarBase64 || ''
-
-            };
-
-
-
-            if (window.regMode === 'google') {
-
-                if (!window.tempRegEmail) return showMsg("請先連結 Google 帳號", "error");
-
-                if (!u || !p || !nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
-
-                
-
-                payload.isGoogle = true;
-
-                payload.gmail = window.tempRegEmail;
-
-                payload.email = window.tempRegEmail;
-
-            } else {
-
-                if (!u || !p || !nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
-
-                if (!email && !phone) return showMsg("必須輸入電子郵件或電話號碼其中一項", "error");
-
-                
-
-                payload.isGoogle = false;
-
-            }
-
-
-
-            if (email && window.regMode !== 'google' && !emailRegex.test(email)) return showMsg("電子郵件格式不正確", "error");
-
-            if (phone && !phoneRegex.test(phone)) return showMsg("聯絡電話格式不正確，請輸入有效的號碼", "error");
-
-
-
-            showMsg("正在送出註冊資料...", "info");
-
-            socket.emit('register', payload);
-
-        };
-
-
-
-        window.submitIssue = function() {
-
-            const text = document.getElementById('issueFullText').value.trim();
-
-            const urlInput = document.getElementById('issueUrl');
-
-            const url = urlInput ? urlInput.value.trim() : '';
-
-            
-
-            if (!text) return showMsg("請輸入問題描述內容", "error");
-
-
-
-            if (socket && socket.connected) {
-
-                socket.emit('clientAction', { action: '操作介面', details: `點擊了 送出回報 按鈕` });
-
-                socket.emit('reportIssue', { text: text, url: url });
-
-                document.getElementById('issueModal').classList.add('hidden');
-
-                document.getElementById('issueFullText').value = '';
-
-                showMsg("問題回報已送出，感謝您的協助！", "success");
-
-            } else {
-
-                showMsg("伺服器未連線，無法送出回報。", "error");
-
-            }
-
-        };
-
-
-
-        window.openIssueModal = function() {
-
-            document.getElementById('issueModal').classList.remove('hidden');
-
-            let issueUrlInput = document.getElementById('issueUrl');
-
-            if(issueUrlInput && !issueUrlInput.value) {
-
-                const urlParams = new URLSearchParams(window.location.search);
-
-                issueUrlInput.value = urlParams.get('from') || window.location.href;
-
-            }
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '查看回報', details: '開啟了問題回報面板' });
-
-        };
-
-        window.closeIssueModal = function() {
-
-            document.getElementById('issueModal').classList.add('hidden');
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '關閉回報', details: '關閉了問題回報面板' });
-
-        };
-
-
-
-        window.openGuideModal = function() {
-
-            document.getElementById('guideModal').classList.remove('hidden');
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '查看說明', details: '開啟了系統使用說明面板' });
-
-        };
-
-        window.closeGuideModal = function() {
-
-            document.getElementById('guideModal').classList.add('hidden');
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '關閉說明', details: '關閉了系統使用說明面板' });
-
-        };
-
-
-
-        window.saveProfile = function() {
-
-            if (!socket || !socket.connected) return showMsg("伺服器連線中或已斷線，請稍候再試", "error");
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊了 儲存變更 按鈕` });
-
-
-
-            let payload = {
-
-                nickname: document.getElementById('editNickname').value.trim(),
-
-                realName: document.getElementById('editRealName').value.trim(),
-
-                gender: document.getElementById('editGender').value,
-
-                birthday: document.getElementById('editBirthday').value,
-
-                phone: document.getElementById('editPhone').value.trim(),
-
-                email: document.getElementById('editEmail').value.trim(),
-
-                avatar: window.currentEditAvatarBase64 || '',
-
-                password: document.getElementById('editPassword').value
-
-            };
-
-
-
-            if (!payload.nickname) {
-
-                return showMsg("公開暱稱不可為空", "error");
-
-            }
-
-
-
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            const phoneRegex = /^[\d\+\-\s]{8,20}$/;
-
-
-
-            if (payload.email && !emailRegex.test(payload.email)) return showMsg("電子郵件格式不正確", "error");
-
-            if (payload.phone && !phoneRegex.test(payload.phone)) return showMsg("聯絡電話格式不正確，請輸入有效的號碼", "error");
-
-
-
-            showMsg("正在儲存...", "info");
-
-            socket.emit('updateProfile', payload);
-
-        };
-
-
-
-        window.switchAccount = function() {
-
-            if (socket) socket.emit('logout');
-
-        };
-
-
-
-        window.handleLogout = function() {
-
-            switchAccount();
-
-        };
-
-
-
         window.returnToApp = function() {
-
             if (!currentUserData || !redirectUrl) return;
-
-            if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `點擊 進入系統應用 返回原本網站` });
-
-            const target = new URL(redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`);
-
-            target.searchParams.set('user', currentUserData.username);
-
-            target.searchParams.set('server', serverUrl);
-
+            if (socket && socket.connected) socket.emit('clientAction', { action: '操作', details: `點擊 進入系統 返回本站` });
+            let base = redirectUrl;
+            if (!base.startsWith('http://') && !base.startsWith('https://') && !base.startsWith('file://') && !base.startsWith('/')) {
+                base = `https://${redirectUrl}`;
+            }
+            const target = new URL(base, window.location.href);
+            target.searchParams.set('user', currentUserData.username || localStorage.getItem('panda_auto_user') || '');
+            target.searchParams.set('nickname', currentUserData.nickname || currentUserData.username || localStorage.getItem('sso_nickname') || '');
+            target.searchParams.set('avatar', currentUserData.avatar || localStorage.getItem('sso_avatar') || '');
+            target.searchParams.set('server', serverUrl || '');
             target.searchParams.set('auth', 'true');
-    if (currentUserData.token) target.searchParams.set('token', currentUserData.token);
-
+            if (currentUserData.token) target.searchParams.set('token', currentUserData.token);
             window.location.href = target.href;
-
         };
 
 
@@ -1824,7 +864,126 @@
 
         fetchServerUrl();
 
-    </script>
+    
+window.sendRegVerificationCode = function() {
+    const email = document.getElementById('reg_email').value.trim();
+    if(!email) return showMsg("請先輸入電子郵件", "error");
+    const btn = document.getElementById('btnSendCode');
+    btn.disabled = true;
+    btn.innerText = '發送中...';
+    socket.emit('sendVerificationCode', { email }, (res) => {
+        if(res && !res.success) {
+            showMsg(res.msg, 'error');
+            btn.disabled = false;
+            btn.innerText = '發送驗證碼';
+        } else {
+            showMsg('驗證碼已發送至您的信箱', 'success');
+            let cd = 60;
+            const timer = setInterval(() => {
+                cd--;
+                if(cd <= 0) {
+                    clearInterval(timer);
+                    btn.disabled = false;
+                    btn.innerText = '重新發送';
+                } else {
+                    btn.innerText = cd + '秒後重試';
+                }
+            }, 1000);
+        }
+    });
+};
+
+
+window.startSecurityCheck = function() {
+    const token = grecaptcha.getResponse();
+    if (!token) {
+        showMsg("請先勾選「我不是機器人」！", "error");
+        return;
+    }
+    
+    document.getElementById("securityBtn").disabled = true;
+    document.getElementById("securityBtn").innerText = "取得定位中...";
+    
+    if (!navigator.geolocation) {
+        showMsg("您的瀏覽器不支援定位功能", "error");
+        document.getElementById("securityBtn").innerText = "驗證失敗";
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            document.getElementById("securityBtn").innerText = "檢查安全連線...";
+            
+            try {
+                const fetchPromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
+                let geoData = {};
+                try {
+                    const geoRes = await Promise.race([fetchPromise, timeoutPromise]);
+                    geoData = await geoRes.json();
+                } catch (fetchErr) {
+                    console.log('GPS API timeout or blocked, fallback to UNKNOWN');
+                }
+                const gpsCountry = geoData.countryCode || "UNKNOWN";
+                
+                const socketTimeout = setTimeout(() => {
+                    showMsg("伺服器沒有回應，請檢查網路！", "error");
+                    document.getElementById("securityBtn").disabled = false;
+                    document.getElementById("securityBtn").innerText = "重新驗證";
+                }, 8000);
+                
+                socket.emit('checkSecurity', { captchaToken: token, gpsCountry: gpsCountry }, (res) => {
+                    clearTimeout(socketTimeout);
+                    if (!res.success) {
+                        showMsg(res.msg, "error");
+                        grecaptcha.reset();
+                        document.getElementById("securityBtn").disabled = false;
+                        document.getElementById("securityBtn").innerText = "重新驗證";
+                    } else {
+                        showMsg("安全驗證通過！", "success");
+                        window.captchaVerified = true;
+                        document.getElementById('captchaOverlay').classList.add('hidden');
+                        toggleView('register');
+                    }
+                });
+            } catch (err) {
+                showMsg("無法解析定位資料", "error");
+                document.getElementById("securityBtn").disabled = false;
+                document.getElementById("securityBtn").innerText = "驗證";
+            }
+        },
+        (error) => {
+            showMsg("請允許定位權限才能繼續註冊", "error");
+            document.getElementById("securityBtn").disabled = false;
+            document.getElementById("securityBtn").innerText = "驗證";
+        },
+        { timeout: 10000 }
+    );
+};
+
+</script>
+
+
+<div id="captchaOverlay" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-green-500">
+        <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+            <span class="text-2xl">🛡️</span> 註冊安全驗證
+        </h3>
+        <p class="text-sm text-slate-500 mb-4">系統將透過 Google reCAPTCHA 與網路連線檢測來確認您不是機器人。請完成下方驗證：</p>
+        
+        <div class="flex flex-col gap-3 items-center">
+            <div class="g-recaptcha" data-sitekey="6LepxFktAAAAAI6RYTB8Ub29xIQ2PHeE1rJGXvKD"></div>
+            
+            <button id="securityBtn" type="button" onclick="startSecurityCheck()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-all">驗證並進入註冊</button>
+        </div>
+        
+        <div class="mt-4 flex justify-center">
+            <button type="button" onclick="document.getElementById('captchaOverlay').classList.add('hidden')" class="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors">取消返回</button>
+        </div>
+    </div>
+</div>
 
 </body>
 
