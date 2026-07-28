@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點擊圖標即可定位的地圖 (多人協作版)</title>
+
+    <!-- Tailwind CSS (for UI) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入 Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Fabric.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #map-container { position: relative; width: 100%; height: 100%; }
+        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* Fabric canvas wrapper on top of leaflet */
+        .canvas-container { position: absolute !important; top: 0; left: 0; z-index: 400; pointer-events: none; }
+        .canvas-container.interactive { pointer-events: auto; }
+        
+        /* UI Overlays */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; pointer-events: none; display: flex; flex-direction: column; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        /* Notification Bar */
+        #notificationBar { background: rgba(0, 0, 0, 0.8); color: white; white-space: nowrap; overflow: hidden; padding: 5px 0; display: none; }
+        .marquee { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        /* Custom Popup */
+        .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .leaflet-popup-content { margin: 15px; }
+
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<!-- 錯誤捕捉與連線腳本 -->
+<script>
+    // 錯誤捕捉
+    const originalWarn = console.warn;
+    console.warn = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+        originalWarn.apply(console, args);
+    };
+    window.onerror = function(msg, url, line) { 
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+    });
+
+    // 動態網址 ID
+    const appId = window.location.hostname + window.location.pathname;
+    let socket;
+    let currentUser = null;
+    let isAdmin = false;
+    let appData = { projects: [] }; 
+</script>
+
+<div id="ui-layer">
+    <!-- 跑馬燈 -->
+    <div id="notificationBar" class="pointer-events-auto w-full">
+        <span class="marquee" id="notificationMsg"></span>
+    </div>
+
+    <!-- 頂部導航列 -->
+    <div class="flex justify-between items-start p-4 pointer-events-none w-full">
+        
+        <!-- 左側：工具列與過濾器 -->
+        <div class="flex flex-col gap-3 pointer-events-auto w-64">
+            <div class="glass p-3 rounded-xl shadow-lg flex items-center gap-3">
+                <select id="project-filter" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 outline-none">
+                    <option value="all">全部專案</option>
+                    <option value="approved">只顯示經過批准的</option>
+                    <option value="pending">只顯示沒經過批准的</option>
+                    <option value="none">都不顯示</option>
+                </select>
+            </div>
+
+            <!-- 繪圖工具列 (需登入) -->
+            <div id="toolbar" class="glass p-3 rounded-xl shadow-lg flex-col gap-2 hidden transition-all">
+                <div class="text-sm font-bold text-gray-700 mb-1 border-b border-gray-200 pb-1 flex justify-between items-center">
+                    建立專案 <span class="text-[10px] bg-gray-200 px-1 rounded text-gray-600">鎖定圖層</span>
+                </div>
+                <div class="flex gap-1 justify-between bg-gray-100 p-1 rounded-lg">
+                    <button id="btn-draw" class="flex-1 p-2 rounded hover:bg-white hover:shadow transition" title="自由畫筆"><i class="fas fa-pen text-indigo-500"></i></button>
+                    <button id="btn-rect" class="flex-1 p-2 rounded hover:bg-white hover:shadow transition" title="矩形"><i class="far fa-square text-blue-500"></i></button>
+                    <button id="btn-circle" class="flex-1 p-2 rounded hover:bg-white hover:shadow transition" title="圓形"><i class="far fa-circle text-red-500"></i></button>
+                    <label class="flex-1 p-2 rounded hover:bg-white hover:shadow transition cursor-pointer text-center" title="上傳圖片">
+                        <i class="fas fa-image text-green-500"></i>
+                        <input type="file" id="upload-image" accept="image/*" class="hidden">
+                    </label>
+                    <button id="btn-select" class="flex-1 p-2 rounded bg-white shadow transition" title="選取/移動"><i class="fas fa-mouse-pointer text-gray-600"></i></button>
+                </div>
+                
+                <div class="flex items-center justify-between mt-2 bg-gray-100 p-2 rounded-lg">
+                    <span class="text-xs font-medium text-gray-600">縮放模式:</span>
+                    <button id="btn-scale-mode" class="text-xs bg-white shadow-sm px-2 py-1 rounded hover:bg-gray-50 transition border border-gray-200 text-gray-700 font-bold">拉伸</button>
+                </div>
+                
+                <button id="btn-save-project" class="mt-2 w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 transition shadow-md">
+                    <i class="fas fa-cloud-upload-alt mr-1"></i> 發布為專案
+                </button>
+                <button id="btn-clear-canvas" class="mt-1 w-full text-red-500 font-bold py-1 hover:bg-red-50 rounded-lg transition text-sm">
+                    清除畫布
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側：使用者資訊或登入按鈕 -->
+        <div class="pointer-events-auto">
+            <div id="auth-container" class="glass p-1 pr-4 rounded-full shadow-lg flex items-center gap-3 hover:shadow-xl transition-all cursor-pointer border border-gray-200">
+                <div class="animate-pulse flex items-center gap-2 px-4 py-2">
+                    <i class="fas fa-spinner fa-spin text-indigo-500"></i>
+                    <span class="text-gray-600 text-sm font-medium">連線中...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部空間 (包含回報按鈕與版權) -->
+    <div class="mt-auto pointer-events-none p-4 flex justify-between items-end w-full">
+        <div class="pointer-events-auto">
+            <button id="report-btn" class="bg-red-500 text-white p-0 rounded-full shadow-lg hover:bg-red-600 transition hover:scale-110 flex items-center justify-center w-12 h-12" title="回報問題">
+                <i class="fas fa-bug text-xl"></i>
+            </button>
+        </div>
+        <div class="pointer-events-auto glass px-5 py-2 rounded-full text-sm font-medium text-gray-600 cursor-pointer hover:text-indigo-600 hover:shadow-md transition shadow-sm border border-gray-200" onclick="window.location.href='https://pandapanda6666.github.io'">
+            版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.
+        </div>
+    </div>
+</div>
+
+<!-- 發布專案 Modal -->
+<div id="publish-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[2000] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-white">發布地圖專案</h2>
+            <button onclick="document.getElementById('publish-modal').classList.add('hidden')" class="text-indigo-200 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">專案名稱</label>
+                <input type="text" id="proj-name" class="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="給專案取個響亮的名字...">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">專案介紹</label>
+                <textarea id="proj-desc" rows="3" class="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition resize-none" placeholder="描述一下這個專案的內容..."></textarea>
+            </div>
+            <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg border border-blue-100">
+                <i class="fas fa-info-circle mr-1"></i> 發布後，專案將自動綁定於 <span id="proj-layer-name" class="font-bold underline"></span> 圖層。
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t">
+            <button onclick="document.getElementById('publish-modal').classList.add('hidden')" class="px-5 py-2 font-medium text-gray-600 rounded-xl hover:bg-gray-200 transition">取消</button>
+            <button id="confirm-publish" class="px-5 py-2 bg-indigo-600 font-bold text-white rounded-xl hover:bg-indigo-700 transition shadow-md">確認發布</button>
+        </div>
+    </div>
+</div>
+
+<!-- 專案資訊 Modal -->
+<div id="project-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[2000] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-start bg-gray-50">
+            <div class="flex items-center gap-4">
+                <img id="modal-proj-avatar" src="" class="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm bg-white">
+                <div>
+                    <h2 id="modal-proj-name" class="text-xl font-black text-gray-800 tracking-tight"></h2>
+                    <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                        <span id="modal-proj-author" class="font-medium"></span>
+                        <span id="modal-proj-status" class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase"></span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="document.getElementById('project-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-800 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-sm"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1">
+            <p id="modal-proj-desc" class="text-gray-700 whitespace-pre-wrap text-sm mb-6 leading-relaxed bg-gray-50 p-4 rounded-xl"></p>
+            
+            <div id="admin-actions" class="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200 hidden">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-yellow-800"><i class="fas fa-shield-alt mr-1"></i> 管理員審核</h3>
+                    <button id="btn-approve" class="bg-green-500 text-white px-4 py-1.5 rounded-lg shadow-sm hover:bg-green-600 transition text-sm font-bold">批准專案</button>
+                </div>
+            </div>
+
+            <h3 class="text-sm font-black text-gray-400 uppercase tracking-wider mb-3">留言區</h3>
+            <div id="comments-list" class="space-y-3 mb-2">
+                <!-- 留言將動態插入 -->
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
+            <input type="text" id="comment-input" class="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" placeholder="寫下你的想法...">
+            <button id="btn-send-comment" class="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 transition shadow-md font-bold">
+                送出
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="map-container">
+    <div id="map"></div>
+    <canvas id="drawing-layer"></canvas>
+</div>
+
+<!-- 主程式 -->
+<script>
+    // --- 提醒：請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 ---
+
+    // ==========================================
+    // 1. 初始化 Leaflet 地圖
+    // ==========================================
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    const esriSatelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+    const cartoLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO', pane: 'shadowPane' });
+    const hybridLayer = L.layerGroup([esriSatelliteLayer, cartoLabelsLayer]);
+    
+    const baseMaps = {
+        "普通地圖": osmLayer,
+        "衛星影像": esriSatelliteLayer,
+        "混合地圖 (衛星+文字)": hybridLayer
+    };
+
+    const map = L.map('map', { layers: [osmLayer], maxZoom: 19, zoomControl: false }).setView([24.956, 121.298], 13);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+    L.control.layers(baseMaps, null, { position: 'bottomleft' }).addTo(map);
+
+    let currentLayerId = "普通地圖";
+    map.on('baselayerchange', function(e) {
+        currentLayerId = e.name;
+        renderProjects();
+    });
+
+    L.Control.geocoder({ defaultMarkGeocode: true, placeholder: '搜尋地點...', errorMessage: '找不到結果' }).on('markgeocode', e => map.fitBounds(e.geocode.bbox)).addTo(map);
+    L.easyButton({
+        states: [{
+            stateName: 'get-location', icon: 'fa-location-arrow', title: '定位',
+            onClick: function(btn, map) { map.locate({ enableHighAccuracy: true }); }
+        }]
+    }).addTo(map);
+
+    // ==========================================
+    // 2. 初始化 Fabric.js 畫布
+    // ==========================================
+    const canvasObj = new fabric.Canvas('drawing-layer', { isDrawingMode: false, selection: true });
+    let currentScaleMode = 'stretch'; 
+
+    function resizeCanvas() {
+        const mapContainer = document.getElementById('map-container');
+        canvasObj.setWidth(mapContainer.clientWidth);
+        canvasObj.setHeight(mapContainer.clientHeight);
+        canvasObj.renderAll();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function clearFabricSelection() {
+        canvasObj.discardActiveObject();
+        canvasObj.requestRenderAll();
+    }
+    
+    function setInteractiveMode(enabled) {
+        if(enabled) {
+            document.querySelector('.canvas-container').classList.add('interactive');
+        } else {
+            document.querySelector('.canvas-container').classList.remove('interactive');
+        }
+    }
+
+    function setActiveBtn(id) {
+        ['btn-draw','btn-rect','btn-circle','btn-select'].forEach(b => document.getElementById(b).classList.remove('bg-gray-200','shadow-inner'));
+        if(id !== 'upload') document.getElementById(id).classList.add('bg-gray-200','shadow-inner');
+    }
+
+    canvasObj.freeDrawingBrush.color = '#4f46e5';
+    canvasObj.freeDrawingBrush.width = 4;
+
+    document.getElementById('btn-draw').onclick = () => {
+        canvasObj.isDrawingMode = true;
+        setInteractiveMode(true);
+        setActiveBtn('btn-draw');
+    };
+    document.getElementById('btn-select').onclick = () => {
+        canvasObj.isDrawingMode = false;
+        setInteractiveMode(true);
+        setActiveBtn('btn-select');
+    };
+    document.getElementById('btn-rect').onclick = () => {
+        canvasObj.isDrawingMode = false; setActiveBtn('btn-rect'); setInteractiveMode(true);
+        const rect = new fabric.Rect({ left: canvasObj.width/2-50, top: canvasObj.height/2-50, fill: 'rgba(59,130,246,0.3)', width: 100, height: 100, stroke: '#3b82f6', strokeWidth: 3, rx: 10, ry: 10 });
+        canvasObj.add(rect); canvasObj.setActiveObject(rect);
+    };
+    document.getElementById('btn-circle').onclick = () => {
+        canvasObj.isDrawingMode = false; setActiveBtn('btn-circle'); setInteractiveMode(true);
+        const circle = new fabric.Circle({ left: canvasObj.width/2-50, top: canvasObj.height/2-50, fill: 'rgba(239,68,68,0.3)', radius: 50, stroke: '#ef4444', strokeWidth: 3 });
+        canvasObj.add(circle); canvasObj.setActiveObject(circle);
+    };
+    document.getElementById('upload-image').onchange = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (f) => {
+            fabric.Image.fromURL(f.target.result, (img) => {
+                img.scaleToWidth(250);
+                img.set({ left: canvasObj.width/2 - 125, top: canvasObj.height/2 - img.getScaledHeight()/2 });
+                canvasObj.add(img); canvasObj.setActiveObject(img);
+                canvasObj.isDrawingMode = false; setActiveBtn('upload'); setInteractiveMode(true);
+            });
+        };
+        reader.readAsDataURL(file);
+    };
+    document.getElementById('btn-clear-canvas').onclick = () => { canvasObj.clear(); setInteractiveMode(false); setActiveBtn(''); };
+
+    // 縮放模式: Crop vs Stretch (Ctrl 等比)
+    document.getElementById('btn-scale-mode').onclick = (e) => {
+        if(currentScaleMode === 'stretch') {
+            currentScaleMode = 'crop';
+            e.target.innerText = '切割';
+            canvasObj.uniformScaling = true;
+        } else {
+            currentScaleMode = 'stretch';
+            e.target.innerText = '拉伸';
+            canvasObj.uniformScaling = false;
+        }
+    };
+    canvasObj.on('object:scaling', function (e) {
+        if (e.e.ctrlKey) { e.target.set({ lockUniScaling: true }); } 
+        else if (currentScaleMode !== 'crop') { e.target.set({ lockUniScaling: false }); }
+    });
+
+
+    // ==========================================
+    // 3. 連線與驗證 (SSO)
+    // ==========================================
+    async function initConnection() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let serverUrl = urlParams.get('server');
+
+            if (!serverUrl) {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                if (!res.ok) throw new Error('無法取得伺服器網址');
+                const text = await res.text();
+                serverUrl = atob(text.trim().split('').reverse().join(''));
+            }
+
+            socket = io(serverUrl, { transports: ['websocket'] });
+
+            socket.on('connect', () => {
+                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                checkLogin();
+                
+                socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                
+                socket.emit('getAppData', { appId: appId }, (res) => {
+                    if (res && res.data && res.data.projects) {
+                        appData = res.data;
+                        renderProjects();
+                    }
+                });
+
+                socket.emit('getSystemContext', (res) => {
+                    if(res && res.isAdmin) isAdmin = true;
+                });
+            });
+
+            socket.on('connect_error', () => { showOfflineAuth(); });
+            socket.on('playerJoined', (data) => { console.log('Player joined room:', data); });
+            socket.on('playerLeft', (data) => { console.log('Player left room:', data); });
+            
+            socket.on('appData', (msg) => {
+                if(msg.room === appId && msg.action === 'syncAppData') {
+                    appData = msg.data;
+                    renderProjects();
+                    if(!document.getElementById('project-modal').classList.contains('hidden')) {
+                        updateModalComments();
+                    }
+                }
+            });
+        } catch (err) {
+            showOfflineAuth();
+        }
+    }
+
+    function showOfflineAuth() {
+        document.getElementById('auth-container').innerHTML = `<div class="px-5 py-2 text-red-500 font-bold bg-red-50 rounded-full text-sm">伺服器連線失敗，請稍後再試</div>`;
+    }
+
+    function checkLogin() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let token = urlParams.get('token') || localStorage.getItem('panda_session_token');
+
+        if (token) {
+            socket.emit('tokenLogin', { token: token });
+            socket.once('loginResult', (data) => {
+                if (data.success) {
+                    localStorage.setItem('panda_session_token', token);
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({path: newUrl}, '', newUrl);
+                    
+                    currentUser = data.user;
+                    updateAuthUI(true);
+                    document.getElementById('toolbar').classList.remove('hidden');
+                    document.getElementById('toolbar').classList.add('flex');
+                } else {
+                    localStorage.removeItem('panda_session_token');
+                    updateAuthUI(false);
+                }
+            });
+        } else {
+            updateAuthUI(false);
+        }
+    }
+
+    function updateAuthUI(isLoggedIn) {
+        const container = document.getElementById('auth-container');
+        if (isLoggedIn && currentUser) {
+            container.innerHTML = `
+                <img src="${currentUser.avatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover bg-white ml-1">
+                <div class="flex flex-col">
+                    <span class="font-bold text-gray-800 text-sm leading-tight max-w-[100px] truncate">${currentUser.username}</span>
+                    <span class="text-xs text-yellow-600 font-bold flex items-center gap-1">
+                        <i class="fas fa-coins text-yellow-500"></i> ${currentUser.pcoins || 0}
+                    </span>
+                </div>
+            `;
+            container.onclick = () => { window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href); };
+        } else {
+            container.innerHTML = `
+                <div class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-full transition shadow text-sm w-full text-center">
+                    登入 / 註冊
+                </div>
+            `;
+            container.classList.remove('p-1', 'pr-4');
+            container.onclick = () => { window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href); };
+        }
+    }
+
+    document.getElementById('report-btn').onclick = () => {
+        window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+    };
+
+    // ==========================================
+    // 4. 跑馬燈廣播功能
+    // ==========================================
+    function initBroadcast() {
+        const loadOffline = () => { window.broadcasts = JSON.parse(localStorage.getItem('broadcasts')||'[]'); };
+        fetch('https://pandapanda6666.github.io/login-hub/server_broadcast.json')
+            .then(res=>res.json())
+            .then(list => { 
+                window.broadcasts = list; 
+                localStorage.setItem('broadcasts', JSON.stringify(list)); 
+            }).catch(loadOffline);
+            
+        setInterval(() => {
+            if(typeof socket !== 'undefined' && socket.connected) {
+                socket.on('broadcastSchedule', (list) => {
+                    localStorage.setItem('broadcasts', JSON.stringify(list));
+                    window.broadcasts = list;
+                });
+            }
+        }, 30000); 
+
+        setInterval(() => {
+            const now = Date.now(); 
+            const bar = document.getElementById('notificationBar'); 
+            const msgText = document.getElementById('notificationMsg');
+            let activeMsg = null; 
+            const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            
+            for (let b of list) {
+                const st = new Date(b.startTime).getTime();
+                if (b.mode === 1) {
+                    const intervalMs = b.intervalMin * 60000; 
+                    const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    if (now >= st && now <= end) { 
+                        const elapsed = now - st; 
+                        if (elapsed % intervalMs < 60000) activeMsg = b.message; 
+                    }
+                } else if (b.mode === 2) { 
+                    const et = new Date(b.endTime).getTime(); 
+                    if (now >= st && now <= et) activeMsg = b.message; 
+                }
+            }
+            if (activeMsg) { 
+                if(msgText.innerText !== activeMsg) msgText.innerText = activeMsg; 
+                bar.style.display = 'block'; 
+            } else { 
+                bar.style.display = 'none'; 
+            }
+        }, 1000);
+    }
+
+    // ==========================================
+    // 5. 專案邏輯與地圖渲染
+    // ==========================================
+    let projectMarkers = [];
+    let currentOpenProjectId = null;
+
+    document.getElementById('project-filter').addEventListener('change', renderProjects);
+
+    function renderProjects() {
+        projectMarkers.forEach(m => map.removeLayer(m));
+        projectMarkers = [];
+
+        const filter = document.getElementById('project-filter').value;
+        if(filter === 'none') return;
+
+        if(!appData.projects) appData.projects = [];
+        
+        appData.projects.forEach(p => {
+            if (filter === 'approved' && p.status !== 'approved') return;
+            if (filter === 'pending' && p.status !== 'pending') return;
+            if (p.layerId !== currentLayerId) return;
+
+            const iconHtml = `
+                <div class="relative group cursor-pointer transition-transform hover:scale-110">
+                    <img src="${p.creatorAvatar}" class="w-12 h-12 rounded-full border-4 ${p.status==='approved'?'border-indigo-500':'border-yellow-400'} shadow-lg object-cover bg-white">
+                    ${p.isAdmin ? '<div class="absolute -bottom-1 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black tracking-widest border border-white">ADMIN</div>' : ''}
+                </div>
+            `;
+            const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [48, 48], iconAnchor: [24, 24] });
+
+            const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
+            marker.on('click', () => openProjectModal(p));
+            projectMarkers.push(marker);
+        });
+    }
+
+    function syncAndSaveCloud() {
+        socket.emit('saveAppData', { appId: appId, data: appData });
+        socket.emit('appData', { room: appId, action: 'syncAppData', data: appData });
+    }
+
+    document.getElementById('btn-save-project').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        if(canvasObj.getObjects().length === 0) return alert('請先在畫布上畫點東西！');
+        
+        clearFabricSelection();
+        document.getElementById('proj-layer-name').innerText = currentLayerId;
+        document.getElementById('publish-modal').classList.remove('hidden');
+    };
+
+    document.getElementById('confirm-publish').onclick = () => {
+        const name = document.getElementById('proj-name').value.trim();
+        const desc = document.getElementById('proj-desc').value.trim();
+        if(!name) return alert('請輸入名稱');
+
+        const center = map.getCenter();
+        const isUserAdmin = isAdmin || (currentUser.role === 'admin');
+
+        const newProj = {
+            id: 'proj_' + Date.now(),
+            name: name,
+            desc: desc,
+            layerId: currentLayerId,
+            creatorId: currentUser.id || currentUser.uid,
+            creatorName: currentUser.username,
+            creatorAvatar: currentUser.avatar,
+            isAdmin: isUserAdmin,
+            status: isUserAdmin ? 'approved' : 'pending',
+            lat: center.lat,
+            lng: center.lng,
+            zoom: map.getZoom(),
+            fabricJSON: canvasObj.toJSON(),
+            comments: []
+        };
+
+        appData.projects.push(newProj);
+        syncAndSaveCloud();
+        socket.emit('logAppMessage', { appId: appId, message: `發布了地圖專案: ${name}`, type: 'info' });
+
+        document.getElementById('publish-modal').classList.add('hidden');
+        document.getElementById('proj-name').value = '';
+        document.getElementById('proj-desc').value = '';
+        canvasObj.clear();
+        setInteractiveMode(false);
+        setActiveBtn('');
+
+        // 提示
+        const Toast = Swal ? Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000}) : null;
+        if(Toast) Toast.fire({icon: 'success', title: '專案發布成功'}); else alert('發布成功！');
+    };
+
+    function openProjectModal(proj) {
+        currentOpenProjectId = proj.id;
+        document.getElementById('modal-proj-name').innerText = proj.name;
+        document.getElementById('modal-proj-desc').innerText = proj.desc || '無介紹';
+        document.getElementById('modal-proj-avatar').src = proj.creatorAvatar;
+        
+        let authorHtml = proj.creatorName;
+        document.getElementById('modal-proj-author').innerHTML = authorHtml;
+
+        const statusEl = document.getElementById('modal-proj-status');
+        if(proj.status === 'approved') {
+            statusEl.innerText = '已批准';
+            statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200';
+        } else {
+            statusEl.innerText = '待審核';
+            statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-yellow-100 text-yellow-700 border border-yellow-200';
+        }
+
+        const adminActions = document.getElementById('admin-actions');
+        if(isAdmin && proj.status === 'pending') {
+            adminActions.classList.remove('hidden');
+            document.getElementById('btn-approve').onclick = () => {
+                proj.status = 'approved';
+                syncAndSaveCloud();
+                socket.emit('logAppMessage', { appId: appId, message: `管理員批准了專案: ${proj.name}`, type: 'info' });
+                openProjectModal(proj); 
+            };
+        } else {
+            adminActions.classList.add('hidden');
+        }
+
+        updateModalComments();
+        document.getElementById('project-modal').classList.remove('hidden');
+
+        // 預覽
+        map.flyTo([proj.lat, proj.lng], proj.zoom);
+        canvasObj.loadFromJSON(proj.fabricJSON, () => {
+            canvasObj.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+            canvasObj.renderAll();
+        });
+    }
+
+    function updateModalComments() {
+        if(!currentOpenProjectId) return;
+        const proj = appData.projects.find(p => p.id === currentOpenProjectId);
+        if(!proj) return;
+
+        const listEl = document.getElementById('comments-list');
+        listEl.innerHTML = '';
+        
+        if(!proj.comments || proj.comments.length === 0) {
+            listEl.innerHTML = '<div class="text-gray-400 text-sm text-center py-6 bg-white rounded-xl border border-dashed border-gray-300">目前還沒有留言，來搶頭香吧！</div>';
+            return;
+        }
+
+        proj.comments.forEach(c => {
+            listEl.innerHTML += `
+                <div class="flex gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <img src="${c.userAvatar}" class="w-10 h-10 rounded-full object-cover shadow-sm bg-gray-50">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="text-xs font-bold text-gray-800">${c.userName}</span>
+                            <span class="text-[10px] text-gray-400">${new Date(c.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="text-sm text-gray-600 leading-relaxed">${c.text}</div>
+                    </div>
+                </div>
+            `;
+        });
+        listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    document.getElementById('btn-send-comment').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        const text = document.getElementById('comment-input').value.trim();
+        if(!text) return;
+
+        const proj = appData.projects.find(p => p.id === currentOpenProjectId);
+        if(proj) {
+            if(!proj.comments) proj.comments = [];
+            proj.comments.push({
+                userId: currentUser.id || currentUser.uid,
+                userName: currentUser.username,
+                userAvatar: currentUser.avatar,
+                text: text,
+                timestamp: Date.now()
+            });
+            document.getElementById('comment-input').value = '';
+            syncAndSaveCloud();
+        }
+    };
+
+    // 啟動
+    initBroadcast();
+    initConnection();
+    
+</script>
+</body>
+</html>
