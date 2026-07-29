@@ -49,22 +49,12 @@
                 
                 const auth = urlParams.get('auth');
                 const user = urlParams.get('user');
-                if (auth === 'true' || user) {
-                    const u = user || '使用者';
-                    localStorage.setItem('sso_auth', 'true');
-                    localStorage.setItem('sso_user', u);
-                    localStorage.setItem('panda_session_user', u);
-                    localStorage.setItem('panda_auto_user', u);
-                    window.dispatchEvent(new CustomEvent('sso_login_success', { detail: { username: u, nickname: u } }));
-                    if (window.history.replaceState) window.history.replaceState({}, document.title, window.location.pathname);
-                } else if (localStorage.getItem('sso_auth') === 'true' || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user')) {
-                    const u = localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || '使用者';
-                    window.dispatchEvent(new CustomEvent('sso_login_success', { detail: { username: u, nickname: u } }));
-                }
-
+                if (user) localStorage.setItem('panda_session_user', user);
                 const token = urlParams.get('token') || localStorage.getItem('panda_session_token');
-                if ((auth === 'true' || localStorage.getItem('sso_auth') === 'true') && (user || localStorage.getItem('sso_user'))) {
-                    window.socket.emit('requestProfile', { username: user || localStorage.getItem('sso_user') });
+
+                if (auth === 'true' && user) {
+                    window.socket.emit('requestProfile', { username: user });
+                    window.history.replaceState({}, document.title, window.location.pathname);
                 } else if (token) {
                     window.socket.emit('tokenLogin', { token: token });
                 }
@@ -107,54 +97,8 @@
     </script>
       <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="/scratch/panda_sso.js"></script>
-
-    <style>
-        /* 隱藏未實作與舊版登入相關按鈕 */
-        .share-button_share-button_36Wbh,
-        .community-button_community-button_20Q0O,
-        .menu-bar_account-info-group_1CTpL {
-            display: none !important;
-        }
-        
-        .avatar-container:hover .dropdown-content { display: block !important; }
-        .dropdown-content a:hover { background-color: #f1f1f1 !important; }
-    </style>
 </head>
   <body>
-
-    <!-- 覆蓋在編輯器右上方的新版 SSO 登入介面 -->
-    <div class="sso-custom-nav" style="position: absolute; top: 0; right: 0; height: 48px; display: flex; align-items: center; z-index: 10000; padding-right: 15px; pointer-events: auto;">
-        <div class="auth-actions" id="auth-actions" style="margin-left: 10px; display: none;">
-            <a href="https://pandapanda6666.github.io/login-hub/?require=1&from=https%3A%2F%2Fpandapanda6666.github.io%2Fscratch%2Fprojects%2Feditor%2F" style="margin-right: 10px; color: white; text-decoration: none; font-weight: bold; background: rgba(0,0,0,0.1); padding: 5px 10px; border-radius: 4px;">登入 / 註冊</a>
-        </div>
-
-        <div class="user-menu" id="user-menu" style="display: none; align-items: center; height: 100%;">
-            <div class="avatar-container" style="display: flex; align-items: center; cursor: pointer; padding: 0 10px; height: 100%; position: relative;">
-                <img src="" alt="Avatar" class="avatar" id="nav-avatar" style="width: 32px; height: 32px; border-radius: 50%; margin-right: 8px; object-fit: cover; border: 1px solid rgba(255,255,255,0.4);">
-                <span class="username" id="nav-username" style="color: white; font-size: 14px; font-weight: bold; display: flex; align-items: center;">使用者</span>
-                
-                <div class="dropdown-content" style="display: none; position: absolute; top: 48px; right: 0; background-color: white; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 10000; border-radius: 6px; overflow: hidden;">
-                    <a href="https://pandapanda6666.github.io/login-hub/?action=editProfile" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">個人資訊</a>
-                    <a href="/scratch/mystuff/" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">我的東西</a>
-                    <a href="https://pandapanda6666.github.io/login-hub/?action=editProfile" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">帳戶設定</a>
-                    <a href="javascript:void(0)" onclick="logout()" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">登出</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script>
-        function logout() {
-            localStorage.removeItem('sso_auth');
-            localStorage.removeItem('sso_user');
-            localStorage.removeItem('sso_server');
-            localStorage.removeItem('panda_session_token');
-            localStorage.removeItem('panda_session_user');
-            localStorage.removeItem('panda_auto_user');
-            localStorage.removeItem('panda_auto_pass');
-            window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=logout&from=' + encodeURIComponent(window.location.href);
-        }
-    </script>
-
 
     <!-- Notification Bar -->
     <div id="notificationBar" style="display:none; position:fixed; top:0; left:0; width:100%; background:black; color:white; z-index:100000; overflow:hidden; white-space:nowrap; padding:5px 0;">
@@ -172,9 +116,118 @@
     <div style="position: fixed; bottom: 30px; right: 20px; z-index: 9999;">
         <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)" style="background: #ff4c4c; color: white; padding: 10px 20px; border: none; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">?�報?��?</button>
     </div>
-    
+    <div style="position: fixed; bottom: 0; width: 100%; text-align: center; background: rgba(0,0,0,0.5); color: white; padding: 5px; z-index: 9998; font-size: 12px;">
+        <a href="https://pandapanda6666.github.io" style="color: white; text-decoration: none;">?��??�??&copy; 2026 PandaPanda?�AI?�常 All Rights Reserved.</a>
+    </div>
   
-<script type="text/javascript" src="lib.min.js"></script><script type="text/javascript" src="chunks/gui.js"></script></body>
+<script type="text/javascript" src="lib.min.js"></script><script type="text/javascript" src="chunks/gui.js"></script>
+<!-- PANDASCRATCH INJECT START -->
+<style>
+.menu-bar_menu-bar_1gLUp, div[class*="menu-bar_menu-bar_"] { background-color: #81C784 !important; }
+.share-button_share-button_36Wbh, .community-button_community-button_20Q0O, .menu-bar_account-info-group_1CTpL { display: none !important; }
+.menu-bar_language-menu_3aW5d { opacity: 0 !important; width: 0px !important; padding: 0 !important; margin: 0 !important; overflow: hidden !important; pointer-events: none !important; }
+
+body.bear-style div[class*="green-flag_green-flag-wrapper_"] { position: relative; overflow: visible !important; }
+body.bear-style div[class*="green-flag_green-flag-wrapper_"]::before,
+body.bear-style div[class*="green-flag_green-flag-wrapper_"]::after { content: ''; position: absolute; top: -4px; width: 12px; height: 12px; background-color: #81C784; border-radius: 50%; z-index: 10; border: 1.5px solid #4CAF50; }
+body.bear-style div[class*="green-flag_green-flag-wrapper_"]::before { left: 0px; }
+body.bear-style div[class*="green-flag_green-flag-wrapper_"]::after { right: 0px; }
+
+body.high-contrast { filter: contrast(130%) saturate(120%); }
+body.high-contrast div[class*="menu-bar_menu-bar_"] { background-color: #1b5e20 !important; }
+
+.custom-setting-item:hover { background-color: #f1f1f1; }
+.avatar-container:hover .dropdown-content { display: block !important; }
+</style>
+
+<script>
+function logout() {
+    localStorage.removeItem('sso_auth');
+    localStorage.removeItem('sso_user');
+    localStorage.removeItem('panda_session_token');
+    window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=logout&from=' + encodeURIComponent(window.location.href);
+}
+
+const observer = new MutationObserver((mutations) => {
+    const menuBar = document.querySelector('.menu-bar_menu-bar_1gLUp') || document.querySelector('div[class*="menu-bar_menu-bar_"]');
+    if (menuBar && !document.getElementById('custom-sso-nav')) {
+        const authContainer = document.createElement('div');
+        authContainer.id = 'custom-sso-nav';
+        authContainer.style.cssText = 'position: absolute; top: 0; right: 0; height: 48px; display: flex; align-items: center; z-index: 10000; padding-right: 15px; pointer-events: auto;';
+        
+        if (localStorage.getItem('sso_auth') === 'true') {
+            const username = localStorage.getItem('sso_user') || 'User';
+            authContainer.innerHTML = `
+                <div class="avatar-container" style="display: flex; align-items: center; cursor: pointer; height: 100%; position: relative;">
+                    <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=${username}" class="avatar" style="width:32px; height:32px; border-radius:50%; margin-right:8px; border:1px solid rgba(255,255,255,0.4); background:#fff;">
+                    <span class="username" style="color: white; font-size: 14px; font-weight: bold;">${username}</span>
+                    <div class="dropdown-content" style="display: none; position: absolute; top: 48px; right: 0; background-color: white; min-width: 160px; box-shadow: 0px 8px 16px rgba(0,0,0,0.2); z-index: 10000; border-radius: 6px; overflow: hidden;">
+                        <a href="https://pandapanda6666.github.io/login-hub/?action=editProfile" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">個人資訊</a>
+                        <a href="/scratch/mystuff/" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">我的東西</a>
+                        <a href="/scratch/settings/" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">帳戶設定</a>
+                        <a href="javascript:void(0)" onclick="logout()" style="color: #333; padding: 12px 16px; text-decoration: none; display: block; font-size: 14px;">登出</a>
+                    </div>
+                </div>`;
+        } else {
+            authContainer.innerHTML = `
+                <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=login&from=' + encodeURIComponent(window.location.href)" style="background: transparent; color: white; border: 1px solid white; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 10px;">登入</button>
+                <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=register&from=' + encodeURIComponent(window.location.href)" style="background: white; color: #81C784; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer;">加入</button>`;
+        }
+        menuBar.appendChild(authContainer);
+    }
+
+    const langMenu = document.querySelector('.menu-bar_language-menu_3aW5d') || document.querySelector('div[class*="menu-bar_language-menu_"]');
+    if (langMenu && !document.getElementById('custom-settings-menu')) {
+        const settingsDiv = document.createElement('div');
+        settingsDiv.id = 'custom-settings-menu';
+        settingsDiv.className = 'menu-bar_menu-bar-item_264qQ menu-bar_hoverable_2sbwj';
+        settingsDiv.style.cssText = 'cursor: pointer; padding: 0 15px; color: white; display: flex; align-items: center; height: 100%; position: relative; font-weight: bold; font-size: 14px;';
+        
+        settingsDiv.innerHTML = `
+            <span>設定</span>
+            <div class="custom-settings-dropdown" style="display: none; position: absolute; top: 100%; left: 0; background: white; color: black; min-width: 150px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); z-index: 10000; border-radius: 4px; overflow: hidden;">
+                <div class="custom-setting-item" id="btn-lang" style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee;">🌐 語言 (Language)</div>
+                <div class="custom-setting-item" id="btn-style" style="padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee;">🐻 風格 (Style)</div>
+                <div class="custom-setting-item" id="btn-contrast" style="padding: 12px 15px; cursor: pointer;">🌗 對比度 (Contrast)</div>
+            </div>`;
+        
+        langMenu.parentNode.insertBefore(settingsDiv, langMenu.nextSibling);
+        
+        settingsDiv.addEventListener('mouseenter', () => settingsDiv.querySelector('.custom-settings-dropdown').style.display = 'block');
+        settingsDiv.addEventListener('mouseleave', () => settingsDiv.querySelector('.custom-settings-dropdown').style.display = 'none');
+        
+        document.getElementById('btn-lang').addEventListener('click', () => {
+            const nativeBtn = langMenu.querySelector('button, div');
+            if(nativeBtn) nativeBtn.click();
+            else langMenu.click();
+        });
+        
+        let bearEnabled = localStorage.getItem('panda-bear-style') === 'true';
+        if (bearEnabled) document.body.classList.add('bear-style');
+        
+        document.getElementById('btn-style').addEventListener('click', () => {
+            bearEnabled = !bearEnabled;
+            localStorage.setItem('panda-bear-style', bearEnabled);
+            if (bearEnabled) document.body.classList.add('bear-style');
+            else document.body.classList.remove('bear-style');
+        });
+        
+        let highContrast = localStorage.getItem('panda-high-contrast') === 'true';
+        if (highContrast) document.body.classList.add('high-contrast');
+        
+        document.getElementById('btn-contrast').addEventListener('click', () => {
+            highContrast = !highContrast;
+            localStorage.setItem('panda-high-contrast', highContrast);
+            if (highContrast) document.body.classList.add('high-contrast');
+            else document.body.classList.remove('high-contrast');
+        });
+    }
+});
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+<!-- PANDASCRATCH INJECT END -->
+</body>
+
 </html>
 
 
