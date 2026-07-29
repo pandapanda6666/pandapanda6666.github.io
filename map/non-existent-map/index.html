@@ -537,36 +537,6 @@
         }
     });
 
-    // 編輯模式下，拖曳空白處即可移動地圖
-    let isPanningMap = false;
-    let lastMouse = null;
-    canvasObj.on('mouse:down', function(opt) {
-        if (!opt.target && !canvasObj.isDrawingMode && !lineMode) {
-            isPanningMap = true;
-            canvasObj.selection = false;
-            let evt = opt.e;
-            lastMouse = { 
-                x: evt.clientX !== undefined ? evt.clientX : (evt.touches && evt.touches[0] ? evt.touches[0].clientX : 0),
-                y: evt.clientY !== undefined ? evt.clientY : (evt.touches && evt.touches[0] ? evt.touches[0].clientY : 0)
-            };
-        }
-    });
-    canvasObj.on('mouse:move', function(opt) {
-        if (isPanningMap) {
-            let evt = opt.e;
-            let cx = evt.clientX !== undefined ? evt.clientX : (evt.touches && evt.touches[0] ? evt.touches[0].clientX : 0);
-            let cy = evt.clientY !== undefined ? evt.clientY : (evt.touches && evt.touches[0] ? evt.touches[0].clientY : 0);
-            let deltaX = cx - lastMouse.x;
-            let deltaY = cy - lastMouse.y;
-            map.panBy([-deltaX, -deltaY], { animate: false });
-            lastMouse = { x: cx, y: cy };
-        }
-    });
-    canvasObj.on('mouse:up', function(opt) {
-        isPanningMap = false;
-        canvasObj.selection = !lineMode;
-    });
-
     // 實作滾輪縮放穿透：在畫圖途中也能用滾輪縮放地圖
     canvasObj.on('mouse:wheel', function(opt) {
         let delta = opt.e.deltaY;
