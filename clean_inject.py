@@ -1,0 +1,112 @@
+import os, re
+
+base_dir = r'C:\Users\User\.gemini\antigravity\scratch\pandapanda6666.github.io'
+
+def clean_and_inject(filepath, is_rabboni=False):
+    with open(filepath, 'r', encoding='utf-8') as f:
+        html = f.read()
+    
+    # Clean up previous scripts attached to </body>
+    html = re.sub(r'<script>\s*function logout\(\).*?</body>', '</body>', html, flags=re.DOTALL)
+    html = re.sub(r'<script>\s*document\.addEventListener\(\'DOMContentLoaded\'.*?</body>', '</body>', html, flags=re.DOTALL)
+    
+    sso_logic = '''
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const observer = new MutationObserver(() => {
+            const authContainer = document.querySelector('.menu-bar_account-info-group_1YvN_');
+            if (authContainer && !authContainer.hasAttribute('data-patched')) {
+                authContainer.setAttribute('data-patched', 'true');
+                
+                const username = localStorage.getItem('panda_nickname') || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_session_user') || '使用者';
+                let avatar = localStorage.getItem('panda_avatar');
+                if (!avatar || avatar === 'undefined' || avatar === 'null') avatar = 'https://cdn.discordapp.com/embed/avatars/0.png';
+                const balance = localStorage.getItem('panda_balance') || 0;
+                
+                authContainer.innerHTML = `
+                    <div class="avatar-container menu-bar_menu-bar-item_264qQ menu-bar_hoverable_2sbwj" style="display: flex; align-items: center; cursor: pointer; height: 100%; position: relative; padding: 0 15px;">
+                        <img src="${avatar}" class="avatar" style="width:32px; height:32px; border-radius:50%; margin-right:8px; border:1px solid rgba(255,255,255,0.4); background:#fff; object-fit: cover;">
+                        <span class="username" style="color: white; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center;">
+                            ${username}
+                            <span style="margin-left: 10px; color: gold; font-weight: bold; display: flex; align-items: center;">
+                                <img src="/login-hub/pandacoin.png" style="width:16px;height:16px;margin-right:2px;" onerror="this.onerror=null; this.src='/scratch/projects/editor/static/assets/pandacoin.png'" />${balance}
+                            </span>
+                        </span>
+                    </div>
+                `;
+            }
+
+            // Custom Settings Menu
+            const settingsMenu = document.querySelector('.menu-bar_menu-bar-item_264qQ.menu-bar_hoverable_2sbwj .settings-menu');
+            if (!settingsMenu) {
+                // Find all dropdowns
+                const dropdowns = document.querySelectorAll('li.menu-bar_menu-bar-item_264qQ.menu-bar_hoverable_2sbwj');
+                for (let li of dropdowns) {
+                    const span = li.querySelector('span');
+                    if (span && (span.textContent === '設定' || span.textContent === 'Settings')) {
+                        if (li.hasAttribute('data-settings-patched')) continue;
+                        li.setAttribute('data-settings-patched', 'true');
+                        
+                        li.onclick = (e) => {
+                            setTimeout(() => {
+                                const ul = li.querySelector('ul');
+                                if (ul && !ul.hasAttribute('data-customized')) {
+                                    ul.setAttribute('data-customized', 'true');
+                                    ul.innerHTML = '';
+                                    
+                                    // 語言
+                                    const langLi = document.createElement('li');
+                                    langLi.style.padding = '10px 15px';
+                                    langLi.style.borderBottom = '1px solid #ccc';
+                                    langLi.innerHTML = '<strong>語言</strong>';
+                                    ul.appendChild(langLi);
+                                    
+                                    // 風格
+                                    const styleLi = document.createElement('li');
+                                    styleLi.style.padding = '10px 15px';
+                                    styleLi.style.borderBottom = '1px solid #ccc';
+                                    const styleSelect = document.createElement('select');
+                                    styleSelect.style.width = '100%';
+                                    styleSelect.style.marginTop = '5px';
+                                    styleSelect.innerHTML = `<option value="normal">普通</option><option value="bear">熊積木(綠旗會有熊耳朵)</option>`;
+                                    styleSelect.value = window.location.pathname.includes('rabboni') ? 'bear' : 'normal';
+                                    styleSelect.onchange = (e) => {
+                                        if (e.target.value === 'bear') window.location.href = '/scratch/projects/editor/rabboni/';
+                                        else window.location.href = '/scratch/projects/editor/';
+                                    };
+                                    styleLi.innerHTML = '<strong>風格</strong><br>';
+                                    styleLi.appendChild(styleSelect);
+                                    ul.appendChild(styleLi);
+                                    
+                                    // 對比度
+                                    const contrastLi = document.createElement('li');
+                                    contrastLi.style.padding = '10px 15px';
+                                    const contrastSelect = document.createElement('select');
+                                    contrastSelect.style.width = '100%';
+                                    contrastSelect.style.marginTop = '5px';
+                                    contrastSelect.innerHTML = `<option value="normal">原始</option><option value="high">高對比</option>`;
+                                    contrastSelect.onchange = (e) => {
+                                        if (e.target.value === 'high') document.body.classList.add('high-contrast');
+                                        else document.body.classList.remove('high-contrast');
+                                    };
+                                    contrastLi.innerHTML = '<strong>對比度</strong><br>';
+                                    contrastLi.appendChild(contrastSelect);
+                                    ul.appendChild(contrastLi);
+                                }
+                            }, 50);
+                        };
+                    }
+                }
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+    </script>
+'''
+    html = html.replace('</body>', sso_logic + '</body>')
+    with open(filepath, 'w', encoding='utf-8') as f:
+        f.write(html)
+
+clean_and_inject(os.path.join(base_dir, 'scratch', 'projects', 'editor', 'index.html'))
+clean_and_inject(os.path.join(base_dir, 'scratch', 'projects', 'editor', 'rabboni', 'index.html'), is_rabboni=True)
+print('Replaced cleanly')
