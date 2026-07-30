@@ -90,12 +90,42 @@
         
         <!-- 左側：工具列與過濾器 -->
         <div class="flex flex-col gap-3 pointer-events-auto w-72">
-            <div class="glass p-3 rounded-xl shadow-lg flex items-center gap-3"><select id="project-filter" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 outline-none">
-                    <option value="all">全部專案</option>
-                    <option value="approved">只顯示經過批准的</option>
-                    <option value="pending">只顯示沒經過批准的</option>
-                    <option value="none">都不顯示</option>
-                </select>
+            <!-- 專案列表面板 -->
+            <div id="project-list-panel" class="glass p-3 rounded-xl shadow-lg flex flex-col gap-2 w-full max-h-96">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-bold text-gray-700"><i class="fas fa-layer-group text-indigo-500 mr-1"></i> 專案列表</span>
+                    <button id="btn-new-project" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition font-bold shadow-sm">+ 新增專案</button>
+                </div>
+                
+                <!-- 分頁標籤 -->
+                <div class="flex text-xs font-bold bg-gray-100 p-1 rounded-lg">
+                    <button id="tab-explore" class="flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition">探索專案</button>
+                    <button id="tab-my-projects" class="flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition">我的專案</button>
+                </div>
+
+                <!-- 探索專案面板 -->
+                <div id="panel-explore" class="flex flex-col gap-2 flex-1 overflow-hidden">
+                    <div class="flex gap-1 justify-between items-center mt-1">
+                        <select id="bulk-show-filter" class="text-[10px] border border-gray-300 rounded p-1 flex-1 outline-none">
+                            <option value="all">全部專案</option>
+                            <option value="approved">已批准</option>
+                            <option value="pending">待審核</option>
+                        </select>
+                        <button id="btn-bulk-show" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">套用顯示</button>
+                        <button id="btn-show-all" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">全顯</button>
+                        <button id="btn-hide-all" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded font-bold hover:bg-red-200">全隱</button>
+                    </div>
+                    <div id="explore-list-container" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar min-h-[150px]">
+                        <!-- JS 動態插入 -->
+                    </div>
+                </div>
+
+                <!-- 我的專案面板 -->
+                <div id="panel-my-projects" class="flex-col gap-2 flex-1 overflow-hidden hidden">
+                    <div id="my-projects-list-container" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar min-h-[150px] mt-1">
+                        <!-- JS 動態插入 -->
+                    </div>
+                </div>
             </div>
 
             <!-- 地圖旋轉控制 (任何人皆可見) -->
@@ -155,15 +185,24 @@
                     </div>
                 </div>
 
+                <div class="flex gap-2 mt-2">
+                    <button id="btn-save-draft" class="flex-1 bg-gray-500 text-white font-bold py-2 rounded-lg hover:bg-gray-600 transition shadow-md text-xs">
+                        <i class="fas fa-save mr-1"></i> 存為草稿
+                    </button>
+                    <button id="btn-save-project" class="flex-1 bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 transition shadow-md text-xs">
+                        <i class="fas fa-cloud-upload-alt mr-1"></i> 發布專案
+                    </button>
+                </div>
+                <button id="btn-cancel-edit" class="mt-1 w-full bg-red-100 text-red-600 font-bold py-1.5 rounded-lg hover:bg-red-200 transition shadow-sm text-xs border border-red-200">
+                    <i class="fas fa-times mr-1"></i> 取消編輯 (不存檔)
+                </button>
+                
                 <!-- 其他工具 -->
                 <div class="flex items-center justify-between mt-1 bg-gray-100 p-2 rounded-lg">
                     <span class="text-xs font-medium text-gray-600">縮放模式:</span>
                     <button id="btn-scale-mode" class="text-xs bg-white shadow-sm px-2 py-1 rounded hover:bg-gray-50 transition border border-gray-200 text-gray-700 font-bold">改變大小 (Resize)</button>
                 </div>
                 
-                <button id="btn-save-project" class="mt-2 w-full bg-indigo-600 text-white font-bold py-2 rounded-lg hover:bg-indigo-700 transition shadow-md">
-                    <i class="fas fa-cloud-upload-alt mr-1"></i> 發布為專案
-                </button>
                 <button id="btn-clear-canvas" class="mt-1 w-full text-red-500 font-bold py-1 hover:bg-red-50 rounded-lg transition text-sm">
                     清除畫布
                 </button>
@@ -361,8 +400,13 @@
     resizeCanvas();
 
     function setInteractiveMode(enabled) {
-        if(enabled) document.querySelector('.canvas-container').classList.add('interactive');
-        else document.querySelector('.canvas-container').classList.remove('interactive');
+        if(enabled) {
+            document.querySelector('.canvas-container').classList.add('interactive');
+            if(map && map.dragging) map.dragging.disable();
+        } else {
+            document.querySelector('.canvas-container').classList.remove('interactive');
+            if(map && map.dragging) map.dragging.enable();
+        }
     }
 
     function setActiveBtn(id) {
@@ -536,8 +580,6 @@
             isDrawingLine = false;
         }
     });
-
-
 
     // 實作滾輪縮放穿透：在畫圖途中也能用滾輪縮放地圖
     canvasObj.on('mouse:wheel', function(opt) {
@@ -786,73 +828,218 @@
     // ==========================================
     // 5. 專案邏輯與地圖渲染
     // ==========================================
+    // ==========================================
     let projectMarkers = [];
     let currentOpenProjectId = null;
-
-    document.getElementById('project-filter').addEventListener('change', renderProjects);
+    let editingProjectId = null;
+    let projectVisibility = {}; // { projId: true/false }
 
     function renderProjects() {
         projectMarkers.forEach(m => map.removeLayer(m));
         projectMarkers = [];
 
-        const filter = document.getElementById('project-filter').value;
-        if(filter === 'none') return;
-
         if(!appData.projects) appData.projects = [];
         
         appData.projects.forEach(p => {
-            if (filter === 'approved' && p.status !== 'approved') return;
-            if (filter === 'pending' && p.status !== 'pending') return;
-            if (p.layerId !== currentLayerId) return;
+            if (projectVisibility[p.id] === undefined) projectVisibility[p.id] = true;
+            
+            // 地圖標記只顯示非草稿且勾選顯示的專案 (且必須在當前圖層)
+            if (p.layerId === currentLayerId && projectVisibility[p.id] && p.status !== 'draft') {
+                const iconHtml = `
+                    <div class="relative group cursor-pointer transition-transform hover:scale-110">
+                        <img src="${p.creatorAvatar}" class="w-12 h-12 rounded-full border-4 ${p.status==='approved'?'border-indigo-500':'border-yellow-400'} shadow-lg object-cover bg-white">
+                        ${p.isAdmin ? '<div class="absolute -bottom-1 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black tracking-widest border border-white">ADMIN</div>' : ''}
+                    </div>
+                `;
+                const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [48, 48], iconAnchor: [24, 24] });
+                const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
+                marker.on('click', () => openProjectModal(p));
+                projectMarkers.push(marker);
+            }
+        });
+        
+        renderProjectListUI();
+    }
 
-            const iconHtml = `
-                <div class="relative group cursor-pointer transition-transform hover:scale-110">
-                    <img src="${p.creatorAvatar}" class="w-12 h-12 rounded-full border-4 ${p.status==='approved'?'border-indigo-500':'border-yellow-400'} shadow-lg object-cover bg-white">
-                    ${p.isAdmin ? '<div class="absolute -bottom-1 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black tracking-widest border border-white">ADMIN</div>' : ''}
-                </div>
-            `;
-            const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [48, 48], iconAnchor: [24, 24] });
+    function renderProjectListUI() {
+        const exploreList = document.getElementById('explore-list-container');
+        const myList = document.getElementById('my-projects-list-container');
+        if(!exploreList || !myList) return;
+        
+        exploreList.innerHTML = '';
+        myList.innerHTML = '';
+        const currentUserId = currentUser ? (currentUser.id || currentUser.uid) : null;
 
-            const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
-            marker.on('click', () => openProjectModal(p));
-            projectMarkers.push(marker);
+        appData.projects.forEach(p => {
+            const isVis = projectVisibility[p.id];
+            const eyeClass = isVis ? 'fa-eye text-indigo-600' : 'fa-eye-slash text-gray-400';
+            
+            // 如果不是草稿，放進探索列表
+            if (p.status !== 'draft') {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center text-[11px] p-1.5 hover:bg-white rounded border border-transparent hover:border-gray-200 transition-colors';
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden cursor-pointer flex-1" onclick="flyToProject('${p.id}')">
+                        <img src="${p.creatorAvatar}" class="w-4 h-4 rounded-full object-cover">
+                        <span class="truncate ${isVis ? 'text-gray-800 font-medium' : 'text-gray-400'}">${p.name} ${p.layerId !== currentLayerId ? '<span class="text-gray-400">(不同圖層)</span>' : ''}</span>
+                    </div>
+                    <button class="px-2 hover:bg-gray-100 rounded toggle-vis-btn" data-id="${p.id}">
+                        <i class="fas ${eyeClass}"></i>
+                    </button>
+                `;
+                exploreList.appendChild(item);
+            }
+            
+            // 如果是本人的專案，放進我的專案列表
+            if (currentUserId && p.creatorId === currentUserId) {
+                const myItem = document.createElement('div');
+                myItem.className = 'flex justify-between items-center text-[11px] p-1.5 hover:bg-white rounded border border-transparent hover:border-gray-200 transition-colors group';
+                myItem.innerHTML = `
+                    <div class="flex items-center gap-1.5 overflow-hidden flex-1 cursor-pointer" onclick="flyToProject('${p.id}')">
+                        <span class="${p.status==='draft'?'bg-gray-200 text-gray-600':'bg-indigo-100 text-indigo-600'} px-1 rounded text-[9px] font-bold">${p.status==='draft'?'草稿':'已發布'}</span>
+                        <span class="truncate text-gray-800 font-medium">${p.name}</span>
+                    </div>
+                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="px-1.5 text-blue-500 hover:bg-blue-50 rounded btn-edit-proj" data-id="${p.id}" title="編輯"><i class="fas fa-edit"></i></button>
+                        <button class="px-1.5 text-red-500 hover:bg-red-50 rounded btn-del-proj" data-id="${p.id}" title="刪除"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                myList.appendChild(myItem);
+            }
+        });
+
+        // 綁定事件
+        document.querySelectorAll('.toggle-vis-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                projectVisibility[id] = !projectVisibility[id];
+                renderProjects();
+            };
+        });
+        document.querySelectorAll('.btn-edit-proj').forEach(btn => {
+            btn.onclick = (e) => editProject(e.currentTarget.getAttribute('data-id'));
+        });
+        document.querySelectorAll('.btn-del-proj').forEach(btn => {
+            btn.onclick = (e) => deleteProject(e.currentTarget.getAttribute('data-id'));
         });
     }
 
-    function syncAndSaveCloud() {
-        socket.emit('saveAppData', { appId: appId, data: appData });
-        socket.emit('appData', { room: appId, action: 'syncAppData', data: appData });
+    function flyToProject(id) {
+        const p = appData.projects.find(x => x.id === id);
+        if(p) map.flyTo([p.lat, p.lng], p.zoom);
     }
 
-    document.getElementById('btn-save-project').onclick = () => {
+    function editProject(id) {
+        const p = appData.projects.find(x => x.id === id);
+        if(!p) return;
+        editingProjectId = id;
+        document.getElementById('toolbar').classList.remove('hidden');
+        document.getElementById('toolbar').classList.add('flex');
+        
+        baseZoom = p.baseZoom || p.zoom;
+        baseTopLeft = (p.baseLat && p.baseLng) ? L.latLng(p.baseLat, p.baseLng) : L.latLng(p.lat, p.lng);
+        map.flyTo([p.lat, p.lng], p.zoom);
+        
+        canvasObj.loadFromJSON(p.fabricJSON, () => {
+            canvasObj.getObjects().forEach(o => o.set({ selectable: true, evented: true }));
+            canvasObj.renderAll();
+        });
+        setInteractiveMode(true);
+        setActiveBtn('btn-pan');
+    }
+
+    function deleteProject(id) {
+        if(!confirm('確定要刪除這個專案嗎？此操作無法復原。')) return;
+        appData.projects = appData.projects.filter(x => x.id !== id);
+        syncAndSaveCloud();
+        renderProjects();
+        if(editingProjectId === id) {
+            cancelEdit();
+        }
+    }
+
+    // Tab 切換
+    document.getElementById('tab-explore').onclick = () => {
+        document.getElementById('tab-explore').className = 'flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition';
+        document.getElementById('tab-my-projects').className = 'flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition';
+        document.getElementById('panel-explore').classList.remove('hidden');
+        document.getElementById('panel-my-projects').classList.add('hidden');
+        document.getElementById('panel-explore').classList.add('flex');
+    };
+    document.getElementById('tab-my-projects').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        document.getElementById('tab-my-projects').className = 'flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition';
+        document.getElementById('tab-explore').className = 'flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition';
+        document.getElementById('panel-my-projects').classList.remove('hidden');
+        document.getElementById('panel-explore').classList.add('hidden');
+        document.getElementById('panel-my-projects').classList.add('flex');
+    };
+
+    // 批量顯示篩選器
+    document.getElementById('btn-bulk-show').onclick = () => {
+        const condition = document.getElementById('bulk-show-filter').value;
+        appData.projects.forEach(p => {
+            if(p.status === 'draft') return;
+            let match = false;
+            if (condition === 'all') match = true;
+            if (condition === 'approved' && p.status === 'approved') match = true;
+            if (condition === 'pending' && p.status === 'pending') match = true;
+            if (match) projectVisibility[p.id] = true;
+        });
+        renderProjects();
+    };
+    document.getElementById('btn-show-all').onclick = () => {
+        appData.projects.forEach(p => { if(p.status!=='draft') projectVisibility[p.id] = true; });
+        renderProjects();
+    };
+    document.getElementById('btn-hide-all').onclick = () => {
+        appData.projects.forEach(p => projectVisibility[p.id] = false);
+        renderProjects();
+    };
+
+    // 新增專案 / 取消編輯
+    document.getElementById('btn-new-project').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        editingProjectId = null;
+        canvasObj.clear();
+        initCanvasAnchor();
+        document.getElementById('toolbar').classList.remove('hidden');
+        document.getElementById('toolbar').classList.add('flex');
+        setInteractiveMode(true);
+        setActiveBtn('btn-pan');
+    };
+
+    function cancelEdit() {
+        editingProjectId = null;
+        canvasObj.clear();
+        document.getElementById('toolbar').classList.add('hidden');
+        document.getElementById('toolbar').classList.remove('flex');
+        setInteractiveMode(false);
+    }
+    document.getElementById('btn-cancel-edit').onclick = cancelEdit;
+
+    // 儲存與發布邏輯
+    function saveProjectData(isDraft, name, desc) {
         if(!currentUser) return alert('請先登入！');
         if(canvasObj.getObjects().length === 0) return alert('請先在畫布上畫點東西！');
         
         canvasObj.discardActiveObject();
         canvasObj.requestRenderAll();
         
-        document.getElementById('proj-layer-name').innerText = currentLayerId;
-        document.getElementById('publish-modal').classList.remove('hidden');
-    };
-
-    document.getElementById('confirm-publish').onclick = () => {
-        const name = document.getElementById('proj-name').value.trim();
-        const desc = document.getElementById('proj-desc').value.trim();
-        if(!name) return alert('請輸入名稱');
-
         const center = map.getCenter();
         const isUserAdmin = isAdmin || (currentUser.role === 'admin');
+        const status = isDraft ? 'draft' : (isUserAdmin ? 'approved' : 'pending');
 
-        const newProj = {
-            id: 'proj_' + Date.now(),
-            name: name,
-            desc: desc,
+        const projData = {
+            id: editingProjectId || ('proj_' + Date.now()),
+            name: name || '未命名專案',
+            desc: desc || '',
             layerId: currentLayerId,
             creatorId: currentUser.id || currentUser.uid,
             creatorName: currentUser.username || currentUser.name || currentUser.displayName,
             creatorAvatar: currentUser.avatar || currentUser.photoURL,
             isAdmin: isUserAdmin,
-            status: isUserAdmin ? 'approved' : 'pending',
+            status: status,
             lat: center.lat,
             lng: center.lng,
             zoom: map.getZoom(),
@@ -864,22 +1051,68 @@
             comments: []
         };
 
-        appData.projects.push(newProj);
-        syncAndSaveCloud();
-        socket.emit('logAppMessage', { appId: appId, message: `發布了地圖專案: ${name}`, type: 'info' });
-
-        document.getElementById('publish-modal').classList.add('hidden');
-        document.getElementById('proj-name').value = '';
-        document.getElementById('proj-desc').value = '';
-        canvasObj.clear();
-        setInteractiveMode(false);
-        setActiveBtn('');
-
-        if(typeof Swal !== 'undefined') {
-            Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000}).fire({icon: 'success', title: '專案發布成功'});
+        if(editingProjectId) {
+            const idx = appData.projects.findIndex(x => x.id === editingProjectId);
+            if(idx !== -1) {
+                // 保留舊留言
+                projData.comments = appData.projects[idx].comments || [];
+                appData.projects[idx] = projData;
+            } else {
+                appData.projects.push(projData);
+            }
         } else {
-            alert('發布成功！');
+            appData.projects.push(projData);
         }
+
+        syncAndSaveCloud();
+        if(!isDraft) {
+            socket.emit('logAppMessage', { appId: appId, message: `發布了地圖專案: ${projData.name}`, type: 'info' });
+        }
+        
+        cancelEdit();
+        renderProjects();
+        if(typeof Swal !== 'undefined') {
+            Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000}).fire({icon: 'success', title: isDraft ? '草稿已儲存' : '專案發布成功'});
+        } else {
+            alert(isDraft ? '草稿已儲存' : '專案發布成功！');
+        }
+    }
+
+    document.getElementById('btn-save-draft').onclick = () => {
+        let name = "草稿";
+        if(editingProjectId) {
+            const p = appData.projects.find(x => x.id === editingProjectId);
+            if(p) name = p.name;
+        }
+        saveProjectData(true, name, "");
+    };
+
+    document.getElementById('btn-save-project').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        if(canvasObj.getObjects().length === 0) return alert('請先在畫布上畫點東西！');
+        document.getElementById('proj-layer-name').innerText = currentLayerId;
+        
+        if(editingProjectId) {
+            const p = appData.projects.find(x => x.id === editingProjectId);
+            if(p) {
+                document.getElementById('proj-name').value = p.name;
+                document.getElementById('proj-desc').value = p.desc || '';
+            }
+        } else {
+            document.getElementById('proj-name').value = '';
+            document.getElementById('proj-desc').value = '';
+        }
+        
+        document.getElementById('publish-modal').classList.remove('hidden');
+    };
+
+    document.getElementById('confirm-publish').onclick = () => {
+        const name = document.getElementById('proj-name').value.trim();
+        const desc = document.getElementById('proj-desc').value.trim();
+        if(!name) return alert('請輸入名稱');
+        
+        document.getElementById('publish-modal').classList.add('hidden');
+        saveProjectData(false, name, desc);
     };
 
     function openProjectModal(proj) {
