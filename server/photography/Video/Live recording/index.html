@@ -1389,30 +1389,16 @@
                 }
             }
 
-            if (data.action === 'recorded_video_start') {
-                if (!window.incomingVideos) window.incomingVideos = {};
-                window.incomingVideos[data.meta.id] = { meta: data.meta, totalChunks: data.totalChunks, chunks: [] };
-                return;
-            }
-            if (data.action === 'recorded_video_chunk') {
-                const vid = window.incomingVideos && window.incomingVideos[data.id];
-                if (vid) {
-                    vid.chunks[data.chunkIndex] = data.data;
-                }
-                return;
+            if (data.action === 'recorded_video_start' || data.action === 'recorded_video_chunk') {
+                return; // 舊版分片傳輸已廢棄，不做任何事
             }
             if (data.action === 'recorded_video_finished') {
-                const vid = window.incomingVideos && window.incomingVideos[data.id];
-                if (vid) {
-                    const fullBase64 = vid.chunks.join('');
-                    const finalVideo = { ...vid.meta, src: fullBase64 };
-                    if (!recordedVideosList.find(v => v.id === finalVideo.id)) {
-                        recordedVideosList.unshift(finalVideo);
-                        renderRecordedVideos();
-                        syncCloudData();
-                    }
+                const finalVideo = data.video;
+                if (finalVideo && !recordedVideosList.find(v => v.id === finalVideo.id)) {
+                    recordedVideosList.unshift(finalVideo);
+                    renderRecordedVideos();
+                    syncCloudData();
                     showErrorToast(`🎥 來自 ${finalVideo.name} 的影片已成功接收並存檔。`, 4000);
-                    delete window.incomingVideos[data.id];
                 }
                 return;
             }
@@ -1937,77 +1923,58 @@
                 }
             };
 
-            cameraRecorder.onstop = () => {
+            cameraRecorder.onstop = async () => {
                 const blob = new Blob(cameraRecordedChunks, { type: 'video/webm' });
-                const reader = new FileReader();
                 
                 document.getElementById('cameraRecordingBlinker').classList.add('hidden');
                 document.getElementById('btnCameraStartRecord').classList.remove('hidden');
                 document.getElementById('btnCameraStopRecord').classList.add('hidden');
                 const statusTxt = document.getElementById('cameraRecordStatusText');
-                statusTxt.innerText = "檔案處理中...";
+                statusTxt.innerText = "檔案上傳中...";
                 
-                reader.onloadend = function() {
-                    const base64Video = reader.result;
-                    const videoId = crypto.randomUUID();
-                    const newVideoMeta = {
-                        id: videoId, 
-                        pin: myPairCode,
-                        name: myDeviceName,
-                        timestamp: Date.now(),
-                        folderId: currentRecordingFolderId,
-                        folderName: currentRecordingFolderName
-                    };
-                    
-                    // 分片傳輸
-                    const chunkSize = 200 * 1024;
-                    const totalChunks = Math.ceil(base64Video.length / chunkSize);
-                    const totalSizeMB = (base64Video.length / (1024 * 1024)).toFixed(2);
-                    socket.emit('appData', { room: appId, action: 'recorded_video_start', meta: newVideoMeta, totalChunks: totalChunks });
-                    
-                    let chunkIndex = 0;
-                    const startTime = Date.now();
-                    function sendNextChunk() {
-                        if (!socket || !socket.connected) {
-                            setTimeout(sendNextChunk, 1000);
-                            return;
-                        }
-                        if (chunkIndex < totalChunks) {
-                            const chunkData = base64Video.slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize);
-                            socket.emit('appData', {
-                                room: appId, action: 'recorded_video_chunk', id: videoId, chunkIndex: chunkIndex, data: chunkData
-                            });
-                            
-                            const uploadedMB = Math.min(((chunkIndex + 1) * chunkSize / (1024 * 1024)), totalSizeMB).toFixed(2);
-                            const elapsedSec = (Date.now() - startTime) / 1000;
-                            const speed = (chunkIndex + 1) / elapsedSec;
-                            const remainChunks = totalChunks - (chunkIndex + 1);
-                            let remainSec = speed > 0 ? (remainChunks / speed).toFixed(1) : '...';
-                            if(chunkIndex === 0) remainSec = '...';
-                            
-                            statusTxt.innerText = `回傳中: ${uploadedMB} MB / ${totalSizeMB} MB (預估剩餘: ${remainSec} 秒)`;
-                            
-                            chunkIndex++;
-                            setTimeout(sendNextChunk, 100);
-                        } else {
-                            socket.emit('appData', { room: appId, action: 'recorded_video_finished', id: videoId });
-                            
-                            // 本地備份
-                            const localVideo = { ...newVideoMeta, src: base64Video };
-                            recordedVideosList.unshift(localVideo);
-                            renderRecordedVideos();
-                            syncCloudData();
-                            
-                            currentRecordingFolderId = null;
-                            currentRecordingFolderName = null;
-                            statusTxt.innerText = "本地錄影未啟動";
-                            document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full transition-all duration-300";
-                            socket.emit('logAppMessage', { appId: appId, message: `錄影分片傳輸完成`, type: 'info' });
-                        }
-                    }
-                    sendNextChunk();
+                const videoId = crypto.randomUUID();
+                const newVideoMeta = {
+                    id: videoId, 
+                    pin: myPairCode,
+                    name: myDeviceName,
+                    timestamp: Date.now(),
+                    folderId: currentRecordingFolderId,
+                    folderName: currentRecordingFolderName
                 };
-                reader.readAsDataURL(blob);
+                
+                // 透過 HTTP 直傳影片
+                try {
+                    const response = await fetch(`${serverUrl}/api/upload_video?id=${videoId}`, {
+                        method: 'POST',
+                        body: blob
+                    });
+                    
+                    if (response.ok) {
+                        const resData = await response.json();
+                        const finalVideo = { ...newVideoMeta, src: serverUrl + resData.url };
+                        
+                        // 通知觀看端該影片已可讀取
+                        socket.emit('appData', { room: appId, action: 'recorded_video_finished', video: finalVideo });
+                        
+                        recordedVideosList.unshift(finalVideo);
+                        renderRecordedVideos();
+                        syncCloudData();
+                        
+                        socket.emit('logAppMessage', { appId: appId, message: `錄影檔上傳完成`, type: 'info' });
+                    } else {
+                        throw new Error('Upload failed');
+                    }
+                } catch (err) {
+                    console.error('Video upload error:', err);
+                    statusTxt.innerText = "上傳失敗！";
+                } finally {
+                    currentRecordingFolderId = null;
+                    currentRecordingFolderName = null;
+                    if (statusTxt.innerText === "檔案上傳中...") {
+                        statusTxt.innerText = "本地錄影未啟動";
+                    }
+                    document.getElementById('cameraRecordDot').className = "h-2 w-2 bg-slate-400 rounded-full transition-all duration-300";
+                }
 
                 socket.emit('appData', {
                     room: appId,
@@ -2199,6 +2166,7 @@
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = video.src;
+            a.target = '_blank'; // Add this for cross-origin URLs
             a.download = `Panda遠端監視錄影_${videoName}_${new Date(video.timestamp).toISOString().slice(0,10)}.webm`;
             document.body.appendChild(a);
             a.click();
