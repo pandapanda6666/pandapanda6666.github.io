@@ -196,16 +196,6 @@
                         <span class="text-xs text-gray-700 w-16">透明度:</span>
                         <input type="range" id="obj-opacity" min="0" max="100" value="100" class="w-full">
                     </div>
-                    <!-- 圖層順序控制 -->
-                    <div class="flex items-center gap-1 mt-2 pt-2 border-t border-gray-200" id="ui-prop-layer">
-                        <span class="text-xs text-gray-700 w-16">圖層順序:</span>
-                        <div class="flex gap-1 flex-1">
-                            <button id="btn-layer-up" class="flex-1 bg-white border border-gray-300 rounded hover:bg-gray-100 shadow-sm text-xs py-1" title="上移一層"><i class="fas fa-chevron-up"></i></button>
-                            <button id="btn-layer-down" class="flex-1 bg-white border border-gray-300 rounded hover:bg-gray-100 shadow-sm text-xs py-1" title="下移一層"><i class="fas fa-chevron-down"></i></button>
-                            <button id="btn-layer-front" class="flex-1 bg-white border border-gray-300 rounded hover:bg-gray-100 shadow-sm text-xs py-1" title="移至最上層"><i class="fas fa-angle-double-up"></i></button>
-                            <button id="btn-layer-back" class="flex-1 bg-white border border-gray-300 rounded hover:bg-gray-100 shadow-sm text-xs py-1" title="移至最下層"><i class="fas fa-angle-double-down"></i></button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- 選取框設定 -->
@@ -383,7 +373,7 @@
     // ==========================================
     // 2. 初始化 Fabric.js 畫布與屬性管理
     // ==========================================
-    const canvasObj = new fabric.Canvas('drawing-layer', { isDrawingMode: false, selection: true, fireRightClick: true, stopContextMenu: true });
+    const canvasObj = new fabric.Canvas('drawing-layer', { isDrawingMode: false, selection: true });
     
     // 解決畫布遮擋地圖按鈕的問題：將 canvas-container 移入 #map 內部，置於 Leaflet controls 之下
     setTimeout(() => {
@@ -542,12 +532,6 @@
         el.addEventListener('input', updateActiveObjectProps);
     });
     
-    // Layer Controls
-    document.getElementById('btn-layer-up').onclick = () => { const obj = canvasObj.getActiveObject(); if (obj) { canvasObj.bringForward(obj); saveCanvasState(); } };
-    document.getElementById('btn-layer-down').onclick = () => { const obj = canvasObj.getActiveObject(); if (obj) { canvasObj.sendBackwards(obj); saveCanvasState(); } };
-    document.getElementById('btn-layer-front').onclick = () => { const obj = canvasObj.getActiveObject(); if (obj) { canvasObj.bringToFront(obj); saveCanvasState(); } };
-    document.getElementById('btn-layer-back').onclick = () => { const obj = canvasObj.getActiveObject(); if (obj) { canvasObj.sendToBack(obj); saveCanvasState(); } };
-    
     // UI toggles based on selection
     function updatePropertiesUI() {
         const activeObj = canvasObj.getActiveObject();
@@ -556,14 +540,12 @@
         const pRadius = document.getElementById('ui-prop-radius');
         const pOpacity = document.getElementById('ui-prop-opacity');
         
-        const pLayer = document.getElementById('ui-prop-layer');
         if (!activeObj) {
-            pFill.style.display = ''; pBorder.style.display = ''; pRadius.style.display = ''; pOpacity.style.display = ''; document.getElementById('ui-prop-layer').style.display = 'none'; pLayer.style.display = 'none';
+            pFill.style.display = ''; pBorder.style.display = ''; pRadius.style.display = ''; pOpacity.style.display = '';
             return;
         }
-        pLayer.style.display = 'flex';
         
-        pOpacity.style.display = 'flex'; document.getElementById('ui-prop-layer').style.display = 'flex';
+        pOpacity.style.display = 'flex';
         
         if (activeObj.type === 'image') {
             pFill.style.display = 'none'; pBorder.style.display = 'none'; pRadius.style.display = 'flex';
@@ -581,22 +563,12 @@
             if (activeObj.rx !== undefined) document.getElementById('rect-radius').value = activeObj.rx;
         }
         if (activeObj.opacity !== undefined) document.getElementById('obj-opacity').value = activeObj.opacity * 100;
-        document.getElementById('ui-prop-layer').style.display = 'flex';
     }
-
-    document.getElementById('btn-layer-up').onclick = () => { if(canvasObj.getActiveObject()) { canvasObj.bringForward(canvasObj.getActiveObject()); saveCanvasState(); } };
-    document.getElementById('btn-layer-down').onclick = () => { if(canvasObj.getActiveObject()) { canvasObj.sendBackwards(canvasObj.getActiveObject()); saveCanvasState(); } };
-    document.getElementById('btn-layer-top').onclick = () => { if(canvasObj.getActiveObject()) { canvasObj.bringToFront(canvasObj.getActiveObject()); saveCanvasState(); } };
-    document.getElementById('btn-layer-bottom').onclick = () => { if(canvasObj.getActiveObject()) { canvasObj.sendToBack(canvasObj.getActiveObject()); saveCanvasState(); } };
-
 
 
     // 繪圖工具
     canvasObj.freeDrawingBrush.width = 4;
-    canvasObj.on('path:created', function(e) { 
-        e.path.set({ strokeUniform: true, selectable: true, evented: true }); 
-        saveCanvasState();
-    });
+    canvasObj.on('path:created', function(e) { e.path.set({ strokeUniform: true }); });
 
 
 
@@ -826,11 +798,12 @@
     
     // Map Panning and Zooming Logic
     canvasObj.on('mouse:down', function(opt) {
-        const isSelectMode = document.getElementById('btn-select').classList.contains('bg-gray-200');
-        if (opt.e.button === 2 || (isSelectMode && opt.target === null)) {
-            isPanningMap = true;
-            panStart = { x: opt.e.clientX, y: opt.e.clientY };
-            canvasObj.defaultCursor = 'grabbing';
+        if (document.getElementById('btn-select').classList.contains('bg-gray-200')) {
+            if (opt.target === null || opt.e.button === 2) {
+                isPanningMap = true;
+                panStart = { x: opt.e.clientX, y: opt.e.clientY };
+                canvasObj.defaultCursor = 'grabbing';
+            }
         }
     });
 
@@ -870,17 +843,10 @@
     }, { passive: false });
 
 
-    // 畫布滾輪事件：支援 Ctrl 縮放
+    // 阻擋畫布滾輪事件，讓地圖只能在「移動地圖」模式下縮放
     canvasObj.on('mouse:wheel', function(opt) {
-        if (opt.e.ctrlKey) {
-            opt.e.preventDefault();
-            opt.e.stopPropagation();
-            if (opt.e.deltaY > 0) map.zoomOut();
-            else map.zoomIn();
-        } else {
-            opt.e.preventDefault();
-            opt.e.stopPropagation();
-        }
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
     });
 
     // ==========================================
