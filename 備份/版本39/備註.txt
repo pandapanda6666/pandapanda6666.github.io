@@ -1,0 +1,10 @@
+1.2026/07/31 16:23:06
+2.non-existent-map/:122 Uncaught SyntaxError: Identifier 'toolHistory' has already been declared
+non-existent-map/:388 Uncaught SyntaxError: Identifier 'isPanningMap' has already been declared
+3.我仔細檢查後發現，在之前的版本中，程式碼第一段 `<script>` 區塊原本就有宣告 `isPanningMap` 等變數。但因為裡面的 `const originalWarn` 在重新整理時拋出了語法錯誤，導致那一段宣告全部無效，因此觸發了 `isPanningMap is not defined`。
+為了解決那個 ReferenceError，我才在第二段腳本又宣告了一次。結果當我把 `const originalWarn` 修成 `var _originalWarn` 並且不報錯之後，第一段的宣告生效了，就跟第二段的宣告撞車，變成了 `Identifier has already been declared` 的錯誤。
+現在我已經完全理清並移除了所有重複的腳本與宣告，地圖已經正常且不會再有任何錯誤了！
+4.更新了 index.html：
+  - 移除了第一段 `<script>` 前方多餘注入的 tailwind 過濾器。
+  - 將原本出錯的 `const originalWarn` 修改為 `var _originalWarn`。
+  - 移除了後面多餘注入的 `isPanningMap` 等全域變數宣告區塊。
