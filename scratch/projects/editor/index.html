@@ -12,7 +12,7 @@
 <style>
 /* 隱藏原生多餘元素與登入區塊 */
 div[class*="menu-bar_account-info-wrapper_"],
-div[class*="menu-bar_account-info-group_"]:not(#custom-sso-nav),
+div[class*="menu-bar_account-info-group_"]:not(#custom-sso-nav-wrapper),
 div[class*="menu-bar_login-button_"],
 div[class*="menu-bar_register-button_"],
 .panda-hidden-lang {
@@ -26,20 +26,41 @@ div[class*="menu-bar_register-button_"],
     --panda-green-light: #A5D6A7;
 }
 div[class*="menu-bar_menu-bar_"],
-div[class*="button_mod-primary_"],
-div[class*="share-button_share-button_"],
-div[class*="community-button_community-button_"],
-div[class*="gui_extension-button_"] {
+[class*="button_mod-primary_"],
+[class*="share-button_share-button_"],
+[class*="community-button_community-button_"],
+[class*="gui_extension-button_"],
+[class*="action-menu_button_"] {
     background-color: var(--panda-green) !important;
 }
-div[class*="button_mod-primary_"]:hover,
-div[class*="gui_extension-button_"]:hover {
+[class*="button_mod-primary_"]:hover,
+[class*="gui_extension-button_"]:hover,
+[class*="action-menu_button_"]:hover {
     background-color: var(--panda-green-dark) !important;
 }
-/* 左側積木分類選單的選中背景 */
-div[class*="category_category-isSelected_"] {
+/* 標籤頁與積木分類背景 */
+div[class*="category_category-isSelected_"],
+.scratchCategoryMenuItem.categorySelected {
     background-color: var(--panda-green) !important;
 }
+li[class*="react-tabs__tab--selected"] {
+    border-bottom-color: var(--panda-green) !important;
+    color: var(--panda-green-dark) !important;
+}
+/* 角色邊框 */
+[class*="sprite-selector-item_is-selected_"] {
+    border-color: var(--panda-green) !important;
+    box-shadow: 0 0 0 4px var(--panda-green-light) !important;
+}
+[class*="sprite-selector-item_is-selected_"] [class*="sprite-selector-item_sprite-image-outer_"] {
+    background-color: var(--panda-green-light) !important;
+}
+/* 輸入框聚焦 */
+input:focus {
+    border-color: var(--panda-green) !important;
+    box-shadow: 0 0 0 0.25rem rgba(129, 199, 132, 0.25) !important;
+}
+
 /* 熊積木風格 (綠旗) */
 body.bear-style div[class*="green-flag_green-flag-wrapper_"]::after { 
     content: ''; position: absolute; top: -4px; width: 12px; height: 12px; 
@@ -61,6 +82,7 @@ body.high-contrast { filter: contrast(1.2) saturate(1.1); }
     color: white;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     transition: background-color 0.2s;
+    user-select: none;
 }
 .panda-custom-menu:hover {
     background-color: rgba(0, 0, 0, 0.15);
@@ -78,6 +100,7 @@ body.high-contrast { filter: contrast(1.2) saturate(1.1); }
     margin: 0;
     list-style: none;
     z-index: 10001;
+    color: #575E75;
 }
 .panda-dropdown.left { left: 0; }
 .panda-dropdown.right { right: 0; }
@@ -86,7 +109,6 @@ body.high-contrast { filter: contrast(1.2) saturate(1.1); }
 }
 .panda-dropdown li {
     padding: 10px 15px;
-    color: #575E75;
     font-weight: normal;
     font-size: 0.85rem;
 }
@@ -99,16 +121,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver((mutations) => {
         const menuBar = document.querySelector('.menu-bar_menu-bar_1gLUp') || document.querySelector('div[class*="menu-bar_menu-bar_"]');
         
+        // 點擊 Scratch Logo 回首頁
+        const logoImg = document.querySelector('img[class*="menu-bar_scratch-logo_"]');
+        if (logoImg && !logoImg.dataset.injected) {
+            logoImg.dataset.injected = 'true';
+            const link = logoImg.closest('a');
+            if (link) {
+                link.onclick = (e) => {
+                    e.preventDefault();
+                    window.location.href = 'https://pandapanda6666.github.io/';
+                };
+            }
+        }
+        
         // 處理原生語言選單
         const langMenu = document.querySelector('div[class*="menu-bar_language-menu_"]');
         if (langMenu && !langMenu.classList.contains('panda-hidden-lang') && !langMenu.dataset.active) {
             langMenu.classList.add('panda-hidden-lang');
         }
 
-        if (menuBar && !document.getElementById('custom-sso-nav')) {
-            const authContainer = document.createElement('div');
-            authContainer.id = 'custom-sso-nav';
-            authContainer.style.cssText = 'display: flex; align-items: center; height: 100%; margin-left: auto; z-index: 10000; pointer-events: auto;';
+        if (menuBar && !document.getElementById('custom-sso-nav-wrapper')) {
+            const authWrapper = document.createElement('div');
+            authWrapper.id = 'custom-sso-nav-wrapper';
+            authWrapper.style.cssText = 'display: flex; align-items: center; height: 100%; margin-left: auto; z-index: 10000; pointer-events: auto;';
             
             if (localStorage.getItem('sso_auth') === 'true' || localStorage.getItem('panda_session_token')) {
                 const username = localStorage.getItem('panda_nickname') || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_session_user') || '使用者';
@@ -116,13 +151,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!avatar || avatar === 'undefined' || avatar === 'null') avatar = 'https://cdn.discordapp.com/embed/avatars/0.png';
                 const balance = localStorage.getItem('panda_balance') || 0;
                 
-                authContainer.innerHTML = `
+                authWrapper.innerHTML = `
+                    <div class="panda-custom-menu" title="我的東西" onclick="window.location.href='/scratch/mystuff/'" style="padding: 0 10px;">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
                     <div class="panda-custom-menu">
                         <img src="${avatar}" style="width:32px; height:32px; border-radius:50%; margin-right:8px; border:1px solid rgba(255,255,255,0.4); background:#fff; object-fit: cover;">
                         <span style="display: flex; align-items: center;">
                             ${username}
                             <span style="margin-left: 10px; color: gold; display: flex; align-items: center;">
-                                <img src="https://pandapanda6666.github.io/login-hub/pandacoin.png" style="width:16px;height:16px;margin-right:2px;" onerror="this.onerror=null; this.src='/scratch/projects/editor/static/assets/pandacoin.png'" />${balance}
+                                <img src="pandacoin.png" style="width:16px;height:16px;margin-right:2px;" onerror="this.onerror=null; this.src='https://pandapanda6666.github.io/login-hub/pandacoin.png'" />${balance}
                             </span>
                         </span>
                         <ul class="panda-dropdown right">
@@ -134,29 +174,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         </ul>
                     </div>`;
             } else {
-                authContainer.innerHTML = `
+                authWrapper.innerHTML = `
                     <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=login&from=' + encodeURIComponent(window.location.href)" style="background: transparent; color: white; border: 1px solid white; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 10px;">登入</button>
                     <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=register&from=' + encodeURIComponent(window.location.href)" style="background: white; color: var(--panda-green); border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 15px;">加入</button>`;
             }
-            menuBar.appendChild(authContainer);
+            menuBar.appendChild(authWrapper);
         }
 
         if (langMenu && !document.getElementById('custom-settings-menu')) {
             const settingsDiv = document.createElement('div');
             settingsDiv.id = 'custom-settings-menu';
+            settingsDiv.className = 'panda-custom-menu';
             
             let bearEnabled = localStorage.getItem('panda-bear-style') === 'true';
             let highContrast = localStorage.getItem('panda-high-contrast') === 'true';
             
             settingsDiv.innerHTML = `
-                <div class="panda-custom-menu">
-                    設定
-                    <ul class="panda-dropdown left">
-                        <li id="btn-lang">語言 (Language)</li>
-                        <li id="btn-style">風格 (<span id="style-text">${bearEnabled ? '熊積木' : '普通'}</span>)</li>
-                        <li id="btn-contrast">對比度 (<span id="contrast-text">${highContrast ? '高對比' : '原始'}</span>)</li>
-                    </ul>
-                </div>`;
+                設定
+                <ul class="panda-dropdown left">
+                    <li id="btn-lang">語言 (Language)</li>
+                    <li id="btn-style">風格 (<span id="style-text">${bearEnabled ? '熊積木' : '普通'}</span>)</li>
+                    <li id="btn-contrast">對比度 (<span id="contrast-text">${highContrast ? '高對比' : '原始'}</span>)</li>
+                </ul>`;
             
             langMenu.parentNode.insertBefore(settingsDiv, langMenu.nextSibling);
             
