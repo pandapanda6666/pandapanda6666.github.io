@@ -118,7 +118,7 @@
                                     <img src="${data.avatar || 'https://via.placeholder.com/40'}" class="w-9 h-9 rounded-full border-2 border-indigo-500 object-cover" onerror="this.src='https://via.placeholder.com/40'">
                                     <div class="flex flex-col text-left">
                                         <span class="text-xs font-bold text-slate-100">${data.nickname || user}</span>
-                                        <span class="text-[10px] text-yellow-500 font-semibold">🪙 ${data.pCoin || 0} P幣</span>
+                                        <span class="text-[10px] text-yellow-500 font-semibold"><img src="https://pandapanda6666.github.io/shop/coin.svg" alt="P幣" class="w-[1.2em] h-[1.2em] inline-block align-text-bottom drop-shadow-sm"> ${data.pCoin || 0} P幣</span>
                                     </div>
                                 </div>
                                 <button onclick="logoutSSO()" class="text-xs text-slate-400 hover:text-red-400 transition underline decoration-slate-500 underline-offset-2">登出</button>
