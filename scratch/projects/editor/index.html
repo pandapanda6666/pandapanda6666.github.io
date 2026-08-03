@@ -497,5 +497,54 @@ function logout() {
 </script>
 <!-- PANDASCRATCH INJECT END -->
   <body>
-  <script type="text/javascript" src="lib.min.js?v=95"></script><script type="text/javascript" src="chunks/gui.js?v=95"></script></body>
+  <script type="text/javascript" src="lib.min.js?v=95"></script><script type="text/javascript" src="chunks/gui.js?v=95"></script>
+    <!-- Panda Cat Blocks Injection -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new MutationObserver((mutations) => {
+                if (!document.body.classList.contains('bear-style')) {
+                    document.querySelectorAll('.panda-cat-ears').forEach(e => e.remove());
+                    return;
+                }
+                
+                // Find all hat blocks in Blockly SVG that don't have ears yet
+                document.querySelectorAll('.blocklyDraggable > path.blocklyBlockBackground').forEach(path => {
+                    const d = path.getAttribute('d');
+                    if (d && (d.includes('c 2 0 3 1 4 2 l 4 4 c 1 1 2 2 4 2 h 12 c 2 0 3 -1 4 -2 l 4 -4 c 1 -1 2 -2 4 -2') || d.includes('c 2 0 3 1 4 2 l 4 4 c 1 1 2 2 4 2 h 12'))) {
+                        if (!path.parentNode.querySelector('.panda-cat-ears')) {
+                            const ears = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                            ears.setAttribute('class', 'panda-cat-ears');
+                            
+                            const leftEar = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            leftEar.setAttribute('d', 'M 10 0 C 10 -15, 25 -20, 25 0 Z');
+                            leftEar.setAttribute('fill', path.getAttribute('fill') || '#FFD54F');
+                            leftEar.setAttribute('stroke', path.getAttribute('stroke') || 'rgba(0,0,0,0.2)');
+                            leftEar.setAttribute('stroke-width', '1');
+                            
+                            const rightEar = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            rightEar.setAttribute('d', 'M 50 0 C 50 -15, 65 -20, 65 0 Z');
+                            rightEar.setAttribute('fill', path.getAttribute('fill') || '#FFD54F');
+                            rightEar.setAttribute('stroke', path.getAttribute('stroke') || 'rgba(0,0,0,0.2)');
+                            rightEar.setAttribute('stroke-width', '1');
+                            
+                            ears.appendChild(leftEar);
+                            ears.appendChild(rightEar);
+                            
+                            path.parentNode.insertBefore(ears, path.nextSibling);
+                        } else {
+                            const ears = path.parentNode.querySelector('.panda-cat-ears');
+                            ears.querySelectorAll('path').forEach(ear => {
+                                ear.setAttribute('fill', path.getAttribute('fill') || '#FFD54F');
+                                ear.setAttribute('stroke', path.getAttribute('stroke') || 'rgba(0,0,0,0.2)');
+                            });
+                        }
+                    }
+                });
+            });
+            
+            observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['d', 'fill'] });
+        });
+    </script>
+
+</body>
 </html>

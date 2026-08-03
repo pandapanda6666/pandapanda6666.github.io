@@ -25,7 +25,16 @@
 
     // 專案 ID 與 appId 產生
     const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('id') || 'default';
+    
+    let projectId = urlParams.get('id');
+    if (!projectId && window.location.pathname.includes('/projects/editor')) {
+        projectId = 'panda_' + Math.random().toString(36).substring(2, 9);
+        urlParams.set('id', projectId);
+        window.history.replaceState({}, '', '?' + urlParams.toString());
+    } else if (!projectId) {
+        projectId = 'default';
+    }
+
     const appId = window.location.hostname + window.location.pathname + projectId;
     window.appId = appId;
     
