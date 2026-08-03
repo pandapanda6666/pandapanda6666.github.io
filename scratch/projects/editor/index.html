@@ -53,6 +53,12 @@ ul[class*="menu-bar_menu-bar-menu_"] {
 }
 
 
+
+/* 將擴充功能等 Modal 的藍色標題列改為綠色 */
+div[class*="modal_header_"] {
+    background-color: var(--panda-green) !important;
+}
+
 /* 將藍色的載入畫面改為綠色 */
 div[class*="loader_background_"],
 div[class*="loader_fullscreen_"] {
@@ -116,7 +122,7 @@ input:focus,
 }
 .panda-dropdown.left { left: 0; }
 .panda-dropdown.right { right: 0; }
-.panda-custom-menu:hover .panda-dropdown, .panda-custom-menu.active .panda-dropdown {
+.panda-custom-menu.active .panda-dropdown {
     display: block;
 }
 .panda-dropdown li {
@@ -212,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let highContrast = localStorage.getItem('panda-high-contrast') === 'true';
             
             settingsDiv.innerHTML = `
-                <span>設定</span>
+                <span id="btn-settings-toggle" style="display:flex;align-items:center;height:100%;width:100%;">設定</span>
                 <ul class="panda-dropdown left">
                     <li id="btn-lang">語言 (Language)</li>
                     <li id="btn-style">風格 (<span id="style-text">${bearEnabled ? '熊積木' : '普通'}</span>)</li>
@@ -220,6 +226,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 </ul>`;
             
             langMenu.parentNode.insertBefore(settingsDiv, langMenu.nextSibling);
+            document.getElementById('btn-settings-toggle').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isActive = settingsDiv.classList.contains('active');
+                if (isActive) {
+                    settingsDiv.classList.remove('active');
+                } else {
+                    settingsDiv.classList.add('active');
+                    const hideSettings = (event) => {
+                        if (!settingsDiv.contains(event.target)) {
+                            settingsDiv.classList.remove('active');
+                            document.removeEventListener('click', hideSettings);
+                        }
+                    };
+                    document.addEventListener('click', hideSettings);
+                }
+            });
+
             
             document.getElementById('btn-lang').addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -268,5 +291,5 @@ function logout() {
 </script>
 <!-- PANDASCRATCH INJECT END -->
   <body>
-  <script type="text/javascript" src="lib.min.js?v=73"></script><script type="text/javascript" src="chunks/gui.js?v=73"></script></body>
+  <script type="text/javascript" src="lib.min.js?v=74"></script><script type="text/javascript" src="chunks/gui.js?v=74"></script></body>
 </html>
