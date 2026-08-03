@@ -167,45 +167,119 @@ input:focus,
 .panda-check { visibility: hidden; margin-left: 10px; }
 .panda-check.active { visibility: visible; }
 
-</style>
+
+
+/* =========================================
+   PANDA ULTIMATE GREEN OVERRIDE FOR SCRATCH
+   ========================================= */
+
+/* 覆蓋教程按鈕懸浮與選中狀態 */
+[class*="menu-bar_menu-bar-item_"]:hover,
+[class*="menu-bar_active_"],
+[class*="menu-bar_hoverable_"]:hover {
+    background-color: var(--panda-dark-green) !important;
+}
+
+/* 覆蓋添加角色與背景按鈕 (懸浮選單與加號按鈕) */
+[class*="action-menu_button_"],
+[class*="action-menu_more-buttons_"],
+[class*="action-menu_more-buttons-outer_"] {
+    background-color: var(--panda-green) !important;
+}
+[class*="action-menu_more-buttons_"] {
+    background-color: var(--panda-dark-green) !important;
+}
+[class*="action-menu_button_"]:hover,
+[class*="action-menu_more-buttons_"] button:hover {
+    background-color: var(--panda-dark-green) !important;
+    box-shadow: 0 0 0 4px rgba(129, 199, 132, 0.25) !important;
+}
+[class*="action-menu_tooltip_"]::after,
+[class*="action-menu_tooltip_"] {
+    background-color: var(--panda-dark-green) !important;
+}
+
+/* 覆蓋角色資訊欄 (大小、方向的 input focus) */
+input:focus,
+textarea:focus,
+[class*="input_input-form_"]:focus,
+[class*="input_input-form_"]:focus-within,
+[class*="prompt_input_"]:focus {
+    border-color: var(--panda-green) !important;
+    box-shadow: 0 0 0 4px rgba(129, 199, 132, 0.25) !important;
+}
+
+/* Radio buttons & Toggles (X/Y, 方向) */
+[class*="sprite-info_radio_"]:checked + label,
+[class*="radio_radio_"]:checked + label {
+    background-color: var(--panda-green) !important;
+    color: white !important;
+    border-color: var(--panda-dark-green) !important;
+}
+
+/* 舞台區塊調整按鈕 (小/大/全螢幕) */
+[class*="stage-header_stage-button_"].is-active,
+[class*="stage-header_stage-button_"]:hover,
+[class*="stage-header_stage-button_"][class*="active_"],
+[class*="stage-header_stage-button_"][class*="stage-header_active_"] {
+    background-color: var(--panda-green) !important;
+}
+
+/* 擴充套件目錄與素材庫 (Featured extensions, sounds, etc) */
+[class*="library-item_library-item_"]:hover,
+[class*="library-item_featured-extension-metadata_"] {
+    border-color: var(--panda-green) !important;
+}
+[class*="library-item_featured-extension-metadata_"] {
+    background-color: var(--panda-green) !important;
+}
+[class*="library-item_library-item-extension_"]:hover {
+    border-color: var(--panda-dark-green) !important;
+}
+
+/* 滾輪 (Scrollbar) - Webkit */
+::-webkit-scrollbar-thumb {
+    background-color: var(--panda-green) !important;
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--panda-dark-green) !important;
+}
+::-webkit-scrollbar-track {
+    background-color: transparent !important;
+}
+
+/* Tabs */
+[class*="react-tabs_react-tabs__tab--selected_"] {
+    background-color: var(--panda-green) !important;
+    color: white !important;
+}
+
+/* 一般 Mod-Primary 按鈕 */
+[class*="button_mod-primary_"] {
+    background-color: var(--panda-green) !important;
+}
+[class*="button_mod-primary_"]:hover {
+    background-color: var(--panda-dark-green) !important;
+}
+
+/* Checkboxes */
+[class*="checkbox_checkbox_"]:checked {
+    background-color: var(--panda-green) !important;
+    border-color: var(--panda-dark-green) !important;
+}</style>
 <script>
 ﻿// Function to change language by triggering native click
-window.pandaSetLanguage = function(langName) {
-    const nativeLang = document.querySelector('div[class*="menu-bar_language-menu_"]');
-    if (!nativeLang) return;
-    
-    // Temporarily show the native menu to allow React to handle click properly
-    nativeLang.classList.remove('panda-hidden-lang');
-    nativeLang.style.position = 'absolute';
-    nativeLang.style.top = '48px';
-    nativeLang.style.left = '10px';
-    nativeLang.style.zIndex = '9999';
-    nativeLang.style.display = 'block';
-    
-    // Click native globe to open dropdown
-    nativeLang.click();
-    
-    // Wait for the dropdown items to render
-    setTimeout(() => {
-        const langItems = document.querySelectorAll('li[class*="menu_menu-item_"]');
-        let clicked = false;
-        langItems.forEach(item => {
-            if (item.textContent.trim() === langName) {
-                item.click();
-                clicked = true;
-            }
-        });
-        
-        // Hide the native menu again after clicking
-        nativeLang.classList.add('panda-hidden-lang');
-        nativeLang.style.display = ''; // Reset display
-        
-        if (clicked) {
-            // Close our custom settings menu too
-            const settingsDiv = document.getElementById('custom-settings-menu');
-            if (settingsDiv) settingsDiv.classList.remove('active');
-        }
-    }, 150);
+window.pandaSetLanguage = function(langCode) {
+    // Scratch reads language from cookies or localStorage
+    document.cookie = "scratchlanguage=" + langCode + "; expires=Thu, 31 Dec 2037 23:59:59 GMT; path=/";
+    if (window.localStorage) {
+        window.localStorage.setItem('scratch-language', langCode);
+    }
+    // Also append it to URL for good measure
+    const url = new URL(window.location.href);
+    url.searchParams.set('locale', langCode);
+    window.location.href = url.toString();
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -254,14 +328,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span><svg class="panda-icon" viewBox="0 0 496 512" width="16" height="16" fill="currentColor"><path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm160.3 144.1H324c-7.3-39.7-19-75-34.1-105 53.6 16.3 98.7 51.5 118.4 105zM248 48.7c18.3 32.7 32.4 72.8 40.5 115.4H207.5c8.1-42.6 22.2-82.7 40.5-115.4zm-70.1 5.3c-15.1 30-26.8 65.3-34.1 105H59.7C79.4 105.5 124.5 70.3 177.9 54zM48 256c0-18.4 2.4-36.2 6.8-53.1h136.2c-1.8 17.1-2.9 34.7-2.9 53.1s1.1 36 2.9 53.1H54.8C50.4 292.2 48 274.4 48 256zm28.3 90.9h83.9c7.3 39.7 19 75 34.1 105-53.5-16.3-98.6-51.5-118-105zM248 463.3c-18.3-32.7-32.4-72.8-40.5-115.4h81.1c-8.1 42.6-22.2 82.7-40.6 115.4zm70.1-5.3c15.1-30 26.8-65.3 34.1-105h83.9c-19.4 53.5-64.5 88.7-118 105zm42.7-148.9H224.5c1.8-17.1 2.9-34.7 2.9-53.1s-1.1-36-2.9-53.1h136.2c1.8 17.1 2.9 34.7 2.9 53.1s-1.1 36-2.9 53.1zm28.9-106.2c4.4 16.9 6.8 34.7 6.8 53.1s-2.4 36.2-6.8 53.1H310.8c1.8-17.1 2.9-34.7 2.9-53.1s-1.1-36-2.9-53.1h105.1z"/></svg>語言 (Language)</span>
                         <svg class="panda-icon" viewBox="0 0 256 512" width="10" height="10" fill="currentColor"><path d="M246.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-9.2-9.2-22.9-11.9-34.9-6.9s-19.8 16.6-19.8 29.6l0 256c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l128-128z"/></svg>
                         <ul class="panda-submenu" style="min-width: 140px; max-height: 250px; overflow-y: auto;">
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('English');">English</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('正體中文');">正體中文</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('简体中文');">简体中文</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('日本語');">日本語</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('한국어');">한국어</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('Español');">Español</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('Français');">Français</li>
-                            <li onclick="event.stopPropagation(); pandaSetLanguage('Deutsch');">Deutsch</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('en');">English</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('zh-tw');">繁體中文</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('zh-cn');">简体中文</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('ja');">日本語</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('ko');">한국어</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('es');">Español</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('fr');">Français</li>
+                            <li onclick="event.stopPropagation(); pandaSetLanguage('de');">Deutsch</li>
                         </ul>
                     </li>
                     <li onmousedown="event.stopPropagation()">
