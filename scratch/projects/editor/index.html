@@ -44,6 +44,16 @@ div[class*="menu-bar_menu-bar_"],
 .scratchCategoryMenuItem.categorySelected {
     background-color: var(--panda-green) !important;
 }
+
+/* 確保下拉選單 (檔案/編輯) hover 時也變綠色 */
+[class*="menu-item_menu-item_"]:hover,
+[class*="menu-item_hoverable_"]:hover,
+[class*="menu_menu_"] li:hover,
+[class*="context-menu_menu-item_"]:hover {
+    background-color: var(--panda-green) !important;
+    color: white !important;
+}
+
 [class*="sprite-selector-item_is-selected_"] {
     border-color: var(--panda-green) !important;
 }
@@ -55,7 +65,7 @@ input:focus,
 }
 /* -------------------------------- */
 
-/* 完全獨立的自訂下拉選單樣式，不依賴原生 class */
+/* 完全獨立的自訂下拉選單樣式，確保外觀與原生 Scratch 選單一致 */
 .panda-custom-menu {
     position: relative;
     cursor: pointer;
@@ -70,7 +80,7 @@ input:focus,
     transition: background-color 0.2s;
     user-select: none;
 }
-.panda-custom-menu:hover {
+.panda-custom-menu:hover, .panda-custom-menu.active {
     background-color: rgba(0, 0, 0, 0.15);
 }
 .panda-dropdown {
@@ -79,10 +89,12 @@ input:focus,
     top: 100%;
     background: white;
     border: 1px solid rgba(0,0,0,0.15);
-    border-radius: 4px;
+    border-top: none;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     min-width: 160px;
-    padding: 0.5rem 0;
+    padding: 0.25rem 0;
     margin: 0;
     list-style: none;
     z-index: 10001;
@@ -90,16 +102,18 @@ input:focus,
 }
 .panda-dropdown.left { left: 0; }
 .panda-dropdown.right { right: 0; }
-.panda-custom-menu:hover .panda-dropdown {
+.panda-custom-menu:hover .panda-dropdown, .panda-custom-menu.active .panda-dropdown {
     display: block;
 }
 .panda-dropdown li {
     padding: 10px 15px;
     font-weight: normal;
     font-size: 0.85rem;
+    cursor: pointer;
 }
 .panda-dropdown li:hover {
-    background-color: #F7F7F7;
+    background-color: var(--panda-green) !important;
+    color: white !important;
 }
 </style>
 <script>
@@ -107,18 +121,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver((mutations) => {
         const menuBar = document.querySelector('.menu-bar_menu-bar_1gLUp') || document.querySelector('div[class*="menu-bar_menu-bar_"]');
         
-        // 點擊 Scratch Logo 回首頁
-        const logoImg = document.querySelector('img[class*="menu-bar_scratch-logo_"]');
-        if (logoImg && !logoImg.dataset.injected) {
-            logoImg.dataset.injected = 'true';
-            const link = logoImg.closest('a');
-            if (link) {
-                link.onclick = (e) => {
-                    e.preventDefault();
-                    window.location.href = 'https://pandapanda6666.github.io/scratch';
-                };
+        // 點擊 Scratch Logo 回首頁 (使用 capture 確保覆蓋 React 的路由)
+        const logoImgs = document.querySelectorAll('img[class*="menu-bar_scratch-logo_"]');
+        logoImgs.forEach(logoImg => {
+            if (!logoImg.dataset.injected) {
+                logoImg.dataset.injected = 'true';
+                const wrapper = logoImg.closest('a') || logoImg.closest('div[class*="menu-bar_menu-bar-item_"]');
+                if (wrapper) {
+                    wrapper.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.location.href = 'https://pandapanda6666.github.io/scratch';
+                    }, true);
+                }
             }
-        }
+        });
         
         // 處理原生語言選單
         const langMenu = document.querySelector('div[class*="menu-bar_language-menu_"]');
@@ -166,10 +183,17 @@ document.addEventListener('DOMContentLoaded', () => {
             settingsDiv.id = 'custom-settings-menu';
             settingsDiv.className = 'panda-custom-menu';
             
+            // 讓設定選單使用原生的 menu-bar-item class 以確保樣式一致
+            const fileMenu = document.querySelector('div[class*="menu-bar_file-group_"] > div[class*="menu-bar_menu-bar-item_"]');
+            if (fileMenu) {
+                const baseClass = fileMenu.className.split(' ').find(c => c.includes('menu-bar_menu-bar-item_'));
+                if (baseClass) settingsDiv.classList.add(baseClass);
+            }
+            
             let bearEnabled = localStorage.getItem('panda-bear-style') === 'true';
             let highContrast = localStorage.getItem('panda-high-contrast') === 'true';
             
-            settingsDiv.innerHTML =                 設定
+            settingsDiv.innerHTML =                 <span>設定</span>
                 <ul class="panda-dropdown left">
                     <li id="btn-lang">語言 (Language)</li>
                     <li id="btn-style">風格 (<span id="style-text">\</span>)</li>
