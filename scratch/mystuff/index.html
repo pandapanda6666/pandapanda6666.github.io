@@ -5,7 +5,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的東西 - PandaScratch</title>
     <!-- 載入 Socket.IO -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js">
+        let mystuffSocket;
+        async function fetchUserProjects(user) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
+                
+                mystuffSocket = io(serverUrl, { transports: ['websocket'] });
+                
+                mystuffSocket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案列表...');
+                    mystuffSocket.emit('getUserProjects', { username: user });
+                });
+
+                mystuffSocket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>您還沒有任何專案</h3>
+                                <p>回到編輯區創建您的第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🐼</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='/scratch/projects/editor/?id=${id}'">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                mystuffSocket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+            }
+        }
+
+</script>
     <style>
         :root {
             --primary: #81C784;
@@ -345,8 +417,152 @@
             color: var(--text-dark);
         }
     </style>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="/scratch/panda_sso.js?v=95"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js">
+        let mystuffSocket;
+        async function fetchUserProjects(user) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
+                
+                mystuffSocket = io(serverUrl, { transports: ['websocket'] });
+                
+                mystuffSocket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案列表...');
+                    mystuffSocket.emit('getUserProjects', { username: user });
+                });
+
+                mystuffSocket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>您還沒有任何專案</h3>
+                                <p>回到編輯區創建您的第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🐼</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='/scratch/projects/editor/?id=${id}'">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                mystuffSocket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+            }
+        }
+
+</script>
+    <script src="/scratch/panda_sso.js?v=95">
+        let mystuffSocket;
+        async function fetchUserProjects(user) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
+                
+                mystuffSocket = io(serverUrl, { transports: ['websocket'] });
+                
+                mystuffSocket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案列表...');
+                    mystuffSocket.emit('getUserProjects', { username: user });
+                });
+
+                mystuffSocket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>您還沒有任何專案</h3>
+                                <p>回到編輯區創建您的第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🐼</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='/scratch/projects/editor/?id=${id}'">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                mystuffSocket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+            }
+        }
+
+</script>
 </head>
 <body>
 
@@ -562,8 +778,152 @@
             transform: scale(1.05);
         }
     </style>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    <script src="/scratch/panda_sso.js?v=95"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js">
+        let mystuffSocket;
+        async function fetchUserProjects(user) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
+                
+                mystuffSocket = io(serverUrl, { transports: ['websocket'] });
+                
+                mystuffSocket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案列表...');
+                    mystuffSocket.emit('getUserProjects', { username: user });
+                });
+
+                mystuffSocket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>您還沒有任何專案</h3>
+                                <p>回到編輯區創建您的第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🐼</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='/scratch/projects/editor/?id=${id}'">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                mystuffSocket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+            }
+        }
+
+</script>
+    <script src="/scratch/panda_sso.js?v=95">
+        let mystuffSocket;
+        async function fetchUserProjects(user) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
+                
+                mystuffSocket = io(serverUrl, { transports: ['websocket'] });
+                
+                mystuffSocket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案列表...');
+                    mystuffSocket.emit('getUserProjects', { username: user });
+                });
+
+                mystuffSocket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>您還沒有任何專案</h3>
+                                <p>回到編輯區創建您的第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🐼</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='/scratch/projects/editor/?id=${id}'">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                mystuffSocket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+            }
+        }
+
+</script>
 </head>
 <body>
 
@@ -785,6 +1145,7 @@
                 const nickname = urlParams.get('nickname') || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || username;
                 const avatar = urlParams.get('avatar') || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'https://cdn.discordapp.com/embed/avatars/0.png';
                 const balance = localStorage.getItem('panda_balance') || 0;
+                fetchUserProjects(username);
                 
                 if (authActions) authActions.style.display = 'none';
                 if (userMenu) userMenu.style.display = 'flex';
@@ -801,7 +1162,79 @@
 window.addEventListener('load', () => {
             checkLogin();
         });
-    </script>
+    
+        let mystuffSocket;
+        async function fetchUserProjects(user) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                const serverUrl = atob(text.trim().split('').reverse().join(''));
+                
+                mystuffSocket = io(serverUrl, { transports: ['websocket'] });
+                
+                mystuffSocket.on('connect', () => {
+                    console.log('已連線至伺服器，正在請求專案列表...');
+                    mystuffSocket.emit('getUserProjects', { username: user });
+                });
+
+                mystuffSocket.on('userProjectsData', (data) => {
+                    const container = document.getElementById('projects-container');
+                    container.innerHTML = '';
+                    
+                    let projects = [];
+                    if (Array.isArray(data)) {
+                        projects = data;
+                    } else if (data && Array.isArray(data.projects)) {
+                        projects = data.projects;
+                    }
+
+                    if (projects.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <h3>您還沒有任何專案</h3>
+                                <p>回到編輯區創建您的第一個超棒的專案吧！</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    projects.forEach(proj => {
+                        const id = proj.id || proj.appId || proj._id || Math.random().toString(36).substr(2, 9);
+                        const title = proj.title || proj.name || '未命名專案';
+                        const date = proj.updatedAt || proj.date || new Date().toISOString();
+                        
+                        const card = document.createElement('div');
+                        card.className = 'project-card';
+                        card.innerHTML = `
+                            <div class="project-thumbnail">
+                                <div class="project-thumbnail-placeholder">🐼</div>
+                            </div>
+                            <div class="project-info">
+                                <div class="project-title" title="${title}">${title}</div>
+                                <div class="project-date">最後更新: ${new Date(date).toLocaleDateString()}</div>
+                                <div class="project-actions">
+                                    <button class="btn btn-primary" onclick="window.location.href='/scratch/projects/editor/?id=${id}'">讀取專案 (See Inside)</button>
+                                </div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                });
+
+                mystuffSocket.on('connect_error', () => {
+                    document.getElementById('projects-container').innerHTML = `
+                        <div class="empty-state" style="color: var(--danger);">
+                            <h3>無法連線至伺服器</h3>
+                            <p>請檢查您的網路連線，或稍後再試。</p>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error('Failed to get server url', e);
+            }
+        }
+
+</script>
 
 </body>
 </html>
