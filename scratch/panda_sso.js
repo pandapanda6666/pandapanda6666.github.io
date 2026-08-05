@@ -226,7 +226,7 @@
         const usernameEl = document.getElementById('nav-username');
         const avatarEl = document.getElementById('nav-avatar');
         if (usernameEl) {
-            usernameEl.innerHTML = `<span class="user-nickname-text" style="display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;">${userNickname}</span> <span style="margin-left: 8px; color: #ffb700; font-weight: bold; white-space: nowrap; display:inline-flex; align-items:center;"><img src="/scratch/projects/editor/pandacoin.png" style="width:16px;height:16px;margin-right:2px;" onerror="this.style.display='none'" />${balance}</span>`;
+            usernameEl.innerHTML = `<span class="user-nickname-text" style="display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;">${userNickname}</span> <span style="margin-left: 8px; color: #ffb700; font-weight: bold; white-space: nowrap; display:inline-flex; align-items:center;"><img src="https://pandapanda6666.github.io/shop/coin.svg" style="width:16px;height:16px;margin-right:2px;" onerror="this.onerror=null; this.src='https://pandapanda6666.github.io/login-hub/pandacoin.png'" />${balance}</span>`;
         }
         if (avatarEl) {
             avatarEl.src = userAvatar;
