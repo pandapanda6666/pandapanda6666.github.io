@@ -1,4 +1,4 @@
-﻿(function() {
+(function() {
     console.log("PandaGuard: Initializing universal download interceptor with Blob caching...");
 
     // 1. Intercept URL.createObjectURL to catch the Blob before it gets downloaded/revoked
@@ -61,7 +61,11 @@
             // JSZip .files includes folders, we should only copy files
             if (!originalZip.files[f].dir) {
                 const fileData = await originalZip.files[f].async("uint8array");
-                pandaFolder.file(f, fileData);
+                if (f === "project.json") {
+                    pandaFolder.file("panda.json", fileData);
+                } else {
+                    pandaFolder.file(f, fileData);
+                }
             }
         }
         
@@ -129,7 +133,7 @@
                     const zip = await JSZip.loadAsync(fileBuffer);
                     let hasPandaProject = false;
                     for (const f of Object.keys(zip.files)) {
-                        if (f.startsWith("panda_project/project.json")) {
+                        if (f.startsWith("panda_project/panda.json")) {
                             hasPandaProject = true;
                             break;
                         }
@@ -140,7 +144,8 @@
                         const unwrappedZip = new JSZip();
                         for (const f of Object.keys(zip.files)) {
                             if (f.startsWith("panda_project/") && !zip.files[f].dir) {
-                                const newFilename = f.substring("panda_project/".length);
+                                let newFilename = f.substring("panda_project/".length);
+                                if (newFilename === "panda.json") newFilename = "project.json";
                                 const fileData = await zip.files[f].async("uint8array");
                                 unwrappedZip.file(newFilename, fileData);
                             }
