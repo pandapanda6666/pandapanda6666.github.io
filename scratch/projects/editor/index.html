@@ -70,7 +70,7 @@ div[class*="loader_fullscreen_"] {
 div[class*="menu-bar_menu-bar-item_"]:hover,
 div[class*="menu-bar_active_"] {
     background-color: var(--panda-dark-green) !important;
-    color: white !important;
+    color: #575E75 !important;
 }
 
 [class*="sprite-selector-item_is-selected_"] {
@@ -91,7 +91,7 @@ input:focus,
     align-items: center;
     padding: 0 12px;
     height: 100%;
-    color: white !important;
+    color: #575E75 !important;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: bold;
     font-size: 0.85rem;
@@ -104,7 +104,7 @@ input:focus,
     display: none;
     position: absolute;
     top: 100%;
-    background: var(--panda-green);
+    background: white;
     border-radius: 4px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     padding: 4px 0;
@@ -130,12 +130,13 @@ input:focus,
     font-weight: bold !important;
     cursor: pointer;
     white-space: nowrap;
-    color: white !important;
+    color: #575E75 !important;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
 }
 .panda-dropdown li > .panda-dropdown li > .panda-dropdown li > .panda-dropdown li > .panda-dropdown li > span { display: flex; align-items: center; gap: 8px; }
 .panda-dropdown li:hover {
     background-color: var(--panda-dark-green) !important;
+    color: white !important;
 }
 
 /* Nested Submenu (Level 2) */
@@ -144,7 +145,7 @@ input:focus,
     position: absolute;
     top: 0;
     left: 100%;
-    background: var(--panda-green);
+    background: white;
     border-radius: 4px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     padding: 4px 0;
@@ -210,7 +211,7 @@ textarea:focus,
 [class*="sprite-info_radio_"]:checked + label,
 [class*="radio_radio_"]:checked + label {
     background-color: var(--panda-green) !important;
-    color: white !important;
+    color: #575E75 !important;
     border-color: var(--panda-dark-green) !important;
 }
 
@@ -249,7 +250,7 @@ textarea:focus,
 /* Tabs */
 [class*="react-tabs_react-tabs__tab--selected_"] {
     background-color: var(--panda-green) !important;
-    color: white !important;
+    color: #575E75 !important;
 }
 
 /* 一般 Mod-Primary 按鈕 */
@@ -330,15 +331,27 @@ document.addEventListener('DOMContentLoaded', () => {
           
         if (langMenu && !document.getElementById('custom-settings-menu')) {
             const settingsDiv = document.createElement('div');
+
             settingsDiv.id = 'custom-settings-menu';
-            settingsDiv.className = 'panda-settings-btn';
+            
+            // Try to find a native menu item to clone its classes
+            const fileMenu = document.querySelector('div[class*="menu-bar_menu-bar-item_"]');
+            let nativeMenuClass = '';
+            let nativeTextClass = '';
+            if (fileMenu) {
+                nativeMenuClass = fileMenu.className;
+                const fileText = fileMenu.querySelector('span[class*="menu-bar_menu-item-text_"]');
+                if (fileText) nativeTextClass = fileText.className;
+            }
+            settingsDiv.className = nativeMenuClass ? (nativeMenuClass + ' panda-settings-btn') : 'panda-settings-btn';
+
             
             let bearEnabled = localStorage.getItem('panda-bear-style') === 'true';
             let highContrast = localStorage.getItem('panda-high-contrast') === 'true';
             
             settingsDiv.innerHTML = `
                 <span id="btn-settings-toggle" style="display:flex;align-items:center;height:100%;">
-                    <span style="display:flex;align-items:center;gap:6px;">
+                    <span style="display:flex;align-items:center;gap:6px;" class="${nativeTextClass}">
                         <svg class="panda-icon" viewBox="0 0 512 512" width="14" height="14" fill="currentColor"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6 11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
                         設定
                     </span>
@@ -443,13 +456,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!avatar || avatar === 'undefined' || avatar === 'null') avatar = 'https://cdn.discordapp.com/embed/avatars/0.png';
                 const balance = localStorage.getItem('panda_balance') || 0;
                 
+                // Get native class for SSO buttons as well
+                let nativeMenuClassSSO = '';
+                let nativeTextClassSSO = '';
+                const fileMenuSSO = document.querySelector('div[class*="menu-bar_menu-bar-item_"]');
+                if (fileMenuSSO) {
+                    nativeMenuClassSSO = fileMenuSSO.className;
+                    const fileTextSSO = fileMenuSSO.querySelector('span[class*="menu-bar_menu-item-text_"]');
+                    if (fileTextSSO) nativeTextClassSSO = fileTextSSO.className;
+                }
+
                 authWrapper.innerHTML = `
-                    <div class="panda-settings-btn panda-sso-nav" title="我的東西" onclick="window.location.href='/scratch/mystuff/'" style="padding: 0 10px;">
+                    <div class="${nativeMenuClassSSO} panda-settings-btn panda-sso-nav" title="我的東西" onclick="window.location.href='/scratch/mystuff/'" style="padding: 0 10px;">
                         <img src="https://pandapanda6666.github.io/scratch/projects/editor/mystuff.png" style="width: 24px; filter: brightness(0) invert(1);" onerror="this.src='https://scratch.mit.edu/images/mystuff.png'" />
                     </div>
-                    <div class="panda-settings-btn panda-sso-nav">
+                    <div class="${nativeMenuClassSSO} panda-settings-btn panda-sso-nav">
                         <img src="${avatar}" style="width:32px; height:32px; border-radius:50%; margin-right:8px; border:1px solid rgba(255,255,255,0.4); background:#fff; object-fit: cover;">
-                        <span style="display: flex; align-items: center;">
+                        <span style="display: flex; align-items: center;" class="${nativeTextClassSSO}">
+
                             ${username}
                             <span style="margin-left: 10px; color: gold; display: flex; align-items: center;">
                                 <img src="https://pandapanda6666.github.io/shop/coin.svg" style="width:16px;height:16px;margin-right:2px;" onerror="this.onerror=null; this.src='https://pandapanda6666.github.io/login-hub/pandacoin.png'" />${balance}
@@ -468,6 +492,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=login&from=' + encodeURIComponent(window.location.href)" style="background: transparent; color: white; border: 1px solid white; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 10px;">登入</button>
                     <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=register&from=' + encodeURIComponent(window.location.href)" style="background: white; color: #81C784; border: none; padding: 5px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-right: 15px;">加入</button>`;
             }
+            
+                if (fileMenuSSO) {
+                    const shareBtn = document.createElement('div');
+                    shareBtn.className = fileMenuSSO.className + ' panda-settings-btn';
+                    shareBtn.style.padding = '0 10px';
+                    shareBtn.innerHTML = `<span class="${nativeTextClassSSO}" style="display:flex;align-items:center;">分享</span>`;
+                    shareBtn.onclick = () => {
+                        if (window.socket && window.socket.connected) {
+                            const id = new URLSearchParams(window.location.search).get('id');
+                            window.socket.emit('shareProject', { projectId: id });
+                            alert('專案已分享！');
+                        } else {
+                            alert('尚未連線至伺服器');
+                        }
+                    };
+                    authWrapper.insertBefore(shareBtn, authWrapper.firstChild);
+
+                    const projectPageBtn = document.createElement('div');
+                    projectPageBtn.className = fileMenuSSO.className + ' panda-settings-btn';
+                    projectPageBtn.style.padding = '0 10px';
+                    projectPageBtn.innerHTML = `<span class="${nativeTextClassSSO}" style="display:flex;align-items:center;">切換到專案頁面</span>`;
+                    projectPageBtn.onclick = () => {
+                        const id = new URLSearchParams(window.location.search).get('id');
+                        window.location.href = '/scratch/player.html?id=' + (id || 'default');
+                    };
+                    authWrapper.insertBefore(projectPageBtn, shareBtn.nextSibling);
+                }
+
             menuBar.appendChild(authWrapper);
             
             // Also attach click listener to Account avatar to open on touch/click
