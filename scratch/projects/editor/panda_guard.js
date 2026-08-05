@@ -1,12 +1,24 @@
 ﻿(function() {
-    console.log("PandaGuard: Initializing universal download interceptor...");
+    console.log("PandaGuard: Initializing universal download interceptor with Blob caching...");
 
+    // 1. Intercept URL.createObjectURL to catch the Blob before it gets downloaded/revoked
+    const originalCreateObjectURL = window.URL.createObjectURL;
+    window.pandaGuardBlobs = new Map();
+
+    window.URL.createObjectURL = function(blob) {
+        const url = originalCreateObjectURL.call(this, blob);
+        // Save all blobs just in case, we will clear them later
+        if (blob instanceof Blob) {
+            window.pandaGuardBlobs.set(url, blob);
+        }
+        return url;
+    };
+
+    // 2. Intercept Anchor click to process the SB3
     const originalClick = HTMLAnchorElement.prototype.click;
 
     HTMLAnchorElement.prototype.click = function() {
-        // Check if this is an sb3 download
         if (this.download && this.download.endsWith('.sb3') && this.href && this.href.startsWith('blob:')) {
-            // Check if we already modified it to avoid infinite loop
             if (this.dataset.pandaModified) {
                 console.log("PandaGuard: Allowing modified download to proceed.");
                 return originalClick.call(this);
@@ -14,46 +26,46 @@
 
             console.log("PandaGuard: Intercepted .sb3 download click!");
 
-            // Save properties
             const filename = this.download;
             const originalHref = this.href;
+            const originalBlob = window.pandaGuardBlobs.get(originalHref);
 
-            // We must process this asynchronously
-            processAndDownloadSb3(originalHref, filename).catch(e => {
+            if (!originalBlob) {
+                console.error("PandaGuard: Could not find original Blob in cache!");
+                this.dataset.pandaModified = "true";
+                return originalClick.call(this);
+            }
+
+            processAndDownloadSb3(originalBlob, filename).catch(e => {
                 console.error("PandaGuard: Error processing sb3:", e);
-                // Fallback to original download if error
                 this.dataset.pandaModified = "true";
                 originalClick.call(this);
             });
 
-            // Cancel the original click!
-            return;
+            return; // Cancel original click
         }
-
-        // Standard click
         return originalClick.call(this);
     };
 
-    async function processAndDownloadSb3(blobUrl, filename) {
-        // 1. Fetch the original blob
-        const res = await fetch(blobUrl);
-        const originalBlob = await res.blob();
-        
+    async function processAndDownloadSb3(originalBlob, filename) {
         const JSZip = window.JSZip;
         if (!JSZip) throw new Error("JSZip not found!");
 
         const originalZip = await JSZip.loadAsync(originalBlob);
         
-        // 3. Move all original files to panda_project/
         const newZip = new JSZip();
         const pandaFolder = newZip.folder("panda_project");
         
+        // Move all original files to panda_project/
         for (const f of Object.keys(originalZip.files)) {
-            const fileData = await originalZip.files[f].async("uint8array");
-            pandaFolder.file(f, fileData);
+            // JSZip .files includes folders, we should only copy files
+            if (!originalZip.files[f].dir) {
+                const fileData = await originalZip.files[f].async("uint8array");
+                pandaFolder.file(f, fileData);
+            }
         }
         
-        // 4. Inject the warning project to the root
+        // Inject the warning project to the root
         const warningZipBase64 = window.PANDA_WARNING_ZIP_BASE64;
         if (warningZipBase64) {
             const warningZip = await JSZip.loadAsync(warningZipBase64, {base64: true});
@@ -65,11 +77,9 @@
             }
         }
 
-        // 5. Generate the new protected blob
         const newBlob = await newZip.generateAsync({type: "blob"});
         const newUrl = URL.createObjectURL(newBlob);
 
-        // 6. Trigger download
         const a = document.createElement('a');
         a.href = newUrl;
         a.download = filename;
@@ -77,13 +87,12 @@
         document.body.appendChild(a);
         originalClick.call(a);
         a.remove();
-        URL.revokeObjectURL(newUrl);
+        
+        // We can revoke the new URL safely
+        setTimeout(() => URL.revokeObjectURL(newUrl), 1000);
     }
     
-    // For loading, the VM monkey patch still works, but just in case findVM was failing, let's keep it.
-    // However, if the user imports via input element, we can also intercept the input element!
-    // When a user selects a file, it's a File object.
-    
+    // 3. Keep the VM loadProject patch for loading PandaScratch files
     let vm = null;
     let patchedLoad = false;
     
