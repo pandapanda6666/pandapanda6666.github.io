@@ -5,16 +5,38 @@
 
     function findVM() {
         if (vm) return vm;
-        const guiNode = document.getElementById('scratch-gui');
-        if (!guiNode) return null;
-        const internalKey = Object.keys(guiNode).find(key => key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$'));
-        if (!internalKey) return null;
-        let fiber = guiNode[internalKey];
-        while (fiber) {
-            if (fiber.stateNode && fiber.stateNode.props && fiber.stateNode.props.vm) {
-                return fiber.stateNode.props.vm;
+        
+        // Find any React fiber on the page
+        const allElements = document.querySelectorAll('*');
+        for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i];
+            const internalKey = Object.keys(el).find(key => key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$'));
+            if (internalKey) {
+                let fiber = el[internalKey];
+                // traverse up/down to find vm
+                let current = fiber;
+                while (current) {
+                    if (current.stateNode && current.stateNode.props && current.stateNode.props.vm) {
+                        return current.stateNode.props.vm;
+                    }
+                    if (current.memoizedProps && current.memoizedProps.vm) {
+                        return current.memoizedProps.vm;
+                    }
+                    current = current.return; // go up the tree
+                }
+                
+                current = fiber;
+                // also try going down
+                while(current) {
+                    if (current.stateNode && current.stateNode.props && current.stateNode.props.vm) {
+                        return current.stateNode.props.vm;
+                    }
+                    if (current.memoizedProps && current.memoizedProps.vm) {
+                        return current.memoizedProps.vm;
+                    }
+                    current = current.child;
+                }
             }
-            fiber = fiber.child;
         }
         return null;
     }
