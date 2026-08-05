@@ -1,124 +1,128 @@
-﻿// PandaGuard: 負責攔截與偽裝 .sb3 檔案
-(function() {
-    console.log("PandaGuard 初始化...");
+﻿(function() {
+    let vm = null;
+    let patchedSave = false;
+    let patchedLoad = false;
 
-    // 1. 攔截檔案讀取 (Load Project)
-    const originalReadAsArrayBuffer = FileReader.prototype.readAsArrayBuffer;
-    FileReader.prototype.readAsArrayBuffer = function(file) {
-        if (file && file.name && file.name.endsWith('.sb3')) {
-            console.log("PandaGuard: 攔截到讀取 .sb3 檔案:", file.name);
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                try {
-                    const buffer = e.target.result;
-                    const zip = await JSZip.loadAsync(buffer);
-                    
-                    let isPanda = false;
-                    const newZip = new JSZip();
-                    
-                    // 檢查是否包含 panda_project/
-                    for (const relativePath in zip.files) {
-                        if (relativePath.startsWith('panda_project/')) {
-                            isPanda = true;
-                            if (!zip.files[relativePath].dir) {
-                                const content = await zip.files[relativePath].async("uint8array");
-                                const newPath = relativePath.substring('panda_project/'.length);
-                                if (newPath) {
-                                    newZip.file(newPath, content);
-                                }
-                            }
-                        }
-                    }
-                    
-                    let finalBlob = file;
-                    if (isPanda) {
-                        console.log("PandaGuard: 偵測到 PandaScratch 專屬專案！正在解開偽裝...");
-                        const newBuffer = await newZip.generateAsync({type: "blob"});
-                        finalBlob = new File([newBuffer], file.name, {type: file.type});
-                    } else {
-                        console.log("PandaGuard: 這是一般的 Scratch 專案，直接讀取。");
-                    }
-                    
-                    originalReadAsArrayBuffer.call(this, finalBlob);
-                } catch(err) {
-                    console.error("PandaGuard: 解壓縮發生錯誤:", err);
-                    originalReadAsArrayBuffer.call(this, file);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-            return;
-        }
-        return originalReadAsArrayBuffer.call(this, file);
-    };
-
-    // 2. 尋找 VM 並攔截存檔 (Save Project)
-    function findVM(node) {
-        if (!node) return null;
-        if (node.stateNode && node.stateNode.props && node.stateNode.props.vm) return node.stateNode.props.vm;
-        if (node.child) {
-            let child = node.child;
-            while (child) {
-                let res = findVM(child);
-                if (res) return res;
-                child = child.sibling;
+    function findVM() {
+        if (vm) return vm;
+        const guiNode = document.getElementById('scratch-gui');
+        if (!guiNode) return null;
+        const internalKey = Object.keys(guiNode).find(key => key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$'));
+        if (!internalKey) return null;
+        let fiber = guiNode[internalKey];
+        while (fiber) {
+            if (fiber.stateNode && fiber.stateNode.props && fiber.stateNode.props.vm) {
+                return fiber.stateNode.props.vm;
             }
+            fiber = fiber.child;
         }
         return null;
     }
 
-    let vmObj = null;
-    let observer = new MutationObserver(() => {
-        if (!vmObj) {
-            const root = document.querySelector('#scratch') || document.body;
-            const internalKey = Object.keys(root).find(key => key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$'));
-            if (internalKey) {
-                vmObj = findVM(root[internalKey]);
-                if (vmObj && !vmObj._pandaPatched) {
-                    vmObj._pandaPatched = true;
-                    console.log("PandaGuard: 找到 VM 實例！注入存檔攔截器...");
-                    
-                    const originalSave = vmObj.saveProjectSb3;
-                    vmObj.saveProjectSb3 = async function(...args) {
-                        console.log("PandaGuard: 攔截到專案儲存請求！開始偽裝打包...");
-                        const originalBlob = await originalSave.apply(this, args);
-                        
-                        try {
-                            const zip = await JSZip.loadAsync(originalBlob);
-                            const newZip = new JSZip();
-                            
-                            // 步驟 A: 將真實檔案移入 panda_project/
-                            for (const relativePath in zip.files) {
-                                if (!zip.files[relativePath].dir) {
-                                    const content = await zip.files[relativePath].async("uint8array");
-                                    newZip.file('panda_project/' + relativePath, content);
-                                }
-                            }
-                            
-                            // 步驟 B: 注入表層警告專案
-                            if (window.PANDA_WARNING_PROJECT) {
-                                for (const key in window.PANDA_WARNING_PROJECT) {
-                                    if (key === 'project.json') {
-                                        newZip.file(key, window.PANDA_WARNING_PROJECT[key]);
-                                    } else {
-                                        // 資源檔是 base64
-                                        newZip.file(key, window.PANDA_WARNING_PROJECT[key], {base64: true});
-                                    }
-                                }
-                            } else {
-                                console.warn("PandaGuard: 找不到 PANDA_WARNING_PROJECT，將只儲存 panda_project 目錄！");
-                            }
-                            
-                            console.log("PandaGuard: 偽裝完成！");
-                            return await newZip.generateAsync({type: "blob"});
-                        } catch(err) {
-                            console.error("PandaGuard: 儲存時發生錯誤，退回原始存檔", err);
-                            return originalBlob;
-                        }
-                    };
-                }
-            }
-        }
-    });
-    observer.observe(document.body, {childList: true, subtree: true});
+    function patchVM() {
+        vm = findVM();
+        if (!vm) return;
 
+        if (!patchedSave && vm.saveProjectSb3) {
+            const originalSave = vm.saveProjectSb3.bind(vm);
+            vm.saveProjectSb3 = async function(...args) {
+                console.log("PandaGuard: Intercepted saveProjectSb3");
+                try {
+                    // 1. Get the original project blob
+                    const originalBlob = await originalSave(...args);
+                    
+                    // 2. Load the original zip and the warning zip
+                    const JSZip = window.JSZip;
+                    if (!JSZip) return originalBlob;
+
+                    const originalZip = await JSZip.loadAsync(originalBlob);
+                    
+                    // 3. Move all original files to panda_project/
+                    const newZip = new JSZip();
+                    const pandaFolder = newZip.folder("panda_project");
+                    
+                    for (const filename of Object.keys(originalZip.files)) {
+                        const fileData = await originalZip.files[filename].async("uint8array");
+                        pandaFolder.file(filename, fileData);
+                    }
+                    
+                    // 4. Inject the warning project to the root
+                    const warningZipBase64 = window.PANDA_WARNING_ZIP_BASE64;
+                    if (warningZipBase64) {
+                        const warningZip = await JSZip.loadAsync(warningZipBase64, {base64: true});
+                        for (const filename of Object.keys(warningZip.files)) {
+                            if (!warningZip.files[filename].dir) {
+                                const fileData = await warningZip.files[filename].async("uint8array");
+                                newZip.file(filename, fileData);
+                            }
+                        }
+                    }
+
+                    // 5. Generate the new protected blob
+                    const newBlob = await newZip.generateAsync({type: "blob"});
+                    return newBlob;
+                } catch (e) {
+                    console.error("PandaGuard Save Error:", e);
+                    return originalSave(...args); // fallback
+                }
+            };
+            patchedSave = true;
+        }
+
+        if (!patchedLoad && vm.loadProject) {
+            const originalLoad = vm.loadProject.bind(vm);
+            vm.loadProject = async function(fileBuffer, ...args) {
+                console.log("PandaGuard: Intercepted loadProject");
+                try {
+                    const JSZip = window.JSZip;
+                    if (!JSZip) return originalLoad(fileBuffer, ...args);
+
+                    const zip = await JSZip.loadAsync(fileBuffer);
+                    
+                    // Check if it has panda_project folder
+                    let hasPandaProject = false;
+                    for (const filename of Object.keys(zip.files)) {
+                        if (filename.startsWith("panda_project/project.json")) {
+                            hasPandaProject = true;
+                            break;
+                        }
+                    }
+
+                    if (hasPandaProject) {
+                        console.log("PandaGuard: Detected PandaScratch protected project, unwrapping...");
+                        const unwrappedZip = new JSZip();
+                        
+                        // Copy all files from panda_project/ to root
+                        for (const filename of Object.keys(zip.files)) {
+                            if (filename.startsWith("panda_project/") && !zip.files[filename].dir) {
+                                const newFilename = filename.substring("panda_project/".length);
+                                const fileData = await zip.files[filename].async("uint8array");
+                                unwrappedZip.file(newFilename, fileData);
+                            }
+                        }
+                        
+                        const unwrappedBuffer = await unwrappedZip.generateAsync({type: "uint8array"});
+                        return originalLoad(unwrappedBuffer, ...args);
+                    } else {
+                        // Standard scratch project
+                        return originalLoad(fileBuffer, ...args);
+                    }
+                } catch (e) {
+                    console.error("PandaGuard Load Error:", e);
+                    return originalLoad(fileBuffer, ...args);
+                }
+            };
+            patchedLoad = true;
+        }
+    }
+
+    // Try to patch periodically until successful
+    const interval = setInterval(() => {
+        if (patchedSave && patchedLoad) {
+            clearInterval(interval);
+            console.log("PandaGuard: VM successfully patched!");
+        } else {
+            patchVM();
+        }
+    }, 1000);
 })();
