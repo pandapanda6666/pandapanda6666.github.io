@@ -99,6 +99,11 @@
             }
         }
         
+        if (typeof io === 'undefined') {
+            console.error("Socket.io library not loaded!");
+            showConnectionError();
+            return;
+        }
         const socket = io(serverUrl, { transports: ['websocket'] });
         window.socket = socket;
         
