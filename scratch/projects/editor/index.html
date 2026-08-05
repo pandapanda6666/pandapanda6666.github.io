@@ -120,7 +120,15 @@ body.high-contrast { filter: contrast(1.2) saturate(1.1); }
 
 
 
-﻿</style>
+﻿
+  .panda-dropdown {
+      background: var(--panda-green, #4CAF50);
+      color: white;
+  }
+  .panda-dropdown li:hover {
+      background: rgba(0,0,0,0.2) !important;
+  }
+</style>
 <script>
 ﻿// Function to change language by triggering native click
 window.pandaSetLanguage = function(langCode) {
@@ -417,9 +425,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 </script>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="../../panda_sso.js?v=106"></script>
+
 <!-- PANDASCRATCH INJECT END -->
   <body>
-  <script type="text/javascript" src="lib.min.js?v=105"></script><script type="text/javascript" src="chunks/gui.js?v=105"></script>
+  <script type="text/javascript" src="lib.min.js?v=106"></script><script type="text/javascript" src="chunks/gui.js?v=106"></script>
     <!-- Panda Cat Blocks Injection -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -468,5 +480,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     </script>
 
+
+    <!-- Panda Cat Blocks Injection (Safe Interval Method) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setInterval(() => {
+                if (!document.body.classList.contains('bear-style')) {
+                    document.querySelectorAll('.panda-cat-ears').forEach(e => e.remove());
+                    return;
+                }
+                
+                document.querySelectorAll('.blocklyDraggable > path.blocklyBlockBackground').forEach(path => {
+                    const d = path.getAttribute('d');
+                    if (d && d.match(/c\s*2[ ,]0\s*3[ ,]1\s*4[ ,]2\s*l\s*4[ ,]4/i)) {
+                        let ears = path.parentNode.querySelector('.panda-cat-ears');
+                        if (!ears) {
+                            ears = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                            ears.setAttribute('class', 'panda-cat-ears');
+                            
+                            const leftEar = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            leftEar.setAttribute('d', 'M 10 0 C 10 -15, 25 -20, 25 0 Z');
+                            leftEar.setAttribute('stroke-width', '1');
+                            
+                            const rightEar = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                            rightEar.setAttribute('d', 'M 50 0 C 50 -15, 65 -20, 65 0 Z');
+                            rightEar.setAttribute('stroke-width', '1');
+                            
+                            ears.appendChild(leftEar);
+                            ears.appendChild(rightEar);
+                            
+                            path.parentNode.insertBefore(ears, path.nextSibling);
+                        }
+                        
+                        // Update colors safely
+                        const newFill = path.getAttribute('fill') || '#FFD54F';
+                        const newStroke = path.getAttribute('stroke') || 'rgba(0,0,0,0.2)';
+                        ears.querySelectorAll('path').forEach(ear => {
+                            if (ear.getAttribute('fill') !== newFill) ear.setAttribute('fill', newFill);
+                            if (ear.getAttribute('stroke') !== newStroke) ear.setAttribute('stroke', newStroke);
+                        });
+                    }
+                });
+            }, 500);
+        });
+    </script>
 </body>
 </html>
