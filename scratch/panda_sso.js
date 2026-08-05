@@ -27,10 +27,16 @@
     const urlParams = new URLSearchParams(window.location.search);
     
     let projectId = urlParams.get('id');
+    if (projectId && projectId.startsWith('panda_')) {
+        urlParams.delete('id');
+        let newUrl = window.location.pathname;
+        if (urlParams.toString()) newUrl += '?' + urlParams.toString();
+        if (window.history.replaceState) window.history.replaceState({}, document.title, newUrl);
+        projectId = null;
+    }
+    
     if (!projectId && window.location.pathname.includes('/projects/editor')) {
         projectId = 'panda_' + Math.random().toString(36).substring(2, 9);
-        # urlParams.set('id', projectId); 
-        # window.history.replaceState({}, '', '?' + urlParams.toString());
     } else if (!projectId) {
         projectId = 'default';
     }
