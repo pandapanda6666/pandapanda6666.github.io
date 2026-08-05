@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8">
@@ -104,7 +104,7 @@ input:focus,
     display: none;
     position: absolute;
     top: 100%;
-    background: var(--panda-green);
+    background: white;
     border-radius: 4px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     padding: 4px 0;
@@ -125,17 +125,19 @@ input:focus,
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px !important;
+    padding: 8px 16px !important;
     font-size: 0.85rem !important;
-    font-weight: bold !important;
+    font-weight: normal !important;
     cursor: pointer;
     white-space: nowrap;
-    color: white !important;
+    color: #575E75 !important;
     font-family: "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+    transition: background-color 0.2s ease;
 }
-.panda-dropdown li > .panda-dropdown li > .panda-dropdown li > .panda-dropdown li > .panda-dropdown li > span { display: flex; align-items: center; gap: 8px; }
+.panda-dropdown li > span { display: flex; align-items: center; gap: 8px; }
 .panda-dropdown li:hover {
     background-color: var(--panda-dark-green) !important;
+    color: white !important;
 }
 
 /* Nested Submenu (Level 2) */
@@ -144,7 +146,7 @@ input:focus,
     position: absolute;
     top: 0;
     left: 100%;
-    background: var(--panda-green);
+    background: white;
     border-radius: 4px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     padding: 4px 0;
@@ -431,6 +433,62 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bearEnabled) document.body.classList.add('bear-style');
             if (highContrast) document.body.classList.add('high-contrast');
         }
+        
+        // Inject icons into native menus (File, Edit, Tutorials)
+        document.querySelectorAll('div[class*="menu-bar_menu-bar-item_"]').forEach(item => {
+            const span = item.querySelector('span[class*="menu-bar_menu-item-text_"]');
+            if (span && !span.dataset.iconInjected) {
+                // If it has a dropdown menu, or it's hoverable
+                const hasMenu = item.querySelector('ul') || item.className.includes('hoverable');
+                if (hasMenu && span.innerText) {
+                    span.dataset.iconInjected = 'true';
+                    span.style.display = 'flex';
+                    span.style.alignItems = 'center';
+                    span.style.gap = '6px';
+                    
+                    let iconSvg = '';
+                    let isTutorial = false;
+                    const text = span.innerText;
+                    
+                    if (text.includes('檔案') || text.includes('File') || text.includes('件')) {
+                        // File icon
+                        iconSvg = '<svg class="panda-icon" viewBox="0 0 384 512" width="14" height="14" fill="currentColor"><path d="M0 64C0 28.7 28.7 0 64 0H224V128c0 17.7 14.3 32 32 32H384V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V64zm384 64H256V0L384 128z"/></svg>';
+                    } else if (text.includes('編輯') || text.includes('Edit') || text.includes('辑')) {
+                        // Edit icon
+                        iconSvg = '<svg class="panda-icon" viewBox="0 0 512 512" width="14" height="14" fill="currentColor"><path d="M362.7 19.3L314.3 67.7 444.3 197.7l48.4-48.4c25-25 25-65.5 0-90.5L453.3 19.3c-25-25-65.5-25-90.5 0zm-71 71L58.6 323.5c-10.4 10.4-18 23.3-22.2 37.4L1 481.2C-1.5 489.7 .8 498.8 7 505s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L421.7 220.3 291.7 90.3z"/></svg>';
+                    } else if (text.includes('教程') || text.includes('Tutorials')) {
+                        // Lightbulb icon
+                        iconSvg = '<svg class="panda-icon" viewBox="0 0 352 512" width="14" height="14" fill="currentColor"><path d="M96.1 297.1c-29.2 26-48.1 63.6-48.1 105.7 0 78.1 63.3 141.4 141.4 141.4s141.4-63.3 141.4-141.4c0-42.1-18.9-79.7-48.1-105.7L256 128V32H96v96l.1 169.1zM176 120c0 30.9-25.1 56-56 56s-56-25.1-56-56 25.1-56 56-56 56 25.1 56 56z"/></svg>';
+                        isTutorial = true;
+                    }
+                    
+                    if (iconSvg) {
+                        const arrowSvg = '<svg class="panda-icon" viewBox="0 0 320 512" width="10" height="10" fill="currentColor"><path d="M137.4 374.6c12.5 12.5 32.8 12.5 45.3 0l128-128c9.2-9.2 11.9-22.9 6.9-34.9s-16.6-19.8-29.6-19.8L32 192c-12.9 0-24.6 7.8-29.6 19.8s-2.2 25.7 6.9 34.9l128 128z"/></svg>';
+                        span.innerHTML = iconSvg + '<span>' + span.innerText + '</span>' + (isTutorial ? '' : arrowSvg);
+                    }
+                }
+            }
+        });
+        
+        // Hook up native Share and Project Page buttons
+        document.addEventListener('click', (e) => {
+            const shareBtn = e.target.closest('div[class*="share-button_share-button_"]');
+            if (shareBtn) {
+                if (window.socket && window.socket.connected) {
+                    const id = new URLSearchParams(window.location.search).get('id');
+                    window.socket.emit('shareProject', { projectId: id });
+                    alert('專案已分享！');
+                } else {
+                    alert('尚未連線至伺服器');
+                }
+            }
+            
+            const projectPageBtn = e.target.closest('div[class*="community-button_community-button_"]');
+            if (projectPageBtn) {
+                const id = new URLSearchParams(window.location.search).get('id');
+                window.location.href = '/scratch/projects/editor/player.html?id=' + (id || 'default');
+            }
+        });
 
         if (menuBar && !document.getElementById('custom-sso-nav-wrapper')) {
             const authWrapper = document.createElement('div');
