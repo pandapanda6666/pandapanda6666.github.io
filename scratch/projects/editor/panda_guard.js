@@ -1,95 +1,113 @@
 ﻿(function() {
-    let vm = null;
-    let patchedSave = false;
-    let patchedLoad = false;
+    console.log("PandaGuard: Initializing universal download interceptor...");
 
+    const originalClick = HTMLAnchorElement.prototype.click;
+
+    HTMLAnchorElement.prototype.click = function() {
+        // Check if this is an sb3 download
+        if (this.download && this.download.endsWith('.sb3') && this.href && this.href.startsWith('blob:')) {
+            // Check if we already modified it to avoid infinite loop
+            if (this.dataset.pandaModified) {
+                console.log("PandaGuard: Allowing modified download to proceed.");
+                return originalClick.call(this);
+            }
+
+            console.log("PandaGuard: Intercepted .sb3 download click!");
+
+            // Save properties
+            const filename = this.download;
+            const originalHref = this.href;
+
+            // We must process this asynchronously
+            processAndDownloadSb3(originalHref, filename).catch(e => {
+                console.error("PandaGuard: Error processing sb3:", e);
+                // Fallback to original download if error
+                this.dataset.pandaModified = "true";
+                originalClick.call(this);
+            });
+
+            // Cancel the original click!
+            return;
+        }
+
+        // Standard click
+        return originalClick.call(this);
+    };
+
+    async function processAndDownloadSb3(blobUrl, filename) {
+        // 1. Fetch the original blob
+        const res = await fetch(blobUrl);
+        const originalBlob = await res.blob();
+        
+        const JSZip = window.JSZip;
+        if (!JSZip) throw new Error("JSZip not found!");
+
+        const originalZip = await JSZip.loadAsync(originalBlob);
+        
+        // 3. Move all original files to panda_project/
+        const newZip = new JSZip();
+        const pandaFolder = newZip.folder("panda_project");
+        
+        for (const f of Object.keys(originalZip.files)) {
+            const fileData = await originalZip.files[f].async("uint8array");
+            pandaFolder.file(f, fileData);
+        }
+        
+        // 4. Inject the warning project to the root
+        const warningZipBase64 = window.PANDA_WARNING_ZIP_BASE64;
+        if (warningZipBase64) {
+            const warningZip = await JSZip.loadAsync(warningZipBase64, {base64: true});
+            for (const f of Object.keys(warningZip.files)) {
+                if (!warningZip.files[f].dir) {
+                    const fileData = await warningZip.files[f].async("uint8array");
+                    newZip.file(f, fileData);
+                }
+            }
+        }
+
+        // 5. Generate the new protected blob
+        const newBlob = await newZip.generateAsync({type: "blob"});
+        const newUrl = URL.createObjectURL(newBlob);
+
+        // 6. Trigger download
+        const a = document.createElement('a');
+        a.href = newUrl;
+        a.download = filename;
+        a.dataset.pandaModified = "true";
+        document.body.appendChild(a);
+        originalClick.call(a);
+        a.remove();
+        URL.revokeObjectURL(newUrl);
+    }
+    
+    // For loading, the VM monkey patch still works, but just in case findVM was failing, let's keep it.
+    // However, if the user imports via input element, we can also intercept the input element!
+    // When a user selects a file, it's a File object.
+    
+    let vm = null;
+    let patchedLoad = false;
+    
     function findVM() {
         if (vm) return vm;
-        
-        // Find any React fiber on the page
         const allElements = document.querySelectorAll('*');
         for (let i = 0; i < allElements.length; i++) {
             const el = allElements[i];
             const internalKey = Object.keys(el).find(key => key.startsWith('__reactInternalInstance$') || key.startsWith('__reactFiber$'));
             if (internalKey) {
                 let fiber = el[internalKey];
-                // traverse up/down to find vm
                 let current = fiber;
                 while (current) {
-                    if (current.stateNode && current.stateNode.props && current.stateNode.props.vm) {
-                        return current.stateNode.props.vm;
-                    }
-                    if (current.memoizedProps && current.memoizedProps.vm) {
-                        return current.memoizedProps.vm;
-                    }
-                    current = current.return; // go up the tree
-                }
-                
-                current = fiber;
-                // also try going down
-                while(current) {
-                    if (current.stateNode && current.stateNode.props && current.stateNode.props.vm) {
-                        return current.stateNode.props.vm;
-                    }
-                    if (current.memoizedProps && current.memoizedProps.vm) {
-                        return current.memoizedProps.vm;
-                    }
-                    current = current.child;
+                    if (current.memoizedProps && current.memoizedProps.vm) return current.memoizedProps.vm;
+                    current = current.return;
                 }
             }
         }
         return null;
     }
 
-    function patchVM() {
+    function patchVMLoad() {
         vm = findVM();
         if (!vm) return;
-
-        if (!patchedSave && vm.saveProjectSb3) {
-            const originalSave = vm.saveProjectSb3.bind(vm);
-            vm.saveProjectSb3 = async function(...args) {
-                console.log("PandaGuard: Intercepted saveProjectSb3");
-                try {
-                    // 1. Get the original project blob
-                    const originalBlob = await originalSave(...args);
-                    
-                    // 2. Load the original zip and the warning zip
-                    const JSZip = window.JSZip;
-                    if (!JSZip) return originalBlob;
-
-                    const originalZip = await JSZip.loadAsync(originalBlob);
-                    
-                    // 3. Move all original files to panda_project/
-                    const newZip = new JSZip();
-                    const pandaFolder = newZip.folder("panda_project");
-                    
-                    for (const filename of Object.keys(originalZip.files)) {
-                        const fileData = await originalZip.files[filename].async("uint8array");
-                        pandaFolder.file(filename, fileData);
-                    }
-                    
-                    // 4. Inject the warning project to the root
-                    const warningZipBase64 = window.PANDA_WARNING_ZIP_BASE64;
-                    if (warningZipBase64) {
-                        const warningZip = await JSZip.loadAsync(warningZipBase64, {base64: true});
-                        for (const filename of Object.keys(warningZip.files)) {
-                            if (!warningZip.files[filename].dir) {
-                                const fileData = await warningZip.files[filename].async("uint8array");
-                                newZip.file(filename, fileData);
-                            }
-                        }
-                    }
-
-                    // 5. Generate the new protected blob
-                    const newBlob = await newZip.generateAsync({type: "blob"});
-                    return newBlob;
-                } catch (e) {
-                    console.error("PandaGuard Save Error:", e);
-                    return originalSave(...args); // fallback
-                }
-            };
-            patchedSave = true;
-        }
 
         if (!patchedLoad && vm.loadProject) {
             const originalLoad = vm.loadProject.bind(vm);
@@ -100,11 +118,9 @@
                     if (!JSZip) return originalLoad(fileBuffer, ...args);
 
                     const zip = await JSZip.loadAsync(fileBuffer);
-                    
-                    // Check if it has panda_project folder
                     let hasPandaProject = false;
-                    for (const filename of Object.keys(zip.files)) {
-                        if (filename.startsWith("panda_project/project.json")) {
+                    for (const f of Object.keys(zip.files)) {
+                        if (f.startsWith("panda_project/project.json")) {
                             hasPandaProject = true;
                             break;
                         }
@@ -113,20 +129,16 @@
                     if (hasPandaProject) {
                         console.log("PandaGuard: Detected PandaScratch protected project, unwrapping...");
                         const unwrappedZip = new JSZip();
-                        
-                        // Copy all files from panda_project/ to root
-                        for (const filename of Object.keys(zip.files)) {
-                            if (filename.startsWith("panda_project/") && !zip.files[filename].dir) {
-                                const newFilename = filename.substring("panda_project/".length);
-                                const fileData = await zip.files[filename].async("uint8array");
+                        for (const f of Object.keys(zip.files)) {
+                            if (f.startsWith("panda_project/") && !zip.files[f].dir) {
+                                const newFilename = f.substring("panda_project/".length);
+                                const fileData = await zip.files[f].async("uint8array");
                                 unwrappedZip.file(newFilename, fileData);
                             }
                         }
-                        
                         const unwrappedBuffer = await unwrappedZip.generateAsync({type: "uint8array"});
                         return originalLoad(unwrappedBuffer, ...args);
                     } else {
-                        // Standard scratch project
                         return originalLoad(fileBuffer, ...args);
                     }
                 } catch (e) {
@@ -135,16 +147,15 @@
                 }
             };
             patchedLoad = true;
+            console.log("PandaGuard: VM Load successfully patched!");
         }
     }
 
-    // Try to patch periodically until successful
     const interval = setInterval(() => {
-        if (patchedSave && patchedLoad) {
+        if (patchedLoad) {
             clearInterval(interval);
-            console.log("PandaGuard: VM successfully patched!");
         } else {
-            patchVM();
+            patchVMLoad();
         }
     }, 1000);
 })();
