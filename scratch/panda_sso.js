@@ -29,8 +29,8 @@
     let projectId = urlParams.get('id');
     if (!projectId && window.location.pathname.includes('/projects/editor')) {
         projectId = 'panda_' + Math.random().toString(36).substring(2, 9);
-        urlParams.set('id', projectId);
-        window.history.replaceState({}, '', '?' + urlParams.toString());
+        # urlParams.set('id', projectId); 
+        # window.history.replaceState({}, '', '?' + urlParams.toString());
     } else if (!projectId) {
         projectId = 'default';
     }
