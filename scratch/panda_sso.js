@@ -107,6 +107,11 @@
         const socket = io(serverUrl, { transports: ['websocket'] });
         window.socket = socket;
         
+        window.pandaSocket = {
+            emit: function(event, data) { if(window.socket && window.socket.connected) { window.socket.emit(event, data); } },
+            on: function(event, cb) { if(window.socket) { window.socket.on(event, cb); } }
+        };
+        
         socket.on('connect', () => {
             console.log("已連線至伺服器");
             socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
