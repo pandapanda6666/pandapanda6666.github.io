@@ -312,7 +312,8 @@
                     e.preventDefault();
                     if (window.appId && typeof window.socket !== 'undefined' && window.socket.connected) {
                         window.socket.emit('shareProject', { projectId: window.appId });
-                        alert('專案已分享！');
+                        const shareUrl = window.location.origin + '/scratch/projects/editor/player/?id=' + window.appId;
+                        prompt('專案已分享！您可以複製以下連結並傳送給其他人：', shareUrl);
                     } else {
                         alert('尚未連線到伺服器或尚未儲存專案');
                     }
