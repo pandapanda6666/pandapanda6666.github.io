@@ -424,92 +424,24 @@
             const group = new THREE.Group();
             scene.add(group);
 
-            // Shape for Rabboni
-            const width = 0.55; 
-            const radius = 0.15;
-            const shape = new THREE.Shape();
-            shape.moveTo(-width + radius, -width);
-            shape.lineTo(width - radius, -width);
-            shape.quadraticCurveTo(width, -width, width, -width + radius);
-            shape.lineTo(width, width - radius);
-            shape.quadraticCurveTo(width, width, width - radius, width);
-            shape.lineTo(-width + radius, width);
-            shape.quadraticCurveTo(-width, width, -width, width - radius);
-            shape.lineTo(-width, -width + radius);
-            shape.quadraticCurveTo(-width, -width, -width + radius, -width);
-
-            const extrudeSettings = {
-                depth: 0.1, 
-                bevelEnabled: true,
-                bevelSegments: 4,
-                steps: 1,
-                bevelSize: 0.15,
-                bevelThickness: 0.1
-            };
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            geometry.center();
-
-            // Vertex Colors for Two-Tone (Champagne Gold top, White bottom)
-            const count = geometry.attributes.position.count;
-            const colors = new Float32Array(count * 3);
-            const pos = geometry.attributes.position.array;
-            const colorGold = new THREE.Color(0xc9b095); // Champagne gold
-            const colorWhite = new THREE.Color(0xf5f5f5); // White plastic
-
-            for (let i = 0; i < count; i++) {
-                const z = pos[i * 3 + 2];
-                if (z > 0.0) {
-                    colors[i * 3] = colorGold.r;
-                    colors[i * 3 + 1] = colorGold.g;
-                    colors[i * 3 + 2] = colorGold.b;
-                } else {
-                    colors[i * 3] = colorWhite.r;
-                    colors[i * 3 + 1] = colorWhite.g;
-                    colors[i * 3 + 2] = colorWhite.b;
-                }
-            }
-            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
+            const geometry = new RoundedBoxGeometry(1.2, 0.3, 1.2, 4, 0.25);
+            
             const material = new THREE.MeshStandardMaterial({ 
-                vertexColors: true,
-                roughness: 0.5,
-                metalness: 0.3
+                color: 0x474a51,
+                roughness: 0.7,
+                metalness: 0.2
             });
             const cube = new THREE.Mesh(geometry, material);
             
-            // Features
-            
-            // USB Port (Bottom-Left edge)
-            const usbGeo = new THREE.BoxGeometry(0.2, 0.05, 0.08);
-            const usbMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-            const usb = new THREE.Mesh(usbGeo, usbMat);
-            usb.position.set(0, -0.71, -0.05);
-            cube.add(usb);
-
-            // ON/OFF Switch (Top-Left edge)
-            const switchGeo = new THREE.BoxGeometry(0.05, 0.2, 0.08);
-            const switchMesh = new THREE.Mesh(switchGeo, usbMat);
-            switchMesh.position.set(-0.71, 0.1, -0.05);
-            cube.add(switchMesh);
-
-            // Button (Left corner)
-            const btnGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-            const btnMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
-            const button = new THREE.Mesh(btnGeo, btnMat);
-            button.position.set(-0.73, -0.73, -0.05);
-            button.rotation.z = Math.PI / 4;
-            cube.add(button);
-            
-            // LED (Top corner)
-            const ledGeo = new THREE.SphereGeometry(0.03, 16, 16);
+            // 加入上方的 LED 燈
+            const ledGeo = new THREE.SphereGeometry(0.05, 16, 16);
             const ledMat = new THREE.MeshBasicMaterial({ color: ledColorHex });
             const led = new THREE.Mesh(ledGeo, ledMat);
-            led.position.set(-0.55, 0.55, 0.15); 
+            led.position.set(-0.4, 0.15, -0.4);
             cube.add(led);
             
-            // Orientation
-            cube.rotation.x = -Math.PI / 2; // Lay flat
-            cube.rotation.z = -Math.PI / 4; // Rotate to diamond shape
+            // 將內部模型旋轉 45 度，使其看起來像正菱形
+            cube.rotation.y = Math.PI / 4;
             
             group.add(cube);
 
