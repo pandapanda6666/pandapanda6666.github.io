@@ -220,7 +220,7 @@
                         return originalLoad(fileBuffer, ...args);
                     }
                 } catch (e) {
-                    console.error("PandaGuard Load Error:", e);
+                    // Ignore non-zip errors (e.g. MIT 404 responses from native fetch)
                     return originalLoad(fileBuffer, ...args);
                 }
             };
@@ -246,7 +246,7 @@
                                 byteNumbers[i] = byteCharacters.charCodeAt(i);
                             }
                             const byteArray = new Uint8Array(byteNumbers);
-                            originalLoad(byteArray).then(() => {
+                            vm.loadProject(byteArray).then(() => {
                                 console.log("PandaGuard: Cloud project loaded successfully!");
                             });
                         } catch(e) { console.error("PandaGuard: Cloud load error:", e); }
