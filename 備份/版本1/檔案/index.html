@@ -324,39 +324,6 @@
             100% { transform: scale(1); opacity: 0.5; }
         }
 
-        .canvas-container {
-            display: flex;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-
-        .canvas-box {
-            flex: 1;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .canvas-title {
-            font-size: 0.85rem;
-            color: #cbd5e1;
-            margin-bottom: 0.5rem;
-            font-weight: 800;
-        }
-
-        .three-canvas {
-            width: 100%;
-            height: 150px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
-
         ::-webkit-scrollbar { width: 10px; }
         ::-webkit-scrollbar-track { background: var(--bg-gradient-end); }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 5px; }
@@ -380,7 +347,6 @@
         </div>
     </main>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         const WS_URL = 'ws://localhost:50500/rab';
         const BATTERY_API = 'http://localhost:50500/rab/battery?name=';
@@ -388,62 +354,6 @@
         let socket;
         let devices = {};
         let updateTimeouts = {};
-        let scenes = {};
-
-        function init3D(name) {
-            scenes[name] = {
-                angle: createScene(`canvas-angle-${name}`, 0x3b82f6),
-                acc: createScene(`canvas-acc-${name}`, 0x10b981)
-            };
-        }
-
-        function createScene(containerId, colorHex) {
-            const container = document.getElementById(containerId);
-            if (!container) return null;
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-            
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            container.appendChild(renderer.domElement);
-
-            const geometry = new THREE.BoxGeometry(1.5, 0.5, 1);
-            const edges = new THREE.EdgesGeometry(geometry);
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
-            
-            const material = new THREE.MeshPhongMaterial({ 
-                color: colorHex,
-                transparent: true,
-                opacity: 0.8
-            });
-            const cube = new THREE.Mesh(geometry, material);
-            cube.add(line);
-            scene.add(cube);
-
-            const light = new THREE.DirectionalLight(0xffffff, 1);
-            light.position.set(2, 2, 5);
-            scene.add(light);
-            scene.add(new THREE.AmbientLight(0x404040));
-
-            camera.position.z = 4;
-
-            function animate() {
-                requestAnimationFrame(animate);
-                renderer.render(scene, camera);
-            }
-            animate();
-
-            // Handle resize
-            window.addEventListener('resize', () => {
-                if(container.clientWidth > 0) {
-                    camera.aspect = container.clientWidth / container.clientHeight;
-                    camera.updateProjectionMatrix();
-                    renderer.setSize(container.clientWidth, container.clientHeight);
-                }
-            });
-
-            return cube;
-        }
 
         const statusBadge = document.getElementById('statusBadge');
         const deviceContainer = document.getElementById('deviceContainer');
@@ -521,17 +431,6 @@
                 updateValueWithAnimation(`gyr-x-${data.name}`, formatNumber(data.gyr[0]));
                 updateValueWithAnimation(`gyr-y-${data.name}`, formatNumber(data.gyr[1]));
                 updateValueWithAnimation(`gyr-z-${data.name}`, formatNumber(data.gyr[2]));
-            }
-
-            if (scenes[data.name]) {
-                if (data.acc && scenes[data.name].acc) {
-                    scenes[data.name].acc.position.set(data.acc[0] * 1.5, data.acc[1] * 1.5, data.acc[2] * 1.5);
-                }
-                if (data.gyr && scenes[data.name].angle) {
-                    scenes[data.name].angle.rotation.x += data.gyr[0] * 0.05;
-                    scenes[data.name].angle.rotation.y += data.gyr[1] * 0.05;
-                    scenes[data.name].angle.rotation.z += data.gyr[2] * 0.05;
-                }
             }
 
             // Update Trigger and Counts
@@ -626,20 +525,9 @@
                     </div>
                 </div>
 
-                <div class="canvas-container">
-                    <div class="canvas-box">
-                        <div class="canvas-title">角度模擬</div>
-                        <div id="canvas-angle-${name}" class="three-canvas"></div>
-                    </div>
-                    <div class="canvas-box">
-                        <div class="canvas-title">加速度模擬</div>
-                        <div id="canvas-acc-${name}" class="three-canvas"></div>
-                    </div>
-                </div>
             `;
             
             deviceContainer.appendChild(card);
-            setTimeout(() => init3D(name), 100);
         }
 
 
