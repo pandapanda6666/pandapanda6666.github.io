@@ -306,7 +306,7 @@
                 }
                 
                 // Check if they clicked the Share button
-                const shareBtn = e.target.closest('div[class*="share-button_share-button_"]');
+                const shareBtn = e.target.closest('[class*="share-button_share-button_"]');
                 if (shareBtn) {
                     e.stopPropagation(); e.stopImmediatePropagation();
                     e.preventDefault();
@@ -320,7 +320,7 @@
                 }
                 
                 // Check if they clicked the Project Page button
-                const projectPageBtn = e.target.closest('div[class*="community-button_community-button_"]');
+                const projectPageBtn = e.target.closest('[class*="community-button_community-button_"]');
                 if (projectPageBtn) {
                     e.stopPropagation(); e.stopImmediatePropagation();
                     e.preventDefault();
