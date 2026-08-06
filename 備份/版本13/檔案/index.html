@@ -404,88 +404,6 @@
         ::-webkit-scrollbar-track { background: var(--bg-gradient-end); }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 5px; }
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
-
-        /* Tabs and Charts */
-        .tab-buttons {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 0.5rem;
-        }
-        .tab-btn {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #94a3b8;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 0.85rem;
-        }
-        .tab-btn:hover {
-            background: rgba(255,255,255,0.15);
-            color: white;
-        }
-        .tab-btn.active {
-            background: var(--accent-color);
-            color: white;
-            border-color: var(--accent-hover);
-        }
-
-        .card[data-tab="data"] .section-data { display: block; }
-        .card[data-tab="data"] .section-chart { display: none; }
-        .card[data-tab="data"] .section-3d { display: none; }
-        
-        .card[data-tab="chart"] .section-data { display: none; }
-        .card[data-tab="chart"] .section-chart { display: block; }
-        .card[data-tab="chart"] .section-3d { display: none; }
-        
-        .card[data-tab="3d"] .section-data { display: none; }
-        .card[data-tab="3d"] .section-chart { display: none; }
-        .card[data-tab="3d"] .section-3d { display: block; }
-        
-        .card[data-tab="all"] .section-data { display: block; }
-        .card[data-tab="all"] .section-chart { display: block; }
-        .card[data-tab="all"] .section-3d { display: block; }
-
-        .card[data-tab="3d"] .overlay-3d-data { display: flex; }
-        .card:not([data-tab="3d"]) .overlay-3d-data { display: none; }
-
-        .chart-container {
-            position: relative;
-            height: 180px;
-            width: 100%;
-            margin-bottom: 1rem;
-            background: rgba(0,0,0,0.2);
-            border-radius: 12px;
-            padding: 10px;
-        }
-
-        .canvas-box { position: relative; }
-        .reset-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.75rem;
-            z-index: 10;
-        }
-        .reset-btn:hover { background: rgba(255,255,255,0.25); }
-
-        .overlay-3d-data {
-            justify-content: space-around;
-            background: rgba(0,0,0,0.4);
-            padding: 10px;
-            border-radius: 12px;
-            margin-bottom: 1rem;
-            font-family: monospace;
-        }
     </style>
 </head>
 <body>
@@ -507,7 +425,6 @@
         </div>
     </main>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script type="importmap">
       {
         "imports": {
@@ -623,15 +540,17 @@
             cube.add(switchMesh);
 
             // Left Button (Left corner)
-            const btnGeo = new RoundedBoxGeometry(0.04, 0.25, 0.12, 4, 0.015);
+            const btnGeo = new THREE.BoxGeometry(0.12, 0.12, 0.04);
             const btnMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.7 });
             const buttonL = new THREE.Mesh(btnGeo, btnMat);
-            buttonL.position.set(-0.615, 0, -0.05);
+            buttonL.position.set(-0.62, -0.62, -0.05);
+            buttonL.rotation.z = Math.PI / 4;
             cube.add(buttonL);
 
             // Right Button (Right corner)
             const buttonR = new THREE.Mesh(btnGeo, btnMat);
-            buttonR.position.set(0.615, 0, -0.05);
+            buttonR.position.set(0.62, 0.62, -0.05);
+            buttonR.rotation.z = Math.PI / 4;
             cube.add(buttonR);
             
             // LED (Top corner)
@@ -735,7 +654,6 @@
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.enableZoom = true; // allow zoom in/out
-            controls.saveState(); // for resetting
 
             function animate() {
                 requestAnimationFrame(animate);
@@ -744,7 +662,7 @@
             }
             animate();
 
-            return { scene, camera, group, controls };
+            return { scene, camera, group };
         }
 
         const statusBadge = document.getElementById('statusBadge');
@@ -882,49 +800,6 @@
                     triggerIndicator.classList.remove('active');
                 }
             }
-            // Update charts
-            if (chartsObj[data.name]) {
-                const cObj = chartsObj[data.name];
-                cObj.count++;
-                
-                if (data.acc) {
-                    cObj.accChart.data.labels.push(cObj.count);
-                    cObj.accChart.data.datasets[0].data.push(data.acc[0]);
-                    cObj.accChart.data.datasets[1].data.push(data.acc[1]);
-                    cObj.accChart.data.datasets[2].data.push(data.acc[2]);
-                    if (cObj.accChart.data.labels.length > 80) {
-                        cObj.accChart.data.labels.shift();
-                        cObj.accChart.data.datasets.forEach(d => d.data.shift());
-                    }
-                    cObj.accChart.update('none'); // no animation for performance
-                }
-                
-                if (data.gyr) {
-                    cObj.gyrChart.data.labels.push(cObj.count);
-                    cObj.gyrChart.data.datasets[0].data.push(data.gyr[0]);
-                    cObj.gyrChart.data.datasets[1].data.push(data.gyr[1]);
-                    cObj.gyrChart.data.datasets[2].data.push(data.gyr[2]);
-                    if (cObj.gyrChart.data.labels.length > 80) {
-                        cObj.gyrChart.data.labels.shift();
-                        cObj.gyrChart.data.datasets.forEach(d => d.data.shift());
-                    }
-                    cObj.gyrChart.update('none');
-                }
-            }
-
-            // Update overlay text
-            if (angleData[data.name]) {
-                const pDeg = (angleData[data.name].filteredPitch * 180 / Math.PI).toFixed(1);
-                const rDeg = (angleData[data.name].filteredRoll * 180 / Math.PI).toFixed(1);
-                const pEl = document.getElementById(`overlay-pitch-${data.name}`);
-                if (pEl) pEl.innerText = pDeg + '°';
-                const rEl = document.getElementById(`overlay-roll-${data.name}`);
-                if (rEl) rEl.innerText = rDeg + '°';
-            }
-            if (data.acc) {
-                const aEl = document.getElementById(`overlay-acc-${data.name}`);
-                if (aEl) aEl.innerText = `[${formatNumber(data.acc[0])}, ${formatNumber(data.acc[1])}, ${formatNumber(data.acc[2])}]`;
-            }
         }
 
         function formatNumber(num) {
@@ -934,83 +809,10 @@
             return (n < 0 ? '-' : ' ') + str.padStart(5, '0');
         }
 
-        let chartsObj = {};
-
-        window.switchTab = function(name, tabName) {
-            const card = document.getElementById(`device-${name}`);
-            if (card) {
-                card.dataset.tab = tabName;
-                const btns = card.querySelectorAll('.tab-btn');
-                btns.forEach(b => b.classList.remove('active'));
-                
-                const idx = ['data', 'chart', '3d', 'all'].indexOf(tabName);
-                if(idx >= 0 && btns[idx]) btns[idx].classList.add('active');
-            }
-        };
-
-        window.resetView = function(name, type) {
-            if (scenes[name] && scenes[name][type]) {
-                scenes[name][type].controls.reset();
-            }
-        };
-
-        function initCharts(name) {
-            const ctxAcc = document.getElementById(`chart-acc-${name}`).getContext('2d');
-            const ctxGyr = document.getElementById(`chart-gyr-${name}`).getContext('2d');
-            
-            Chart.defaults.color = '#94a3b8';
-            Chart.defaults.font.family = 'Inter';
-
-            const accChart = new Chart(ctxAcc, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: 'Acc X', borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, data: [] },
-                        { label: 'Acc Y', borderColor: '#22c55e', borderWidth: 2, pointRadius: 0, data: [] },
-                        { label: 'Acc Z', borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0, data: [] }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { title: { display: true, text: '加速度 (Accelerometer)', color: '#fca5a5' }, legend: { display: false } },
-                    scales: {
-                        x: { display: false },
-                        y: { suggestedMin: -2, suggestedMax: 2 }
-                    }
-                }
-            });
-
-            const gyrChart = new Chart(ctxGyr, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [
-                        { label: 'Gyr X', borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, data: [] },
-                        { label: 'Gyr Y', borderColor: '#22c55e', borderWidth: 2, pointRadius: 0, data: [] },
-                        { label: 'Gyr Z', borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0, data: [] }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    animation: false,
-                    plugins: { title: { display: true, text: '角速度 (Gyroscope)', color: '#6ee7b7' }, legend: { display: false } },
-                    scales: {
-                        x: { display: false },
-                        y: { suggestedMin: -200, suggestedMax: 200 }
-                    }
-                }
-            });
-
-            chartsObj[name] = { accChart, gyrChart, count: 0 };
-        }
-
         function createDeviceCard(name) {
             const card = document.createElement('div');
             card.className = 'card';
             card.id = `device-${name}`;
-            card.dataset.tab = 'all';
 
             card.innerHTML = `
                 <div class="device-header">
@@ -1020,78 +822,75 @@
                         <div class="trigger-indicator" id="trigger-${name}"></div>
                     </div>
                 </div>
-
-                <div class="tab-buttons">
-                    <button class="tab-btn" onclick="switchTab('${name}', 'data')">資料</button>
-                    <button class="tab-btn" onclick="switchTab('${name}', 'chart')">曲線圖</button>
-                    <button class="tab-btn" onclick="switchTab('${name}', '3d')">3D 模擬</button>
-                    <button class="tab-btn active" onclick="switchTab('${name}', 'all')">全部</button>
-                </div>
                 
-                <div class="section-data">
-                    <div class="data-group">
-                        <div class="data-title orange">加速度 (Accelerometer)</div>
-                        <div class="data-grid">
-                            <div class="data-item"><div class="data-label">x</div><div class="data-value" style="color: #fca5a5;" id="acc-x-${name}"> 0.000</div></div>
-                            <div class="data-item"><div class="data-label">y</div><div class="data-value" style="color: #fca5a5;" id="acc-y-${name}"> 0.000</div></div>
-                            <div class="data-item"><div class="data-label">z</div><div class="data-value" style="color: #fca5a5;" id="acc-z-${name}"> 0.000</div></div>
+                <div class="data-group">
+                    <div class="data-title orange">加速度 (Accelerometer)</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">x</div>
+                            <div class="data-value" style="color: #fca5a5;" id="acc-x-${name}"> 0.000</div>
                         </div>
-                    </div>
-
-                    <div class="data-group">
-                        <div class="data-title green">角速度 (Gyroscope)</div>
-                        <div class="data-grid">
-                            <div class="data-item"><div class="data-label">x</div><div class="data-value" style="color: #6ee7b7;" id="gyr-x-${name}"> 0.000</div></div>
-                            <div class="data-item"><div class="data-label">y</div><div class="data-value" style="color: #6ee7b7;" id="gyr-y-${name}"> 0.000</div></div>
-                            <div class="data-item"><div class="data-label">z</div><div class="data-value" style="color: #6ee7b7;" id="gyr-z-${name}"> 0.000</div></div>
+                        <div class="data-item">
+                            <div class="data-label">y</div>
+                            <div class="data-value" style="color: #fca5a5;" id="acc-y-${name}"> 0.000</div>
                         </div>
-                    </div>
-
-                    <div class="data-group">
-                        <div class="data-title">系統狀態 (Status)</div>
-                        <div class="data-grid">
-                            <div class="data-item"><div class="data-label">裝置記錄數</div><div class="data-value" style="font-size: 1.25rem;" id="count-dev-${name}">0</div></div>
-                            <div class="data-item"><div class="data-label">新記錄數</div><div class="data-value" style="font-size: 1.25rem;" id="count-new-${name}">0</div></div>
-                            <div class="data-item"><div class="data-label">驅動 (yes:1/no:0)</div><div class="data-value" style="font-size: 1.25rem;" id="trigger-val-${name}">0</div></div>
+                        <div class="data-item">
+                            <div class="data-label">z</div>
+                            <div class="data-value" style="color: #fca5a5;" id="acc-z-${name}"> 0.000</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="section-chart">
-                    <div class="chart-container">
-                        <canvas id="chart-acc-${name}"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="chart-gyr-${name}"></canvas>
+                <div class="data-group">
+                    <div class="data-title green">角速度 (Gyroscope)</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">x</div>
+                            <div class="data-value" style="color: #6ee7b7;" id="gyr-x-${name}"> 0.000</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">y</div>
+                            <div class="data-value" style="color: #6ee7b7;" id="gyr-y-${name}"> 0.000</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">z</div>
+                            <div class="data-value" style="color: #6ee7b7;" id="gyr-z-${name}"> 0.000</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="section-3d">
-                    <div class="overlay-3d-data">
-                        <div><span style="color: #94a3b8;">Pitch: </span><span id="overlay-pitch-${name}" style="color: #93c5fd;">0.0°</span></div>
-                        <div><span style="color: #94a3b8;">Roll: </span><span id="overlay-roll-${name}" style="color: #93c5fd;">0.0°</span></div>
-                        <div><span style="color: #94a3b8;">Acc: </span><span id="overlay-acc-${name}" style="color: #6ee7b7;">[ 0.00, 0.00, 0.00]</span></div>
+                <div class="data-group">
+                    <div class="data-title">系統狀態 (Status)</div>
+                    <div class="data-grid">
+                        <div class="data-item">
+                            <div class="data-label">裝置記錄數</div>
+                            <div class="data-value" style="font-size: 1.25rem;" id="count-dev-${name}">0</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">新記錄數</div>
+                            <div class="data-value" style="font-size: 1.25rem;" id="count-new-${name}">0</div>
+                        </div>
+                        <div class="data-item">
+                            <div class="data-label">驅動 (yes:1/no:0)</div>
+                            <div class="data-value" style="font-size: 1.25rem;" id="trigger-val-${name}">0</div>
+                        </div>
                     </div>
-                    <div class="canvas-container">
-                        <div class="canvas-box">
-                            <button class="reset-btn" onclick="resetView('${name}', 'angle')">🔄 重置視角</button>
-                            <div class="canvas-title">角度模擬</div>
-                            <div id="canvas-angle-${name}" class="three-canvas"></div>
-                        </div>
-                        <div class="canvas-box">
-                            <button class="reset-btn" onclick="resetView('${name}', 'acc')">🔄 重置視角</button>
-                            <div class="canvas-title">加速度模擬</div>
-                            <div id="canvas-acc-${name}" class="three-canvas"></div>
-                        </div>
+                </div>
+
+                <div class="canvas-container">
+                    <div class="canvas-box">
+                        <div class="canvas-title">角度模擬</div>
+                        <div id="canvas-angle-${name}" class="three-canvas"></div>
+                    </div>
+                    <div class="canvas-box">
+                        <div class="canvas-title">加速度模擬</div>
+                        <div id="canvas-acc-${name}" class="three-canvas"></div>
                     </div>
                 </div>
             `;
             
             deviceContainer.appendChild(card);
-            setTimeout(() => {
-                init3D(name);
-                initCharts(name);
-            }, 100);
+            setTimeout(() => init3D(name), 100);
         }
 
 
