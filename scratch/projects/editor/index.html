@@ -522,6 +522,212 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     </script>
 
+<!-- PANDA SSO & CLOUD INTEGRATION -->
+<script>
+(function() {
+    // 1. 強制建立連線與全域錯誤捕捉
+    const originalWarn = console.warn;
+    console.warn = function(...args) {
+        if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+        originalWarn.apply(console, args);
+    };
+    window.onerror = function(msg, url, line) { 
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? (event.reason.message || event.reason) : '未知錯誤'), url: window.location.href, line: 0 });
+    });
+
+    const appId = window.location.hostname + window.location.pathname;
+    window.appId = appId;
+    
+    // UI Setup
+    function injectUI() {
+        // Notification Bar
+        const bar = document.createElement('div');
+        bar.id = 'notificationBar';
+        bar.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:30px; background:#ff4757; color:white; z-index:999999; display:none; overflow:hidden; font-weight:bold; line-height:30px;';
+        bar.innerHTML = '<div style="white-space:nowrap; display:inline-block; animation: marquee 15s linear infinite;" id="notificationMsg"></div>';
+        const style = document.createElement('style');
+        style.innerHTML = '@keyframes marquee { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }';
+        document.head.appendChild(style);
+        document.body.appendChild(bar);
+        
+        // Report Issue Button
+        const reportBtn = document.createElement('div');
+        reportBtn.style.cssText = 'position:fixed; bottom:40px; right:20px; background:#3742fa; color:white; padding:10px 15px; border-radius:20px; cursor:pointer; z-index:99999; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-weight:bold;';
+        reportBtn.innerText = '回報問題';
+        reportBtn.onclick = () => {
+            window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+        };
+        document.body.appendChild(reportBtn);
+        
+        // Copyright Footer
+        const footer = document.createElement('div');
+        footer.style.cssText = 'position:fixed; bottom:0; left:0; width:100%; text-align:center; background:rgba(0,0,0,0.7); color:#aaa; font-size:12px; padding:3px; z-index:99998; cursor:pointer;';
+        footer.innerText = '版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.';
+        footer.onclick = () => { window.location.href = 'https://pandapanda6666.github.io'; };
+        document.body.appendChild(footer);
+        
+        // SSO Profile Area & Cloud Buttons (Floating top right)
+        const ssoContainer = document.createElement('div');
+        ssoContainer.id = 'sso-container';
+        ssoContainer.style.cssText = 'position:fixed; top:40px; right:10px; display:flex; align-items:center; gap:10px; z-index:99999; background:rgba(255,255,255,0.9); padding:5px 15px; border-radius:20px; box-shadow:0 2px 10px rgba(0,0,0,0.2);';
+        ssoContainer.innerHTML = `
+            <div id="auth-actions">
+                <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?require=1&from='+encodeURIComponent(window.location.href)" style="background:#2ed573; color:white; border:none; padding:5px 15px; border-radius:15px; cursor:pointer; font-weight:bold;">登入 / 註冊</button>
+            </div>
+            <div id="user-menu" style="display:none; align-items:center; gap:10px; cursor:pointer;" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?from='+encodeURIComponent(window.location.href)">
+                <img id="nav-avatar" src="" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:2px solid #2ed573;">
+                <div id="nav-username" style="font-weight:bold; color:#2f3542; display:flex; flex-direction:column; line-height:1.2;"></div>
+            </div>
+            <div id="cloud-controls" style="display:none; border-left:1px solid #ccc; padding-left:10px; gap:5px;">
+                <button id="btn-cloud-save" style="background:#1e90ff; color:white; border:none; padding:5px 10px; border-radius:15px; cursor:pointer; font-weight:bold; font-size:12px;">☁️ 儲存雲端</button>
+                <button id="btn-cloud-load" style="background:#ffa502; color:white; border:none; padding:5px 10px; border-radius:15px; cursor:pointer; font-weight:bold; font-size:12px;">☁️ 讀取雲端</button>
+            </div>
+        `;
+        document.body.appendChild(ssoContainer);
+        
+        // Push Scratch down if bar is showing
+        setInterval(() => {
+            if (bar.style.display === 'block') {
+                document.getElementById('app').style.top = '30px';
+                ssoContainer.style.top = '40px';
+            } else {
+                document.getElementById('app').style.top = '0px';
+                ssoContainer.style.top = '10px';
+            }
+        }, 1000);
+    }
+    
+    // Server Init
+    async function init() {
+        injectUI();
+        
+        let serverUrl = new URLSearchParams(window.location.search).get('server');
+        if (!serverUrl) {
+            try {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const text = await res.text();
+                serverUrl = atob(text.trim().split('').reverse().join(''));
+            } catch (e) {
+                console.error('Fetch server_url failed:', e);
+                return;
+            }
+        }
+        
+        window.socket = io(serverUrl, { transports: ['websocket'] });
+        
+        socket.on('connect', () => {
+            socket.emit('initClientInfo', { location: 'PandaScratch', device: navigator.userAgent });
+            socket.emit('joinGameRoom', { room: appId, characterData: {} });
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token') || localStorage.getItem('panda_session_token');
+            if (token) {
+                socket.emit('tokenLogin', { token: token });
+            }
+        });
+        
+        socket.on('loginResult', (data) => {
+            if (data.success) {
+                localStorage.setItem('panda_session_token', data.token);
+                if(window.history.replaceState) {
+                    const url = new URL(window.location);
+                    url.searchParams.delete('token');
+                    window.history.replaceState({}, document.title, url);
+                }
+                document.getElementById('auth-actions').style.display = 'none';
+                document.getElementById('user-menu').style.display = 'flex';
+                document.getElementById('cloud-controls').style.display = 'flex';
+                
+                document.getElementById('nav-avatar').src = data.avatar || data.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                const nick = data.nickname || data.username || '玩家';
+                const balance = data.pCoin !== undefined ? data.pCoin : 0;
+                document.getElementById('nav-username').innerHTML = `<span style="font-size:14px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span><span style="font-size:12px;color:#e1b12c;display:flex;align-items:center;"><img src="https://pandapanda6666.github.io/shop/coin.svg" style="width:14px;height:14px;margin-right:2px;" onerror="this.onerror=null; this.src='https://pandapanda6666.github.io/login-hub/pandacoin.png'"> ${balance}</span>`;
+            }
+        });
+        
+        // Broadcasts
+        socket.on('broadcastSchedule', (list) => {
+            localStorage.setItem('broadcasts', JSON.stringify(list));
+            window.broadcasts = list;
+        });
+        
+        // Offline broadcasts fetch
+        fetch('https://pandapanda6666.github.io/login-hub/server_broadcast.json').then(res=>res.json()).then(list => { 
+            window.broadcasts = list; 
+            localStorage.setItem('broadcasts', JSON.stringify(list)); 
+        }).catch(() => { 
+            window.broadcasts = JSON.parse(localStorage.getItem('broadcasts')||'[]'); 
+        });
+        
+        setInterval(() => {
+            const now = Date.now(); const bar = document.getElementById('notificationBar'); const msgText = document.getElementById('notificationMsg');
+            let activeMsg = null; const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            for (let b of list) {
+                const st = new Date(b.startTime).getTime();
+                if (b.mode === 1) {
+                    const intervalMs = b.intervalMin * 60000; const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    if (now >= st && now <= end) { const elapsed = now - st; if (elapsed % intervalMs < 60000) activeMsg = b.message; }
+                } else if (b.mode === 2) { const et = new Date(b.endTime).getTime(); if (now >= st && now <= et) activeMsg = b.message; }
+            }
+            if (activeMsg) { msgText.innerText = activeMsg; bar.style.display = 'block'; } else { bar.style.display = 'none'; }
+        }, 1000);
+        
+        // Cloud Save/Load Buttons Setup
+        document.getElementById('btn-cloud-save').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof socket === 'undefined' || !socket.connected) {
+                alert("伺服器尚未連線，無法儲存至雲端！");
+                return;
+            }
+            window.isCloudSaving = true;
+            alert("✅ 雲端儲存模式已啟動！\n\n請至左上角的【檔案】選單中點選【儲存到你的電腦】，系統會自動攔截並將檔案上傳至雲端儲存空間！");
+        });
+        
+        document.getElementById('btn-cloud-load').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof socket === 'undefined' || !socket.connected) {
+                alert("伺服器尚未連線！");
+                return;
+            }
+            socket.emit('getAppData', { appId: appId }, (res) => {
+                if (res && res.data && res.data.projectBase64) {
+                    if (window.PandaLoadFromCloudHandler) {
+                        window.PandaLoadFromCloudHandler(res.data.projectBase64);
+                    } else {
+                        // Create a temporary Blob and download it, then instruct user to import
+                        const byteCharacters = atob(res.data.projectBase64);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        const blob = new Blob([byteArray], {type: 'application/x.scratch.sb3'});
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = "CloudSave_PandaScratch.sb3";
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        alert("雲端檔案已下載！請至上方【檔案】->【從你的電腦挑選】匯入專案。");
+                    }
+                } else {
+                    alert("找不到雲端存檔！您尚未將任何進度存至雲端。");
+                }
+            });
+        });
+    }
+    
+    if(document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+<!-- PANDA SSO & CLOUD INTEGRATION END -->
 </body>
 </html>
 

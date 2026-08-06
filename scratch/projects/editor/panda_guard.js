@@ -81,9 +81,35 @@
             }
         }
 
-        const newBlob = await newZip.generateAsync({type: "blob"});
-        const newUrl = URL.createObjectURL(newBlob);
+        const newBlob = await newZip.generateAsync({
+            type: "blob",
+            mimeType: "application/x.scratch.sb3",
+            compression: "DEFLATE",
+            compressionOptions: { level: 6 }
+        });
+        
+        if (window.isCloudSaving && typeof window.socket !== 'undefined' && window.socket.connected) {
+            console.log("PandaGuard: Cloud Save activated! Uploading...");
+            
+            // Read Blob as base64
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const base64data = reader.result.split(',')[1];
+                window.socket.emit('saveAppData', { 
+                    appId: window.appId, 
+                    data: { projectBase64: base64data } 
+                }, (response) => {
+                    alert("✅ 雲端儲存成功！");
+                    window.isCloudSaving = false;
+                });
+            };
+            reader.readAsDataURL(newBlob);
+            
+            return; // Skip local download
+        }
 
+        const newUrl = URL.createObjectURL(newBlob);
+        
         const a = document.createElement('a');
         a.href = newUrl;
         a.download = filename;
