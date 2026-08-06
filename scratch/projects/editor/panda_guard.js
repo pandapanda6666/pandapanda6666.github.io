@@ -306,7 +306,7 @@
                 }
                 
                 // Check if they clicked the Share button
-                const shareBtn = e.target.closest('div[class*="share-button_share-button_"]');
+                const shareBtn = e.target.closest('#panda-cloud-share-btn');
                 if (shareBtn) {
                     e.stopPropagation();
                     e.preventDefault();
@@ -319,11 +319,15 @@
                 }
                 
                 // Check if they clicked the Project Page button
-                const projectPageBtn = e.target.closest('div[class*="community-button_community-button_"]');
+                const projectPageBtn = e.target.closest('#panda-project-page-btn');
                 if (projectPageBtn) {
                     e.stopPropagation();
                     e.preventDefault();
-                    window.location.href = '/scratch/mystuff/';
+                    if (window.appId) {
+                        window.location.href = '/scratch/projects/editor/player.html?id=' + window.appId;
+                    } else {
+                        alert('請先儲存專案才能前往專案頁面！');
+                    }
                 }
             }, true); // Use capture phase to intercept before React
         }
