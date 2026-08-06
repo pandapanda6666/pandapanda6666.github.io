@@ -228,7 +228,16 @@
                         const originalText = saveNowBtn.innerText;
                         saveNowBtn.innerText = '儲存中...';
                         
-                        vm.saveProjectSb3().then(blob => {
+                        vm.saveProjectSb3().then(async blob => {
+                            const isEncrypted = localStorage.getItem('panda-encrypt-save') !== 'false';
+                            let finalBlob = blob;
+                            if (isEncrypted) {
+                                try {
+                                    finalBlob = await encryptSb3(blob);
+                                } catch (err) {
+                                    console.error("Cloud encrypt error:", err);
+                                }
+                            }
                             const reader = new FileReader();
                             reader.onloadend = function() {
                                 const base64data = reader.result.split(',')[1];
@@ -238,12 +247,10 @@
                                 }, (response) => {
                                     saveNowBtn.innerText = '已儲存';
                                     setTimeout(() => saveNowBtn.innerText = originalText, 2000);
-                                    // Hack to clear the "project changed" flag in Redux if possible,
-                                    // by emitting a fake save completion if needed.
                                 });
-                                console.log("PandaGuard: Manually saved to cloud.");
+                                console.log(PandaGuard: Manually saved to cloud (Encrypted: ).);
                             };
-                            reader.readAsDataURL(blob);
+                            reader.readAsDataURL(finalBlob);
                         }).catch(e => {
                             console.error("PandaGuard Manual Save Error:", e);
                             saveNowBtn.innerText = '儲存失敗';
