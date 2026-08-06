@@ -436,7 +436,6 @@
     <script type="module">
         import * as THREE from 'three';
         import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
         const WS_URL = 'ws://localhost:50500/rab';
         const BATTERY_API = 'http://localhost:50500/rab/battery?name=';
         
@@ -640,6 +639,12 @@
             scene.add(light);
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+            animate();
+
             // Handle resize
             window.addEventListener('resize', () => {
                 if(container.clientWidth > 0) {
@@ -648,19 +653,6 @@
                     renderer.setSize(container.clientWidth, container.clientHeight);
                 }
             });
-
-            // Add OrbitControls for zooming and rotating
-            const controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-            controls.enableZoom = true; // allow zoom in/out
-
-            function animate() {
-                requestAnimationFrame(animate);
-                controls.update(); // required if damping enabled
-                renderer.render(scene, camera);
-            }
-            animate();
 
             return { scene, camera, group };
         }
@@ -911,17 +903,10 @@
 
         const globalPipBtn = document.getElementById('globalPipBtn');
         globalPipBtn.onclick = async () => {
-            globalPipBtn.disabled = true;
             try {
                 if (document.pictureInPictureElement === pipVideo) {
                     await document.exitPictureInPicture();
                 } else {
-                    // 為了避免 captureStream 為空導致中斷，我們先強制畫一幀
-                    const wasActive = isPipActive;
-                    isPipActive = true;
-                    renderPipFrame();
-                    isPipActive = wasActive;
-
                     if (!streamInitialized) {
                         pipVideo.srcObject = pipCanvas.captureStream(30);
                         await pipVideo.play();
@@ -931,21 +916,13 @@
                 }
             } catch(e) {
                 console.error('PiP Error:', e);
-                // 嘗試恢復狀態
-                if (pipVideo.paused && streamInitialized) {
-                    pipVideo.play().catch(()=>{});
-                }
-            } finally {
-                globalPipBtn.disabled = false;
+                alert('瀏覽器不支援或發生錯誤，無法開啟子母畫面。');
             }
         };
 
-        let pipRafId = null;
         pipVideo.addEventListener('enterpictureinpicture', () => { 
-            if (!isPipActive) {
-                isPipActive = true; 
-                renderPipLoop(); 
-            }
+            isPipActive = true; 
+            renderPip(); 
             globalPipBtn.innerText = '退出總覽子母畫面';
         });
         pipVideo.addEventListener('leavepictureinpicture', () => { 
@@ -953,13 +930,9 @@
             globalPipBtn.innerText = '🌐 總覽子母畫面';
         });
 
-        function renderPipLoop() {
+        function renderPip() {
             if (!isPipActive) return;
-            pipRafId = requestAnimationFrame(renderPipLoop);
-            renderPipFrame();
-        }
-
-        function renderPipFrame() {
+            requestAnimationFrame(renderPip);
 
             // Clear background
             pipCtx.fillStyle = '#0f172a';
