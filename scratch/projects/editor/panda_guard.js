@@ -188,6 +188,55 @@
             };
             patchedLoad = true;
             console.log("PandaGuard: VM Load successfully patched!");
+            
+            // ==========================================
+            // CLOUD SYSTEM (BACKEND LOGIC)
+            // ==========================================
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('id');
+            const appId = projectId ? projectId : null;
+
+            // 1. Auto Load from Cloud
+            if (appId && typeof window.socket !== 'undefined' && window.socket.connected) {
+                console.log("PandaGuard: Requesting cloud project...", appId);
+                window.socket.emit('getAppData', { appId: appId }, (res) => {
+                    if (res && res.data && res.data.projectBase64) {
+                        try {
+                            const byteCharacters = atob(res.data.projectBase64);
+                            const byteNumbers = new Array(byteCharacters.length);
+                            for (let i = 0; i < byteCharacters.length; i++) {
+                                byteNumbers[i] = byteCharacters.charCodeAt(i);
+                            }
+                            const byteArray = new Uint8Array(byteNumbers);
+                            originalLoad(byteArray).then(() => {
+                                console.log("PandaGuard: Cloud project loaded successfully!");
+                            });
+                        } catch(e) { console.error("PandaGuard: Cloud load error:", e); }
+                    }
+                });
+            }
+
+            // 2. Auto Save to Cloud (Every 30 seconds if modified)
+            if (appId) {
+                setInterval(() => {
+                    if (typeof window.socket !== 'undefined' && window.socket.connected && vm.editingTarget) {
+                        // We check if it makes sense to save. VM doesn't expose a simple "isDirty" flag publicly without Redux.
+                        // We just save periodically.
+                        vm.saveProjectSb3().then(blob => {
+                            const reader = new FileReader();
+                            reader.onloadend = function() {
+                                const base64data = reader.result.split(',')[1];
+                                window.socket.emit('saveAppData', { 
+                                    appId: appId, 
+                                    data: { projectBase64: base64data } 
+                                });
+                                console.log("PandaGuard: Auto-saved to cloud.");
+                            };
+                            reader.readAsDataURL(blob);
+                        }).catch(e => console.error("PandaGuard AutoSave Error:", e));
+                    }
+                }, 30000);
+            }
         }
     }
 
