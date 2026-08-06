@@ -389,7 +389,6 @@
         let devices = {};
         let updateTimeouts = {};
         let scenes = {};
-        let angleData = {};
 
         function init3D(name) {
             scenes[name] = {
@@ -524,27 +523,14 @@
                 updateValueWithAnimation(`gyr-z-${data.name}`, formatNumber(data.gyr[2]));
             }
 
-            if (!angleData[data.name]) {
-                angleData[data.name] = { filteredPitch: 0, filteredRoll: 0 };
-            }
-
             if (scenes[data.name]) {
                 if (data.acc && scenes[data.name].acc) {
                     scenes[data.name].acc.position.set(data.acc[0] * 1.5, data.acc[1] * 1.5, data.acc[2] * 1.5);
                 }
-                if (data.acc && scenes[data.name].angle) {
-                    const ax = data.acc[0];
-                    const ay = data.acc[1];
-                    const az = data.acc[2];
-
-                    let p = Math.atan2(ay, Math.sqrt(ax*ax + az*az));
-                    let r = Math.atan2(ax, az);
-
-                    const alpha = 0.1;
-                    angleData[data.name].filteredPitch = angleData[data.name].filteredPitch * (1 - alpha) + p * alpha;
-                    angleData[data.name].filteredRoll = angleData[data.name].filteredRoll * (1 - alpha) + r * alpha;
-
-                    scenes[data.name].angle.rotation.set(angleData[data.name].filteredPitch, 0, angleData[data.name].filteredRoll, 'XYZ');
+                if (data.gyr && scenes[data.name].angle) {
+                    scenes[data.name].angle.rotation.x += data.gyr[0] * 0.05;
+                    scenes[data.name].angle.rotation.y += data.gyr[1] * 0.05;
+                    scenes[data.name].angle.rotation.z += data.gyr[2] * 0.05;
                 }
             }
 
