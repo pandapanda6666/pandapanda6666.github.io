@@ -411,7 +411,6 @@
     <header>
         <h1>Rabboni Monitor</h1>
         <div id="statusBadge" class="status-badge disconnected">連線中斷</div>
-        <button id="globalPipBtn" class="btn" style="max-width: 250px; margin-top: 1.5rem;">🌐 總覽子母畫面</button>
         <div id="deviceSelector" class="device-selector"></div>
     </header>
 
@@ -539,8 +538,8 @@
             cube.add(switchMesh);
 
             // Left Button (Left corner)
-            const btnGeo = new THREE.BoxGeometry(0.12, 0.12, 0.04);
-            const btnMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.7 });
+            const btnGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            const btnMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
             const buttonL = new THREE.Mesh(btnGeo, btnMat);
             buttonL.position.set(-0.62, -0.62, -0.05);
             buttonL.rotation.z = Math.PI / 4;
@@ -579,41 +578,26 @@
 
             // Bottom Clip
             const clipGroup = new THREE.Group();
+            
             const clipMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.6 });
-
-            // Main floating bar
             const clipBox = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.0, 0.05), clipMat);
-            clipBox.position.set(0, 0, -0.25);
             clipGroup.add(clipBox);
             
             const clipTop = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.05, 16), clipMat);
-            clipTop.position.set(0, 0.5, -0.25);
+            clipTop.position.set(0, 0.5, 0);
             clipTop.rotation.x = Math.PI / 2;
             clipGroup.add(clipTop);
             
             const clipBottom = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.125, 0.05, 16), clipMat);
-            clipBottom.position.set(0, -0.5, -0.25);
+            clipBottom.position.set(0, -0.5, 0);
             clipBottom.rotation.x = Math.PI / 2;
             clipGroup.add(clipBottom);
 
-            // Thick connecting block at Top (rounded corners)
-            const thickBlockGeo = new RoundedBoxGeometry(0.18, 0.25, 0.08, 4, 0.02);
-            const thickBlock = new THREE.Mesh(thickBlockGeo, clipMat);
-            thickBlock.position.set(0, 0.45, -0.19);
-            clipGroup.add(thickBlock);
-
-            // Thin connecting post at Bottom
-            const thinPostGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.08, 16);
-            const thinPost = new THREE.Mesh(thinPostGeo, clipMat);
-            thinPost.position.set(0, -0.45, -0.19);
-            thinPost.rotation.x = Math.PI / 2;
-            clipGroup.add(thinPost);
-
             // Screw on Bottom Clip
-            const screwGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.051, 16);
+            const screwGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.051, 16);
             const screwMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8 });
             const screw = new THREE.Mesh(screwGeo, screwMat);
-            screw.position.set(0, -0.45, -0.25); 
+            screw.position.set(0, -0.45, 0); 
             screw.rotation.x = Math.PI / 2;
             clipGroup.add(screw);
 
@@ -621,10 +605,11 @@
             const holeGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.052, 16);
             const holeMat = new THREE.MeshBasicMaterial({ color: 0x333333 }); 
             const hole = new THREE.Mesh(holeGeo, holeMat);
-            hole.position.set(0, 0.45, -0.25);
+            hole.position.set(0, 0.45, 0);
             hole.rotation.x = Math.PI / 2;
             clipGroup.add(hole);
-            
+
+            clipGroup.position.set(0, 0, -0.175); 
             clipGroup.rotation.z = Math.PI / 4; 
             cube.add(clipGroup);
             
@@ -638,6 +623,47 @@
             light.position.set(2, 5, 5);
             scene.add(light);
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+            // HUD Overlay for PiP
+            const hudCanvas = document.createElement('canvas');
+            hudCanvas.width = 512;
+            hudCanvas.height = 128;
+            const hudCtx = hudCanvas.getContext('2d');
+            const hudTex = new THREE.CanvasTexture(hudCanvas);
+            const hudMat = new THREE.SpriteMaterial({ map: hudTex, depthTest: false, depthWrite: false });
+            const hudSprite = new THREE.Sprite(hudMat);
+            hudSprite.position.set(0, -1.1, -2.5); 
+            hudSprite.scale.set(3.5, 0.875, 1);
+            hudSprite.renderOrder = 999;
+            camera.add(hudSprite);
+
+            // PiP Video Stream Setup
+            const video = document.createElement('video');
+            video.muted = true;
+            let streamInitialized = false;
+
+            const pipBtn = document.createElement('button');
+            pipBtn.innerText = '📺 彈出畫面';
+            pipBtn.className = 'pip-btn';
+            pipBtn.onclick = async () => {
+                try {
+                    if (document.pictureInPictureElement === video) {
+                        await document.exitPictureInPicture();
+                    } else {
+                        if (!streamInitialized) {
+                            const stream = renderer.domElement.captureStream(30);
+                            video.srcObject = stream;
+                            await video.play();
+                            streamInitialized = true;
+                        }
+                        await video.requestPictureInPicture();
+                    }
+                } catch(e) {
+                    console.error('PiP Error:', e);
+                    alert('瀏覽器不支援或發生錯誤，無法開啟子母畫面。');
+                }
+            };
+            container.appendChild(pipBtn);
 
             function animate() {
                 requestAnimationFrame(animate);
@@ -654,7 +680,7 @@
                 }
             });
 
-            return { scene, camera, group };
+            return { group, hudCtx, hudTex, type };
         }
 
         const statusBadge = document.getElementById('statusBadge');
@@ -760,6 +786,23 @@
 
                 if (data.acc && accScene) {
                     accScene.group.position.set(data.acc[0] * 1.5, data.acc[2] * 1.5, -data.acc[1] * 1.5);
+                    
+                    const ctx = accScene.hudCtx;
+                    ctx.clearRect(0, 0, 512, 128);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    // Use standard Canvas API for rounded rect (for older browsers, roundRect is new, but fine for Chrome)
+                    if (ctx.roundRect) {
+                        ctx.roundRect(16, 16, 480, 96, 16);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(16, 16, 480, 96);
+                    }
+                    ctx.fillStyle = '#6ee7b7';
+                    ctx.font = 'bold 32px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`A [X:${formatNumber(data.acc[0])} Y:${formatNumber(data.acc[1])} Z:${formatNumber(data.acc[2])}]`, 256, 64);
+                    accScene.hudTex.needsUpdate = true;
                 }
                 
                 if (data.acc && angleScene) {
@@ -774,6 +817,24 @@
                     angleData[data.name].filteredRoll = angleData[data.name].filteredRoll * (1 - alpha) + r * alpha;
 
                     angleScene.group.rotation.set(angleData[data.name].filteredPitch, 0, angleData[data.name].filteredRoll, 'XYZ');
+
+                    const ctx = angleScene.hudCtx;
+                    ctx.clearRect(0, 0, 512, 128);
+                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                    if (ctx.roundRect) {
+                        ctx.roundRect(16, 16, 480, 96, 16);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(16, 16, 480, 96);
+                    }
+                    ctx.fillStyle = '#93c5fd';
+                    ctx.font = 'bold 36px monospace';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const pDeg = (angleData[data.name].filteredPitch * 180 / Math.PI).toFixed(1);
+                    const rDeg = (angleData[data.name].filteredRoll * 180 / Math.PI).toFixed(1);
+                    ctx.fillText(`PITCH: ${pDeg}° ROLL: ${rDeg}°`, 256, 64);
+                    angleScene.hudTex.needsUpdate = true;
                 }
             }
 
@@ -886,130 +947,6 @@
         }
 
 
-
-        // Master Canvas PiP Setup
-        const pipCanvas = document.createElement('canvas');
-        pipCanvas.width = 1920;
-        pipCanvas.height = 1080;
-        const pipCtx = pipCanvas.getContext('2d');
-
-        const pipRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
-        
-        const pipVideo = document.createElement('video');
-        pipVideo.muted = true;
-        let isPipActive = false;
-        let streamInitialized = false;
-
-        const globalPipBtn = document.getElementById('globalPipBtn');
-        globalPipBtn.onclick = async () => {
-            try {
-                if (document.pictureInPictureElement === pipVideo) {
-                    await document.exitPictureInPicture();
-                } else {
-                    if (!streamInitialized) {
-                        pipVideo.srcObject = pipCanvas.captureStream(30);
-                        await pipVideo.play();
-                        streamInitialized = true;
-                    }
-                    await pipVideo.requestPictureInPicture();
-                }
-            } catch(e) {
-                console.error('PiP Error:', e);
-                alert('瀏覽器不支援或發生錯誤，無法開啟子母畫面。');
-            }
-        };
-
-        pipVideo.addEventListener('enterpictureinpicture', () => { 
-            isPipActive = true; 
-            renderPip(); 
-            globalPipBtn.innerText = '退出總覽子母畫面';
-        });
-        pipVideo.addEventListener('leavepictureinpicture', () => { 
-            isPipActive = false; 
-            globalPipBtn.innerText = '🌐 總覽子母畫面';
-        });
-
-        function renderPip() {
-            if (!isPipActive) return;
-            requestAnimationFrame(renderPip);
-
-            // Clear background
-            pipCtx.fillStyle = '#0f172a';
-            pipCtx.fillRect(0, 0, 1920, 1080);
-
-            const activeDevices = Object.keys(devices).filter(name => {
-                const card = document.getElementById(`device-${name}`);
-                return card && card.style.display !== 'none';
-            });
-
-            if (activeDevices.length === 0) {
-                pipCtx.fillStyle = '#94a3b8';
-                pipCtx.font = 'bold 48px Inter';
-                pipCtx.textAlign = 'center';
-                pipCtx.fillText('無顯示中的裝置', 960, 540);
-                return;
-            }
-
-            // Grid layout
-            const cols = Math.ceil(Math.sqrt(activeDevices.length));
-            const rows = Math.ceil(activeDevices.length / cols);
-            const cellW = 1920 / cols;
-            const cellH = 1080 / rows;
-
-            activeDevices.forEach((name, idx) => {
-                const r = Math.floor(idx / cols);
-                const c = idx % cols;
-                const x = c * cellW;
-                const y = r * cellH;
-
-                // Draw Panel Background
-                pipCtx.fillStyle = 'rgba(255,255,255,0.05)';
-                if (pipCtx.roundRect) {
-                    pipCtx.beginPath();
-                    pipCtx.roundRect(x + 20, y + 20, cellW - 40, cellH - 40, 24);
-                    pipCtx.fill();
-                } else {
-                    pipCtx.fillRect(x + 20, y + 20, cellW - 40, cellH - 40);
-                }
-
-                // Draw Device Name
-                pipCtx.fillStyle = '#ffffff';
-                pipCtx.font = 'bold 42px Inter';
-                pipCtx.textAlign = 'left';
-                pipCtx.fillText(`[ ${name} ]`, x + 60, y + 90);
-
-                const aData = angleData[name] || { filteredPitch: 0, filteredRoll: 0 };
-                const pDeg = (aData.filteredPitch * 180 / Math.PI).toFixed(1);
-                const rDeg = (aData.filteredRoll * 180 / Math.PI).toFixed(1);
-
-                const ax = document.getElementById(`acc-x-${name}`)?.textContent.trim() || '0.000';
-                const ay = document.getElementById(`acc-y-${name}`)?.textContent.trim() || '0.000';
-                const az = document.getElementById(`acc-z-${name}`)?.textContent.trim() || '0.000';
-
-                pipCtx.font = 'bold 32px monospace';
-                pipCtx.fillStyle = '#93c5fd'; 
-                pipCtx.fillText(`PITCH: ${pDeg}°   ROLL: ${rDeg}°`, x + 60, y + 150);
-                
-                pipCtx.fillStyle = '#6ee7b7'; 
-                pipCtx.fillText(`ACC: X:${ax} Y:${ay} Z:${az}`, x + 60, y + 200);
-                
-                const sObj = scenes[name];
-                if (sObj) {
-                    const canvasW = Math.floor((cellW - 100) / 2);
-                    const canvasH = Math.floor(cellH - 240);
-                    pipRenderer.setSize(canvasW, canvasH);
-                    
-                    if (sObj.angle) {
-                        pipRenderer.render(sObj.angle.scene, sObj.angle.camera);
-                        pipCtx.drawImage(pipRenderer.domElement, x + 40, y + 220);
-                    }
-                    if (sObj.acc) {
-                        pipRenderer.render(sObj.acc.scene, sObj.acc.camera);
-                        pipCtx.drawImage(pipRenderer.domElement, x + 60 + canvasW, y + 220);
-                    }
-                }
-            });
-        }
 
         // Init
         connectWebSocket();
