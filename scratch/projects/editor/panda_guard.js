@@ -259,7 +259,7 @@
                 // Check if they clicked the Save Now button
                 const saveNowBtn = e.target.closest('#panda-cloud-save-btn');
                 if (saveNowBtn && vm && vm.editingTarget) {
-                    e.stopPropagation();
+                    e.stopPropagation(); e.stopImmediatePropagation();
                     e.preventDefault();
                     
                     if (typeof window.socket !== 'undefined' && window.socket.connected) {
@@ -308,7 +308,7 @@
                 // Check if they clicked the Share button
                 const shareBtn = e.target.closest('div[class*="share-button_share-button_"]');
                 if (shareBtn) {
-                    e.stopPropagation();
+                    e.stopPropagation(); e.stopImmediatePropagation();
                     e.preventDefault();
                     if (window.appId && typeof window.socket !== 'undefined' && window.socket.connected) {
                         window.socket.emit('shareProject', { projectId: window.appId });
@@ -322,7 +322,7 @@
                 // Check if they clicked the Project Page button
                 const projectPageBtn = e.target.closest('div[class*="community-button_community-button_"]');
                 if (projectPageBtn) {
-                    e.stopPropagation();
+                    e.stopPropagation(); e.stopImmediatePropagation();
                     e.preventDefault();
                     if (window.appId) {
                         window.location.href = '/scratch/projects/editor/player/?id=' + window.appId;
