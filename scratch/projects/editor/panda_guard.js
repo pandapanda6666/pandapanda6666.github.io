@@ -324,7 +324,7 @@
                     e.stopPropagation();
                     e.preventDefault();
                     if (window.appId) {
-                        window.location.href = '/scratch/projects/editor/player.html?id=' + window.appId;
+                        window.location.href = '/scratch/projects/editor/player/?id=' + window.appId;
                     } else {
                         alert('請先儲存專案才能前往專案頁面！');
                     }
