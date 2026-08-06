@@ -380,17 +380,8 @@
         </div>
     </main>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-        }
-      }
-    </script>
-    <script type="module">
-        import * as THREE from 'three';
-        import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
         const WS_URL = 'ws://localhost:50500/rab';
         const BATTERY_API = 'http://localhost:50500/rab/battery?name=';
         
@@ -402,8 +393,8 @@
 
         function init3D(name) {
             scenes[name] = {
-                angle: createScene(`canvas-angle-${name}`, 0x88bbff),
-                acc: createScene(`canvas-acc-${name}`, 0xf472b6)
+                angle: createScene(`canvas-angle-${name}`, 0x3b82f6),
+                acc: createScene(`canvas-acc-${name}`, 0x10b981)
             };
         }
 
@@ -417,12 +408,9 @@
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
 
-            const group = new THREE.Group();
-            scene.add(group);
-
-            const geometry = new RoundedBoxGeometry(1.2, 0.4, 1.2, 4, 0.2);
+            const geometry = new THREE.BoxGeometry(1.2, 0.4, 1.2);
             const edges = new THREE.EdgesGeometry(geometry);
-            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 }));
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
             
             const material = new THREE.MeshPhongMaterial({ 
                 color: colorHex,
@@ -431,11 +419,7 @@
             });
             const cube = new THREE.Mesh(geometry, material);
             cube.add(line);
-            
-            // 將內部模型旋轉 45 度，使其看起來像正菱形
-            cube.rotation.y = Math.PI / 4;
-            
-            group.add(cube);
+            scene.add(cube);
 
             const light = new THREE.DirectionalLight(0xffffff, 1);
             light.position.set(2, 2, 5);
@@ -459,7 +443,7 @@
                 }
             });
 
-            return group;
+            return cube;
         }
 
         const statusBadge = document.getElementById('statusBadge');
