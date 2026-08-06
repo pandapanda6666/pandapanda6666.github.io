@@ -355,49 +355,6 @@
             border-radius: 8px;
             background: rgba(0, 0, 0, 0.3);
             overflow: hidden;
-            position: relative;
-        }
-
-        .pip-btn {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            background: rgba(0,0,0,0.5);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            backdrop-filter: blur(4px);
-            transition: all 0.2s;
-            z-index: 10;
-        }
-        .pip-btn:hover {
-            background: rgba(59, 130, 246, 0.5);
-            border-color: rgba(255,255,255,0.4);
-        }
-
-        .device-selector {
-            margin-top: 1.5rem;
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .device-checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255,255,255,0.1);
-            padding: 0.5rem 1rem;
-            border-radius: 999px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 0.9rem;
-        }
-        .device-checkbox-label:hover {
-            background: rgba(255,255,255,0.2);
         }
 
         ::-webkit-scrollbar { width: 10px; }
@@ -411,7 +368,6 @@
     <header>
         <h1>Rabboni Monitor</h1>
         <div id="statusBadge" class="status-badge disconnected">連線中斷</div>
-        <div id="deviceSelector" class="device-selector"></div>
     </header>
 
     <main id="deviceContainer">
@@ -446,12 +402,12 @@
 
         function init3D(name) {
             scenes[name] = {
-                angle: createScene(`canvas-angle-${name}`, 0x3b82f6, 'angle'),
-                acc: createScene(`canvas-acc-${name}`, 0x10b981, 'acc')
+                angle: createScene(`canvas-angle-${name}`, 0x3b82f6),
+                acc: createScene(`canvas-acc-${name}`, 0x10b981)
             };
         }
 
-        function createScene(containerId, ledColorHex, type) {
+        function createScene(containerId, ledColorHex) {
             const container = document.getElementById(containerId);
             if (!container) return null;
             const scene = new THREE.Scene();
@@ -459,9 +415,8 @@
             
             camera.position.set(0, 3, 3);
             camera.lookAt(0, 0, 0);
-            scene.add(camera);
 
-            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
@@ -541,13 +496,13 @@
             const btnGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
             const btnMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
             const buttonL = new THREE.Mesh(btnGeo, btnMat);
-            buttonL.position.set(-0.62, -0.62, -0.05);
+            buttonL.position.set(-0.73, -0.73, -0.05);
             buttonL.rotation.z = Math.PI / 4;
             cube.add(buttonL);
 
             // Right Button (Right corner)
             const buttonR = new THREE.Mesh(btnGeo, btnMat);
-            buttonR.position.set(0.62, 0.62, -0.05);
+            buttonR.position.set(0.73, 0.73, -0.05);
             buttonR.rotation.z = Math.PI / 4;
             cube.add(buttonR);
             
@@ -624,47 +579,6 @@
             scene.add(light);
             scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-            // HUD Overlay for PiP
-            const hudCanvas = document.createElement('canvas');
-            hudCanvas.width = 512;
-            hudCanvas.height = 128;
-            const hudCtx = hudCanvas.getContext('2d');
-            const hudTex = new THREE.CanvasTexture(hudCanvas);
-            const hudMat = new THREE.SpriteMaterial({ map: hudTex, depthTest: false, depthWrite: false });
-            const hudSprite = new THREE.Sprite(hudMat);
-            hudSprite.position.set(0, -1.1, -2.5); 
-            hudSprite.scale.set(3.5, 0.875, 1);
-            hudSprite.renderOrder = 999;
-            camera.add(hudSprite);
-
-            // PiP Video Stream Setup
-            const video = document.createElement('video');
-            video.muted = true;
-            let streamInitialized = false;
-
-            const pipBtn = document.createElement('button');
-            pipBtn.innerText = '📺 彈出畫面';
-            pipBtn.className = 'pip-btn';
-            pipBtn.onclick = async () => {
-                try {
-                    if (document.pictureInPictureElement === video) {
-                        await document.exitPictureInPicture();
-                    } else {
-                        if (!streamInitialized) {
-                            const stream = renderer.domElement.captureStream(30);
-                            video.srcObject = stream;
-                            await video.play();
-                            streamInitialized = true;
-                        }
-                        await video.requestPictureInPicture();
-                    }
-                } catch(e) {
-                    console.error('PiP Error:', e);
-                    alert('瀏覽器不支援或發生錯誤，無法開啟子母畫面。');
-                }
-            };
-            container.appendChild(pipBtn);
-
             function animate() {
                 requestAnimationFrame(animate);
                 renderer.render(scene, camera);
@@ -680,7 +594,7 @@
                 }
             });
 
-            return { group, hudCtx, hudTex, type };
+            return group;
         }
 
         const statusBadge = document.getElementById('statusBadge');
@@ -739,21 +653,6 @@
             if (!devices[data.name]) {
                 createDeviceCard(data.name);
                 devices[data.name] = true;
-                
-                const selector = document.getElementById('deviceSelector');
-                const label = document.createElement('label');
-                label.className = 'device-checkbox-label';
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = true;
-                checkbox.onchange = (e) => {
-                    const card = document.getElementById(`device-${data.name}`);
-                    card.style.display = e.target.checked ? 'flex' : 'none';
-                };
-                label.appendChild(checkbox);
-                label.appendChild(document.createTextNode(data.name));
-                selector.appendChild(label);
-
                 if (emptyState.style.display !== 'none') {
                     emptyState.style.display = 'none';
                 }
@@ -781,34 +680,14 @@
             }
 
             if (scenes[data.name]) {
-                const angleScene = scenes[data.name].angle;
-                const accScene = scenes[data.name].acc;
-
-                if (data.acc && accScene) {
-                    accScene.group.position.set(data.acc[0] * 1.5, data.acc[2] * 1.5, -data.acc[1] * 1.5);
-                    
-                    const ctx = accScene.hudCtx;
-                    ctx.clearRect(0, 0, 512, 128);
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                    // Use standard Canvas API for rounded rect (for older browsers, roundRect is new, but fine for Chrome)
-                    if (ctx.roundRect) {
-                        ctx.roundRect(16, 16, 480, 96, 16);
-                        ctx.fill();
-                    } else {
-                        ctx.fillRect(16, 16, 480, 96);
-                    }
-                    ctx.fillStyle = '#6ee7b7';
-                    ctx.font = 'bold 32px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(`A [X:${formatNumber(data.acc[0])} Y:${formatNumber(data.acc[1])} Z:${formatNumber(data.acc[2])}]`, 256, 64);
-                    accScene.hudTex.needsUpdate = true;
+                if (data.acc && scenes[data.name].acc) {
+                    scenes[data.name].acc.position.set(data.acc[0] * 1.5, data.acc[2] * 1.5, -data.acc[1] * 1.5);
                 }
-                
-                if (data.acc && angleScene) {
+                if (data.acc && scenes[data.name].angle) {
                     const ax = data.acc[0];
                     const ay = data.acc[1];
                     const az = data.acc[2];
+
                     let p = Math.atan2(ay, Math.sqrt(ax*ax + az*az));
                     let r = Math.atan2(ax, az);
 
@@ -816,25 +695,7 @@
                     angleData[data.name].filteredPitch = angleData[data.name].filteredPitch * (1 - alpha) + p * alpha;
                     angleData[data.name].filteredRoll = angleData[data.name].filteredRoll * (1 - alpha) + r * alpha;
 
-                    angleScene.group.rotation.set(angleData[data.name].filteredPitch, 0, angleData[data.name].filteredRoll, 'XYZ');
-
-                    const ctx = angleScene.hudCtx;
-                    ctx.clearRect(0, 0, 512, 128);
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                    if (ctx.roundRect) {
-                        ctx.roundRect(16, 16, 480, 96, 16);
-                        ctx.fill();
-                    } else {
-                        ctx.fillRect(16, 16, 480, 96);
-                    }
-                    ctx.fillStyle = '#93c5fd';
-                    ctx.font = 'bold 36px monospace';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    const pDeg = (angleData[data.name].filteredPitch * 180 / Math.PI).toFixed(1);
-                    const rDeg = (angleData[data.name].filteredRoll * 180 / Math.PI).toFixed(1);
-                    ctx.fillText(`PITCH: ${pDeg}° ROLL: ${rDeg}°`, 256, 64);
-                    angleScene.hudTex.needsUpdate = true;
+                    scenes[data.name].angle.rotation.set(angleData[data.name].filteredPitch, 0, angleData[data.name].filteredRoll, 'XYZ');
                 }
             }
 
