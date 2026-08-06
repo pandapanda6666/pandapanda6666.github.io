@@ -216,12 +216,18 @@
                 });
             }
 
-            // 2. Auto Save to Cloud (Every 30 seconds if modified)
-            if (appId) {
-                setInterval(() => {
-                    if (typeof window.socket !== 'undefined' && window.socket.connected && vm.editingTarget) {
-                        // We check if it makes sense to save. VM doesn't expose a simple "isDirty" flag publicly without Redux.
-                        // We just save periodically.
+            // 2. Manual Save to Cloud (Intercept native "Save now" button)
+            document.addEventListener('click', (e) => {
+                // Check if they clicked the Save Now button
+                const saveNowBtn = e.target.closest('div[class*="save-status_save-now_"]');
+                if (saveNowBtn && vm && vm.editingTarget) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    
+                    if (appId && typeof window.socket !== 'undefined' && window.socket.connected) {
+                        const originalText = saveNowBtn.innerText;
+                        saveNowBtn.innerText = '儲存中...';
+                        
                         vm.saveProjectSb3().then(blob => {
                             const reader = new FileReader();
                             reader.onloadend = function() {
@@ -229,14 +235,45 @@
                                 window.socket.emit('saveAppData', { 
                                     appId: appId, 
                                     data: { projectBase64: base64data } 
+                                }, (response) => {
+                                    saveNowBtn.innerText = '已儲存';
+                                    setTimeout(() => saveNowBtn.innerText = originalText, 2000);
+                                    // Hack to clear the "project changed" flag in Redux if possible,
+                                    // by emitting a fake save completion if needed.
                                 });
-                                console.log("PandaGuard: Auto-saved to cloud.");
+                                console.log("PandaGuard: Manually saved to cloud.");
                             };
                             reader.readAsDataURL(blob);
-                        }).catch(e => console.error("PandaGuard AutoSave Error:", e));
+                        }).catch(e => {
+                            console.error("PandaGuard Manual Save Error:", e);
+                            saveNowBtn.innerText = '儲存失敗';
+                        });
+                    } else {
+                        alert("伺服器尚未連線，無法儲存至雲端！");
                     }
-                }, 30000);
-            }
+                }
+                
+                // Check if they clicked the Share button
+                const shareBtn = e.target.closest('div[class*="share-button_share-button_"]');
+                if (shareBtn) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (appId && typeof window.socket !== 'undefined' && window.socket.connected) {
+                        window.socket.emit('shareProject', { projectId: appId });
+                        alert('專案已分享！');
+                    } else {
+                        alert('尚未連線到伺服器');
+                    }
+                }
+                
+                // Check if they clicked the Project Page button
+                const projectPageBtn = e.target.closest('div[class*="community-button_community-button_"]');
+                if (projectPageBtn) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    window.location.href = '/scratch/mystuff/';
+                }
+            }, true); // Use capture phase to intercept before React
         }
     }
 
