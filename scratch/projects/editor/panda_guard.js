@@ -257,7 +257,7 @@
             // 2. Manual Save to Cloud (Intercept native "Save now" button)
             document.addEventListener('click', (e) => {
                 // Check if they clicked the Save Now button
-                const saveNowBtn = e.target.closest('div[class*="save-status_save-now_"]');
+                const saveNowBtn = e.target.closest('#panda-cloud-save-btn');
                 if (saveNowBtn && vm && vm.editingTarget) {
                     e.stopPropagation();
                     e.preventDefault();
