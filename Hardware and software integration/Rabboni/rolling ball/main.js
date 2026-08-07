@@ -32,6 +32,7 @@ const statusBadge = document.getElementById('statusBadge');
 const valPitch = document.getElementById('valPitch');
 const valRoll = document.getElementById('valRoll');
 const calibrateBtn = document.getElementById('calibrateBtn');
+const deviceSelect = document.getElementById('deviceSelect');
 const cameraBtn = document.getElementById('cameraBtn');
 const cameraFollowLabel = document.getElementById('cameraFollowLabel');
 const cameraFollowToggle = document.getElementById('cameraFollowToggle');
@@ -304,6 +305,8 @@ function updateQuestUI() {
 }
 
 // --- WebSocket & Sensor Fusion ---
+let knownDevices = new Set();
+
 function connectWebSocket() {
     statusBadge.textContent = '連線中...';
     socket = new WebSocket(WS_URL);
@@ -319,7 +322,22 @@ function connectWebSocket() {
     socket.addEventListener('message', (event) => {
         try {
             const data = JSON.parse(event.data);
-            if (data && data.acc) processSensorData(data.acc);
+            if (data && data.name) {
+                if (!knownDevices.has(data.name)) {
+                    knownDevices.add(data.name);
+                    const opt = document.createElement('option');
+                    opt.value = data.name;
+                    opt.textContent = data.name;
+                    deviceSelect.appendChild(opt);
+                    if (knownDevices.size === 1) {
+                        deviceSelect.value = data.name; // Auto-select first device
+                    }
+                }
+                
+                if (data.acc && deviceSelect.value === data.name) {
+                    processSensorData(data.acc);
+                }
+            }
         } catch (e) {}
     });
 }
@@ -456,3 +474,4 @@ function animate() {
 
 // Run!
 init();
+
