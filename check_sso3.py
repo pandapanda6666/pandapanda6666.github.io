@@ -5,7 +5,7 @@ with codecs.open(path, 'r', 'utf-8') as f:
     lines = f.readlines()
 
 for i, line in enumerate(lines):
-    if '開啟前台模式' in line:
+    if '前台' in line:
         start = max(0, i - 10)
         end = min(len(lines), i + 20)
         for j in range(start, end):
