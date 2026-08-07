@@ -2,12 +2,6 @@
 
 path = r'C:\Users\User\Desktop\伺服器\登入\server.js'
 with codecs.open(path, 'r', 'utf-8') as f:
-    lines = f.readlines()
-
-for i, line in enumerate(lines):
-    if 'saveAppData' in line:
-        start = max(0, i - 2)
-        end = min(len(lines), i + 25)
-        for j in range(start, end):
-            print(f"{j+1}: {lines[j].rstrip('\n').encode('cp950', errors='ignore').decode('cp950')}")
-        break
+    for i, line in enumerate(f):
+        if 'socket.io' in line.lower() or 'maxhttp' in line.lower() or 'cors' in line.lower():
+            print(f"{i+1}: {line.strip()}")
