@@ -196,7 +196,10 @@
 
                     const zip = await JSZip.loadAsync(fileBuffer);
                     let hasPandaProject = false;
-                    for (const f of Object.keys(zip.files)) {
+                    const allKeys = Object.keys(zip.files);
+                    console.log("PandaGuard: Zip files found:", allKeys);
+                    
+                    for (const f of allKeys) {
                         if (f.includes("panda_project/") && f.includes("panda.json")) {
                             hasPandaProject = true;
                             break;
@@ -206,7 +209,7 @@
                     if (hasPandaProject) {
                         console.log("PandaGuard: Detected PandaScratch protected project, unwrapping...");
                         const unwrappedZip = new JSZip();
-                        for (const f of Object.keys(zip.files)) {
+                        for (const f of allKeys) {
                             if (f.includes("panda_project/") && !zip.files[f].dir) {
                                 let newFilename = f.substring(f.indexOf("panda_project/") + 14);
                                 if (newFilename === "panda.json") newFilename = "project.json";
@@ -214,14 +217,28 @@
                                 unwrappedZip.file(newFilename, fileData);
                             }
                         }
-                        const unwrappedBuffer = await unwrappedZip.generateAsync({type: "uint8array"});
-                        return originalLoad(unwrappedBuffer, ...args);
+                        const unwrappedBuffer = await unwrappedZip.generateAsync({type: "arraybuffer"});
+                        try {
+                            const result = await originalLoad(unwrappedBuffer, ...args);
+                            return result;
+                        } catch (loadErr) {
+                            console.error("PandaGuard: Inner load failed:", loadErr);
+                            alert("防盜專案解密失敗：內層專案損毀或格式錯誤！\n" + loadErr.message);
+                            return originalLoad(fileBuffer, ...args);
+                        }
                     } else {
+                        console.log("PandaGuard: No panda_project found, loading normally.");
+                        if (allKeys.includes("project.json")) {
+                            const pjson = await zip.file("project.json").async("string");
+                            if (pjson.includes("不要盜用專案")) {
+                                alert("警告：偵測到防盜外層，但找不到內層專案！可能是檔案已經損毀或被不當修改。");
+                            }
+                        }
                         return originalLoad(fileBuffer, ...args);
                     }
                 } catch (e) {
                     console.error("PandaGuard: Intercept error (maybe not a valid zip):", e);
-                    // Ignore non-zip errors (e.g. MIT 404 responses from native fetch)
+                    alert("防盜專案解析錯誤：\n" + e.message);
                     return originalLoad(fileBuffer, ...args);
                 }
             };
