@@ -95,50 +95,11 @@
     };
 
     async function processAndDownloadSb3(originalBlob, filename) {
-        const JSZip = window.JSZip;
-        if (!JSZip) throw new Error("JSZip not found!");
-
-        const originalZip = await JSZip.loadAsync(originalBlob);
-        
-        const newZip = new JSZip();
-        const pandaFolder = newZip.folder("panda_project");
-        
-        // Move all original files to panda_project/
-        for (const f of Object.keys(originalZip.files)) {
-            // JSZip .files includes folders, we should only copy files
-            if (!originalZip.files[f].dir) {
-                const fileData = await originalZip.files[f].async("uint8array");
-                if (f === "project.json") {
-                    pandaFolder.file("panda.json", fileData);
-                } else {
-                    pandaFolder.file(f, fileData);
-                }
-            }
-        }
-        
-        // Inject the warning project to the root
-        const warningZipBase64 = window.PANDA_WARNING_ZIP_BASE64;
-        if (warningZipBase64) {
-            const warningZip = await JSZip.loadAsync(warningZipBase64, {base64: true});
-            for (const f of Object.keys(warningZip.files)) {
-                if (!warningZip.files[f].dir) {
-                    const fileData = await warningZip.files[f].async("uint8array");
-                    newZip.file(f, fileData);
-                }
-            }
-        }
-
-        const newBlob = await newZip.generateAsync({
-            type: "blob",
-            mimeType: "application/x.scratch.sb3",
-            compression: "DEFLATE",
-            compressionOptions: { level: 6 }
-        });
+        const finalBlob = await window.encryptSb3(originalBlob);
         
         if (window.isCloudSaving && typeof window.socket !== 'undefined' && window.socket.connected) {
             console.log("PandaGuard: Cloud Save activated! Uploading...");
             
-            // Read Blob as base64
             const reader = new FileReader();
             reader.onloadend = function() {
                 const base64data = reader.result.split(',')[1];
@@ -150,12 +111,13 @@
                     window.isCloudSaving = false;
                 });
             };
-            reader.readAsDataURL(newBlob);
+            reader.readAsDataURL(finalBlob);
             
-            return; // Skip local download
+            return;
         }
 
-        const newUrl = URL.createObjectURL(newBlob);
+        const newUrl = URL.createObjectURL(finalBlob);
+
         
         const a = document.createElement('a');
         a.href = newUrl;
