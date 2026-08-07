@@ -157,7 +157,7 @@
         a.remove();
         
         // We can revoke the new URL safely
-        setTimeout(() => URL.revokeObjectURL(newUrl), 1000);
+        setTimeout(() => URL.revokeObjectURL(newUrl), 60000);
     }
     
     // 3. Keep the VM loadProject patch for loading PandaScratch files
