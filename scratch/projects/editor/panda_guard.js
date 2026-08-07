@@ -189,9 +189,10 @@
         if (!patchedLoad && vm.loadProject) {
             const originalLoad = vm.loadProject.bind(vm);
             vm.loadProject = async function(fileBuffer, ...args) {
-                console.log("PandaGuard: Intercepted loadProject");
-                try {
-                    const JSZip = window.JSZip;
+                if (!patchedLoad) return originalLoad(fileBuffer, ...args);
+                if (typeof fileBuffer === 'string') return originalLoad(fileBuffer, ...args);
+                
+                try {        const JSZip = window.JSZip;
                     if (!JSZip) return originalLoad(fileBuffer, ...args);
 
                     const zip = await JSZip.loadAsync(fileBuffer);
@@ -238,7 +239,6 @@
                     }
                 } catch (e) {
                     console.error("PandaGuard: Intercept error (maybe not a valid zip):", e);
-                    alert("防盜專案解析錯誤：\n" + e.message);
                     return originalLoad(fileBuffer, ...args);
                 }
             };
