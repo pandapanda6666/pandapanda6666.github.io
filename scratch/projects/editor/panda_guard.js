@@ -197,7 +197,7 @@
                     const zip = await JSZip.loadAsync(fileBuffer);
                     let hasPandaProject = false;
                     for (const f of Object.keys(zip.files)) {
-                        if (f.startsWith("panda_project/panda.json")) {
+                        if (f.includes("panda_project/") && f.includes("panda.json")) {
                             hasPandaProject = true;
                             break;
                         }
@@ -207,8 +207,8 @@
                         console.log("PandaGuard: Detected PandaScratch protected project, unwrapping...");
                         const unwrappedZip = new JSZip();
                         for (const f of Object.keys(zip.files)) {
-                            if (f.startsWith("panda_project/") && !zip.files[f].dir) {
-                                let newFilename = f.substring("panda_project/".length);
+                            if (f.includes("panda_project/") && !zip.files[f].dir) {
+                                let newFilename = f.substring(f.indexOf("panda_project/") + 14);
                                 if (newFilename === "panda.json") newFilename = "project.json";
                                 const fileData = await zip.files[f].async("uint8array");
                                 unwrappedZip.file(newFilename, fileData);
@@ -220,6 +220,7 @@
                         return originalLoad(fileBuffer, ...args);
                     }
                 } catch (e) {
+                    console.error("PandaGuard: Intercept error (maybe not a valid zip):", e);
                     // Ignore non-zip errors (e.g. MIT 404 responses from native fetch)
                     return originalLoad(fileBuffer, ...args);
                 }

@@ -744,7 +744,7 @@
             }
             animate();
 
-            return { scene, camera, group, controls, renderer };
+            return { scene, camera, group, controls };
         }
 
         const statusBadge = document.getElementById('statusBadge');
@@ -1101,6 +1101,9 @@
         pipCanvas.width = 1920;
         pipCanvas.height = 1080;
         const pipCtx = pipCanvas.getContext('2d');
+
+        const pipRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+        pipRenderer.setSize(800, 600); // Fixed high resolution to prevent lag
         
         const pipVideo = document.createElement('video');
         pipVideo.muted = true;
@@ -1139,12 +1142,10 @@
         };
 
         let pipRafId = null;
-        let pipLastTime = 0;
         pipVideo.addEventListener('enterpictureinpicture', () => { 
             if (!isPipActive) {
                 isPipActive = true; 
-                pipLastTime = performance.now();
-                renderPipLoop(pipLastTime); 
+                renderPipLoop(); 
             }
             globalPipBtn.innerText = '退出總覽子母畫面';
         });
@@ -1153,14 +1154,9 @@
             globalPipBtn.innerText = '🌐 總覽子母畫面';
         });
 
-        function renderPipLoop(time) {
+        function renderPipLoop() {
             if (!isPipActive) return;
             pipRafId = requestAnimationFrame(renderPipLoop);
-            
-            // Throttle to ~30fps for performance
-            if (time - pipLastTime < 33) return;
-            pipLastTime = time;
-
             renderPipFrame();
         }
 
@@ -1231,29 +1227,13 @@
                     const canvasW = Math.floor((cellW - 100) / 2);
                     const canvasH = Math.floor(cellH - 240);
                     
-                    const drawWithAspect = (domElement, dx, dy, dw, dh) => {
-                        if (!domElement) return;
-                        const srcW = domElement.width || 1;
-                        const srcH = domElement.height || 1;
-                        const srcRatio = srcW / srcH;
-                        const dstRatio = dw / dh;
-                        let finalW = dw;
-                        let finalH = dh;
-                        if (srcRatio > dstRatio) {
-                            finalH = dw / srcRatio;
-                        } else {
-                            finalW = dh * srcRatio;
-                        }
-                        const offX = dx + (dw - finalW) / 2;
-                        const offY = dy + (dh - finalH) / 2;
-                        pipCtx.drawImage(domElement, offX, offY, finalW, finalH);
-                    };
-
-                    if (sObj.angle && sObj.angle.renderer) {
-                        drawWithAspect(sObj.angle.renderer.domElement, x + 40, y + 220, canvasW, canvasH);
+                    if (sObj.angle) {
+                        pipRenderer.render(sObj.angle.scene, sObj.angle.camera);
+                        pipCtx.drawImage(pipRenderer.domElement, x + 40, y + 220, canvasW, canvasH);
                     }
-                    if (sObj.acc && sObj.acc.renderer) {
-                        drawWithAspect(sObj.acc.renderer.domElement, x + 60 + canvasW, y + 220, canvasW, canvasH);
+                    if (sObj.acc) {
+                        pipRenderer.render(sObj.acc.scene, sObj.acc.camera);
+                        pipCtx.drawImage(pipRenderer.domElement, x + 60 + canvasW, y + 220, canvasW, canvasH);
                     }
                 }
             });
