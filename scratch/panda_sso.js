@@ -203,22 +203,26 @@
     }
     
     function showConnectionError() {
-        if (document.getElementById('conn-error')) return;
-        const errorDiv = document.createElement('div');
-        errorDiv.id = 'conn-error';
-        errorDiv.style.position = 'fixed';
-        errorDiv.style.top = '0';
-        errorDiv.style.left = '0';
-        errorDiv.style.width = '100%';
-        errorDiv.style.backgroundColor = '#d32f2f';
-        errorDiv.style.color = 'white';
-        errorDiv.style.textAlign = 'center';
-        errorDiv.style.padding = '5px';
-        errorDiv.style.fontSize = '12px';
-        errorDiv.style.zIndex = '99999';
-        errorDiv.innerText = '伺服器連線中或暫時離線，前台離線模式已啟動';
-        document.body.appendChild(errorDiv);
-        setTimeout(() => { if (errorDiv && errorDiv.parentNode) errorDiv.parentNode.removeChild(errorDiv); }, 5000);
+        console.error("SSO Connection Error.");
+        
+        // 判斷是否已經處於登入狀態
+        const wasLogged = getStoredAuthData().isLogged;
+        
+        // 自動登出並清除驗證資料
+        localStorage.removeItem('panda_session_token');
+        localStorage.removeItem('sso_token');
+        localStorage.removeItem('panda_session_user');
+        localStorage.removeItem('sso_user');
+        sessionStorage.removeItem('sso_token');
+        sessionStorage.removeItem('sso_user');
+        
+        if (wasLogged) {
+            // 原本已登入，連線中斷則強制登出並轉導
+            window.location.reload();
+        } else {
+            // 未登入，切換為訪客介面
+            renderGuestUI();
+        }
     }
     
     function renderGuestUI() {
