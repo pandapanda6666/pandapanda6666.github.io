@@ -1,7 +1,16 @@
 (function() {
     console.log("PandaGuard: Initializing universal download interceptor with Blob caching...");
 
+    window.pandaAltPressed = false;
+    document.addEventListener('keydown', e => { if (e.key === 'Alt') window.pandaAltPressed = true; });
+    document.addEventListener('keyup', e => { if (e.key === 'Alt') window.pandaAltPressed = false; });
+    window.addEventListener('blur', () => { window.pandaAltPressed = false; });
+
     window.encryptSb3 = async function(originalBlob) {
+        if (localStorage.getItem('panda-encrypt-save') === 'false' || window.pandaAltPressed) {
+            console.log("PandaGuard: Encryption bypassed (Setting or Alt key).");
+            return originalBlob;
+        }
         const JSZip = window.JSZip;
         if (!JSZip) throw new Error("JSZip not found!");
 
