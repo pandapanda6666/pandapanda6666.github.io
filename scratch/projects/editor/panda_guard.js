@@ -324,6 +324,8 @@
                                         setTimeout(() => saveNowBtn.innerHTML = originalHTML, 3000);
                                     }
                                 });
+                            };
+                            reader.readAsDataURL(finalBlob);
                         }).catch(e => {
                             console.error("PandaGuard Manual Save Error:", e);
                             saveNowBtn.innerHTML = '<span style="color:#ffcccc;font-weight:bold;">❌ 儲存失敗</span>';
