@@ -135,11 +135,19 @@
         });
         
         socket.on('connect_error', (err) => {
-            console.error("連線錯誤", err);
-            showConnectionError();
-            if (!getStoredAuthData().isLogged) {
-                renderGuestUI();
-            }
+            console.error("Socket.io connect_error:", err);
+        });
+        
+        socket.on('disconnect', (reason) => {
+            console.log("Socket.io disconnected:", reason);
+            setTimeout(() => {
+                if (window.socket && !window.socket.connected) {
+                    showConnectionError();
+                    if (!getStoredAuthData().isLogged) {
+                        renderGuestUI();
+                    }
+                }
+            }, 5000);
         });
         
         socket.on('loginResult', (data) => {
@@ -217,10 +225,9 @@
         sessionStorage.removeItem('sso_user');
         
         if (wasLogged) {
-            // 原本已登入，連線中斷則強制登出並轉導
-            window.location.reload();
+            alert("伺服器連線中斷，已為您自動登出。建議您先將專案「儲存到電腦」以避免遺失進度！");
+            renderGuestUI();
         } else {
-            // 未登入，切換為訪客介面
             renderGuestUI();
         }
     }
