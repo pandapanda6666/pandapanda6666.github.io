@@ -65,7 +65,7 @@
         }
         const username = localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || '使用者';
         const nickname = urlParams.get('nickname') || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || username;
-        const avatar = urlParams.get('avatar') || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const avatar = urlParams.get('avatar') || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
         const balance = localStorage.getItem('panda_balance') || 0;
         const isLogged = localStorage.getItem('sso_auth') === 'true' || localStorage.getItem('panda_session_token') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || localStorage.getItem('sso_user');
         return {
@@ -247,7 +247,7 @@
         if (userMenu) userMenu.style.display = 'flex';
         
         const userNickname = data.nickname || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || data.username || data.account || localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || '使用者';
-        const userAvatar = data.avatarUrl || data.avatar || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const userAvatar = data.avatarUrl || data.avatar || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
         const balance = data.pCoin !== undefined ? data.pCoin : (data.balance !== undefined ? data.balance : (localStorage.getItem('panda_balance') || 0));
         
         const usernameEl = document.getElementById('nav-username');
