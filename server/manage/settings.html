@@ -283,7 +283,13 @@
             </div>
 
             <div id="tab_prompt_gen" class="tab-content p-6 h-full flex flex-col hidden">
-                <h2 class="text-2xl font-bold text-blue-400 mb-4">🪄 AI 開發指令產生器</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-blue-400">🪄 AI 開發指令產生器</h2>
+                    <div class="bg-slate-900 border border-slate-700 px-4 py-2 rounded-full flex items-center shadow-lg" title="目前持有的 P 幣">
+                        <img src="https://pandapanda6666.github.io/shop/coin.svg" alt="P幣" class="w-6 h-6 mr-2">
+                        <span class="text-yellow-400 font-bold text-lg" id="pgAdminPCoin">0</span>
+                    </div>
+                </div>
                 <div class="bg-slate-800 rounded-lg border border-slate-700 p-4 mb-4">
                     <label class="text-slate-300 font-bold mb-2 block">1. 選擇目標小程式:</label>
                     <select id="pgAppList" class="w-full bg-slate-900 text-white p-2 rounded border border-slate-700 mb-4"></select>
@@ -398,27 +404,22 @@
         }
 
         function initApp() {
-            if (window.location.protocol !== 'file:' && window.location.hostname !== 'pandapanda6666.github.io') {
-                serverUrl = window.location.origin;
-                connectSocket();
-            } else {
-                fetch('https://pandapanda6666.github.io/login-hub/server_url.txt')
-                    .then(r => r.text())
-                    .then(txt => { 
+            fetch('https://pandapanda6666.github.io/login-hub/server_url.txt')
+                .then(r => r.text())
+                .then(txt => { 
+                    serverUrl = atob(txt.trim().split('').reverse().join('')); 
+                    connectSocket(); 
+                })
+                .catch(() => {
+                    fetch('../login-hub/server_url.txt').then(r=>r.text()).then(txt => { 
                         serverUrl = atob(txt.trim().split('').reverse().join('')); 
                         connectSocket(); 
                     })
                     .catch(() => {
-                        fetch('../login-hub/server_url.txt').then(r=>r.text()).then(txt => { 
-                            serverUrl = atob(txt.trim().split('').reverse().join('')); 
-                            connectSocket(); 
-                        })
-                        .catch(() => {
-                            serverUrl = prompt("無法自動取得伺服器網址，請手動輸入 (例如 https://...trycloudflare.com)：", "https://");
-                            if (serverUrl) connectSocket(); else setStatus("初始化失敗", true);
-                        });
+                        serverUrl = prompt("無法自動取得伺服器網址，請手動輸入：", "https://");
+                        if (serverUrl) connectSocket(); else setStatus("初始化失敗", true);
                     });
-            }
+                });
         }
 
         function connectSocket() {
@@ -427,19 +428,10 @@
             
             socket.on('connect', () => { 
                 setStatus("連線成功！正在驗證統一登入憑證...");
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.has('token')) {
-                    localStorage.setItem('panda_session_token', urlParams.get('token'));
-                    if (urlParams.has('user')) localStorage.setItem('panda_auto_user', urlParams.get('user'));
-                    history.replaceState(null, '', window.location.pathname);
-                }
-                const savedToken = localStorage.getItem('panda_session_token');
                 const savedU = localStorage.getItem('panda_auto_user');
                 const savedP = localStorage.getItem('panda_auto_pass');
 
-                if (savedToken) {
-                    socket.emit('tokenLogin', { token: savedToken });
-                } else if (savedP === 'GOOGLE_AUTH') {
+                if (savedP === 'GOOGLE_AUTH') {
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
                             socket.emit('googleLogin', { email: user.email, name: user.displayName });
@@ -461,16 +453,14 @@
                     document.getElementById('loadingView').classList.add('hidden');
                     document.getElementById('dashboardView').classList.remove('hidden');
                     document.getElementById('currentAdminName').innerText = res.username;
+                    const pgCoinEl = document.getElementById('pgAdminPCoin');
+                    if (pgCoinEl) pgCoinEl.innerText = res.pCoin || 0;
                     switchTab('tab_system');
                     window.fetchData();
                 } else {
-                    alert(res.success ? "登入成功，但您的帳號沒有管理員權限！
-請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
-        localStorage.removeItem('panda_session_token');
-        localStorage.removeItem('panda_auto_pass');
-        localStorage.removeItem('panda_auto_user');
-        socket.emit('logout');
-        setTimeout(redirectToLogin, 500);
+                    alert(res.success ? "登入成功，但您的帳號沒有管理員權限！\n請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
+                    socket.emit('logout');
+                    setTimeout(redirectToLogin, 500);
                 }
             });
 
@@ -838,25 +828,26 @@ window.fetchData = function() {
             const lb = document.getElementById('appsListbox');
             const pglb = document.getElementById('pgAppList');
             lb.innerHTML = ''; pglb.innerHTML = '';
-            for(let id in (globalData.apps || {})) {
+            const origins = (globalData.allowedOrigins || []).filter(o => o !== '*');
+            origins.forEach(id => {
                 const opt = document.createElement('option'); opt.value = id; opt.className = "p-2 hover:bg-blue-900 border-b border-slate-800 cursor-pointer"; opt.textContent = `📦 ${id}`;
                 lb.appendChild(opt);
                 const opt2 = document.createElement('option'); opt2.value = id; opt2.textContent = id; pglb.appendChild(opt2);
-            }
+            });
             updateAppDetail();
         }
         window.updateAppDetail = function() {
             const val = document.getElementById('appsListbox').value;
             const detailDiv = document.getElementById('appDetailInfo');
-            if(!val || !globalData.apps[val]) { detailDiv.innerHTML = "請先從左側選取小程式。"; return; }
-            const app = globalData.apps[val];
+            if(!val) { detailDiv.innerHTML = "請先從左側選取小程式。"; return; }
+            const app = globalData.apps[val] || {};
             let logsHtml = (app.logs || []).slice(0, 50).map(l => `<div class="mb-1"><span class="text-slate-500">[${l.time}]</span> <span class="text-blue-300">${l.user}:</span> <span class="${l.type==='error'?'text-red-400':'text-green-300'}">${l.message}</span></div>`).join('');
             detailDiv.innerHTML = `<div class="mb-4 text-slate-400">目前共 ${app.logs?.length||0} 筆日誌紀錄...</div>${logsHtml}`;
         };
         window.handleAppAction = function(act) {
             const val = document.getElementById('appsListbox').value;
             if(!val) return alert("請先選取小程式！");
-            if(act === 'open') window.open(`https://pandapanda6666.github.io/app/?id=${val}`, '_blank');
+            if(act === 'open') window.open(val, '_blank');
             else if(act === 'restart') fetch(`${serverUrl}/api/apps/clearLogs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({appId: val})}).then(()=>window.fetchData());
             else if(act === 'delete') { if(confirm('確定刪除此程式？')) fetch(`${serverUrl}/api/apps/delete`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({appId: val})}).then(()=>window.fetchData()); }
         };
@@ -893,7 +884,7 @@ window.fetchData = function() {
             if(!appId) return alert("請先選擇或建立小程式");
             let prompt = `我想要為我的小程式「${appId}」開發新功能。\n\n`;
             if(type==='api') prompt += `請你幫我修改本機專案中的 server.js，並為 ${appId} 撰寫專屬的 Socket.IO API。\n請不要動到其他的程式碼，僅針對 appData['${appId}'] 的相關邏輯進行修改。\n你可以使用 db.appData['${appId}'].data 來儲存持久化資料。`;
-            else prompt += `請你幫我為這個小程式寫出完美的 index.html 與前端邏輯。\n請提供完整、且具有精美 Tailwind CSS 介面的網頁程式碼。`;
+            else prompt += `請你幫我為這個小程式寫出完美的 index.html 與前端邏輯。\n請提供完整、且具有精美 Tailwind CSS 介面的網頁程式碼。\n\n[開發規範]\n1. 如果介面需要顯示「P幣」或「金幣」的圖示，請統一使用這個圖示網址：https://pandapanda6666.github.io/shop/coin.svg\n2. 你可以使用 <img> 標籤來繪製，例如：<img src="https://pandapanda6666.github.io/shop/coin.svg" class="w-6 h-6 inline-block">`;
             document.getElementById('pgOutput').value = prompt;
         };
         window.copyPrompt = function() {

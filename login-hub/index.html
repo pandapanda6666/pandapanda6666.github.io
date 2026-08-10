@@ -533,9 +533,7 @@
 
 
                     <div id="regAccountFields" class="space-y-3 mb-3">
-
-                        <div class="grid grid-cols-2 gap-3">
-
+                        <div class="grid grid-cols-2 gap-3" id="regUserPassDiv">
                             <div>
 
                                 <label class="block text-sm font-bold text-slate-700 mb-1">設定帳號 <span class="text-red-500">*</span></label>
@@ -1065,6 +1063,7 @@
                     localStorage.setItem('panda_session_user', res.username || '');
                     localStorage.setItem('panda_nickname', res.nickname || res.username || '');
                     localStorage.setItem('panda_avatar', res.avatar || '');
+                    if (res.token) localStorage.setItem('panda_session_token', res.token);
 
                     
 
@@ -1112,6 +1111,7 @@
                             localStorage.removeItem('panda_auto_user');
 
                             localStorage.removeItem('panda_auto_pass');
+localStorage.removeItem('panda_session_token');
 
                             
 
@@ -1234,6 +1234,7 @@
                 localStorage.removeItem('panda_auto_user');
 
                 localStorage.removeItem('panda_auto_pass');
+localStorage.removeItem('panda_session_token');
 
                 document.getElementById('username').value = '';
 
@@ -1266,6 +1267,7 @@
                             localStorage.removeItem('panda_auto_user');
 
                             localStorage.removeItem('panda_auto_pass');
+localStorage.removeItem('panda_session_token');
 
                             localStorage.removeItem('sso_auth');
 
@@ -1412,12 +1414,20 @@
                 
 
                 const pwdInput = document.getElementById('editPassword');
-
-                pwdInput.value = currentUserData.password || '';
-
-                pwdInput.disabled = false;
-
-                pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
+                const emailInput = document.getElementById('editEmail');
+                
+                // Hide or show the container of password/email depending on Google account
+                // The container is the parent element of their parent elements
+                const pwdEmailContainer = pwdInput.parentElement.parentElement;
+                
+                if (currentUserData.gmail) {
+                    pwdEmailContainer.style.display = 'none';
+                } else {
+                    pwdEmailContainer.style.display = 'grid';
+                    pwdInput.value = currentUserData.password || '';
+                    pwdInput.disabled = false;
+                    pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
+                }
 
 
 
@@ -1450,31 +1460,21 @@
             const fieldsG = document.getElementById('regGoogleFields');
 
             const emailDiv = document.getElementById('regEmailDiv');
-
-
+            const userPassDiv = document.getElementById('regUserPassDiv');
 
             if (mode === 'normal') {
-
                 tabN.className = "w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition";
-
                 tabG.className = "w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition";
-
                 fieldsG.classList.add('hidden');
-
                 emailDiv.classList.remove('hidden');
-
+                if (userPassDiv) userPassDiv.style.display = 'grid';
             } else {
-
                 tabN.className = "w-1/2 py-2 rounded-lg font-bold text-slate-500 hover:text-slate-700 transition";
-
                 tabG.className = "w-1/2 py-2 rounded-lg font-bold bg-white text-green-600 shadow-sm transition";
-
                 fieldsG.classList.remove('hidden');
-
                 emailDiv.classList.add('hidden');
-
+                if (userPassDiv) userPassDiv.style.display = 'none';
             }
-
         };
 
 
@@ -1505,7 +1505,7 @@
 
                 
 
-                showMsg("已成功連結 Google 帳號，請繼續填寫下方資料", "success");
+                showMsg("已成功連結 Google 帳號！(若登入視窗未自動關閉，請手動關閉)", "success");
 
                 if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `成功綁定準備註冊的 Google 信箱` });
 
@@ -1657,7 +1657,7 @@
 
                 const result = await signInWithPopup(auth, provider);
 
-                showMsg("驗證成功，正在登入伺服器...", "info");
+                showMsg("驗證成功，正在登入伺服器...(若登入視窗未自動關閉，請手動關閉)", "info");
 
 
 
@@ -1736,29 +1736,19 @@ avatar: window.currentRegAvatarBase64 || ''
 
 
             if (window.regMode === 'google') {
-
                 if (!window.tempRegEmail) return showMsg("請先連結 Google 帳號", "error");
-
-                if (!u || !p || !nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
-
+                if (!nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
                 
-
                 payload.isGoogle = true;
-
                 payload.gmail = window.tempRegEmail;
-
                 payload.email = window.tempRegEmail;
-
+                payload.username = 'Google_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+                payload.password = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2);
             } else {
-
                 if (!u || !p || !nk || !ln || !fn || !gender || !birthday) return showMsg("請填寫所有標示星號的必填項目", "error");
-
                 if (!email) return showMsg("必須輸入電子郵件", "error");
-
                 
-
                 payload.isGoogle = false;
-
             }
 
 
@@ -1937,12 +1927,6 @@ avatar: window.currentRegAvatarBase64 || ''
                 base = `https://${redirectUrl}`;
             }
             const target = new URL(base, window.location.href);
-            target.searchParams.set('user', currentUserData.username || localStorage.getItem('panda_auto_user') || '');
-            target.searchParams.set('nickname', currentUserData.nickname || currentUserData.username || localStorage.getItem('sso_nickname') || '');
-
-            target.searchParams.set('server', serverUrl || '');
-            target.searchParams.set('auth', 'true');
-            if (currentUserData.token) target.searchParams.set('token', currentUserData.token);
             window.location.href = target.href;
         };
 
