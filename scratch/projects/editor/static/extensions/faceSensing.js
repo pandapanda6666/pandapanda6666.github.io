@@ -4,6 +4,9 @@
         this.faceLandmarker = null;
         this.faces = [];
         this.videoRunning = false;
+        
+        // Call this IMMEDIATELY to capture the user gesture context!
+        this.startVideoSensing();
         this.initMediaPipe();
     }
 
@@ -27,18 +30,22 @@
                 runningMode: 'VIDEO',
                 numFaces: 1
             });
-            this.startVideoSensing();
+            // The video might already be running, so we kick off the detection loop
+            this.detectLoop();
         };
         document.head.appendChild(script);
     }
 
     startVideoSensing() {
-        // Enable Scratch's built-in video system (this will show the video on stage)
+        // Enable Scratch's built-in video system synchronously with extension init
         if (this.runtime.ioDevices && this.runtime.ioDevices.video) {
             this.runtime.ioDevices.video.enableVideo().then(() => {
-                this.runtime.ioDevices.video.mirror = true; // Typically mirrored for Face Sensing
+                this.runtime.ioDevices.video.mirror = true;
                 this.videoRunning = true;
-                this.detectLoop();
+                // If media pipe is already loaded, start loop
+                if (this.faceLandmarker) {
+                    this.detectLoop();
+                }
             }).catch(err => {
                 console.error("Face Sensing: Cannot access camera", err);
             });
@@ -49,7 +56,6 @@
         if (!this.videoRunning || !this.faceLandmarker) return;
         
         try {
-            // Get the video element from Scratch's video provider
             const videoProvider = this.runtime.ioDevices.video.provider;
             if (videoProvider && videoProvider.videoReady && videoProvider.video) {
                 const videoElement = videoProvider.video;
@@ -61,7 +67,7 @@
                 }
             }
         } catch (e) {
-            console.error("FaceSensing detect error:", e);
+            // Ignore temporary detection errors while loading
         }
         
         requestAnimationFrame(() => this.detectLoop());
@@ -145,7 +151,6 @@
         if (partIdx === undefined) return 0;
         
         const mpX = this.faces[0][partIdx].x;
-        // The video is mirrored, so we need to account for it
         return Math.round((0.5 - mpX) * 480);
     }
 
