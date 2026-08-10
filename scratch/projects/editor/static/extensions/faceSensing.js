@@ -1,9 +1,8 @@
-class FaceSensingExtension {
+﻿class FaceSensingExtension {
     constructor(runtime) {
         this.runtime = runtime;
         this.faceLandmarker = null;
         this.faces = [];
-        this.videoElement = null;
         this.videoRunning = false;
         this.initMediaPipe();
     }
@@ -34,36 +33,35 @@ class FaceSensingExtension {
     }
 
     startVideoSensing() {
-        this.videoElement = document.createElement('video');
-        this.videoElement.autoplay = true;
-        this.videoElement.playsInline = true;
-
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                this.videoElement.srcObject = stream;
-                this.videoElement.onloadedmetadata = () => {
-                    this.videoElement.play();
-                    this.videoRunning = true;
-                    this.detectLoop();
-                };
-            })
-            .catch(err => {
+        // Enable Scratch's built-in video system (this will show the video on stage)
+        if (this.runtime.ioDevices && this.runtime.ioDevices.video) {
+            this.runtime.ioDevices.video.enableVideo().then(() => {
+                this.runtime.ioDevices.video.mirror = true; // Typically mirrored for Face Sensing
+                this.videoRunning = true;
+                this.detectLoop();
+            }).catch(err => {
                 console.error("Face Sensing: Cannot access camera", err);
             });
+        }
     }
 
     async detectLoop() {
         if (!this.videoRunning || !this.faceLandmarker) return;
         
         try {
-            const results = await this.faceLandmarker.detectForVideo(this.videoElement, performance.now());
-            if (results && results.faceLandmarks) {
-                this.faces = results.faceLandmarks;
-            } else {
-                this.faces = [];
+            // Get the video element from Scratch's video provider
+            const videoProvider = this.runtime.ioDevices.video.provider;
+            if (videoProvider && videoProvider.videoReady && videoProvider.video) {
+                const videoElement = videoProvider.video;
+                const results = await this.faceLandmarker.detectForVideo(videoElement, performance.now());
+                if (results && results.faceLandmarks) {
+                    this.faces = results.faceLandmarks;
+                } else {
+                    this.faces = [];
+                }
             }
         } catch (e) {
-            console.error(e);
+            console.error("FaceSensing detect error:", e);
         }
         
         requestAnimationFrame(() => this.detectLoop());
@@ -147,6 +145,7 @@ class FaceSensingExtension {
         if (partIdx === undefined) return 0;
         
         const mpX = this.faces[0][partIdx].x;
+        // The video is mirrored, so we need to account for it
         return Math.round((0.5 - mpX) * 480);
     }
 
