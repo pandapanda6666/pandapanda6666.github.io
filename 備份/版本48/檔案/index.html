@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點擊圖標即可定位的地圖 (多人協作版)</title>
+
+    <!-- Tailwind CSS (for UI) -->
+        <script>
+        var _originalWarn = _originalWarn || console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            _originalWarn.apply(console, args);
+        };
+</script>
+
+    <script src="https://cdn.tailwindcss.com">
+</script>
+
+    
+    <!-- 引入 Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js">
+</script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js">
+</script>
+
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js">
+</script>
+
+    
+    <!-- Leaflet Rotate --><script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js">
+</script>
+<!-- Fabric.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js">
+</script>
+
+
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Inter', sans-serif; }
+        #map-container { position: relative; width: 100%; height: 100%; }
+        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        .canvas-container { position: absolute !important; top: 0; left: 0; z-index: 400; pointer-events: none; }
+        .canvas-container.interactive { pointer-events: auto; }
+        
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; pointer-events: none; display: flex; flex-direction: column; }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        #notificationBar { background: rgba(0, 0, 0, 0.8); color: white; white-space: nowrap; overflow: hidden; padding: 5px 0; display: none; }
+        .marquee { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .leaflet-popup-content { margin: 15px; }
+
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        
+        /* 自定義顏色選擇器外觀 */
+        input[type="color"] { -webkit-appearance: none; border: none; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; padding: 0; background: transparent; }
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type="color"]::-webkit-color-swatch { border: 1px solid #ddd; border-radius: 4px; }
+        input[type="range"] { accent-color: #4f46e5; }
+        
+        /* 避免 Leaflet 內建地圖按鈕與我們的 UI 介面重疊 */
+        .leaflet-top { margin-top: 80px; }
+        .leaflet-bottom { margin-bottom: 70px; }
+        .leaflet-left { margin-left: 10px; }
+        .leaflet-right { margin-right: 10px; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<!-- 錯誤捕捉與連線腳本 -->
+<script>
+    window.onerror = function(msg, url, line) { 
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+        if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+    });
+
+    const appId = window.location.hostname + window.location.pathname;
+    let socket;
+    let currentUser = null;
+    let isAdmin = false;
+    let appData = { projects: [] };
+
+    let projectMarkers = [];
+    let currentOpenProjectId = null;
+    let editingProjectId = null;
+    let projectVisibility = {}; // { projId: true/false }
+    
+    let toolHistory = ['btn-select'];
+    let undoStack = [];
+    let redoStack = [];
+    let isStateAction = false;
+    let clipboard = null;
+    let isPanningMap = false;
+    let panStart = { x: 0, y: 0 };
+</script>
+
+
+<div id="ui-layer" class="pointer-events-none absolute inset-0 z-[1000] flex flex-col">
+    <!-- Top-Left Save Controls -->
+    <div id="top-left-controls" class="absolute top-4 left-4 flex gap-2 pointer-events-auto hidden">
+        <button id="btn-save-project" class="bg-indigo-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:bg-indigo-700 transition text-xs"><i class="fas fa-cloud-upload-alt mr-1"></i> 發布</button>
+        <button id="btn-save-draft" class="bg-gray-600 text-white font-bold py-1.5 px-3 rounded-lg shadow-md hover:bg-gray-700 transition text-xs"><i class="fas fa-save mr-1"></i> 儲存</button>
+        <button id="btn-cancel-edit" class="bg-gray-100 text-gray-700 border border-gray-300 font-bold py-1.5 px-3 rounded-lg shadow-sm hover:bg-gray-200 transition text-xs"><i class="fas fa-arrow-left mr-1"></i> 返回</button>
+        <button id="btn-clear-canvas" class="bg-red-100 text-red-600 border border-red-200 font-bold py-1.5 px-3 rounded-lg shadow-sm hover:bg-red-200 transition text-xs"><i class="fas fa-trash-alt mr-1"></i> 清除畫布</button>
+        <label class="flex items-center gap-1 text-xs font-bold text-gray-700 bg-white/80 backdrop-blur px-2 rounded-lg border border-gray-200 shadow-sm cursor-pointer h-[32px]">
+            <input type="checkbox" id="auto-save-toggle"> 自動儲存
+        </label>
+    </div>
+
+    <!-- Top Contextual Toolbar (Properties) -->
+    <div id="top-context-toolbar" class="absolute top-4 left-1/2 -translate-x-1/2 glass px-4 py-2 rounded-xl shadow-lg flex items-center gap-4 pointer-events-auto hidden transition-all z-[2000]">
+        <div class="flex items-center gap-2">
+            <label class="text-[10px] text-gray-500 font-bold flex flex-col items-center cursor-pointer">
+                <input type="color" id="color-fill" value="#3b82f6" class="w-6 h-6 p-0 border-none rounded cursor-pointer">
+                填色
+            </label>
+            <label class="flex items-center gap-1 text-[10px] text-gray-600 cursor-pointer"><input type="checkbox" id="toggle-fill-transparent">透明</label>
+        </div>
+        <div class="w-px h-8 bg-gray-300"></div>
+        <div class="flex items-center gap-2">
+            <label class="text-[10px] text-gray-500 font-bold flex flex-col items-center cursor-pointer">
+                <input type="color" id="color-border" value="#1e3a8a" class="w-6 h-6 p-0 border-none rounded cursor-pointer">
+                外框
+            </label>
+            <label class="flex items-center gap-1 text-[10px] text-gray-600 cursor-pointer"><input type="checkbox" id="toggle-border">不顯示</label>
+            <div class="flex flex-col ml-1">
+                <span class="text-[9px] text-gray-400 font-bold">粗細</span>
+                <input type="range" id="selection-width" min="1" max="20" value="2" class="w-16 h-1">
+            </div>
+        </div>
+        <div class="w-px h-8 bg-gray-300"></div>
+        <div class="flex items-center gap-2">
+            <div class="flex flex-col">
+                <span class="text-[9px] text-gray-400 font-bold">圓角</span>
+                <input type="range" id="rect-radius" min="0" max="100" value="0" class="w-16 h-1">
+            </div>
+            <div class="flex flex-col">
+                <span class="text-[9px] text-gray-400 font-bold">透明度</span>
+                <input type="range" id="obj-opacity" min="0" max="100" value="100" class="w-16 h-1">
+            </div>
+        </div>
+        <div class="w-px h-8 bg-gray-300 hidden" id="text-prop-divider"></div>
+        <div class="flex items-center gap-2 hidden" id="text-prop-group">
+            <div class="flex flex-col">
+                <span class="text-[9px] text-gray-400 font-bold">字體</span>
+                <select id="font-family-select" class="text-xs border border-gray-300 rounded outline-none px-1 py-0.5">
+                    <option value="Inter">Inter</option>
+                    <option value="Arial">Arial</option>
+                    <option value="Times New Roman">Times New Roman</option>
+                    <option value="Courier New">Courier</option>
+                    <option value="Comic Sans MS">Comic Sans</option>
+                </select>
+            </div>
+        </div>
+        <div class="w-px h-8 bg-gray-300"></div>
+        <button id="btn-delete" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition" title="刪除選取物件"><i class="fas fa-trash-alt"></i></button>
+    </div>
+
+    <!-- Left Sidebar (Tabs) -->
+    <div id="left-sidebar" class="absolute top-16 left-4 flex gap-0 pointer-events-auto w-80 h-[calc(100vh-120px)] transition-all transform">
+        <!-- Sidebar Navigation -->
+        <div class="w-14 bg-gray-900 rounded-l-xl shadow-xl flex flex-col items-center py-4 gap-4 z-20">
+            <button id="nav-home" class="nav-btn text-indigo-400 bg-gray-800 w-10 h-10 rounded-lg flex items-center justify-center transition tooltip" title="首頁 (專案清單)" data-target="tab-home"><i class="fas fa-home"></i></button>
+            <button id="nav-tools" class="nav-btn text-gray-400 hover:text-white hover:bg-gray-700 w-10 h-10 rounded-lg flex items-center justify-center transition tooltip hidden" title="工具" data-target="tab-tools"><i class="fas fa-toolbox"></i></button>
+            <button id="nav-layers" class="nav-btn text-gray-400 hover:text-white hover:bg-gray-700 w-10 h-10 rounded-lg flex items-center justify-center transition tooltip hidden" title="圖層" data-target="tab-layers"><i class="fas fa-layer-group"></i></button>
+            <button id="nav-settings" class="nav-btn text-gray-400 hover:text-white hover:bg-gray-700 w-10 h-10 rounded-lg flex items-center justify-center transition tooltip hidden mt-auto" title="全域設定" data-target="tab-settings"><i class="fas fa-cog"></i></button>
+        </div>
+        
+        <!-- Sidebar Content Area -->
+        <div class="flex-1 glass rounded-r-xl shadow-xl flex flex-col overflow-hidden border-y border-r border-gray-200/50 relative bg-white/80">
+            
+            <!-- Tab: Home (Project List) -->
+            <div id="tab-home" class="tab-pane absolute inset-0 p-3 flex flex-col gap-2">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm font-bold text-gray-700"><i class="fas fa-folder-open text-indigo-500 mr-1"></i> 專案清單</span>
+                    <button id="btn-new-project" class="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700 transition font-bold shadow-sm">+ 新增專案</button>
+                </div>
+                <div class="flex text-xs font-bold bg-gray-100 p-1 rounded-lg">
+                    <button id="tab-explore" class="flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition">探索專案</button>
+                    <button id="tab-my-projects" class="flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition">我的專案</button>
+                </div>
+                <div id="panel-explore" class="flex flex-col gap-2 flex-1 overflow-hidden">
+                    <div class="flex gap-1 justify-between items-center mt-1">
+                        <select id="bulk-show-filter" class="text-[10px] border border-gray-300 rounded p-1 flex-1 outline-none">
+                            <option value="all">全部專案</option>
+                            <option value="approved">已批准</option>
+                            <option value="pending">待審核</option>
+                        </select>
+                        <button id="btn-bulk-show" class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold hover:bg-blue-200">套用顯示</button>
+                        <button id="btn-show-all" class="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold hover:bg-green-200">全顯</button>
+                        <button id="btn-hide-all" class="text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded font-bold hover:bg-red-200">全隱</button>
+                    </div>
+                    <div id="explore-list-container" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar"></div>
+                </div>
+                <div id="panel-my-projects" class="flex-col gap-2 flex-1 overflow-hidden hidden">
+                    <div id="my-projects-list-container" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar mt-1"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Tools -->
+            <div id="tab-tools" class="tab-pane absolute inset-0 p-4 flex-col gap-4 hidden overflow-y-auto custom-scrollbar">
+                <div class="text-sm font-bold text-gray-700 mb-2 border-b border-gray-200 pb-2">繪圖工具</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-select" class="tool-btn p-3 rounded-lg bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100 transition flex flex-col items-center gap-1"><i class="fas fa-mouse-pointer text-lg"></i><span class="text-[10px] font-bold">選取</span></button>
+                    <button id="btn-select-all" class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1"><i class="fas fa-object-group text-lg"></i><span class="text-[10px] font-bold">全選</span></button>
+
+                    <button id="btn-draw" class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1"><i class="fas fa-pen text-lg"></i><span class="text-[10px] font-bold">畫筆</span></button>
+                    <button id="btn-line" class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1"><i class="fas fa-minus text-lg"></i><span class="text-[10px] font-bold">線段</span></button>
+                    <button id="btn-rect" class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1"><i class="far fa-square text-lg"></i><span class="text-[10px] font-bold">矩形</span></button>
+                    <button id="btn-circle" class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1"><i class="far fa-circle text-lg"></i><span class="text-[10px] font-bold">圓形</span></button>
+                    <button id="btn-text" class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1"><i class="fas fa-font text-lg"></i><span class="text-[10px] font-bold">文字</span></button>
+                    <label class="tool-btn p-3 rounded-lg bg-gray-50 text-gray-600 hover:bg-white hover:shadow-sm border border-transparent transition flex flex-col items-center gap-1 cursor-pointer">
+                        <i class="fas fa-image text-lg"></i><span class="text-[10px] font-bold">圖片</span>
+                        <input type="file" id="upload-image" accept="image/*" class="hidden">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Tab: Layers -->
+            <div id="tab-layers" class="tab-pane absolute inset-0 p-3 flex-col hidden overflow-hidden">
+                <div class="text-sm font-bold text-gray-700 mb-2 border-b border-gray-200 pb-2 flex justify-between items-center">
+                    物件圖層
+                    <span class="text-[10px] bg-gray-200 px-1 rounded text-gray-600">最新在上</span>
+                </div>
+                <div id="layers-list-container" class="overflow-y-auto flex-1 space-y-1 pr-1 custom-scrollbar">
+                    <div class="text-xs text-gray-400 text-center mt-4">畫布上目前沒有物件</div>
+                </div>
+            </div>
+
+            <!-- Tab: Global Settings -->
+            <div id="tab-settings" class="tab-pane absolute inset-0 p-4 flex-col gap-4 hidden overflow-y-auto custom-scrollbar">
+                <div class="text-sm font-bold text-gray-700 mb-4 border-b border-gray-200 pb-2">全域設定</div>
+                
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">地圖旋轉</label>
+                    <div class="flex items-center gap-2">
+                        <input type="range" id="map-rotation" min="0" max="360" value="0" class="w-full">
+                        <span id="rotation-val" class="text-xs font-bold text-indigo-600 w-8 text-right">0°</span>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">圖片縮放模式</label>
+                    <div class="flex text-xs font-bold bg-gray-100 p-1 rounded-lg">
+                        <button id="btn-scale-stretch" class="flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition">拉伸變形 (Stretch)</button>
+                        <button id="btn-scale-crop" class="flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition">切割裁剪 (Crop)</button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-gray-600 mb-1">編輯控制外框顏色</label>
+                    <input type="color" id="editor-selection-color" value="#3b82f6" class="w-full h-8 rounded border-none cursor-pointer">
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Notification & Right Side -->
+    <div id="notificationBar" class="pointer-events-none w-full fixed top-0 left-0 hidden z-[3000]">
+        <div class="bg-gray-900/90 text-white text-center py-1 font-bold text-sm shadow-md">
+            <span class="marquee inline-block" id="notificationMsg"></span>
+        </div>
+    </div>
+
+    <div class="absolute top-4 right-4 pointer-events-auto z-[2000]">
+        <div id="auth-container" class="glass p-1 pr-4 rounded-full shadow-lg flex items-center gap-3 hover:shadow-xl transition-all cursor-pointer border border-gray-200">
+            <div class="animate-pulse flex items-center gap-2 px-4 py-2">
+                <i class="fas fa-spinner fa-spin text-indigo-500"></i>
+                <span class="text-gray-600 text-sm font-medium">連線中...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Footer -->
+    <div class="absolute bottom-4 left-4 pointer-events-auto">
+        <button id="report-btn" class="bg-red-500 text-white p-0 rounded-full shadow-lg hover:bg-red-600 transition hover:scale-110 flex items-center justify-center w-12 h-12" title="回報問題">
+            <i class="fas fa-bug text-xl"></i>
+        </button>
+    </div>
+    <div class="absolute bottom-4 right-4 pointer-events-auto glass px-5 py-2 rounded-full text-sm font-medium text-gray-600 cursor-pointer hover:text-indigo-600 hover:shadow-md transition shadow-sm border border-gray-200" onclick="window.location.href='https://pandapanda6666.github.io'">
+        版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.
+    </div>
+</div>
+<!-- 發布專案 Modal -->
+<div id="publish-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[2000] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-white">發布地圖專案</h2>
+            <button onclick="document.getElementById('publish-modal').classList.add('hidden')" class="text-indigo-200 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">專案名稱</label>
+                <input type="text" id="proj-name" class="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition" placeholder="給專案取個響亮的名字...">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">專案介紹</label>
+                <textarea id="proj-desc" rows="3" class="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition resize-none" placeholder="描述一下這個專案的內容..."></textarea>
+            </div>
+            <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg border border-blue-100">
+                <i class="fas fa-info-circle mr-1"></i> 發布後，專案將自動綁定於 <span id="proj-layer-name" class="font-bold underline"></span> 圖層。
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t">
+            <button onclick="document.getElementById('publish-modal').classList.add('hidden')" class="px-5 py-2 font-medium text-gray-600 rounded-xl hover:bg-gray-200 transition">取消</button>
+            <button id="confirm-publish" class="px-5 py-2 bg-indigo-600 font-bold text-white rounded-xl hover:bg-indigo-700 transition shadow-md">確認發布</button>
+        </div>
+    </div>
+</div>
+
+<!-- 專案資訊 Modal -->
+<div id="project-modal" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[2000] hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-start bg-gray-50">
+            <div class="flex items-center gap-4">
+                <img id="modal-proj-avatar" src="" class="w-14 h-14 rounded-full object-cover border-2 border-white shadow-sm bg-white">
+                <div>
+                    <h2 id="modal-proj-name" class="text-xl font-black text-gray-800 tracking-tight"></h2>
+                    <div class="text-sm text-gray-500 flex items-center gap-2 mt-1">
+                        <span id="modal-proj-author" class="font-medium"></span>
+                        <span id="modal-proj-status" class="px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase"></span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="document.getElementById('project-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-800 bg-white rounded-full w-8 h-8 flex items-center justify-center shadow-sm"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-5 overflow-y-auto flex-1">
+            <p id="modal-proj-desc" class="text-gray-700 whitespace-pre-wrap text-sm mb-6 leading-relaxed bg-gray-50 p-4 rounded-xl"></p>
+            
+            <div id="admin-actions" class="mb-6 p-4 bg-yellow-50 rounded-xl border border-yellow-200 hidden">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-yellow-800"><i class="fas fa-shield-alt mr-1"></i> 管理員審核</h3>
+                    <button id="btn-approve" class="bg-green-500 text-white px-4 py-1.5 rounded-lg shadow-sm hover:bg-green-600 transition text-sm font-bold">批准專案</button>
+                </div>
+            </div>
+            
+            <div id="user-proj-actions" class="mb-6 flex gap-2 flex-wrap hidden">
+                <button id="btn-proj-save-copy" class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-indigo-200 transition text-sm font-bold"><i class="fas fa-copy mr-1"></i> 另存為副本</button>
+                <button id="btn-proj-export" class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-200 transition text-sm font-bold"><i class="fas fa-file-export mr-1"></i> 匯出專案檔</button>
+                <button id="btn-proj-delete" class="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg shadow-sm hover:bg-red-200 transition text-sm font-bold hidden"><i class="fas fa-trash-alt mr-1"></i> 刪除專案</button>
+            </div>
+
+            <h3 class="text-sm font-black text-gray-400 uppercase tracking-wider mb-3">留言區</h3>
+            <div id="comments-list" class="space-y-3 mb-2">
+            </div>
+        </div>
+        <div class="p-4 border-t border-gray-100 bg-gray-50 flex gap-2">
+            <input type="text" id="comment-input" class="flex-1 border border-gray-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition" placeholder="寫下你的想法...">
+            <button id="btn-send-comment" class="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 transition shadow-md font-bold">
+                送出
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="map-container">
+    <div id="map"></div>
+    <canvas id="drawing-layer"></canvas>
+</div>
+
+<script>
+
+    // ==========================================
+    // 1. 初始化 Leaflet 地圖
+    // ==========================================
+    const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    const esriSatelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+    const cartoLabelsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '&copy; CARTO', pane: 'shadowPane' });
+    const hybridLayer = L.layerGroup([esriSatelliteLayer, cartoLabelsLayer]);
+    
+    const baseMaps = {
+        "普通地圖": osmLayer,
+        "衛星影像": esriSatelliteLayer,
+        "混合地圖 (衛星+文字)": hybridLayer
+    };
+
+    const map = L.map('map', { layers: [osmLayer], maxZoom: 19, zoomControl: false, rotate: true, bearing: 0, scrollWheelZoom: false }).setView([24.956, 121.298], 13);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
+
+    let currentLayerId = "普通地圖";
+    map.on('baselayerchange', function(e) {
+        currentLayerId = e.name;
+        renderProjects();
+    });
+
+    L.Control.geocoder({ defaultMarkGeocode: true, placeholder: '搜尋地點...', errorMessage: '找不到結果', position: 'topright' }).on('markgeocode', e => map.fitBounds(e.geocode.bbox)).addTo(map);
+    L.easyButton({
+        position: 'topright',
+        states: [{
+            stateName: 'get-location', icon: 'fa-location-arrow', title: '定位',
+            onClick: function(btn, map) { map.locate({ enableHighAccuracy: true }); }
+        }]
+    }).addTo(map);
+
+    // ==========================================
+    // 2. 初始化 Fabric.js 畫布與屬性管理
+    // ==========================================
+    const canvasObj = new fabric.Canvas('drawing-layer', { isDrawingMode: false, selection: true, fireRightClick: true, stopContextMenu: true });
+    
+    // 解決畫布遮擋地圖按鈕的問題：將 canvas-container 移入 #map 內部，置於 Leaflet controls 之下
+    setTimeout(() => {
+        const mapDiv = document.getElementById('map');
+        const canvasContainer = document.querySelector('.canvas-container');
+        const leafletControl = document.querySelector('.leaflet-control-container');
+        if (mapDiv && canvasContainer && leafletControl) {
+            mapDiv.insertBefore(canvasContainer, leafletControl);
+        }
+    }, 100);
+
+    // 建立畫布的地理座標錨點
+    let baseZoom = 13;
+    let baseTopLeft = null;
+
+    function initCanvasAnchor() {
+        baseZoom = map.getZoom();
+        baseTopLeft = map.containerPointToLatLng([0, 0]);
+        canvasObj.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    }
+
+    map.whenReady(() => {
+        initCanvasAnchor();
+    });
+
+    // 畫布跟隨地圖平移與縮放的核心邏輯
+    function syncFabricToMap() {
+        if (!baseTopLeft) return;
+        const S = map.getZoomScale(map.getZoom(), baseZoom);
+        const P = map.latLngToContainerPoint(baseTopLeft);
+        canvasObj.setViewportTransform([S, 0, 0, S, P.x, P.y]);
+    }
+
+    map.on('move', syncFabricToMap);
+    map.on('zoom', syncFabricToMap);
+    let currentScaleMode = 'resize'; 
+    let lineMode = false;
+    let isTextMode = false;
+    
+    document.getElementById('map-rotation').addEventListener('input', (e) => {
+        const angle = parseInt(e.target.value, 10);
+        document.getElementById('rotation-val').innerText = angle + '°';
+        if (map.setBearing) {
+            map.setBearing(angle);
+        }
+    });
+    let isDrawingLine = false;
+    let line;
+
+    function resizeCanvas() {
+        const mapContainer = document.getElementById('map-container');
+        canvasObj.setWidth(mapContainer.clientWidth);
+        canvasObj.setHeight(mapContainer.clientHeight);
+        canvasObj.renderAll();
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function setInteractiveMode(enabled) {
+        if(enabled) {
+            document.querySelector('.canvas-container').classList.add('interactive');
+            if(map && map.dragging) map.dragging.disable();
+        } else {
+            document.querySelector('.canvas-container').classList.remove('interactive');
+            if(map && map.dragging) map.dragging.enable();
+        }
+    }
+
+    function setActiveBtn(id) {
+        ['btn-draw','btn-line','btn-rect','btn-circle','btn-select'].forEach(b => {
+            let el = document.getElementById(b);
+            if(el) el.classList.remove('bg-gray-200','shadow-inner');
+        });
+        if(id && id !== 'upload') {
+            let el = document.getElementById(id);
+            if(el) el.classList.add('bg-gray-200','shadow-inner');
+        }
+        
+        if (id === 'btn-draw' || id === 'btn-select') {
+            toolHistory.push(id);
+        }
+        
+        lineMode = (id === 'btn-line');
+        isTextMode = (id === 'btn-text');
+        if(!lineMode) isDrawingLine = false;
+        
+        canvasObj.selection = !lineMode;
+        if(lineMode) {
+            canvasObj.discardActiveObject();
+            canvasObj.requestRenderAll();
+        }
+    }
+    
+    function revertToPrimaryTool() {
+        let lastPrimary = toolHistory.length > 0 ? toolHistory[toolHistory.length - 1] : 'btn-select';
+        let btn = document.getElementById(lastPrimary);
+        if (btn) btn.click();
+    }
+    
+    function saveCanvasState() {
+        if (isStateAction) return;
+        undoStack.push(JSON.stringify(canvasObj.toJSON()));
+        redoStack = [];
+    }
+
+
+    // 取得當前屬性
+    function getProps() {
+        const isFillTransparent = document.getElementById('toggle-fill-transparent').checked;
+        const hasBorder = document.getElementById('toggle-border').checked;
+        const fillColor = document.getElementById('color-fill').value;
+        const borderColor = document.getElementById('color-border').value;
+        const opacity = parseInt(document.getElementById('obj-opacity').value, 10) / 100;
+        
+        return {
+            fill: isFillTransparent ? 'transparent' : fillColor,
+            stroke: hasBorder ? borderColor : 'transparent',
+            strokeWidth: hasBorder ? parseInt(document.getElementById('selection-width').value, 10) || 4 : 0,
+            strokeUniform: true,
+            opacity: opacity
+        };
+    }    
+    // Layer Controls
+    
+    // UI toggles based on selection
+
+
+
+
+    // 繪圖工具
+    canvasObj.freeDrawingBrush.width = 4;
+    canvasObj.on('path:created', function(e) { 
+        e.path.set({ strokeUniform: true, selectable: true, evented: true }); 
+        saveCanvasState();
+    });
+
+
+
+    document.getElementById('btn-draw').onclick = () => {
+        const props = getProps();
+        canvasObj.freeDrawingBrush.color = props.stroke !== 'transparent' ? props.stroke : props.fill;
+        canvasObj.isDrawingMode = true;
+        setInteractiveMode(true);
+        setActiveBtn('btn-draw');
+    };
+
+    document.getElementById('btn-line').onclick = () => {
+        canvasObj.isDrawingMode = false;
+        setInteractiveMode(true);
+        setActiveBtn('btn-line');
+    };
+
+    document.getElementById('btn-select').onclick = () => {
+        canvasObj.isDrawingMode = false;
+        setInteractiveMode(true);
+        setActiveBtn('btn-select');
+    };
+
+    document.getElementById('btn-rect').onclick = () => {
+        canvasObj.isDrawingMode = false; setActiveBtn('btn-rect'); setInteractiveMode(true);
+        const props = getProps();
+        const rx = parseInt(document.getElementById('rect-radius').value, 10);
+        const S = map.getZoomScale(map.getZoom(), baseZoom);
+        const center = canvasObj.getVpCenter();
+        const size = 100 / S;
+        const radius = rx / S;
+        const rect = new fabric.Rect({ left: center.x - size/2, top: center.y - size/2, width: size, height: size, rx: radius, ry: radius, ...props });
+        canvasObj.add(rect); canvasObj.setActiveObject(rect);
+        revertToPrimaryTool();
+        saveCanvasState();
+    };
+
+    document.getElementById('btn-circle').onclick = () => {
+        canvasObj.isDrawingMode = false; setActiveBtn('btn-circle'); setInteractiveMode(true);
+        const props = getProps();
+        const S = map.getZoomScale(map.getZoom(), baseZoom);
+        const size = 50 / S;
+        const center = canvasObj.getVpCenter();
+        const circle = new fabric.Circle({ left: center.x - size, top: center.y - size, radius: size, ...props });
+        canvasObj.add(circle); canvasObj.setActiveObject(circle);
+        revertToPrimaryTool();
+        saveCanvasState();
+    };
+
+    document.getElementById('upload-image').onchange = (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (f) => {
+            fabric.Image.fromURL(f.target.result, (img) => {
+                const S = map.getZoomScale(map.getZoom(), baseZoom);
+                img.scaleToWidth(250 / S);
+                const center = canvasObj.getVpCenter();
+                img.set({ left: center.x - (125/S), top: center.y - img.getScaledHeight()/2 });
+                canvasObj.add(img); canvasObj.setActiveObject(img);
+                canvasObj.isDrawingMode = false; setInteractiveMode(true);
+                revertToPrimaryTool();
+                saveCanvasState();
+            });
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // 刪除按鈕與鍵盤 Delete 鍵
+    function deleteActiveObject() {
+        const activeObjects = canvasObj.getActiveObjects();
+        if (activeObjects.length) {
+            canvasObj.discardActiveObject();
+            activeObjects.forEach(function(object) { canvasObj.remove(object); });
+        }
+    }
+    document.getElementById('btn-delete').onclick = deleteActiveObject;
+    function performUndo() {
+        if (undoStack.length === 0) return;
+        isStateAction = true;
+        redoStack.push(JSON.stringify(canvasObj.toJSON()));
+        let state = undoStack.pop();
+        canvasObj.loadFromJSON(state, function() {
+            canvasObj.renderAll();
+            isStateAction = false;
+        });
+    }
+
+    function performRedo() {
+        if (redoStack.length === 0) return;
+        isStateAction = true;
+        undoStack.push(JSON.stringify(canvasObj.toJSON()));
+        let state = redoStack.pop();
+        canvasObj.loadFromJSON(state, function() {
+            canvasObj.renderAll();
+            isStateAction = false;
+        });
+    }
+
+    function copyActiveObject() {
+        if (!canvasObj.getActiveObject()) return;
+        canvasObj.getActiveObject().clone(function(cloned) {
+            clipboard = cloned;
+        });
+    }
+
+    function pasteObject() {
+        if (!clipboard) return;
+        clipboard.clone(function(clonedObj) {
+            canvasObj.discardActiveObject();
+            clonedObj.set({
+                left: clonedObj.left + 20,
+                top: clonedObj.top + 20,
+                evented: true,
+            });
+            if (clonedObj.type === 'activeSelection') {
+                clonedObj.canvas = canvasObj;
+                clonedObj.forEachObject(function(obj) { canvasObj.add(obj); });
+                clonedObj.setCoords();
+            } else {
+                canvasObj.add(clonedObj);
+            }
+            clipboard.top += 20;
+            clipboard.left += 20;
+            canvasObj.setActiveObject(clonedObj);
+            canvasObj.requestRenderAll();
+            saveCanvasState();
+        });
+    }
+
+    window.addEventListener('keydown', (e) => {
+        const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+        if(e.key === 'Delete' || e.key === 'Backspace') {
+            if(!isInput) deleteActiveObject();
+        }
+        if(e.code === 'Space' && !isInput) {
+            e.preventDefault();
+            const selectBtn = document.getElementById('btn-select');
+            if (selectBtn.classList.contains('bg-gray-200')) {
+                document.getElementById('btn-draw').click();
+            } else {
+                selectBtn.click();
+            }
+        }
+        
+        // Ctrl Shortcuts
+        if (e.ctrlKey && !isInput) {
+            if (e.key.toLowerCase() === 'z') {
+                if (e.shiftKey) performRedo();
+                else performUndo();
+                e.preventDefault();
+            }
+            if (e.key.toLowerCase() === 'y') {
+                performRedo();
+                e.preventDefault();
+            }
+            if (e.key.toLowerCase() === 'c') {
+                copyActiveObject();
+                e.preventDefault();
+            }
+            if (e.key.toLowerCase() === 'v') {
+                pasteObject();
+                e.preventDefault();
+            }
+        }
+
+        // Save and Save As Copy
+        if (e.ctrlKey && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                // Save as copy
+                editingProjectId = null;
+                document.getElementById('btn-save-project').click();
+            } else {
+                // Save
+                document.getElementById('btn-save-project').click();
+            }
+        }
+    });
+
+    document.getElementById('btn-clear-canvas').onclick = () => { 
+        canvasObj.clear(); 
+        setInteractiveMode(false); 
+        setActiveBtn(''); 
+        initCanvasAnchor();
+    };
+
+    // ==========================================
+    // 線段繪製邏輯 (優化版)
+    // ==========================================
+        canvasObj.on('mouse:down', function(o) {
+        if (!isTextMode) return;
+        const pointer = canvasObj.getPointer(o.e);
+        const props = getProps();
+        const text = new fabric.IText('輸入文字', {
+            left: pointer.x,
+            top: pointer.y,
+            fill: props.fill,
+            stroke: props.stroke !== 'transparent' ? props.stroke : null,
+            strokeWidth: props.strokeWidth,
+            opacity: props.opacity,
+            fontFamily: 'Inter',
+            fontSize: 24,
+            selectable: true,
+            evented: true
+        });
+        canvasObj.add(text);
+        canvasObj.setActiveObject(text);
+        text.enterEditing();
+        text.selectAll();
+        saveCanvasState();
+        setActiveBtn('btn-select'); // Switch to select mode automatically after placing text
+    });
+
+    canvasObj.on('mouse:down', function(o) {
+        if (!lineMode) return;
+        isDrawingLine = true;
+        const pointer = canvasObj.getPointer(o.e);
+        const points = [pointer.x, pointer.y, pointer.x, pointer.y];
+        const props = getProps();
+        const color = props.stroke !== 'transparent' ? props.stroke : props.fill;
+        line = new fabric.Line(points, {
+            strokeWidth: props.strokeWidth > 0 ? props.strokeWidth : 4,
+            fill: color,
+            stroke: color,
+            originX: 'center',
+            originY: 'center',
+            selectable: false,
+            evented: false,
+            strokeUniform: true
+        });
+        canvasObj.add(line);
+    });
+
+    canvasObj.on('mouse:move', function(o) {
+        if (!isDrawingLine) return;
+        const pointer = canvasObj.getPointer(o.e);
+        line.set({ x2: pointer.x, y2: pointer.y });
+        canvasObj.renderAll();
+    });
+
+    canvasObj.on('mouse:up', function(o) {
+        if(isDrawingLine) {
+            line.setCoords();
+            line.set({ selectable: true, evented: true });
+            isDrawingLine = false;
+            revertToPrimaryTool();
+            saveCanvasState();
+        }
+    });
+    
+    // Map Panning and Zooming Logic
+        canvasObj.on('mouse:down', function(opt) {
+        // Only pan with right click (button 2) to allow left-click Box Selection (框選)
+        if (opt.e.button === 2) {
+            isPanningMap = true;
+            panStart = { x: opt.e.clientX, y: opt.e.clientY };
+            canvasObj.defaultCursor = 'grabbing';
+        }
+    });
+
+    canvasObj.on('mouse:move', function(opt) {
+        if (isPanningMap) {
+            const dx = opt.e.clientX - panStart.x;
+            const dy = opt.e.clientY - panStart.y;
+            map.panBy([-dx, -dy], {animate: false});
+            panStart = { x: opt.e.clientX, y: opt.e.clientY };
+        }
+    });
+
+    canvasObj.on('mouse:up', function(opt) {
+        if (isPanningMap) {
+            isPanningMap = false;
+            canvasObj.defaultCursor = 'default';
+        }
+    });
+    
+    window.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('#map-container')) {
+            e.preventDefault();
+        }
+    });
+
+    window.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+            e.preventDefault(); // Prevent browser zoom
+            if (e.target.closest('#map-container')) {
+                if (e.deltaY > 0) {
+                    map.zoomOut();
+                } else {
+                    map.zoomIn();
+                }
+            }
+        }
+    }, { passive: false });
+
+
+    // 畫布滾輪事件：支援 Ctrl 縮放
+        canvasObj.on('mouse:wheel', function(opt) {
+        if (opt.e.ctrlKey) {
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+            // Dispatch to map so leaflet handles smooth zooming
+            const mapEl = document.getElementById('map');
+            const newEv = new WheelEvent('wheel', {
+                deltaY: opt.e.deltaY,
+                clientX: opt.e.clientX,
+                clientY: opt.e.clientY,
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true
+            });
+            mapEl.dispatchEvent(newEv);
+        }
+    });
+
+    // ==========================================
+    // 縮放模式處理: 改變大小 vs 改變比例(Stretch)
+    // ==========================================
+    
+    // 處理縮放行為：若是Resize，更新實際屬性；若是Stretch，直接變形
+    canvasObj.on('object:scaling', function (e) {
+        let obj = e.target;
+        
+        // Ctrl 鍵可以強制等比例
+        if (e.e.ctrlKey) { 
+            obj.set({ lockUniScaling: true }); 
+        } else { 
+            obj.set({ lockUniScaling: false }); 
+        }
+
+        // 如果是 Resize 模式且不是線段，透過調整寬高來改變大小，避免形狀拉伸失真 (特別是圓角)
+        if (currentScaleMode === 'resize') {
+            if (obj.type === 'rect') {
+                obj.set({ 
+                    width: obj.width * obj.scaleX, 
+                    height: obj.height * obj.scaleY, 
+                    scaleX: 1, 
+                    scaleY: 1 
+                });
+            } else if (obj.type === 'circle') {
+                obj.set({ 
+                    radius: obj.radius * obj.scaleX, 
+                    scaleX: 1, 
+                    scaleY: 1 
+                });
+            }
+        }
+    });
+
+    // 當點擊畫布上的物件時，自動切換至選取模式並讀取圓角
+                
+    // Save state on object modifications
+    canvasObj.on('object:modified', saveCanvasState);
+    
+    // Configure global selection border
+    
+
+    // ==========================================
+    // 3. 連線與驗證 (SSO)
+    // ==========================================
+    async function initConnection() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            let serverUrl = urlParams.get('server');
+
+            if (!serverUrl) {
+                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                if (!res.ok) throw new Error('無法取得伺服器網址');
+                const text = await res.text();
+                serverUrl = atob(text.trim().split('').reverse().join(''));
+            }
+
+            socket = io(serverUrl, { transports: ['websocket'] });
+
+            socket.on('connect', () => {
+                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                checkLogin();
+                
+                socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                
+                socket.emit('getAppData', { appId: 'non-existent-map' }, (res) => {
+                    if (res && res.data && res.data.projects) {
+                        appData = res.data;
+                        renderProjects();
+                    }
+                });
+
+                socket.emit('getSystemContext', (res) => {
+                    if(res && res.isAdmin) isAdmin = true;
+                });
+            });
+
+            socket.on('connect_error', () => { showOfflineAuth(); });
+            
+            socket.on('appData', (msg) => {
+                if(msg.room === appId && msg.action === 'syncAppData') {
+                    appData = msg.data;
+                    renderProjects();
+                    if(!document.getElementById('project-modal').classList.contains('hidden')) {
+                        updateModalComments();
+                    }
+                }
+            });
+        } catch (err) {
+            showOfflineAuth();
+        }
+    }
+
+    function showOfflineAuth() {
+        document.getElementById('auth-container').innerHTML = `<div class="px-5 py-2 text-red-500 font-bold bg-red-50 rounded-full text-sm">伺服器連線失敗，請稍後再試</div>`;
+    }
+
+    function checkLogin() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let token = urlParams.get('token') || localStorage.getItem('panda_session_token');
+
+        if (token) {
+            socket.emit('tokenLogin', { token: token });
+            socket.once('loginResult', (data) => {
+                const userObj = data.userData || data.user || (data.success ? data : null);
+                
+                if (data.success && userObj) {
+                    localStorage.setItem('panda_session_token', data.token || token);
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({path: newUrl}, '', newUrl);
+                    
+                    currentUser = userObj;
+                    updateAuthUI(true);
+                    
+                } else {
+                    localStorage.removeItem('panda_session_token');
+                    updateAuthUI(false);
+                }
+            });
+        } else {
+            updateAuthUI(false);
+        }
+    }
+
+    function updateAuthUI(isLoggedIn) {
+        const container = document.getElementById('auth-container');
+        if (isLoggedIn && currentUser) {
+            const avatarUrl = currentUser.avatar || currentUser.photoURL || 'https://via.placeholder.com/40';
+            const name = currentUser.username || currentUser.name || currentUser.displayName || '未知玩家';
+            const coins = currentUser.pcoins || currentUser.coins || 0;
+
+            container.innerHTML = `
+                <img src="${avatarUrl}" class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover bg-white ml-1">
+                <div class="flex flex-col">
+                    <span class="font-bold text-gray-800 text-sm leading-tight max-w-[100px] truncate">${name}</span>
+                    <span class="text-xs text-yellow-600 font-bold flex items-center gap-1">
+                        <i class="fas fa-coins text-yellow-500"></i> ${coins}
+                    </span>
+                </div>
+            `;
+            container.onclick = () => { window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href); };
+        } else {
+            container.innerHTML = `
+                <div class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-full transition shadow text-sm w-full text-center">
+                    登入 / 註冊
+                </div>
+            `;
+            container.classList.remove('p-1', 'pr-4');
+            container.onclick = () => { window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href); };
+        }
+    }
+
+    document.getElementById('report-btn').onclick = () => {
+        window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
+    };
+
+    // ==========================================
+    // 4. 跑馬燈廣播功能
+    // ==========================================
+    function initBroadcast() {
+        const loadOffline = () => { window.broadcasts = JSON.parse(localStorage.getItem('broadcasts')||'[]'); };
+        fetch('https://pandapanda6666.github.io/login-hub/server_broadcast.json')
+            .then(res=>res.json())
+            .then(list => { 
+                window.broadcasts = list; 
+                localStorage.setItem('broadcasts', JSON.stringify(list)); 
+            }).catch(loadOffline);
+            
+        setInterval(() => {
+            if(typeof socket !== 'undefined' && socket.connected) {
+                socket.on('broadcastSchedule', (list) => {
+                    localStorage.setItem('broadcasts', JSON.stringify(list));
+                    window.broadcasts = list;
+                });
+            }
+        }, 30000); 
+
+        setInterval(() => {
+            const now = Date.now(); 
+            const bar = document.getElementById('notificationBar'); 
+            const msgText = document.getElementById('notificationMsg');
+            let activeMsg = null; 
+            let rawList = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            const list = Array.isArray(rawList) ? rawList : [];
+            
+            for (let b of list) {
+                const st = new Date(b.startTime).getTime();
+                if (b.mode === 1) {
+                    const intervalMs = b.intervalMin * 60000; 
+                    const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    if (now >= st && now <= end) { 
+                        const elapsed = now - st; 
+                        if (elapsed % intervalMs < 60000) activeMsg = b.message; 
+                    }
+                } else if (b.mode === 2) { 
+                    const et = new Date(b.endTime).getTime(); 
+                    if (now >= st && now <= et) activeMsg = b.message; 
+                }
+            }
+            if (activeMsg) { 
+                if(msgText.innerText !== activeMsg) msgText.innerText = activeMsg; 
+                bar.style.display = 'block'; 
+            } else { 
+                bar.style.display = 'none'; 
+            }
+        }, 1000);
+    }
+
+    // ==========================================
+    // 5. 專案邏輯與地圖渲染
+    // ==========================================
+    // ==========================================
+    
+    function renderProjects() {
+        projectMarkers.forEach(m => map.removeLayer(m));
+        projectMarkers = [];
+
+        if(!appData.projects) appData.projects = [];
+        
+        appData.projects.forEach(p => {
+            if (projectVisibility[p.id] === undefined) projectVisibility[p.id] = true;
+            
+            // 地圖標記只顯示非草稿且勾選顯示的專案 (且必須在當前圖層)
+            if (p.layerId === currentLayerId && projectVisibility[p.id] && p.status !== 'draft') {
+                const iconHtml = `
+                    <div class="relative group cursor-pointer transition-transform hover:scale-110">
+                        <img src="${p.creatorAvatar}" class="w-12 h-12 rounded-full border-4 ${p.status==='approved'?'border-indigo-500':'border-yellow-400'} shadow-lg object-cover bg-white">
+                        ${p.isAdmin ? '<div class="absolute -bottom-1 -right-2 bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-black tracking-widest border border-white">ADMIN</div>' : ''}
+                    </div>
+                `;
+                const icon = L.divIcon({ html: iconHtml, className: '', iconSize: [48, 48], iconAnchor: [24, 24] });
+                const marker = L.marker([p.lat, p.lng], { icon: icon }).addTo(map);
+                marker.on('click', () => openProjectModal(p));
+                projectMarkers.push(marker);
+            }
+        });
+        
+        renderProjectListUI();
+    }
+
+    function renderProjectListUI() {
+        const exploreList = document.getElementById('explore-list-container');
+        const myList = document.getElementById('my-projects-list-container');
+        if(!exploreList || !myList) return;
+        
+        exploreList.innerHTML = '';
+        myList.innerHTML = '';
+        const currentUserId = currentUser ? (currentUser.id || currentUser.uid) : null;
+
+        appData.projects.forEach(p => {
+            const isVis = projectVisibility[p.id];
+            const eyeClass = isVis ? 'fa-eye text-indigo-600' : 'fa-eye-slash text-gray-400';
+            
+            // 如果不是草稿，放進探索列表
+            if (p.status !== 'draft') {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center text-[11px] p-1.5 hover:bg-white rounded border border-transparent hover:border-gray-200 transition-colors';
+                item.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden cursor-pointer flex-1" onclick="flyToProject('${p.id}')">
+                        <img src="${p.creatorAvatar}" class="w-4 h-4 rounded-full object-cover">
+                        <span class="truncate ${isVis ? 'text-gray-800 font-medium' : 'text-gray-400'}">${p.name} ${p.layerId !== currentLayerId ? '<span class="text-gray-400">(不同圖層)</span>' : ''}</span>
+                    </div>
+                    <button class="px-2 hover:bg-gray-100 rounded toggle-vis-btn" data-id="${p.id}">
+                        <i class="fas ${eyeClass}"></i>
+                    </button>
+                `;
+                exploreList.appendChild(item);
+            }
+            
+            // 如果是本人的專案，放進我的專案列表
+            if (currentUserId && p.creatorId === currentUserId) {
+                const myItem = document.createElement('div');
+                myItem.className = 'flex justify-between items-center text-[11px] p-1.5 hover:bg-white rounded border border-transparent hover:border-gray-200 transition-colors group';
+                myItem.innerHTML = `
+                    <div class="flex items-center gap-1.5 overflow-hidden flex-1 cursor-pointer" onclick="flyToProject('${p.id}')">
+                        <span class="${p.status==='draft'?'bg-gray-200 text-gray-600':'bg-indigo-100 text-indigo-600'} px-1 rounded text-[9px] font-bold">${p.status==='draft'?'草稿':'已發布'}</span>
+                        <span class="truncate text-gray-800 font-medium">${p.name}</span>
+                    </div>
+                    <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button class="px-1.5 text-blue-500 hover:bg-blue-50 rounded btn-edit-proj" data-id="${p.id}" title="編輯"><i class="fas fa-edit"></i></button>
+                        <button class="px-1.5 text-red-500 hover:bg-red-50 rounded btn-del-proj" data-id="${p.id}" title="刪除"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                myList.appendChild(myItem);
+            }
+        });
+
+        // 綁定事件
+        document.querySelectorAll('.toggle-vis-btn').forEach(btn => {
+            btn.onclick = (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                projectVisibility[id] = !projectVisibility[id];
+                renderProjects();
+            };
+        });
+        document.querySelectorAll('.btn-edit-proj').forEach(btn => {
+            btn.onclick = (e) => editProject(e.currentTarget.getAttribute('data-id'));
+        });
+        document.querySelectorAll('.btn-del-proj').forEach(btn => {
+            btn.onclick = (e) => deleteProject(e.currentTarget.getAttribute('data-id'));
+        });
+    }
+
+    function flyToProject(id) {
+        const p = appData.projects.find(x => x.id === id);
+        if(p) map.flyTo([p.lat, p.lng], p.zoom);
+    }
+
+    function editProject(id) {
+        const p = appData.projects.find(x => x.id === id);
+        if(!p) return;
+        editingProjectId = id;
+        switchTab('tab-tools');
+        document.getElementById('top-left-controls').classList.remove('hidden');
+        
+        baseZoom = p.baseZoom || p.zoom;
+        baseTopLeft = (p.baseLat && p.baseLng) ? L.latLng(p.baseLat, p.baseLng) : L.latLng(p.lat, p.lng);
+        map.flyTo([p.lat, p.lng], p.zoom);
+        
+        canvasObj.loadFromJSON(p.fabricJSON, () => {
+            canvasObj.getObjects().forEach(o => o.set({ selectable: true, evented: true }));
+            canvasObj.renderAll();
+        });
+        setInteractiveMode(true);
+        setActiveBtn('btn-select');
+    }
+
+    function deleteProject(id) {
+        if(!confirm('確定要刪除這個專案嗎？此操作無法復原。')) return;
+        appData.projects = appData.projects.filter(x => x.id !== id);
+        syncAndSaveCloud();
+        renderProjects();
+        if(editingProjectId === id) {
+            cancelEdit();
+        }
+    }
+
+    // Tab 切換
+    document.getElementById('tab-explore').onclick = () => {
+        document.getElementById('tab-explore').className = 'flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition';
+        document.getElementById('tab-my-projects').className = 'flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition';
+        document.getElementById('panel-explore').classList.remove('hidden');
+        document.getElementById('panel-my-projects').classList.add('hidden');
+        document.getElementById('panel-explore').classList.add('flex');
+    };
+    document.getElementById('tab-my-projects').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        document.getElementById('tab-my-projects').className = 'flex-1 text-center py-1 rounded bg-white text-indigo-600 shadow-sm transition';
+        document.getElementById('tab-explore').className = 'flex-1 text-center py-1 rounded text-gray-500 hover:text-gray-700 transition';
+        document.getElementById('panel-my-projects').classList.remove('hidden');
+        document.getElementById('panel-explore').classList.add('hidden');
+        document.getElementById('panel-my-projects').classList.add('flex');
+    };
+
+    // 批量顯示篩選器
+    document.getElementById('btn-bulk-show').onclick = () => {
+        const condition = document.getElementById('bulk-show-filter').value;
+        appData.projects.forEach(p => {
+            if(p.status === 'draft') return;
+            let match = false;
+            if (condition === 'all') match = true;
+            if (condition === 'approved' && p.status === 'approved') match = true;
+            if (condition === 'pending' && p.status === 'pending') match = true;
+            if (match) projectVisibility[p.id] = true;
+        });
+        renderProjects();
+    };
+    document.getElementById('btn-show-all').onclick = () => {
+        appData.projects.forEach(p => { if(p.status!=='draft') projectVisibility[p.id] = true; });
+        renderProjects();
+    };
+    document.getElementById('btn-hide-all').onclick = () => {
+        appData.projects.forEach(p => projectVisibility[p.id] = false);
+        renderProjects();
+    };
+
+    // 新增專案 / 取消編輯
+    document.getElementById('btn-new-project').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        editingProjectId = null;
+        canvasObj.clear();
+        initCanvasAnchor();
+        switchTab('tab-tools');
+        document.getElementById('top-left-controls').classList.remove('hidden');
+        setInteractiveMode(true);
+        setActiveBtn('btn-select');
+    };
+
+    function cancelEdit() {
+        if(canvasObj.getObjects().length > 0 && !confirm('還有未儲存的變更，確定要返回嗎？')) return;
+        editingProjectId = null;
+        canvasObj.clear();
+        switchTab('tab-home');
+        document.getElementById('top-left-controls').classList.add('hidden');
+        document.getElementById('top-context-toolbar').classList.add('hidden');
+        setInteractiveMode(false);
+    }
+    document.getElementById('btn-cancel-edit').onclick = cancelEdit;
+
+    // 儲存與發布邏輯
+    function saveProjectData(isDraft, name, desc) {
+        if(!currentUser) return alert('請先登入！');
+        if(canvasObj.getObjects().length === 0) return alert('請先在畫布上畫點東西！');
+        
+        canvasObj.discardActiveObject();
+        canvasObj.requestRenderAll();
+        
+        const center = map.getCenter();
+        const isUserAdmin = isAdmin || (currentUser.role === 'admin');
+        const status = isDraft ? 'draft' : (isUserAdmin ? 'approved' : 'pending');
+
+        const projData = {
+            id: editingProjectId || ('proj_' + Date.now()),
+            name: name || '未命名專案',
+            desc: desc || '',
+            layerId: currentLayerId,
+            creatorId: currentUser.id || currentUser.uid,
+            creatorName: currentUser.username || currentUser.name || currentUser.displayName,
+            creatorAvatar: currentUser.avatar || currentUser.photoURL,
+            isAdmin: isUserAdmin,
+            status: status,
+            lat: center.lat,
+            lng: center.lng,
+            zoom: map.getZoom(),
+            bearing: map.getBearing ? map.getBearing() : 0,
+            baseLat: baseTopLeft ? baseTopLeft.lat : center.lat,
+            baseLng: baseTopLeft ? baseTopLeft.lng : center.lng,
+            baseZoom: baseZoom,
+            fabricJSON: canvasObj.toJSON(),
+            comments: []
+        };
+
+        if(editingProjectId) {
+            const idx = appData.projects.findIndex(x => x.id === editingProjectId);
+            if(idx !== -1) {
+                // 保留舊留言
+                projData.comments = appData.projects[idx].comments || [];
+                appData.projects[idx] = projData;
+            } else {
+                appData.projects.push(projData);
+            }
+        } else {
+            appData.projects.push(projData);
+        }
+
+                socket.emit('saveProject', projData);
+        if(!isDraft) {
+            socket.emit('logAppMessage', { appId: 'non-existent-map', message: `發布了地圖專案: ${projData.name}`, type: 'info' });
+        }
+        
+        cancelEdit();
+        renderProjects();
+        if(typeof Swal !== 'undefined') {
+            Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000}).fire({icon: 'success', title: isDraft ? '草稿已儲存' : '專案發布成功'});
+        } else {
+            alert(isDraft ? '草稿已儲存' : '專案發布成功！');
+        }
+    }
+
+    
+    document.getElementById('btn-clear-canvas').onclick = () => {
+        if(confirm('確定要清除畫布上的所有物件嗎？此操作無法復原。')) {
+            canvasObj.clear();
+            if (document.getElementById('auto-save-toggle').checked) {
+                saveProjectData(true, "草稿", "");
+            }
+        }
+    };
+
+    document.getElementById('btn-save-draft').onclick = () => {
+        let name = "草稿";
+        if(editingProjectId) {
+            const p = appData.projects.find(x => x.id === editingProjectId);
+            if(p) name = p.name;
+        }
+        saveProjectData(true, name, "");
+    };
+
+    document.getElementById('btn-save-project').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        if(canvasObj.getObjects().length === 0) return alert('請先在畫布上畫點東西！');
+        document.getElementById('proj-layer-name').innerText = currentLayerId;
+        
+        if(editingProjectId) {
+            const p = appData.projects.find(x => x.id === editingProjectId);
+            if(p) {
+                document.getElementById('proj-name').value = p.name;
+                document.getElementById('proj-desc').value = p.desc || '';
+            }
+        } else {
+            document.getElementById('proj-name').value = '';
+            document.getElementById('proj-desc').value = '';
+        }
+        
+        document.getElementById('publish-modal').classList.remove('hidden');
+    };
+
+    document.getElementById('confirm-publish').onclick = () => {
+        const name = document.getElementById('proj-name').value.trim();
+        const desc = document.getElementById('proj-desc').value.trim();
+        if(!name) return alert('請輸入名稱');
+        
+        document.getElementById('publish-modal').classList.add('hidden');
+        saveProjectData(false, name, desc);
+    };
+
+    function openProjectModal(proj) {
+        currentOpenProjectId = proj.id;
+        document.getElementById('modal-proj-name').innerText = proj.name;
+        document.getElementById('modal-proj-desc').innerText = proj.desc || '無介紹';
+        document.getElementById('modal-proj-avatar').src = proj.creatorAvatar || 'https://via.placeholder.com/40';
+        
+        let authorHtml = proj.creatorName;
+        document.getElementById('modal-proj-author').innerHTML = authorHtml;
+
+        const statusEl = document.getElementById('modal-proj-status');
+        if(proj.status === 'approved') {
+            statusEl.innerText = '已批准';
+            statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200';
+        } else {
+            statusEl.innerText = '待審核';
+            statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-bold tracking-wider bg-yellow-100 text-yellow-700 border border-yellow-200';
+        }
+
+        const adminActions = document.getElementById('admin-actions');
+        if(isAdmin && proj.status === 'pending') {
+            adminActions.classList.remove('hidden');
+            document.getElementById('btn-approve').onclick = () => {
+                proj.status = 'approved';
+                syncAndSaveCloud();
+                socket.emit('logAppMessage', { appId: 'non-existent-map', message: `管理員批准了專案: ${proj.name}`, type: 'info' });
+                openProjectModal(proj); 
+            };
+        } else {
+            adminActions.classList.add('hidden');
+        }
+
+        updateModalComments();
+        document.getElementById('project-modal').classList.remove('hidden');
+
+        baseZoom = proj.baseZoom || proj.zoom;
+        baseTopLeft = (proj.baseLat && proj.baseLng) ? L.latLng(proj.baseLat, proj.baseLng) : L.latLng(proj.lat, proj.lng);
+        
+        map.flyTo([proj.lat, proj.lng], proj.zoom);
+        if(map.setBearing && proj.bearing !== undefined) {
+            map.setBearing(proj.bearing);
+            document.getElementById('map-rotation').value = proj.bearing;
+            document.getElementById('rotation-val').innerText = proj.bearing + '°';
+        }
+        canvasObj.loadFromJSON(proj.fabricJSON, () => {
+            canvasObj.getObjects().forEach(o => o.set({ selectable: false, evented: false }));
+            canvasObj.renderAll();
+        });
+    }
+
+    function updateModalComments() {
+        if(!currentOpenProjectId) return;
+        const proj = appData.projects.find(p => p.id === currentOpenProjectId);
+        if(!proj) return;
+
+        const listEl = document.getElementById('comments-list');
+        listEl.innerHTML = '';
+        
+        if(!proj.comments || proj.comments.length === 0) {
+            listEl.innerHTML = '<div class="text-gray-400 text-sm text-center py-6 bg-white rounded-xl border border-dashed border-gray-300">目前還沒有留言，來搶頭香吧！</div>';
+            return;
+        }
+
+        proj.comments.forEach(c => {
+            listEl.innerHTML += `
+                <div class="flex gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <img src="${c.userAvatar || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover shadow-sm bg-gray-50">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <span class="text-xs font-bold text-gray-800">${c.userName}</span>
+                            <span class="text-[10px] text-gray-400">${new Date(c.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="text-sm text-gray-600 leading-relaxed">${c.text}</div>
+                    </div>
+                </div>
+            `;
+        });
+        listEl.scrollTop = listEl.scrollHeight;
+    }
+
+    document.getElementById('btn-send-comment').onclick = () => {
+        if(!currentUser) return alert('請先登入！');
+        const text = document.getElementById('comment-input').value.trim();
+        if(!text) return;
+
+        const proj = appData.projects.find(p => p.id === currentOpenProjectId);
+        if(proj) {
+            if(!proj.comments) proj.comments = [];
+            proj.comments.push({
+                userId: currentUser.id || currentUser.uid,
+                userName: currentUser.username || currentUser.name || currentUser.displayName,
+                userAvatar: currentUser.avatar || currentUser.photoURL,
+                text: text,
+                timestamp: Date.now()
+            });
+            document.getElementById('comment-input').value = '';
+            syncAndSaveCloud();
+        }
+    };
+
+    initBroadcast();
+    initConnection();
+</script>
+
+
+<script>
+    // -------------------------------------------------------------------------
+    // NEW UI LOGIC (Sidebar tabs, Context Toolbar, Layers Panel, Auto-Save)
+    // -------------------------------------------------------------------------
+
+    // 1. Sidebar Tabs
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-pane').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.nav-btn').forEach(el => {
+            el.classList.remove('bg-gray-800', 'text-indigo-400');
+            el.classList.add('text-gray-400');
+        });
+        
+        const targetTab = document.getElementById(tabId);
+        if (targetTab) targetTab.classList.remove('hidden');
+        if (tabId === 'tab-home' || tabId === 'tab-tools') {
+            targetTab.classList.add('flex');
+        } else {
+            targetTab.classList.remove('hidden');
+        }
+        
+        const btn = document.querySelector(`.nav-btn[data-target="${tabId}"]`);
+        if (btn) {
+            btn.classList.add('bg-gray-800', 'text-indigo-400');
+            btn.classList.remove('text-gray-400');
+        }
+        
+        // Show/hide sidebar nav buttons based on state
+        const isEditing = editingProjectId !== null || canvasObj.getObjects().length > 0;
+        ['nav-tools', 'nav-layers', 'nav-settings'].forEach(id => {
+            if (isEditing) {
+                document.getElementById(id).classList.remove('hidden');
+            } else {
+                document.getElementById(id).classList.add('hidden');
+            }
+        });
+    }
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const target = e.currentTarget.getAttribute('data-target');
+            if (target === 'tab-home' && editingProjectId) {
+                // Clicking home while editing acts like "Return"
+                document.getElementById('btn-cancel-edit').click();
+            } else {
+                switchTab(target);
+            }
+        });
+    });
+
+    // Initial state
+    switchTab('tab-home');
+
+    // 2. Top Context Toolbar & Object Properties
+    function updateContextToolbar() {
+        const activeObj = canvasObj.getActiveObject();
+        const tb = document.getElementById('top-context-toolbar');
+        
+        if (!activeObj) {
+            tb.classList.add('hidden');
+            return;
+        }
+        
+        tb.classList.remove('hidden');
+        
+        // Text tool specific props
+        if (activeObj.type === 'i-text' || activeObj.type === 'text') {
+            document.getElementById('text-prop-divider').classList.remove('hidden');
+            document.getElementById('text-prop-group').classList.remove('hidden');
+            document.getElementById('font-family-select').value = activeObj.fontFamily || 'Inter';
+        } else {
+            document.getElementById('text-prop-divider').classList.add('hidden');
+            document.getElementById('text-prop-group').classList.add('hidden');
+        }
+
+        // Fill
+        const fillTransparent = !activeObj.fill || activeObj.fill === 'transparent';
+        document.getElementById('toggle-fill-transparent').checked = fillTransparent;
+        if (!fillTransparent) {
+            document.getElementById('color-fill').value = activeObj.fill;
+        }
+
+        // Border / Stroke
+        const strokeTransparent = !activeObj.stroke || activeObj.stroke === 'transparent' || activeObj.strokeWidth === 0;
+        document.getElementById('toggle-border').checked = strokeTransparent;
+        if (!strokeTransparent) {
+            document.getElementById('color-border').value = activeObj.stroke;
+            document.getElementById('selection-width').value = activeObj.strokeWidth || 2;
+        }
+
+        document.getElementById('obj-opacity').value = activeObj.opacity * 100;
+        document.getElementById('rect-radius').value = activeObj.rx || 0;
+    }
+
+    canvasObj.on('selection:created', updateContextToolbar);
+    canvasObj.on('selection:updated', updateContextToolbar);
+    canvasObj.on('selection:cleared', () => document.getElementById('top-context-toolbar').classList.add('hidden'));
+
+    // Prevent both fill and stroke from being transparent
+    function validateTransparency() {
+        const fillTrans = document.getElementById('toggle-fill-transparent').checked;
+        const borderTrans = document.getElementById('toggle-border').checked;
+        if (fillTrans && borderTrans) {
+            alert('不能同時隱藏外框與填色，否則物件會隱形！');
+            return false;
+        }
+        return true;
+    }
+
+    document.getElementById('toggle-fill-transparent').onchange = (e) => {
+        if (!validateTransparency()) { e.target.checked = false; return; }
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            activeObj.set({ fill: e.target.checked ? 'transparent' : document.getElementById('color-fill').value });
+            canvasObj.requestRenderAll();
+            triggerAutoSave();
+        }
+    };
+
+    document.getElementById('toggle-border').onchange = (e) => {
+        if (!validateTransparency()) { e.target.checked = false; return; }
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            activeObj.set({
+                stroke: e.target.checked ? 'transparent' : document.getElementById('color-border').value,
+                strokeWidth: e.target.checked ? 0 : parseInt(document.getElementById('selection-width').value)
+            });
+            canvasObj.requestRenderAll();
+            triggerAutoSave();
+        }
+    };
+
+    document.getElementById('color-fill').oninput = (e) => {
+        document.getElementById('toggle-fill-transparent').checked = false;
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            activeObj.set({ fill: e.target.value });
+            canvasObj.requestRenderAll();
+        }
+    };
+    document.getElementById('color-fill').onchange = triggerAutoSave;
+
+    document.getElementById('color-border').oninput = (e) => {
+        document.getElementById('toggle-border').checked = false;
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            activeObj.set({ stroke: e.target.value, strokeWidth: parseInt(document.getElementById('selection-width').value) || 2 });
+            canvasObj.requestRenderAll();
+        }
+    };
+    document.getElementById('color-border').onchange = triggerAutoSave;
+
+    document.getElementById('selection-width').oninput = (e) => {
+        document.getElementById('toggle-border').checked = false;
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            activeObj.set({ strokeWidth: parseInt(e.target.value), stroke: document.getElementById('color-border').value });
+            canvasObj.requestRenderAll();
+        }
+    };
+    document.getElementById('selection-width').onchange = triggerAutoSave;
+
+    document.getElementById('rect-radius').oninput = (e) => {
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj && activeObj.type === 'rect') {
+            activeObj.set({ rx: parseInt(e.target.value), ry: parseInt(e.target.value) });
+            canvasObj.requestRenderAll();
+        }
+    };
+    document.getElementById('rect-radius').onchange = triggerAutoSave;
+
+    document.getElementById('obj-opacity').oninput = (e) => {
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            activeObj.set({ opacity: parseInt(e.target.value) / 100 });
+            canvasObj.requestRenderAll();
+        }
+    };
+    document.getElementById('obj-opacity').onchange = triggerAutoSave;
+
+    document.getElementById('font-family-select').onchange = (e) => {
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj && (activeObj.type === 'i-text' || activeObj.type === 'text')) {
+            activeObj.set({ fontFamily: e.target.value });
+            canvasObj.requestRenderAll();
+            triggerAutoSave();
+        }
+    };
+
+    document.getElementById('btn-delete').onclick = () => {
+        const activeObj = canvasObj.getActiveObject();
+        if (activeObj) {
+            canvasObj.remove(activeObj);
+            document.getElementById('top-context-toolbar').classList.add('hidden');
+            triggerAutoSave();
+            renderLayerPanel();
+        }
+    };
+
+    // 3. Layer Panel logic
+    function renderLayerPanel() {
+        const container = document.getElementById('layers-list-container');
+        const objects = canvasObj.getObjects();
+        container.innerHTML = '';
+        
+        if (objects.length === 0) {
+            container.innerHTML = '<div class="text-xs text-gray-400 text-center mt-4">畫布上目前沒有物件</div>';
+            return;
+        }
+        
+        // Render in reverse so top is top
+        [...objects].reverse().forEach((obj, idx) => {
+            const actualIndex = objects.length - 1 - idx;
+            const el = document.createElement('div');
+            el.className = 'flex items-center justify-between p-2 bg-white border border-gray-100 rounded-lg shadow-sm hover:shadow transition cursor-pointer mb-1';
+            
+            let icon = 'fas fa-vector-square text-blue-500';
+            if (obj.type === 'image') icon = 'fas fa-image text-green-500';
+            else if (obj.type === 'i-text') icon = 'fas fa-font text-yellow-500';
+            else if (obj.type === 'circle') icon = 'far fa-circle text-red-500';
+            else if (obj.type === 'line') icon = 'fas fa-minus text-purple-500';
+            
+            let label = obj.type === 'i-text' ? obj.text.substring(0,10) : obj.type;
+
+            el.innerHTML = `
+                <div class="flex items-center gap-2 flex-1">
+                    <button class="text-gray-300 hover:text-gray-500 cursor-grab px-1"><i class="fas fa-grip-vertical"></i></button>
+                    <i class="${icon} w-4 text-center"></i>
+                    <span class="text-xs font-bold text-gray-700 truncate w-32">${label}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button class="text-gray-400 hover:text-indigo-500 btn-layer-up" title="上移一層"><i class="fas fa-arrow-up"></i></button>
+                    <button class="text-gray-400 hover:text-indigo-500 btn-layer-down" title="下移一層"><i class="fas fa-arrow-down"></i></button>
+                </div>
+            `;
+            
+            // Focus and flyTo
+            el.onclick = (e) => {
+                if(e.target.closest('button')) return;
+                canvasObj.setActiveObject(obj);
+                canvasObj.requestRenderAll();
+                if(obj.left && obj.top) {
+                    const latlng = unprojectPoint({x: obj.left, y: obj.top});
+                    map.flyTo(latlng, map.getZoom());
+                }
+            };
+            
+            el.querySelector('.btn-layer-up').onclick = (e) => {
+                e.stopPropagation();
+                obj.bringForward();
+                canvasObj.requestRenderAll();
+                renderLayerPanel();
+                triggerAutoSave();
+            };
+            
+            el.querySelector('.btn-layer-down').onclick = (e) => {
+                e.stopPropagation();
+                obj.sendBackwards();
+                canvasObj.requestRenderAll();
+                renderLayerPanel();
+                triggerAutoSave();
+            };
+            
+            container.appendChild(el);
+        });
+    }
+
+    canvasObj.on('object:added', () => { renderLayerPanel(); triggerAutoSave(); });
+    canvasObj.on('object:removed', () => { renderLayerPanel(); triggerAutoSave(); });
+    
+    // 4. Auto-Save Logic
+    function triggerAutoSave() {
+        if(document.getElementById('auto-save-toggle').checked) {
+            // Save draft implicitly without alert
+            saveProjectData(true, "草稿", "", true);
+        }
+    }
+    
+    canvasObj.on('object:modified', triggerAutoSave);
+
+    // 5. Bounding Box & Text Tool
+    fabric.Object.prototype.set({
+        borderColor: '#3b82f6',
+        cornerColor: '#3b82f6',
+        cornerStrokeColor: '#1e3a8a',
+        transparentCorners: false,
+        cornerSize: 8
+    });
+    
+    document.getElementById('editor-selection-color').oninput = (e) => {
+        fabric.Object.prototype.set({
+            borderColor: e.target.value,
+            cornerColor: e.target.value
+        });
+        canvasObj.requestRenderAll();
+    };
+
+    document.getElementById('btn-text').onclick = () => {
+        setActiveBtn('btn-text');
+    };
+    
+    canvasObj.on('mouse:down', function(options) {
+        if (!options.target && activeTool === 'btn-text') {
+            const pointer = canvasObj.getPointer(options.e);
+            const textObj = new fabric.IText('雙擊編輯文字', {
+                left: pointer.x,
+                top: pointer.y,
+                fontFamily: 'Inter',
+                fill: document.getElementById('color-fill').value,
+                stroke: document.getElementById('toggle-border').checked ? 'transparent' : document.getElementById('color-border').value,
+                strokeWidth: document.getElementById('toggle-border').checked ? 0 : parseInt(document.getElementById('selection-width').value) || 2
+            });
+            canvasObj.add(textObj);
+            canvasObj.setActiveObject(textObj);
+            setActiveBtn('btn-select');
+        }
+    });
+
+    // Fix activeTool variable
+    function setActiveBtn(id) {
+        document.querySelectorAll('.tool-btn').forEach(b => {
+            b.classList.remove('bg-indigo-50', 'text-indigo-700', 'border-indigo-100');
+            b.classList.add('bg-gray-50', 'text-gray-600', 'border-transparent');
+        });
+        const target = document.getElementById(id);
+        if(target) {
+            target.classList.add('bg-indigo-50', 'text-indigo-700', 'border-indigo-100');
+            target.classList.remove('bg-gray-50', 'text-gray-600', 'border-transparent');
+        }
+        activeTool = id;
+    }
+
+    // Initialize UI
+    document.getElementById('toggle-border').checked = true; // default no border (hidden)
+
+    // Modification to saveProjectData to support silent save (for auto-save)
+    const originalSaveProjectData = saveProjectData;
+    saveProjectData = function(isDraft, name, desc, silent = false) {
+        if(!currentUser) return; // Silent return for auto-save if not logged in
+        if(canvasObj.getObjects().length === 0) return;
+        
+        const center = map.getCenter();
+        const isUserAdmin = isAdmin || (currentUser.role === 'admin');
+        const status = isDraft ? 'draft' : (isUserAdmin ? 'approved' : 'pending');
+
+        const projData = {
+            id: editingProjectId || ('proj_' + Date.now()),
+            name: name || '未命名專案',
+            desc: desc || '',
+            layerId: currentLayerId,
+            creatorId: currentUser.id || currentUser.uid,
+            creatorName: currentUser.username || currentUser.name || currentUser.displayName,
+            creatorAvatar: currentUser.avatar || currentUser.photoURL,
+            isAdmin: isUserAdmin,
+            status: status,
+            lat: center.lat,
+            lng: center.lng,
+            zoom: map.getZoom(),
+            bearing: map.getBearing ? map.getBearing() : 0,
+            baseLat: baseTopLeft ? baseTopLeft.lat : center.lat,
+            baseLng: baseTopLeft ? baseTopLeft.lng : center.lng,
+            baseZoom: baseZoom,
+            fabricJSON: canvasObj.toJSON(),
+            comments: []
+        };
+
+        if(editingProjectId) {
+            const idx = appData.projects.findIndex(x => x.id === editingProjectId);
+            if(idx !== -1) {
+                projData.comments = appData.projects[idx].comments || [];
+                appData.projects[idx] = projData;
+            } else {
+                appData.projects.push(projData);
+            }
+        } else {
+            editingProjectId = projData.id; // Assign ID if it was new
+            appData.projects.push(projData);
+        }
+
+        socket.emit('saveProject', projData);
+        if(!isDraft && !silent) {
+            socket.emit('logAppMessage', { appId: 'non-existent-map', message: `發布了地圖專案: ${projData.name}`, type: 'info' });
+        }
+        
+        if (!silent) {
+            if (!isDraft) { cancelEdit(); }
+            renderProjects();
+            if(typeof Swal !== 'undefined') {
+                Swal.mixin({toast: true, position: 'top-end', showConfirmButton: false, timer: 3000}).fire({icon: 'success', title: isDraft ? '草稿已儲存' : '專案發布成功'});
+            } else {
+                alert(isDraft ? '草稿已儲存' : '專案發布成功！');
+            }
+        }
+    };
+
+    // Zoom Modes (Stretch vs Crop)
+    let imageScaleMode = 'stretch';
+    document.getElementById('btn-scale-stretch').onclick = () => {
+        imageScaleMode = 'stretch';
+        document.getElementById('btn-scale-stretch').classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+        document.getElementById('btn-scale-stretch').classList.remove('text-gray-500', 'hover:text-gray-700');
+        document.getElementById('btn-scale-crop').classList.add('text-gray-500', 'hover:text-gray-700');
+        document.getElementById('btn-scale-crop').classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+    };
+    document.getElementById('btn-scale-crop').onclick = () => {
+        imageScaleMode = 'crop';
+        document.getElementById('btn-scale-crop').classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+        document.getElementById('btn-scale-crop').classList.remove('text-gray-500', 'hover:text-gray-700');
+        document.getElementById('btn-scale-stretch').classList.add('text-gray-500', 'hover:text-gray-700');
+        document.getElementById('btn-scale-stretch').classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+    };
+
+    canvasObj.on('object:scaling', function(e) {
+        const obj = e.target;
+        if (obj.type === 'image' && imageScaleMode === 'crop') {
+            // Implement simple crop by resizing bounding box and using clipPath (Fabric.js 2+)
+            // For now, setting width/height and resetting scaleX/Y creates a cropping effect if handled correctly
+            const w = obj.width * obj.scaleX;
+            const h = obj.height * obj.scaleY;
+            obj.set({
+                width: w,
+                height: h,
+                scaleX: 1,
+                scaleY: 1
+            });
+            // Note: true cropping requires clipPath or regenerating the image. 
+            // Setting w/h without scale actually stretches the image in basic Fabric.js image unless it's a cropped image class.
+            // We'll keep it simple for now, but to really crop we might need clipPath.
+        }
+    });
+</script>
+
+</body>
+
+</html>

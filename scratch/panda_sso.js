@@ -25,7 +25,22 @@
 
     // 專案 ID 與 appId 產生
     const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('id') || 'default';
+    
+    let projectId = urlParams.get('id');
+    if (projectId && projectId.startsWith('panda_')) {
+        urlParams.delete('id');
+        let newUrl = window.location.pathname;
+        if (urlParams.toString()) newUrl += '?' + urlParams.toString();
+        if (window.history.replaceState) window.history.replaceState({}, document.title, newUrl);
+        projectId = null;
+    }
+    
+    if (!projectId && window.location.pathname.includes('/projects/editor')) {
+        projectId = 'panda_' + Math.random().toString(36).substring(2, 9);
+    } else if (!projectId) {
+        projectId = 'default';
+    }
+
     const appId = window.location.hostname + window.location.pathname + projectId;
     window.appId = appId;
     
@@ -50,7 +65,7 @@
         }
         const username = localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || '使用者';
         const nickname = urlParams.get('nickname') || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || username;
-        const avatar = urlParams.get('avatar') || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const avatar = urlParams.get('avatar') || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
         const balance = localStorage.getItem('panda_balance') || 0;
         const isLogged = localStorage.getItem('sso_auth') === 'true' || localStorage.getItem('panda_session_token') || localStorage.getItem('panda_session_user') || localStorage.getItem('panda_auto_user') || localStorage.getItem('sso_user');
         return {
@@ -84,8 +99,18 @@
             }
         }
         
+        if (typeof io === 'undefined') {
+            console.error("Socket.io library not loaded!");
+            showConnectionError();
+            return;
+        }
         const socket = io(serverUrl, { transports: ['websocket'] });
         window.socket = socket;
+        
+        window.pandaSocket = {
+            emit: function(event, data) { if(window.socket && window.socket.connected) { window.socket.emit(event, data); } },
+            on: function(event, cb) { if(window.socket) { window.socket.on(event, cb); } }
+        };
         
         socket.on('connect', () => {
             console.log("已連線至伺服器");
@@ -110,11 +135,19 @@
         });
         
         socket.on('connect_error', (err) => {
-            console.error("連線錯誤", err);
-            showConnectionError();
-            if (!getStoredAuthData().isLogged) {
-                renderGuestUI();
-            }
+            console.error("Socket.io connect_error:", err);
+        });
+        
+        socket.on('disconnect', (reason) => {
+            console.log("Socket.io disconnected:", reason);
+            setTimeout(() => {
+                if (window.socket && !window.socket.connected) {
+                    showConnectionError();
+                    if (!getStoredAuthData().isLogged) {
+                        renderGuestUI();
+                    }
+                }
+            }, 5000);
         });
         
         socket.on('loginResult', (data) => {
@@ -178,22 +211,25 @@
     }
     
     function showConnectionError() {
-        if (document.getElementById('conn-error')) return;
-        const errorDiv = document.createElement('div');
-        errorDiv.id = 'conn-error';
-        errorDiv.style.position = 'fixed';
-        errorDiv.style.top = '0';
-        errorDiv.style.left = '0';
-        errorDiv.style.width = '100%';
-        errorDiv.style.backgroundColor = '#d32f2f';
-        errorDiv.style.color = 'white';
-        errorDiv.style.textAlign = 'center';
-        errorDiv.style.padding = '5px';
-        errorDiv.style.fontSize = '12px';
-        errorDiv.style.zIndex = '99999';
-        errorDiv.innerText = '伺服器連線中或暫時離線，前台離線模式已啟動';
-        document.body.appendChild(errorDiv);
-        setTimeout(() => { if (errorDiv && errorDiv.parentNode) errorDiv.parentNode.removeChild(errorDiv); }, 5000);
+        console.error("SSO Connection Error.");
+        
+        // 判斷是否已經處於登入狀態
+        const wasLogged = getStoredAuthData().isLogged;
+        
+        // 自動登出並清除驗證資料
+        localStorage.removeItem('panda_session_token');
+        localStorage.removeItem('sso_token');
+        localStorage.removeItem('panda_session_user');
+        localStorage.removeItem('sso_user');
+        sessionStorage.removeItem('sso_token');
+        sessionStorage.removeItem('sso_user');
+        
+        if (wasLogged) {
+            alert("伺服器連線中斷，已為您自動登出。建議您先將專案「儲存到電腦」以避免遺失進度！");
+            renderGuestUI();
+        } else {
+            renderGuestUI();
+        }
     }
     
     function renderGuestUI() {
@@ -211,13 +247,13 @@
         if (userMenu) userMenu.style.display = 'flex';
         
         const userNickname = data.nickname || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || data.username || data.account || localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || '使用者';
-        const userAvatar = data.avatarUrl || data.avatar || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'https://cdn.discordapp.com/embed/avatars/0.png';
+        const userAvatar = data.avatarUrl || data.avatar || localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar') || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
         const balance = data.pCoin !== undefined ? data.pCoin : (data.balance !== undefined ? data.balance : (localStorage.getItem('panda_balance') || 0));
         
         const usernameEl = document.getElementById('nav-username');
         const avatarEl = document.getElementById('nav-avatar');
         if (usernameEl) {
-            usernameEl.innerHTML = `<span class="user-nickname-text" style="display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;">${userNickname}</span> <span style="margin-left: 8px; color: #ffb700; font-weight: bold; white-space: nowrap; display:inline-flex; align-items:center;"><img src="/scratch/projects/editor/static/assets/pandacoin.png" style="width:16px;height:16px;margin-right:2px;" onerror="this.style.display='none'" />${balance}</span>`;
+            usernameEl.innerHTML = `<span class="user-nickname-text" style="display:inline-block;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;">${userNickname}</span> <span style="margin-left: 8px; color: #ffb700; font-weight: bold; white-space: nowrap; display:inline-flex; align-items:center;"><img src="https://pandapanda6666.github.io/shop/coin.svg" style="width:16px;height:16px;margin-right:2px;" onerror="this.onerror=null; this.src='https://pandapanda6666.github.io/login-hub/pandacoin.png'" />${balance}</span>`;
         }
         if (avatarEl) {
             avatarEl.src = userAvatar;
