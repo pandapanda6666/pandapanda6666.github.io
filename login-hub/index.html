@@ -385,11 +385,29 @@
 
 
                 <div>
-
                     <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話</label>
-
                     <input type="tel" id="editPhone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
+                </div>
 
+                <div class="mt-4 p-4 border border-slate-200 rounded-xl bg-slate-50">
+                    <h3 class="text-sm font-bold text-slate-700 mb-3">帳號安全與登入設定</h3>
+                    <div id="googleAccountSettings" class="hidden">
+                        <p class="text-sm text-slate-600 mb-2">目前綁定 Google 帳號：<span id="currentGoogleEmailDisplay" class="font-bold text-green-700"></span></p>
+                        <div class="flex gap-2 mt-3">
+                            <button type="button" onclick="changeGoogleAccount()" class="text-xs bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-2 px-3 rounded shadow-sm transition flex items-center">
+                                <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-4 h-4 mr-2 pointer-events-none"> 更改 Google 帳號
+                            </button>
+                            <button type="button" onclick="openSwitchToNormalModal()" class="text-xs bg-white border border-red-300 hover:bg-red-50 text-red-600 font-bold py-2 px-3 rounded shadow-sm transition">
+                                切換為普通信箱 (需驗證)
+                            </button>
+                        </div>
+                    </div>
+                    <div id="normalAccountSettings" class="hidden">
+                        <p class="text-sm text-slate-600 mb-2">目前使用普通信箱登入</p>
+                        <button type="button" onclick="changeGoogleAccount()" class="text-xs bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-2 px-3 rounded shadow-sm transition flex items-center">
+                            <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-4 h-4 mr-2 pointer-events-none"> 綁定 Google 帳號 (可無密碼登入)
+                        </button>
+                    </div>
                 </div>
 
             </div>
@@ -1422,11 +1440,16 @@ localStorage.removeItem('panda_session_token');
                 
                 if (currentUserData.gmail) {
                     pwdEmailContainer.style.display = 'none';
+                    document.getElementById('googleAccountSettings').classList.remove('hidden');
+                    document.getElementById('normalAccountSettings').classList.add('hidden');
+                    document.getElementById('currentGoogleEmailDisplay').innerText = currentUserData.gmail;
                 } else {
                     pwdEmailContainer.style.display = 'grid';
                     pwdInput.value = currentUserData.password || '';
                     pwdInput.disabled = false;
                     pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
+                    document.getElementById('googleAccountSettings').classList.add('hidden');
+                    document.getElementById('normalAccountSettings').classList.remove('hidden');
                 }
 
 
@@ -1660,7 +1683,72 @@ localStorage.removeItem('panda_session_token');
 
         };
 
+        window.changeGoogleAccount = async function() {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const newEmail = result.user.email;
+                if (!newEmail) return showMsg("無法獲取 Google 信箱", "error");
+                socket.emit('updateProfile', { email: newEmail });
+                showMsg("已成功綁定新的 Google 帳號！", "success");
+            } catch (error) {
+                showMsg("Google 驗證失敗: " + error.message, "error");
+            }
+        };
 
+        window.openSwitchToNormalModal = function() {
+            document.getElementById('switchAccountModal').classList.remove('hidden');
+        };
+
+        window.closeSwitchToNormalModal = function() {
+            document.getElementById('switchAccountModal').classList.add('hidden');
+        };
+
+        window.sendSwitchVerificationCode = function() {
+            const email = document.getElementById('switchEmail').value.trim();
+            if(!email) return showMsg("請先輸入電子郵件", "error");
+            const btn = document.getElementById('btnSwitchSendCode');
+            btn.disabled = true;
+            btn.innerText = '發送中...';
+            socket.emit('sendVerificationCode', { email }, (res) => {
+                if(res && !res.success) {
+                    showMsg(res.msg, 'error');
+                    btn.disabled = false;
+                    btn.innerText = '發送驗證碼';
+                } else {
+                    showMsg('驗證碼已發送至您的信箱', 'success');
+                    let cd = 60;
+                    const timer = setInterval(() => {
+                        cd--;
+                        if(cd <= 0) {
+                            clearInterval(timer);
+                            btn.disabled = false;
+                            btn.innerText = '重新發送';
+                        } else {
+                            btn.innerText = cd + '秒後重試';
+                        }
+                    }, 1000);
+                }
+            });
+        };
+
+        window.confirmSwitchToNormal = function() {
+            const email = document.getElementById('switchEmail').value.trim();
+            const code = document.getElementById('switchCode').value.trim();
+            const password = document.getElementById('switchPassword').value;
+            if(!email || !code || !password) return showMsg("請填寫完整資訊", "error");
+            if(password.length < 6) return showMsg("密碼長度至少需為 6 碼", "error");
+            
+            socket.emit('switchAccountType', { email, code, password }, (res) => {
+                if(res && res.success) {
+                    showMsg("帳號切換成功！請重新登入。", "success");
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showMsg(res ? res.msg : "切換失敗", "error");
+                }
+            });
+        };
 
         window.handleGoogleLogin = async function() {
 
@@ -2064,6 +2152,34 @@ window.startSecurityCheck = function() {
 
 </script>
 
+
+<div id="switchAccountModal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative transform transition-all">
+        <h3 class="text-xl font-bold text-slate-800 mb-2">切換為普通信箱</h3>
+        <p class="text-sm text-slate-500 mb-4">切換後，您將無法再使用 Google 無密碼登入，需透過新設定的信箱與密碼登入。</p>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">新的電子信箱</label>
+                <div class="flex gap-2">
+                    <input type="email" id="switchEmail" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="輸入新的信箱">
+                    <button type="button" onclick="sendSwitchVerificationCode()" id="btnSwitchSendCode" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-4 py-3 rounded-xl transition whitespace-nowrap">發送驗證碼</button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">驗證碼</label>
+                <input type="text" id="switchCode" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入6碼驗證碼" maxlength="6">
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">設定新密碼</label>
+                <input type="password" id="switchPassword" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="設定登入密碼">
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="button" onclick="closeSwitchToNormalModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-all">取消</button>
+                <button type="button" onclick="confirmSwitchToNormal()" class="w-1/2 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-all">確認切換</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div id="captchaOverlay" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
     <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-green-500">
