@@ -442,6 +442,168 @@
             };
         }
 
+        function startDeviceDiscoveryBroadcast() {
+            setInterval(() => {
+                if (currentUser && socket && socket.connected) {
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'device_presence',
+                        username: currentUser.username,
+                        nickname: currentUser.nickname,
+                        avatar: currentUser.avatar,
+                        device: navigator.userAgent,
+                        deviceName: myDeviceName,
+                        isPublic: isPublicDevice,
+                        role: myRole,
+                        pin: myPairCode,
+                        uuid: myUuid
+                    });
+                }
+                
+                if (myRole === 'camera' && isPublicDevice && socket && socket.connected) {
+                    let hasPass = false;
+                    const savedP = localStorage.getItem('panda_device_password');
+                    if(savedP && savedP.trim() !== '') hasPass = true;
+                    socket.emit('appData', {
+                        room: appId,
+                        action: 'public_device_presence',
+                        nickname: currentUser ? currentUser.nickname : '訪客',
+                        deviceName: myDeviceName,
+                        isPublic: isPublicDevice,
+                        pin: myPairCode,
+                        uuid: myUuid,
+                        hasPassword: hasPass
+                    });
+                }
+            }, 2500);
+
+            setInterval(() => {
+                const now = Date.now();
+                let changed = false;
+                for (let uuid in sameAccountDevices) {
+                    if (now - sameAccountDevices[uuid].lastSeen > 15000) { 
+                        delete sameAccountDevices[uuid];
+                        changed = true;
+                    }
+                }
+                if (changed) renderSameAccountDevices();
+                
+                let pChanged = false;
+                for (let uuid in publicDevices) {
+                    if (now - publicDevices[uuid].lastSeen > 15000) {
+                        delete publicDevices[uuid];
+                        pChanged = true;
+                    }
+                }
+                if (pChanged) renderPublicDevices();
+            }, 3000);
+        }
+
+        function renderSameAccountDevices() {
+            const listEl = document.getElementById('myDevicesList');
+            if (!listEl) return;
+            
+            const cameras = Object.values(sameAccountDevices).filter(d => d.role === 'camera');
+            
+            if (cameras.length === 0) {
+                listEl.innerHTML = `<span class="text-xs text-slate-500 text-center bg-slate-800/50 py-3 rounded-lg border border-dashed border-slate-700">暫無在線的相機端裝置</span>`;
+                return;
+            }
+
+            listEl.innerHTML = '';
+            cameras.forEach(dev => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm hover:border-teal-500 transition-colors";
+                
+                const cleanDevice = dev.deviceName || (dev.device.includes('Windows') ? 'Windows' : 
+                                    (dev.device.includes('iPhone') ? 'iPhone' : 
+                                    (dev.device.includes('Macintosh') ? 'macOS' : 
+                                    (dev.device.includes('Android') ? 'Android' : '行動裝置'))));
+
+                let actionHtml = '';
+                if (dev.pin && dev.pin !== '------') {
+                    actionHtml = `
+                        <button onclick="instantWatch('${dev.pin}')" class="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3 py-1.5 rounded text-xs transition shadow-md flex items-center gap-1">
+                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                            一鍵連線
+                        </button>
+                    `;
+                } else {
+                    actionHtml = `<span class="text-[10px] text-slate-500 bg-slate-900 px-2 py-1 rounded">初始化中</span>`;
+                }
+
+                item.innerHTML = `
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2">
+                            <span class="relative flex h-2 w-2">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span class="text-slate-200 font-bold text-xs">${cleanDevice}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 mt-0.5">代碼: <span class="font-mono text-teal-400">${dev.pin}</span></span>
+                    </div>
+                    ${actionHtml}
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function renderPublicDevices() {
+            const listEl = document.getElementById('publicDevicesList');
+            if (!listEl) return;
+            const cameras = Object.values(publicDevices);
+            if (cameras.length === 0) {
+                listEl.innerHTML = `<span class="text-xs text-slate-500 text-center bg-slate-800/50 py-3 rounded-lg border border-dashed border-slate-700">目前尚無公開頻道</span>`;
+                return;
+            }
+            listEl.innerHTML = '';
+            cameras.forEach(dev => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm hover:border-amber-500 transition-colors";
+                const lockIcon = dev.hasPassword ? '🔒' : '🔓';
+                item.innerHTML = `
+                    <div class="flex flex-col overflow-hidden mr-2">
+                        <div class="flex items-center gap-1">
+                            <span class="text-slate-200 font-bold text-xs truncate" title="${dev.deviceName}">${dev.deviceName}</span>
+                            <span class="text-[10px] bg-slate-700 px-1 rounded text-slate-300 shrink-0">@${dev.nickname}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 mt-0.5">${lockIcon} 代碼: <span class="font-mono text-amber-400">${dev.pin}</span></span>
+                    </div>
+                    <button onclick="instantWatchNoPassword('${dev.pin}')" class="shrink-0 bg-amber-600 hover:bg-amber-500 text-white font-bold px-2 py-1 rounded text-xs transition shadow-md">
+                        觀看
+                    </button>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+        
+        function instantWatch(pin) {
+            document.getElementById('inputPairCode').value = pin;
+            if(document.getElementById('inputConnectPassword')) {
+                document.getElementById('inputConnectPassword').value = '';
+            }
+            document.getElementById('btnConnect').click();
+        }
+        
+        function instantWatchNoPassword(pin) {
+            document.getElementById('inputPairCode').value = pin;
+            if(document.getElementById('inputConnectPassword')) {
+                document.getElementById('inputConnectPassword').focus();
+            }
+        }
+
+        function showErrorToast(message, duration = 4000) {
+            const toast = document.getElementById('alertToast');
+            const text = document.getElementById('alertToastText');
+            text.innerText = message;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, duration);
+        }
+
+        
         // --- 核心連線邏輯 ---
         async function initSocketConnection() {
             let serverUrl = '';
