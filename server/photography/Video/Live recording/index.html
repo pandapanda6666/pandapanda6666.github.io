@@ -9,6 +9,7 @@
     
     <!-- 全域錯誤攔截器與環境變數設定 -->
     <script>
+        // 【開發者提醒】請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線
         const originalWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
@@ -41,6 +42,24 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- 頂部跑馬燈通知列 -->
+    <div id="notificationBar" class="bg-yellow-500 text-black py-1 px-4 overflow-hidden shadow-md" style="display: none;">
+        <div class="max-w-7xl mx-auto flex items-center">
+            <svg class="w-5 h-5 mr-2 animate-pulse shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+            <div class="overflow-hidden whitespace-nowrap flex-grow relative h-6">
+                <div id="notificationMsg" class="absolute font-bold w-full animate-[marquee_15s_linear_infinite] hover:[animation-play-state:paused]">
+                    <!-- 通知文字 -->
+                </div>
+            </div>
+            <style>
+                @keyframes marquee {
+                    0% { transform: translateX(100%); }
+                    100% { transform: translateX(-100%); }
+                }
+            </style>
+        </div>
+    </div>
 
     <!-- 頂部導覽列與 SSO 個人資料區 -->
     <header class="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md z-10">
@@ -387,227 +406,40 @@
             window.location.href = url.toString();
         }
 
-        function checkSSO() {
-            const params = new URLSearchParams(window.location.search);
-            let user = params.get('user');
-            const auth = params.get('auth');
-
-            if (auth === 'true' && user) {
-                localStorage.setItem('panda_live_sso_user', user);
-                params.delete('auth');
-                params.delete('user');
-                const newSearch = params.toString() ? '?' + params.toString() : '';
-                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + newSearch;
-                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
-            } else {
-                user = localStorage.getItem('panda_live_sso_user');
-            }
-
-            if (user) {
-                const emitProfileRequest = () => {
-                    if (socket && socket.connected) socket.emit('requestProfile', { username: user });
-                    else setTimeout(emitProfileRequest, 500);
-                };
-                emitProfileRequest();
-
-                socket.on('profileData', (data) => {
-                    if (data) {
-                        currentUser = data;
-                        currentUser.username = user; 
-                        
-                        startDeviceDiscoveryBroadcast();
-                        renderSameAccountDevices(); 
-
-                        const container = document.getElementById('authContainer');
-                        container.innerHTML = `
-                            <div class="flex items-center gap-3">
-                                <div onclick="goToLoginHub()" class="flex items-center gap-3 bg-slate-800 border border-slate-700 py-1.5 px-4 rounded-full cursor-pointer hover:bg-slate-700 transition shadow-inner">
-                                    <img src="${data.avatar || 'https://via.placeholder.com/40'}" class="w-9 h-9 rounded-full border-2 border-indigo-500 object-cover" onerror="this.src='https://via.placeholder.com/40'">
-                                    <div class="flex flex-col text-left">
-                                        <span class="text-xs font-bold text-slate-100">${data.nickname || user}</span>
-                                        <span class="text-[10px] text-yellow-500 font-semibold"><img src="https://pandapanda6666.github.io/shop/coin.svg" alt="P幣" class="w-[1.2em] h-[1.2em] inline-block align-text-bottom drop-shadow-sm"> ${data.pCoin || 0} P幣</span>
-                                    </div>
-                                </div>
-                                <button onclick="logoutSSO()" class="text-xs text-slate-400 hover:text-red-400 transition underline decoration-slate-500 underline-offset-2">登出</button>
-                            </div>
-                        `;
-                    }
-                });
-            } else {
-                document.getElementById('loginBtn').onclick = () => {
-                    window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
-                };
-            }
-        }
-
-        function logoutSSO() {
-            localStorage.removeItem('panda_live_sso_user');
-            window.location.href = window.location.pathname; 
-        }
-
+        
         function goToLoginHub() {
             window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href);
         }
 
-        function startDeviceDiscoveryBroadcast() {
-            setInterval(() => {
-                if (currentUser && socket && socket.connected) {
-                    socket.emit('appData', {
-                        room: appId,
-                        action: 'device_presence',
-                        username: currentUser.username,
-                        nickname: currentUser.nickname,
-                        avatar: currentUser.avatar,
-                        device: navigator.userAgent,
-                        deviceName: myDeviceName,
-                        isPublic: isPublicDevice,
-                        role: myRole,
-                        pin: myPairCode,
-                        uuid: myUuid
-                    });
-                }
-                
-                if (myRole === 'camera' && isPublicDevice && socket && socket.connected) {
-                    let hasPass = false;
-                    const savedP = localStorage.getItem('panda_device_password');
-                    if(savedP && savedP.trim() !== '') hasPass = true;
-                    socket.emit('appData', {
-                        room: appId,
-                        action: 'public_device_presence',
-                        nickname: currentUser ? currentUser.nickname : '訪客',
-                        deviceName: myDeviceName,
-                        isPublic: isPublicDevice,
-                        pin: myPairCode,
-                        uuid: myUuid,
-                        hasPassword: hasPass
-                    });
-                }
-            }, 2500);
-
-            setInterval(() => {
-                const now = Date.now();
-                let changed = false;
-                for (let uuid in sameAccountDevices) {
-                    if (now - sameAccountDevices[uuid].lastSeen > 15000) { 
-                        delete sameAccountDevices[uuid];
-                        changed = true;
-                    }
-                }
-                if (changed) renderSameAccountDevices();
-                
-                let pChanged = false;
-                for (let uuid in publicDevices) {
-                    if (now - publicDevices[uuid].lastSeen > 15000) {
-                        delete publicDevices[uuid];
-                        pChanged = true;
-                    }
-                }
-                if (pChanged) renderPublicDevices();
-            }, 3000);
+        function logoutSSO() {
+            localStorage.removeItem('panda_session_token');
+            localStorage.removeItem('panda_session_user');
+            window.location.reload();
         }
 
-        function renderSameAccountDevices() {
-            const listEl = document.getElementById('myDevicesList');
-            if (!listEl) return;
-            
-            const cameras = Object.values(sameAccountDevices).filter(d => d.role === 'camera');
-            
-            if (cameras.length === 0) {
-                listEl.innerHTML = `<span class="text-xs text-slate-500 text-center bg-slate-800/50 py-3 rounded-lg border border-dashed border-slate-700">暫無在線的相機端裝置</span>`;
-                return;
-            }
-
-            listEl.innerHTML = '';
-            cameras.forEach(dev => {
-                const item = document.createElement('div');
-                item.className = "flex items-center justify-between bg-slate-800 border border-slate-600 rounded-lg p-2.5 text-sm hover:border-teal-500 transition-colors";
-                
-                const cleanDevice = dev.deviceName || (dev.device.includes('Windows') ? 'Windows' : 
-                                    (dev.device.includes('iPhone') ? 'iPhone' : 
-                                    (dev.device.includes('Macintosh') ? 'macOS' : 
-                                    (dev.device.includes('Android') ? 'Android' : '行動裝置'))));
-
-                let actionHtml = '';
-                if (dev.pin && dev.pin !== '------') {
-                    actionHtml = `
-                        <button onclick="instantWatch('${dev.pin}')" class="bg-teal-600 hover:bg-teal-500 text-white font-bold px-3 py-1.5 rounded text-xs transition shadow-md flex items-center gap-1">
-                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                            一鍵連線
-                        </button>
-                    `;
-                } else {
-                    actionHtml = `<span class="text-[10px] text-slate-500 bg-slate-900 px-2 py-1 rounded">初始化中</span>`;
-                }
-
-                item.innerHTML = `
-                    <div class="flex flex-col">
-                        <div class="flex items-center gap-2">
-                            <span class="relative flex h-2 w-2">
-                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                              <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                            </span>
-                            <span class="text-slate-200 font-bold text-xs">${cleanDevice}</span>
-                        </div>
-                        <span class="text-[10px] text-slate-400 mt-0.5">代碼: <span class="font-mono text-teal-400">${dev.pin}</span></span>
-                    </div>
-                    ${actionHtml}
-                `;
-                listEl.appendChild(item);
-            });
+        function checkSSO() {
+            setupGuestUI();
         }
 
-        function renderPublicDevices() {
-            const listEl = document.getElementById('publicDevicesList');
-            if (!listEl) return;
-            const cameras = Object.values(publicDevices);
-            if (cameras.length === 0) {
-                listEl.innerHTML = `<span class="text-xs text-slate-500 text-center bg-slate-800/50 py-3 rounded-lg border border-dashed border-slate-700">目前尚無公開頻道</span>`;
-                return;
-            }
-            listEl.innerHTML = '';
-            cameras.forEach(dev => {
-                const item = document.createElement('div');
-                item.className = "flex items-center justify-between bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm hover:border-amber-500 transition-colors";
-                const lockIcon = dev.hasPassword ? '🔒' : '🔓';
-                item.innerHTML = `
-                    <div class="flex flex-col overflow-hidden mr-2">
-                        <div class="flex items-center gap-1">
-                            <span class="text-slate-200 font-bold text-xs truncate" title="${dev.deviceName}">${dev.deviceName}</span>
-                            <span class="text-[10px] bg-slate-700 px-1 rounded text-slate-300 shrink-0">@${dev.nickname}</span>
-                        </div>
-                        <span class="text-[10px] text-slate-400 mt-0.5">${lockIcon} 代碼: <span class="font-mono text-amber-400">${dev.pin}</span></span>
-                    </div>
-                    <button onclick="instantWatchNoPassword('${dev.pin}')" class="shrink-0 bg-amber-600 hover:bg-amber-500 text-white font-bold px-2 py-1 rounded text-xs transition shadow-md">
-                        觀看
-                    </button>
-                `;
-                listEl.appendChild(item);
-            });
-        }
-        
-        function instantWatch(pin) {
-            document.getElementById('inputPairCode').value = pin;
-            if(document.getElementById('inputConnectPassword')) {
-                document.getElementById('inputConnectPassword').value = '';
-            }
-            document.getElementById('btnConnect').click();
-        }
-        
-        function instantWatchNoPassword(pin) {
-            document.getElementById('inputPairCode').value = pin;
-            if(document.getElementById('inputConnectPassword')) {
-                document.getElementById('inputConnectPassword').focus();
+        function handleSSOAuth() {
+            const params = new URLSearchParams(window.location.search);
+            let token = params.get('token') || localStorage.getItem('panda_session_token');
+
+            if (token && socket && socket.connected) {
+                socket.emit('tokenLogin', { token: token });
+                params.delete('token');
+                const newSearch = params.toString() ? '?' + params.toString() : '';
+                const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + newSearch;
+                window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
             }
         }
 
-        function showErrorToast(message, duration = 4000) {
-            const toast = document.getElementById('alertToast');
-            const text = document.getElementById('alertToastText');
-            text.innerText = message;
-            toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, duration);
+        function setupGuestUI() {
+            const container = document.getElementById('authContainer');
+            container.innerHTML = <button id="loginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-5 rounded-full shadow-lg transition duration-200 transform hover:scale-105">登入 / 註冊 SSO</button>;
+            document.getElementById('loginBtn').onclick = () => {
+                window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
+            };
         }
 
         // --- 核心連線邏輯 ---
@@ -642,9 +474,45 @@
             }
 
             socket = io(serverUrl, { transports: ['websocket'] });
+            socket.on('broadcastSchedule', (list) => {
+                window.broadcasts = list;
+                localStorage.setItem('broadcasts', JSON.stringify(list));
+            });
+
 
             socket.on('connect', () => {
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                socket.emit('joinGameRoom', { room: appId, characterData: {} });
+
+                handleSSOAuth();
+
+                socket.on('loginResult', (data) => {
+                    if (data.success) {
+                        localStorage.setItem('panda_session_token', data.token);
+                        currentUser = data.user; 
+                        
+                        startDeviceDiscoveryBroadcast();
+                        renderSameAccountDevices(); 
+
+                        const container = document.getElementById('authContainer');
+                        container.innerHTML = 
+                            <div class="flex items-center gap-3">
+                                <div onclick="goToLoginHub()" class="flex items-center gap-3 bg-slate-800 border border-slate-700 py-1.5 px-4 rounded-full cursor-pointer hover:bg-slate-700 transition shadow-inner">
+                                    <img src="" class="w-9 h-9 rounded-full border-2 border-indigo-500 object-cover" onerror="this.src='https://via.placeholder.com/40'">
+                                    <div class="flex flex-col text-left">
+                                        <span class="text-xs font-bold text-slate-100"></span>
+                                        <span class="text-[10px] text-yellow-500 font-semibold"><img src="https://pandapanda6666.github.io/shop/coin.svg" alt="P幣" class="w-[1.2em] h-[1.2em] inline-block align-text-bottom drop-shadow-sm">  P幣</span>
+                                    </div>
+                                </div>
+                                <button onclick="logoutSSO()" class="text-xs text-slate-400 hover:text-red-400 transition underline decoration-slate-500 underline-offset-2">登出</button>
+                            </div>
+                        ;
+                    } else {
+                        setupGuestUI();
+                    }
+                });
+
+
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
                 // 自動重新連線恢復機制 (不需重整頁面)
                 if (typeof myRole !== 'undefined') {
@@ -2251,10 +2119,53 @@
         }
 
         // --- 載入時初始化 ---
-        window.onload = () => {
+                window.onload = () => {
             initSocketConnection();
             startMemoryMonitor();
+
+            fetch('https://pandapanda6666.github.io/login-hub/server_broadcast.json')
+                .then(res => res.json())
+                .then(list => {
+                    window.broadcasts = list;
+                    localStorage.setItem('broadcasts', JSON.stringify(list));
+                })
+                .catch(() => {
+                    window.broadcasts = JSON.parse(localStorage.getItem('broadcasts') || '[]');
+                });
+
+            setInterval(() => {
+                const now = Date.now();
+                const bar = document.getElementById('notificationBar');
+                const msgText = document.getElementById('notificationMsg');
+                if (!bar || !msgText) return;
+                
+                let activeMsg = null;
+                const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+                
+                for (let b of list) {
+                    const st = new Date(b.startTime).getTime();
+                    if (b.mode === 1) {
+                        const intervalMs = b.intervalMin * 60000;
+                        const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                        if (now >= st && now <= end) {
+                            const elapsed = now - st;
+                            if (elapsed % intervalMs < 60000) activeMsg = b.message;
+                        }
+                    } else if (b.mode === 2) {
+                        const et = new Date(b.endTime).getTime();
+                        if (now >= st && now <= et) activeMsg = b.message;
+                    }
+                }
+                
+                if (activeMsg) {
+                    msgText.innerText = activeMsg;
+                    bar.style.display = 'block';
+                } else {
+                    bar.style.display = 'none';
+                }
+            }, 1000);
         };
+
 // --- 設定視窗邏輯 ---
         function togglePasswordVisibility(id) {
             const el = document.getElementById(id);
@@ -2610,6 +2521,21 @@
             </div>
         </div>
     </div>
+
+    <!-- 外部回報問題浮動按鈕 -->
+    <button onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);" class="fixed bottom-6 right-6 bg-rose-600 hover:bg-rose-500 text-white font-bold p-3 rounded-full shadow-2xl transition duration-300 transform hover:scale-110 z-50 flex items-center gap-2 group">
+        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span class="max-w-0 overflow-hidden whitespace-nowrap group-hover:max-w-xs transition-all duration-300 ease-in-out font-medium text-sm">回報問題</span>
+    </button>
+
+    <!-- 版權宣告 -->
+    <footer class="bg-slate-900 border-t border-slate-800 text-center py-4 mt-8">
+        <p class="text-slate-500 text-sm">
+            <a href="https://pandapanda6666.github.io" target="_blank" class="hover:text-indigo-400 transition">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+        </p>
+    </footer>
 
 </body>
 </html>
