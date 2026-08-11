@@ -41,6 +41,10 @@
         if (this.runtime.ioDevices && this.runtime.ioDevices.video) {
             this.runtime.ioDevices.video.enableVideo().then(() => {
                 this.runtime.ioDevices.video.mirror = true;
+                // Force the stage background to show the video with 50% transparency
+                if (typeof this.runtime.ioDevices.video.setPreviewGhost === 'function') {
+                    this.runtime.ioDevices.video.setPreviewGhost(50);
+                }
                 this.videoRunning = true;
                 // If media pipe is already loaded, start loop
                 if (this.faceLandmarker) {
@@ -115,6 +119,17 @@
                             defaultValue: 'nose'
                         }
                     }
+                },
+                {
+                    opcode: 'setVideoTransparency',
+                    blockType: 'command',
+                    text: '視訊透明度設為 [TRANSPARENCY]',
+                    arguments: {
+                        TRANSPARENCY: {
+                            type: 'number',
+                            defaultValue: 50
+                        }
+                    }
                 }
             ],
             menus: {
@@ -168,6 +183,17 @@
         const mpY = this.faces[0][partIdx].y;
         return Math.round((0.5 - mpY) * 360);
     }
+
+    setVideoTransparency(args) {
+        let transparency = Number(args.TRANSPARENCY);
+        if (isNaN(transparency)) transparency = 50;
+        if (transparency < 0) transparency = 0;
+        if (transparency > 100) transparency = 100;
+        
+        if (this.runtime.ioDevices && this.runtime.ioDevices.video && typeof this.runtime.ioDevices.video.setPreviewGhost === 'function') {
+            this.runtime.ioDevices.video.setPreviewGhost(transparency);
+        }
+    }
 }
 
-Scratch.extensions.register(new FaceSensingExtension());
+window.FaceSensingExtension = FaceSensingExtension;
