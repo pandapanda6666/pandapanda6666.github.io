@@ -440,10 +440,14 @@
             document.getElementById('loginBtn').onclick = () => {
                 window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
             };
+            startDeviceDiscoveryBroadcast();
         }
 
         function startDeviceDiscoveryBroadcast() {
-            setInterval(() => {
+            if (window.discoveryInterval) clearInterval(window.discoveryInterval);
+            if (window.cleanInterval) clearInterval(window.cleanInterval);
+
+            window.discoveryInterval = setInterval(() => {
                 if (currentUser && socket && socket.connected) {
                     socket.emit('appData', {
                         room: appId,
@@ -477,7 +481,7 @@
                 }
             }, 2500);
 
-            setInterval(() => {
+            window.cleanInterval = setInterval(() => {
                 const now = Date.now();
                 let changed = false;
                 for (let uuid in sameAccountDevices) {
@@ -651,7 +655,10 @@
                 socket.on('loginResult', (data) => {
                     if (data.success) {
                         localStorage.setItem('panda_session_token', data.token);
-                        currentUser = data; 
+                        currentUser = data;
+                        if (!currentUser.username) {
+                            currentUser.username = localStorage.getItem('sso_user') || localStorage.getItem('panda_session_user') || 'unknown';
+                        }
                         
                         startDeviceDiscoveryBroadcast();
                         renderSameAccountDevices(); 
