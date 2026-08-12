@@ -1,4 +1,4 @@
-﻿class FaceSensingExtension {
+class FaceSensingExtension {
     constructor(runtime) {
         this.runtime = runtime;
         this.faceLandmarker = null;
@@ -144,8 +144,45 @@
             this.runtime.ioDevices.video.setPreviewGhost(t);
         }
     }
+
+    setStretch(args, util) {
+        const target = util.target;
+        if (target.isStage) return;
+        
+        target.stretchWidth = Number(args.WIDTH) || 100;
+        target.stretchHeight = Number(args.HEIGHT) || 100;
+        
+        if (!target._pandaStretchPatched) {
+            target._pandaStretchPatched = true;
+            
+            const originalGet = target._getRenderedDirectionAndScale;
+            target._getRenderedDirectionAndScale = function() {
+                const res = originalGet.call(this);
+                let signX = res.scale[0] < 0 ? -1 : 1;
+                let signY = res.scale[1] < 0 ? -1 : 1;
+                let w = this.stretchWidth !== undefined ? this.stretchWidth : this.size;
+                let h = this.stretchHeight !== undefined ? this.stretchHeight : this.size;
+                res.scale = [signX * w, signY * h];
+                return res;
+            };
+            
+            const originalSetSize = target.setSize;
+            target.setSize = function(size) {
+                this.stretchWidth = undefined;
+                this.stretchHeight = undefined;
+                originalSetSize.call(this, size);
+            };
+        }
+        
+        if (target.renderer) {
+            const {direction, scale} = target._getRenderedDirectionAndScale();
+            target.renderer.updateDrawableDirectionScale(target.drawableID, direction, scale);
+            if (target.visible) {
+                target.runtime.requestRedraw();
+            }
+        }
+    }
 }
 
-
-
+window.FaceSensingExtension = FaceSensingExtension;
 window.pandaSetStretch = FaceSensingExtension.prototype.setStretch;
