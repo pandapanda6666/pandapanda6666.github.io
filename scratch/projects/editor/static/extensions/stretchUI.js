@@ -22,7 +22,7 @@
         stretchUI.style.alignItems = 'center';
         stretchUI.style.marginLeft = '10px';
         
-        stretchUI.innerHTML = 
+        stretchUI.innerHTML = `
             <div style="display:flex; align-items:center; flex-direction:column;">
                 <div style="font-size:10px; font-weight:bold; color:#575E75;">寬/高</div>
                 <div style="display:flex; gap:2px;">
@@ -37,7 +37,7 @@
                     <option value="PIXEL">px</option>
                 </select>
             </div>
-        ;
+        `;
         
         // Insert after sizeGroup
         sizeGroup.parentNode.insertBefore(stretchUI, sizeGroup.nextSibling);

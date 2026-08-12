@@ -127,8 +127,8 @@ class BodySensingExtension {
             const y1 = p1.y * 360;
             const x2 = p2.x * 480;
             const y2 = p2.y * 360;
-            svgLines += <line x1="" y1="" x2="" y2="" stroke="" stroke-width="4" stroke-linecap="round" />;
-            svgLines += <circle cx="" cy="" r="3" fill="#fff" />;
+            svgLines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="4" stroke-linecap="round" />`;
+            svgLines += `<circle cx="${x1}" cy="${y1}" r="3" fill="#fff" />`;
         };
         
         if (this.poses.length > 0) {
@@ -144,7 +144,7 @@ class BodySensingExtension {
             drawBone(24, 26); drawBone(26, 28); drawBone(28, 30); drawBone(30, 32);
         }
         
-        const svg = <svg width="480" height="360" xmlns="http://www.w3.org/2000/svg"></svg>;
+        const svg = `<svg width="480" height="360" xmlns="http://www.w3.org/2000/svg">${svgLines}</svg>`;
         
         if (this.skeletonSkinId === null) {
             this.skeletonSkinId = this.runtime.renderer.createSVGSkin(svg);
