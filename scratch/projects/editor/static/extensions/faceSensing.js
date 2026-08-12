@@ -120,16 +120,7 @@
                     text: '視訊透明度設為 [TRANSPARENCY]',
                     arguments: { TRANSPARENCY: { type: 'number', defaultValue: 50 } }
                 },
-                {
-                    // Looks-like block, but inside Face Sensing
-                    opcode: 'setStretch',
-                    blockType: 'command',
-                    text: '寬度設為 [WIDTH]% 高度設為 [HEIGHT]%',
-                    arguments: { 
-                        WIDTH: { type: 'number', defaultValue: 100 },
-                        HEIGHT: { type: 'number', defaultValue: 100 }
-                    }
-                }
+                
             ],
             menus: {
                 FACE_PARTS: {
@@ -245,3 +236,5 @@
 }
 
 window.FaceSensingExtension = FaceSensingExtension;
+
+window.pandaSetStretch = FaceSensingExtension.prototype.setStretch;
