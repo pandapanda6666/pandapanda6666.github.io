@@ -11,16 +11,16 @@
     }
 
     async initMediaPipe() {
-        if (typeof document === 'undefined') return;
+        if (typeof window === 'undefined') return;
         
-        // Dynamically load MediaPipe vision tasks
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js';
-        script.onload = async () => {
-            const vision = window;
+        try {
+            // Use dynamic import for the ES module version of MediaPipe Vision
+            const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/vision_bundle.js');
+            
             const filesetResolver = await vision.FilesetResolver.forVisionTasks(
                 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
             );
+            
             this.faceLandmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
                 baseOptions: {
                     modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
@@ -30,10 +30,12 @@
                 runningMode: 'VIDEO',
                 numFaces: 1
             });
+            
             // The video might already be running, so we kick off the detection loop
             this.detectLoop();
-        };
-        document.head.appendChild(script);
+        } catch (err) {
+            console.error("Face Sensing: MediaPipe failed to load", err);
+        }
     }
 
     startVideoSensing() {
