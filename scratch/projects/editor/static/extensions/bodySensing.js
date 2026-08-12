@@ -152,11 +152,11 @@ class BodySensingExtension {
             this.runtime.renderer.updateDrawableSkinId(this.skeletonDrawableId, this.skeletonSkinId);
             this.runtime.renderer.updateDrawablePosition(this.skeletonDrawableId, [0, 0]);
             this.runtime.renderer.updateDrawableDirectionScale(this.skeletonDrawableId, 90, [100, 100]);
-            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, this.skeletonLayer);
+            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, this.skeletonLayer, "sprite", false);
         } else {
             this.runtime.renderer.updateSVGSkin(this.skeletonSkinId, svg);
             // enforce layer order just in case
-            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, this.skeletonLayer);
+            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, this.skeletonLayer, "sprite", false);
         }
     }
 
@@ -177,11 +177,13 @@ class BodySensingExtension {
                 '---',
                 { opcode: 'setSkeletonVisible', blockType: 'command', text: '顯示骨架 [STATE]', arguments: { STATE: { type: 'string', menu: 'STATES', defaultValue: 'on' } } },
                 { opcode: 'setSkeletonColor', blockType: 'command', text: '將骨架顏色設為 [COLOR]', arguments: { COLOR: { type: 'color', defaultValue: '#FF0000' } } },
-                { opcode: 'setSkeletonLayer', blockType: 'command', text: '將骨架移到最 [LAYER] 層', arguments: { LAYER: { type: 'string', menu: 'LAYERS', defaultValue: 'top' } } }
+                { opcode: 'setSkeletonLayer', blockType: 'command', text: '將骨架移到最 [LAYER] 層', arguments: { LAYER: { type: 'string', menu: 'LAYERS', defaultValue: 'top' } } },
+                { opcode: 'changeSkeletonLayer', blockType: 'command', text: '將骨架向 [DIR] 移 [NUM] 層', arguments: { DIR: { type: 'string', menu: 'DIRS', defaultValue: 'forward' }, NUM: { type: 'number', defaultValue: 1 } } }
             ],
             menus: {
                 STATES: { acceptReporters: false, items: [{text: '開啟', value: 'on'}, {text: '關閉', value: 'off'}] },
                 LAYERS: { acceptReporters: false, items: [{text: '上', value: 'top'}, {text: '下', value: 'bottom'}] },
+                DIRS: { acceptReporters: false, items: [{text: '前', value: 'forward'}, {text: '後', value: 'backward'}] },
                 BODY_PARTS: {
                     acceptReporters: false,
                     items: [
@@ -217,7 +219,14 @@ class BodySensingExtension {
     setSkeletonLayer(args) {
         this.skeletonLayer = (args.LAYER === 'top') ? Infinity : -Infinity;
         if (this.skeletonDrawableId !== null && this.runtime.renderer) {
-            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, this.skeletonLayer);
+            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, this.skeletonLayer, "sprite", false);
+        }
+    }
+    changeSkeletonLayer(args) {
+        let nLayers = Number(args.NUM) || 1;
+        if (args.DIR === 'backward') nLayers = -nLayers;
+        if (this.skeletonDrawableId !== null && this.runtime.renderer) {
+            this.runtime.renderer.setDrawableOrder(this.skeletonDrawableId, nLayers, "sprite", true);
         }
     }
 
