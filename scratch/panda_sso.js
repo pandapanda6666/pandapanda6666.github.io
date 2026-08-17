@@ -1,4 +1,4 @@
-/*
+﻿/*
  PandaScratch 統一登入系統與 Socket.IO 全域模組
  請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線
 */
@@ -88,7 +88,7 @@
         let serverUrl = urlParams.get('server') || localStorage.getItem('sso_server');
         if (!serverUrl) {
             try {
-                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const res = await fetch('server_url.txt');
                 const text = await res.text();
                 serverUrl = atob(text.trim().split('').reverse().join(''));
                 if (serverUrl) localStorage.setItem('sso_server', serverUrl);
@@ -324,3 +324,4 @@
         initSSO();
     });
 })();
+

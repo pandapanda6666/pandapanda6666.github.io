@@ -1,4 +1,4 @@
-
+﻿
         // --- 核心狀態管理與變數 ---
         let socket;
         let myRole = ''; 
@@ -307,7 +307,7 @@
         async function initSocketConnection() {
             let serverUrl = '';
             try {
-                const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                const res = await fetch('server_url.txt');
                 if (res.ok) {
                     let rawText = (await res.text()).trim();
                     
