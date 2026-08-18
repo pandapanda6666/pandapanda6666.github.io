@@ -332,7 +332,14 @@
                 <!-- Style Panel -->
                 <div id="stylePanel" class="mt-6 border-t border-slate-600 pt-4 hidden">
                     <h3 class="text-sm font-semibold text-purple-300 mb-3">字體與背景樣式</h3>
-                    
+                    <div class="flex gap-2 mb-4">
+                        <label class="text-xs text-slate-300 flex items-center gap-1 cursor-pointer">
+                            <input type="radio" name="applyTarget" value="single" checked class="form-radio text-blue-500"> 僅套用單一
+                        </label>
+                        <label class="text-xs text-slate-300 flex items-center gap-1 cursor-pointer">
+                            <input type="radio" name="applyTarget" value="all" class="form-radio text-blue-500"> 套用至全部
+                        </label>
+                    </div>
 
                     <div class="style-group">
                         <h4>位置 (中心為0, 基準: 1920x1080)</h4>
@@ -420,10 +427,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class="mt-4 flex gap-2">
-                        <button id="btnApplyAllStyles" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition font-bold">套用至全部並設為預設</button>
-                    </div>
-                </div>
                 </div>
 
                 <div id="multiEditor" class="hidden space-y-4 mt-6 border-t border-slate-600 pt-4">
@@ -1561,8 +1564,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 singleEditor.classList.remove('hidden');
                 multiEditor.classList.remove('hidden');
                 document.getElementById('stylePanel').classList.remove('hidden');
-                document.querySelector('#stylePanel h3').innerText = '字體與背景樣式';
-                window.isEditingDefault = false;
                 selectedCount.innerText = 1;
 
                 const id = Array.from(selectedSubtitleIds)[0];
@@ -1597,8 +1598,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 singleEditor.classList.add('hidden');
                 multiEditor.classList.remove('hidden');
                 document.getElementById('stylePanel').classList.remove('hidden');
-                document.querySelector('#stylePanel h3').innerText = '字體與背景樣式';
-                window.isEditingDefault = false;
                 selectedCount.innerText = selectedSubtitleIds.size;
             } else {
                 noSelection.classList.remove('hidden');
@@ -1872,85 +1871,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     <script>
         // --- Style bindings ---
         
-        
-        window.defaultSubtitleStyle = {
-            fontSize: 32, color1: '#ffffff', color2: '#ffffff', textAlpha: 1, bold: false,
-            outlineWidth: 2, outlineColor: '#000000', outlineAlpha: 1,
-            bgColor1: '#000000', bgColor2: '#000000', bgAlpha: 0.5, borderRadius: 4,
-            posX: 0.5, posY: 0.9
-        };
-        window.isEditingDefault = false;
-        
-        document.getElementById('btnEditDefaultStyle').addEventListener('click', () => {
-            document.getElementById('noSelection').classList.add('hidden');
-            document.getElementById('stylePanel').classList.remove('hidden');
-                document.querySelector('#stylePanel h3').innerText = '字體與背景樣式';
-                window.isEditingDefault = false;
-            document.querySelector('#stylePanel h3').innerText = '全域預設字體與背景樣式';
-            window.isEditingDefault = true;
-            
-            const def = window.defaultSubtitleStyle;
-            document.getElementById('sty_fontSize').value = def.fontSize;
-            document.getElementById('sty_color1').value = def.color1;
-            document.getElementById('sty_color2').value = def.color2;
-            document.getElementById('sty_textAlpha').value = def.textAlpha;
-            document.getElementById('sty_bold').checked = def.bold;
-            document.getElementById('sty_outlineWidth').value = def.outlineWidth;
-            document.getElementById('sty_outlineColor').value = def.outlineColor;
-            document.getElementById('sty_outlineAlpha').value = def.outlineAlpha;
-            document.getElementById('sty_bgColor1').value = def.bgColor1;
-            document.getElementById('sty_bgColor2').value = def.bgColor2;
-            document.getElementById('sty_bgAlpha').value = def.bgAlpha;
-            document.getElementById('sty_borderRadius').value = def.borderRadius;
-            document.getElementById('sty_posX').value = Math.round((def.posX - 0.5) * 1920);
-            document.getElementById('sty_posY').value = Math.round((def.posY - 0.5) * 1080);
-            
-            ['sty_textAlpha', 'sty_outlineWidth', 'sty_outlineAlpha', 'sty_bgAlpha', 'sty_borderRadius'].forEach(id => {
-                document.getElementById(id + '_num').value = document.getElementById(id).value;
-            });
-        });
-        
-        document.getElementById('btnApplyAllStyles').addEventListener('click', () => {
-            let refSub = window.isEditingDefault ? window.defaultSubtitleStyle : null;
-            
-            if (!refSub && window.selectedSubtitleIds && window.selectedSubtitleIds.size > 0) {
-                const refId = Array.from(window.selectedSubtitleIds)[0];
-                refSub = window.subtitles.find(s => s.id === refId);
-            }
-            
-            if (refSub) {
-                // Update all existing subtitles
-                if (window.subtitles) {
-                    window.subtitles.forEach(s => {
-                        s.fontSize = refSub.fontSize;
-                        s.color1 = refSub.color1;
-                        s.color2 = refSub.color2;
-                        s.textAlpha = refSub.textAlpha;
-                        s.bold = refSub.bold;
-                        s.outlineWidth = refSub.outlineWidth;
-                        s.outlineColor = refSub.outlineColor;
-                        s.outlineAlpha = refSub.outlineAlpha;
-                        s.bgColor1 = refSub.bgColor1;
-                        s.bgColor2 = refSub.bgColor2;
-                        s.bgAlpha = refSub.bgAlpha;
-                        s.borderRadius = refSub.borderRadius;
-                        s.posX = refSub.posX;
-                        s.posY = refSub.posY;
-                    });
-                }
-                // Update global default
-                Object.assign(window.defaultSubtitleStyle, {
-                    fontSize: refSub.fontSize, color1: refSub.color1, color2: refSub.color2, textAlpha: refSub.textAlpha, bold: refSub.bold,
-                    outlineWidth: refSub.outlineWidth, outlineColor: refSub.outlineColor, outlineAlpha: refSub.outlineAlpha,
-                    bgColor1: refSub.bgColor1, bgColor2: refSub.bgColor2, bgAlpha: refSub.bgAlpha, borderRadius: refSub.borderRadius,
-                    posX: refSub.posX, posY: refSub.posY
-                });
-                
-                if (window.renderCanvasOverlay) window.renderCanvasOverlay();
-                showToast("已套用至全部字幕並更新為預設樣式");
-            }
-        });
-        
         const styleInputs = [
             'sty_fontSize', 'sty_color1', 'sty_color2', 'sty_textAlpha', 'sty_textAlpha_num', 'sty_bold',
             'sty_outlineWidth', 'sty_outlineWidth_num', 'sty_outlineColor', 'sty_outlineAlpha', 'sty_outlineAlpha_num',
@@ -1994,13 +1914,19 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if(el) {
                 el.addEventListener('input', (e) => {
                     syncSliders(id, e.target.value);
-                    if (window.isEditingDefault) {
-                        applyStyleToSub(window.defaultSubtitleStyle);
-                    } else if (window.selectedSubtitleIds) {
-                        window.selectedSubtitleIds.forEach(subId => {
-                            const sub = window.subtitles.find(s => s.id === subId);
-                            if (sub) applyStyleToSub(sub);
-                        });
+                    const targetEl = document.querySelector('input[name="applyTarget"]:checked');
+                    if (!targetEl) return;
+                    const target = targetEl.value;
+                    
+                    if (target === 'all') {
+                        if(window.subtitles) window.subtitles.forEach(applyStyleToSub);
+                    } else {
+                        if(window.selectedSubtitleIds) {
+                            window.selectedSubtitleIds.forEach(subId => {
+                                const sub = window.subtitles.find(s => s.id === subId);
+                                if (sub) applyStyleToSub(sub);
+                            });
+                        }
                     }
                     if(window.renderCanvasOverlay) window.renderCanvasOverlay();
                 });
@@ -2051,7 +1977,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if (sub.outlineWidth > 0) {
                     let oc = hexToRgba(sub.outlineColor || '#000000', sub.outlineAlpha !== undefined ? sub.outlineAlpha : 1);
                     div.style.webkitTextStroke = `${sub.outlineWidth}px ${oc}`;
-                    div.style.paintOrder = 'stroke fill';
                 }
                 
                 let bgAlpha = sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5;
@@ -2086,20 +2011,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 const dx = (e.clientX - subDragData.startX) / rect.width;
                 const dy = (e.clientY - subDragData.startY) / rect.height;
                 
+                const targetEl = document.querySelector('input[name="applyTarget"]:checked');
+                const target = targetEl ? targetEl.value : 'single';
                 
-                if (window.subtitles) {
-                    const sub = window.subtitles.find(s => s.id === subDragData.id);
-                    if (sub) {
-                        sub.posX = Math.min(1, Math.max(0, subDragData.startPx + dx));
-                        sub.posY = Math.min(1, Math.max(0, subDragData.startPy + dy));
-                        // Update UI
-                        document.getElementById('sty_posX').value = Math.round((sub.posX - 0.5) * 1920);
-                        document.getElementById('sty_posY').value = Math.round((sub.posY - 0.5) * 1080);
+                if (target === 'all') {
+                    if (window.subtitles) {
+                        window.subtitles.forEach(s => {
+                            s.posX = Math.min(1, Math.max(0, (s.posX !== undefined ? s.posX : 0.5) + dx));
+                            s.posY = Math.min(1, Math.max(0, (s.posY !== undefined ? s.posY : 0.9) + dy));
+                        });
+                    }
+                } else {
+                    if (window.subtitles) {
+                        const sub = window.subtitles.find(s => s.id === subDragData.id);
+                        if (sub) {
+                            sub.posX = Math.min(1, Math.max(0, subDragData.startPx + dx));
+                            sub.posY = Math.min(1, Math.max(0, subDragData.startPy + dy));
+                        }
                     }
                 }
                 subDragData.startX = e.clientX;
                 subDragData.startY = e.clientY;
-                if (true) {
+                if (target !== 'all') {
                     subDragData.startPx = subDragData.startPx + dx;
                     subDragData.startPy = subDragData.startPy + dy;
                 }
