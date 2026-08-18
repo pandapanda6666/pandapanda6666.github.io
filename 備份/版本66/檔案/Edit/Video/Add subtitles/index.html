@@ -268,7 +268,6 @@
                 <span class="text-xs text-slate-500 ml-2 hidden xl:inline">快捷鍵: Ctrl+C/V(複製), Del(刪除), Ctrl+Z/Y(復原/重作)</span>
             </div>
             <div class="flex gap-2">
-                 <label class="flex items-center gap-1 text-sm text-slate-300 mr-4 cursor-pointer select-none"><input type="checkbox" id="autoSnapToggle" checked class="form-checkbox"> 自動貼齊</label>
                  <button id="addSubtitleBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition">+ 新增字幕段落</button>
             </div>
         </header>
@@ -447,7 +446,6 @@
             </div>
 
             <div class="playhead" id="playhead"></div>
-            <div id="snapLine" class="hidden absolute top-0 bottom-0 w-0 border-l border-dashed border-blue-400 z-50 pointer-events-none"></div>
         </div>
     </div>
 
@@ -1470,26 +1468,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         }
 
         // 渲染字幕塊
-        
-        function resolveOverlaps() {
-            if (!subtitles || subtitles.length === 0) return false;
-            subtitles.sort((a, b) => a.start - b.start);
-            let changed = false;
-            for (let i = 1; i < subtitles.length; i++) {
-                if (subtitles[i].start < subtitles[i-1].end) {
-                    const dur = subtitles[i].end - subtitles[i].start;
-                    subtitles[i].start = subtitles[i-1].end;
-                    subtitles[i].end = subtitles[i].start + dur;
-                    changed = true;
-                }
-            }
-            if (changed) {
-                renderSubtitles();
-                if (selectedSubtitleIds.size === 1) updateEditor();
-            }
-            return changed;
-        }
-    
         function renderSubtitles() {
             subtitleBlocksContainer.innerHTML = '';
             subtitles.forEach(sub => {
@@ -1653,69 +1631,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 hasDragged = true;
             }
             
-            let deltaTime = deltaX / pixelsPerSecond;
+            const deltaTime = deltaX / pixelsPerSecond;
 
             if (dragTarget.type === 'media') {
                 mediaFile.offset = Math.max(0, dragStartTime + deltaTime);
                 renderMediaBlock();
             } else {
-                let autoSnap = document.getElementById('autoSnapToggle') ? document.getElementById('autoSnapToggle').checked : true;
-                let actualSnapPoint = null;
-                
-                if (autoSnap) {
-                    let snapPoints = [0];
-                    subtitles.forEach(s => {
-                        if (!selectedSubtitleIds.has(s.id)) {
-                            snapPoints.push(s.start);
-                            snapPoints.push(s.end);
-                        }
-                    });
-                    
-                    const SNAP_THRESHOLD = 15 / pixelsPerSecond;
-                    let bestSnap = null;
-                    let minDiff = Infinity;
-                    
-                    if (dragMode === 'move') {
-                        let minStart = Infinity;
-                        let maxEnd = -Infinity;
-                        subtitles.forEach(s => {
-                            if (selectedSubtitleIds.has(s.id)) {
-                                if (s.dragStartTime < minStart) minStart = s.dragStartTime;
-                                if (s.dragStartEnd > maxEnd) maxEnd = s.dragStartEnd;
-                            }
-                        });
-                        let curStart = minStart + deltaTime;
-                        let curEnd = maxEnd + deltaTime;
-                        snapPoints.forEach(p => {
-                            if (Math.abs(curStart - p) < minDiff) { minDiff = Math.abs(curStart - p); bestSnap = p - minStart; actualSnapPoint = p; }
-                            if (Math.abs(curEnd - p) < minDiff) { minDiff = Math.abs(curEnd - p); bestSnap = p - maxEnd; actualSnapPoint = p; }
-                        });
-                    } else if (dragMode === 'left') {
-                        let curStart = dragStartTime + deltaTime;
-                        snapPoints.forEach(p => {
-                            if (Math.abs(curStart - p) < minDiff) { minDiff = Math.abs(curStart - p); bestSnap = p - dragStartTime; actualSnapPoint = p; }
-                        });
-                    } else if (dragMode === 'right') {
-                        let curEnd = dragStartTime + deltaTime;
-                        snapPoints.forEach(p => {
-                            if (Math.abs(curEnd - p) < minDiff) { minDiff = Math.abs(curEnd - p); bestSnap = p - dragStartTime; actualSnapPoint = p; }
-                        });
-                    }
-                    
-                    if (minDiff < SNAP_THRESHOLD) {
-                        deltaTime = bestSnap;
-                    } else {
-                        actualSnapPoint = null;
-                    }
-                }
-                
-                if (actualSnapPoint !== null) {
-                    document.getElementById('snapLine').style.left = `${actualSnapPoint * pixelsPerSecond + 80}px`;
-                    document.getElementById('snapLine').classList.remove('hidden');
-                } else {
-                    document.getElementById('snapLine').classList.add('hidden');
-                }
-
                 if (dragMode === 'move') {
                     subtitles.forEach(s => {
                         if (selectedSubtitleIds.has(s.id)) {
@@ -1739,8 +1660,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             if (currentView !== 'editor') return;
 
             if (dragTarget && dragTarget.type !== 'media' && hasDragged) {
-                document.getElementById('snapLine').classList.add('hidden');
-                resolveOverlaps();
                 saveState();
             }
 
@@ -1769,7 +1688,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     sub.start = parseTimeCode(editStart.value);
                     editStart.value = formatTimeCode(sub.start); 
                     saveState();
-                    resolveOverlaps();
                     renderSubtitles();
                 }
             }
@@ -1783,7 +1701,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     if (sub.end <= sub.start) sub.end = sub.start + 0.1; 
                     editEnd.value = formatTimeCode(sub.end); 
                     saveState();
-                    resolveOverlaps();
                     renderSubtitles();
                 }
             }
