@@ -374,12 +374,24 @@
                     </div>
 
                     <div class="style-group">
-                        <div class="flex justify-between items-center mb-2">
-                            <h4>外框設定</h4>
-                            <button id="btnAddOutline" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-white">+ 新增外框</button>
+                        <h4>外框設定</h4>
+                        <div class="setting-row">
+                            <label>粗細</label>
+                            <div class="flex items-center gap-2 w-full">
+                                <input type="range" id="sty_outlineWidth" min="0" max="20" step="1" value="2">
+                                <input type="number" id="sty_outlineWidth_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="20" step="1" value="2">
+                            </div>
                         </div>
-                        <div id="outlineList" class="space-y-2">
-                            <!-- Outlines injected here -->
+                        <div class="setting-row">
+                            <label>顏色</label>
+                            <input type="color" id="sty_outlineColor" value="#000000">
+                        </div>
+                        <div class="setting-row">
+                            <label>透明度</label>
+                            <div class="flex items-center gap-2 w-full">
+                                <input type="range" id="sty_outlineAlpha" min="0" max="1" step="0.1" value="1">
+                                <input type="number" id="sty_outlineAlpha_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="1" step="0.1" value="1">
+                            </div>
                         </div>
                     </div>
 
@@ -859,38 +871,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     const start = formatAssTime(sub.start);
                     const end = formatAssTime(sub.end);
                     
-                    
                     let c1 = toAssColor(sub.color1 || '#ffffff', sub.textAlpha !== undefined ? sub.textAlpha : 1);
+                    let c2 = toAssColor(sub.color2 || sub.color1 || '#ffffff', sub.textAlpha !== undefined ? sub.textAlpha : 1);
+                    let oc = toAssColor(sub.outlineColor || '#000000', sub.outlineAlpha !== undefined ? sub.outlineAlpha : 1);
                     let bc = toAssColor(sub.bgColor1 || '#000000', sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5);
                     
                     let fs = sub.fontSize || 32;
                     let bold = sub.bold ? -1 : 0; 
+                    let out = sub.outlineWidth !== undefined ? sub.outlineWidth : 2;
                     
                     let px = sub.posX !== undefined ? sub.posX : 0.5;
                     let py = sub.posY !== undefined ? sub.posY : 0.9;
                     let x = Math.round(px * 1920);
                     let y = Math.round(py * 1080);
                     
-                    let text = sub.text.replace(/\n/g, '\\N');
+                    let tags = `{\\\\pos(${x},${y})\\\\fs${fs}\\\\c${c1}\\\\2c${c2}\\\\3c${oc}\\\\4c${bc}\\\\b${bold}\\\\bord${out}\\\\BorderStyle3}`;
                     
-                    const outlines = sub.outlines || [];
-                    
-                    let totalWidth = outlines.reduce((acc, ol) => acc + parseInt(ol.width || 0), 0);
-                    let currentWidth = totalWidth;
-                    
-                    for (let i = outlines.length - 1; i >= 0; i--) {
-                        const ol = outlines[i];
-                        if (currentWidth > 0) {
-                            let oc = toAssColor(ol.color || '#000000', ol.alpha !== undefined ? ol.alpha : 1);
-                            let tags = `{\\pos(${x},${y})\\fs${fs}\\1c${oc}\\3c${oc}\\4c${bc}\\b${bold}\\bord${currentWidth}\\BorderStyle3}`;
-                            assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${tags}${text}\n`;
-                        }
-                        currentWidth -= parseInt(ol.width || 0);
-                    }
-                    
-                    let mainTags = `{\\pos(${x},${y})\\fs${fs}\\1c${c1}\\3c${c1}\\4c${bc}\\b${bold}\\bord0\\BorderStyle3}`;
-                    assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${mainTags}${text}\n`;
-    
+                    let text = sub.text.replace(/\\n/g, '\\\\N');
+                    assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${tags}${text}\\n`;
                 });
 
                 const vidName = 'input_video.mp4';
@@ -1579,22 +1577,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     document.getElementById('sty_color2').value = sub.color2 || sub.color1 || '#ffffff';
                     document.getElementById('sty_textAlpha').value = sub.textAlpha !== undefined ? sub.textAlpha : 1;
                     document.getElementById('sty_bold').checked = sub.bold || false;
-                    
-                    // Migrate old data on the fly
-                    if (sub.outlines === undefined) {
-                        sub.outlines = [];
-                        if (sub.outlineWidth > 0) {
-                            sub.outlines.push({width: sub.outlineWidth, color: sub.outlineColor || '#000000', alpha: sub.outlineAlpha !== undefined ? sub.outlineAlpha : 1});
-                        }
-                    }
-                    window.currentEditingOutlines = JSON.parse(JSON.stringify(sub.outlines));
-                    window.renderOutlineList();
-    document.getElementById('sty_bgColor1').value = sub.bgColor1 || '#000000';
+                    document.getElementById('sty_outlineWidth').value = sub.outlineWidth !== undefined ? sub.outlineWidth : 2;
+                    document.getElementById('sty_outlineColor').value = sub.outlineColor || '#000000';
+                    document.getElementById('sty_outlineAlpha').value = sub.outlineAlpha !== undefined ? sub.outlineAlpha : 1;
+                    document.getElementById('sty_bgColor1').value = sub.bgColor1 || '#000000';
                     document.getElementById('sty_bgColor2').value = sub.bgColor2 || sub.bgColor1 || '#000000';
                     document.getElementById('sty_bgAlpha').value = sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5;
                     document.getElementById('sty_borderRadius').value = sub.borderRadius || 4;
                     document.getElementById('sty_textAlpha_num').value = document.getElementById('sty_textAlpha').value;
-                    
+                    document.getElementById('sty_outlineWidth_num').value = document.getElementById('sty_outlineWidth').value;
+                    document.getElementById('sty_outlineAlpha_num').value = document.getElementById('sty_outlineAlpha').value;
                     document.getElementById('sty_bgAlpha_num').value = document.getElementById('sty_bgAlpha').value;
                     document.getElementById('sty_borderRadius_num').value = document.getElementById('sty_borderRadius').value;
                     document.getElementById('sty_posX').value = Math.round(((sub.posX !== undefined ? sub.posX : 0.5) - 0.5) * 1920);
@@ -1879,135 +1871,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     <!-- FFmpeg & Subtitle Rendering Logic -->
     <script>
         // --- Style bindings ---
-
-        window.currentEditingOutlines = [];
-        
-        function getActiveSubtitleForOutlines() {
-            if (window.isEditingDefault) return window.defaultSubtitleStyle;
-            if (window.selectedSubtitleIds && window.selectedSubtitleIds.size > 0) {
-                return window.subtitles.find(s => s.id === Array.from(window.selectedSubtitleIds)[0]);
-            }
-            return null;
-        }
-
-        function triggerOutlineUpdate() {
-            const active = getActiveSubtitleForOutlines();
-            if (active) {
-                active.outlines = JSON.parse(JSON.stringify(window.currentEditingOutlines));
-                if (!window.isEditingDefault && window.selectedSubtitleIds) {
-                    // Sync to all selected
-                    window.selectedSubtitleIds.forEach(id => {
-                        const s = window.subtitles.find(sub => sub.id === id);
-                        if (s) s.outlines = JSON.parse(JSON.stringify(window.currentEditingOutlines));
-                    });
-                }
-                if (window.renderCanvasOverlay) window.renderCanvasOverlay();
-            }
-        }
-
-        window.renderOutlineList = function() {
-            const list = document.getElementById('outlineList');
-            list.innerHTML = '';
-            window.currentEditingOutlines.forEach((ol, index) => {
-                const el = document.createElement('div');
-                el.className = "p-2 bg-slate-800 rounded border border-slate-600 flex flex-col gap-2 relative group";
-                el.draggable = true;
-                el.dataset.idx = index;
-                el.innerHTML = `
-                    <div class="flex items-center justify-between cursor-move bg-slate-700 -mx-2 -mt-2 p-1 rounded-t">
-                        <span class="text-slate-300 text-xs font-bold px-1 select-none">≡ 外框 ${index + 1} (層級：${index === 0 ? '最內層' : '第'+(index+1)+'層'})</span>
-                        <button class="text-red-400 hover:text-red-300 text-xs px-2" onclick="removeOutline(${index})">✕</button>
-                    </div>
-                    <div class="setting-row mt-1">
-                        <label>延伸粗細</label>
-                        <div class="flex items-center gap-2 w-full">
-                            <input type="range" class="outl-w" data-idx="${index}" min="0" max="50" step="1" value="${ol.width}">
-                            <input type="number" class="outl-wn bg-slate-900 border border-slate-600 rounded px-1 w-16" data-idx="${index}" min="0" max="50" step="1" value="${ol.width}">
-                        </div>
-                    </div>
-                    <div class="setting-row">
-                        <label>顏色</label>
-                        <input type="color" class="outl-c" data-idx="${index}" value="${ol.color}">
-                    </div>
-                    <div class="setting-row">
-                        <label>透明度</label>
-                        <div class="flex items-center gap-2 w-full">
-                            <input type="range" class="outl-a" data-idx="${index}" min="0" max="1" step="0.1" value="${ol.alpha}">
-                            <input type="number" class="outl-an bg-slate-900 border border-slate-600 rounded px-1 w-16" data-idx="${index}" min="0" max="1" step="0.1" value="${ol.alpha}">
-                        </div>
-                    </div>
-                `;
-                
-                el.addEventListener('dragstart', e => { 
-                    e.dataTransfer.setData('text/plain', index); 
-                    el.classList.add('opacity-50');
-                });
-                el.addEventListener('dragend', () => el.classList.remove('opacity-50'));
-                el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('border-blue-500'); });
-                el.addEventListener('dragleave', e => el.classList.remove('border-blue-500'));
-                el.addEventListener('drop', e => {
-                    e.preventDefault();
-                    el.classList.remove('border-blue-500');
-                    const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                    const toIdx = index;
-                    if(fromIdx === toIdx) return;
-                    const item = window.currentEditingOutlines.splice(fromIdx, 1)[0];
-                    window.currentEditingOutlines.splice(toIdx, 0, item);
-                    triggerOutlineUpdate();
-                    window.renderOutlineList();
-                });
-                list.appendChild(el);
-            });
-
-            // Bind listeners
-            document.querySelectorAll('.outl-w').forEach(el => el.addEventListener('input', e => {
-                const idx = e.target.dataset.idx;
-                window.currentEditingOutlines[idx].width = parseInt(e.target.value) || 0;
-                document.querySelector(`.outl-wn[data-idx="${idx}"]`).value = e.target.value;
-                triggerOutlineUpdate();
-            }));
-            document.querySelectorAll('.outl-wn').forEach(el => el.addEventListener('input', e => {
-                const idx = e.target.dataset.idx;
-                window.currentEditingOutlines[idx].width = parseInt(e.target.value) || 0;
-                document.querySelector(`.outl-w[data-idx="${idx}"]`).value = e.target.value;
-                triggerOutlineUpdate();
-            }));
-            document.querySelectorAll('.outl-c').forEach(el => el.addEventListener('input', e => {
-                const idx = e.target.dataset.idx;
-                window.currentEditingOutlines[idx].color = e.target.value;
-                triggerOutlineUpdate();
-            }));
-            document.querySelectorAll('.outl-a').forEach(el => el.addEventListener('input', e => {
-                const idx = e.target.dataset.idx;
-                window.currentEditingOutlines[idx].alpha = parseFloat(e.target.value) || 0;
-                document.querySelector(`.outl-an[data-idx="${idx}"]`).value = e.target.value;
-                triggerOutlineUpdate();
-            }));
-            document.querySelectorAll('.outl-an').forEach(el => el.addEventListener('input', e => {
-                const idx = e.target.dataset.idx;
-                window.currentEditingOutlines[idx].alpha = parseFloat(e.target.value) || 0;
-                document.querySelector(`.outl-a[data-idx="${idx}"]`).value = e.target.value;
-                triggerOutlineUpdate();
-            }));
-        };
-
-        window.removeOutline = function(index) {
-            window.currentEditingOutlines.splice(index, 1);
-            triggerOutlineUpdate();
-            window.renderOutlineList();
-        };
-
-        document.getElementById('btnAddOutline').addEventListener('click', () => {
-            window.currentEditingOutlines.push({width: 2, color: '#000000', alpha: 1});
-            triggerOutlineUpdate();
-            window.renderOutlineList();
-        });
-    
         
         
         window.defaultSubtitleStyle = {
             fontSize: 32, color1: '#ffffff', color2: '#ffffff', textAlpha: 1, bold: false,
-            outlines: [{width: 2, color: '#000000', alpha: 1}],
+            outlineWidth: 2, outlineColor: '#000000', outlineAlpha: 1,
             bgColor1: '#000000', bgColor2: '#000000', bgAlpha: 0.5, borderRadius: 4,
             posX: 0.5, posY: 0.9
         };
@@ -2027,7 +1895,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             document.getElementById('sty_color2').value = def.color2;
             document.getElementById('sty_textAlpha').value = def.textAlpha;
             document.getElementById('sty_bold').checked = def.bold;
-            window.currentEditingOutlines = JSON.parse(JSON.stringify(def.outlines || [])); window.renderOutlineList();
+            document.getElementById('sty_outlineWidth').value = def.outlineWidth;
+            document.getElementById('sty_outlineColor').value = def.outlineColor;
+            document.getElementById('sty_outlineAlpha').value = def.outlineAlpha;
             document.getElementById('sty_bgColor1').value = def.bgColor1;
             document.getElementById('sty_bgColor2').value = def.bgColor2;
             document.getElementById('sty_bgAlpha').value = def.bgAlpha;
@@ -2035,7 +1905,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             document.getElementById('sty_posX').value = Math.round((def.posX - 0.5) * 1920);
             document.getElementById('sty_posY').value = Math.round((def.posY - 0.5) * 1080);
             
-            ['sty_textAlpha', 'sty_bgAlpha', 'sty_borderRadius'].forEach(id => {
+            ['sty_textAlpha', 'sty_outlineWidth', 'sty_outlineAlpha', 'sty_bgAlpha', 'sty_borderRadius'].forEach(id => {
                 document.getElementById(id + '_num').value = document.getElementById(id).value;
             });
         });
@@ -2057,7 +1927,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         s.color2 = refSub.color2;
                         s.textAlpha = refSub.textAlpha;
                         s.bold = refSub.bold;
-                        s.outlines = JSON.parse(JSON.stringify(refSub.outlines || []));
+                        s.outlineWidth = refSub.outlineWidth;
+                        s.outlineColor = refSub.outlineColor;
+                        s.outlineAlpha = refSub.outlineAlpha;
                         s.bgColor1 = refSub.bgColor1;
                         s.bgColor2 = refSub.bgColor2;
                         s.bgAlpha = refSub.bgAlpha;
@@ -2069,7 +1941,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 // Update global default
                 Object.assign(window.defaultSubtitleStyle, {
                     fontSize: refSub.fontSize, color1: refSub.color1, color2: refSub.color2, textAlpha: refSub.textAlpha, bold: refSub.bold,
-                    outlines: JSON.parse(JSON.stringify(refSub.outlines || [])),
+                    outlineWidth: refSub.outlineWidth, outlineColor: refSub.outlineColor, outlineAlpha: refSub.outlineAlpha,
                     bgColor1: refSub.bgColor1, bgColor2: refSub.bgColor2, bgAlpha: refSub.bgAlpha, borderRadius: refSub.borderRadius,
                     posX: refSub.posX, posY: refSub.posY
                 });
@@ -2081,7 +1953,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         const styleInputs = [
             'sty_fontSize', 'sty_color1', 'sty_color2', 'sty_textAlpha', 'sty_textAlpha_num', 'sty_bold',
-            
+            'sty_outlineWidth', 'sty_outlineWidth_num', 'sty_outlineColor', 'sty_outlineAlpha', 'sty_outlineAlpha_num',
             'sty_bgColor1', 'sty_bgColor2', 'sty_bgAlpha', 'sty_bgAlpha_num', 'sty_borderRadius', 'sty_borderRadius_num',
             'sty_posX', 'sty_posY'
         ];
@@ -2092,6 +1964,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             sub.color2 = document.getElementById('sty_color2').value;
             sub.textAlpha = parseFloat(document.getElementById('sty_textAlpha').value);
             sub.bold = document.getElementById('sty_bold').checked;
+            sub.outlineWidth = parseInt(document.getElementById('sty_outlineWidth').value);
+            sub.outlineColor = document.getElementById('sty_outlineColor').value;
+            sub.outlineAlpha = parseFloat(document.getElementById('sty_outlineAlpha').value);
             sub.bgColor1 = document.getElementById('sty_bgColor1').value;
             sub.bgColor2 = document.getElementById('sty_bgColor2').value;
             sub.bgAlpha = parseFloat(document.getElementById('sty_bgAlpha').value);
@@ -2101,8 +1976,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             let cy = parseFloat(document.getElementById('sty_posY').value) || 0;
             sub.posX = (cx / 1920) + 0.5;
             sub.posY = (cy / 1080) + 0.5;
-            
-            // Outlines are synced via renderOutlineList UI directly
         }
 
         function syncSliders(id, val) {
@@ -2158,72 +2031,40 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             overlayContainer.innerHTML = '';
             
             currentSubs.forEach(sub => {
+                const div = document.createElement('div');
+                div.className = "draggable-sub pointer-events-auto";
+                div.innerText = sub.text;
                 
-                const container = document.createElement('div');
-                container.className = "draggable-sub pointer-events-auto";
-                // Pos
+                // Position (0-1 range, default 0.5, 0.9)
                 let px = sub.posX !== undefined ? sub.posX : 0.5;
                 let py = sub.posY !== undefined ? sub.posY : 0.9;
-                container.style.left = `${px * 100}%`;
-                container.style.top = `${py * 100}%`;
                 
-                // Backgound style on container
+                div.style.left = `${px * 100}%`;
+                div.style.top = `${py * 100}%`;
+                
+                // Styles
+                div.style.fontSize = `${sub.fontSize || 32}px`;
+                div.style.fontWeight = sub.bold ? 'bold' : 'normal';
+                
+                div.style.color = hexToRgba(sub.color1 || '#ffffff', sub.textAlpha !== undefined ? sub.textAlpha : 1);
+                
+                if (sub.outlineWidth > 0) {
+                    let oc = hexToRgba(sub.outlineColor || '#000000', sub.outlineAlpha !== undefined ? sub.outlineAlpha : 1);
+                    div.style.webkitTextStroke = `${sub.outlineWidth}px ${oc}`;
+                    div.style.paintOrder = 'stroke fill';
+                }
+                
                 let bgAlpha = sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5;
                 if (bgAlpha > 0) {
                     let bgC1 = hexToRgba(sub.bgColor1 || '#000000', bgAlpha);
                     let bgC2 = hexToRgba(sub.bgColor2 || '#000000', bgAlpha);
-                    container.style.background = `linear-gradient(to right, ${bgC1}, ${bgC2})`;
-                    container.style.padding = '5px 15px';
-                    container.style.borderRadius = `${sub.borderRadius || 4}px`;
+                    div.style.background = `linear-gradient(to right, ${bgC1}, ${bgC2})`;
+                    div.style.padding = '5px 15px';
+                    div.style.borderRadius = `${sub.borderRadius || 4}px`;
                 }
-
-                // Create text layers
-                const fontSize = sub.fontSize || 32;
-                const fw = sub.bold ? 'bold' : 'normal';
-                
-                const outlines = sub.outlines || [];
-                
-                const layerWrapper = document.createElement('div');
-                layerWrapper.style.position = 'relative';
-                layerWrapper.style.display = 'inline-block';
-
-                let totalWidthSum = outlines.reduce((acc, ol) => acc + parseInt(ol.width || 0), 0);
-                let currentThick = totalWidthSum;
-                
-                for (let i = outlines.length - 1; i >= 0; i--) {
-                    const ol = outlines[i];
-                    if (currentThick > 0) {
-                        const olLayer = document.createElement('div');
-                        olLayer.style.position = 'absolute';
-                        olLayer.style.left = '0';
-                        olLayer.style.top = '0';
-                        olLayer.style.whiteSpace = 'nowrap';
-                        olLayer.style.fontSize = `${fontSize}px`;
-                        olLayer.style.fontWeight = fw;
-                        
-                        const c = hexToRgba(ol.color, ol.alpha !== undefined ? ol.alpha : 1);
-                        olLayer.style.webkitTextStroke = `${currentThick * 2}px ${c}`; // *2 because stroke is centered
-                        olLayer.style.color = c; // Fill with outline color
-                        olLayer.innerText = sub.text;
-                        layerWrapper.appendChild(olLayer);
-                    }
-                    currentThick -= parseInt(ol.width || 0);
-                }
-
-                // Top text layer
-                const topLayer = document.createElement('div');
-                topLayer.style.position = 'relative'; // This dictates the size
-                topLayer.style.whiteSpace = 'nowrap';
-                topLayer.style.fontSize = `${fontSize}px`;
-                topLayer.style.fontWeight = fw;
-                topLayer.style.color = hexToRgba(sub.color1 || '#ffffff', sub.textAlpha !== undefined ? sub.textAlpha : 1);
-                topLayer.innerText = sub.text;
-                layerWrapper.appendChild(topLayer);
-                
-                container.appendChild(layerWrapper);
 
                 // Dragging Logic
-                container.addEventListener('mousedown', (e) => {
+                div.addEventListener('mousedown', (e) => {
                     subDragData = {
                         id: sub.id,
                         startX: e.clientX,
@@ -2231,12 +2072,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         startPx: px,
                         startPy: py
                     };
-                    container.classList.add('dragging');
+                    div.classList.add('dragging');
                     e.stopPropagation();
                 });
 
-                overlayContainer.appendChild(container);
-    
+                overlayContainer.appendChild(div);
             });
         };
 
@@ -2270,7 +2110,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         window.addEventListener('mouseup', () => {
             if (subDragData) {
                 subDragData = null;
-                if (overlayContainer) { overlayContainer.querySelectorAll('.draggable-sub').forEach(el => el.classList.remove('dragging')); }
+                document.querySelectorAll('.draggable-sub').forEach(el => el.classList.remove('dragging'));
             }
         });
 
