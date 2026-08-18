@@ -173,7 +173,7 @@
         }
         .setting-row input[type="color"] { padding: 0; height: 24px; cursor: pointer; }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.8/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.8/dist/ffmpeg.min.js"></script>
 </head>
 <body class="flex flex-col h-screen relative bg-slate-900">
 
@@ -329,7 +329,6 @@
                 </div>
 
                 <!-- Style Panel -->
-                <!-- Style Panel -->
                 <div id="stylePanel" class="mt-6 border-t border-slate-600 pt-4 hidden">
                     <h3 class="text-sm font-semibold text-purple-300 mb-3">字體與背景樣式</h3>
                     <div class="flex gap-2 mb-4">
@@ -339,18 +338,6 @@
                         <label class="text-xs text-slate-300 flex items-center gap-1 cursor-pointer">
                             <input type="radio" name="applyTarget" value="all" class="form-radio text-blue-500"> 套用至全部
                         </label>
-                    </div>
-
-                    <div class="style-group">
-                        <h4>位置 (中心為0, 基準: 1920x1080)</h4>
-                        <div class="setting-row">
-                            <label>X 座標</label>
-                            <input type="number" id="sty_posX" value="0">
-                        </div>
-                        <div class="setting-row">
-                            <label>Y 座標</label>
-                            <input type="number" id="sty_posY" value="432"> <!-- 預設底部附近 (0.9 - 0.5) * 1080 = 432 -->
-                        </div>
                     </div>
 
                     <div class="style-group">
@@ -368,11 +355,8 @@
                             <input type="color" id="sty_color2" value="#ffffff">
                         </div>
                         <div class="setting-row">
-                            <label>透明度</label>
-                            <div class="flex items-center gap-2 w-full">
-                                <input type="range" id="sty_textAlpha" min="0" max="1" step="0.1" value="1">
-                                <input type="number" id="sty_textAlpha_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="1" step="0.1" value="1">
-                            </div>
+                            <label>文字透明度</label>
+                            <input type="range" id="sty_textAlpha" min="0" max="1" step="0.1" value="1">
                         </div>
                         <div class="setting-row">
                             <label>粗體</label>
@@ -384,21 +368,15 @@
                         <h4>外框設定</h4>
                         <div class="setting-row">
                             <label>粗細</label>
-                            <div class="flex items-center gap-2 w-full">
-                                <input type="range" id="sty_outlineWidth" min="0" max="20" step="1" value="2">
-                                <input type="number" id="sty_outlineWidth_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="20" step="1" value="2">
-                            </div>
+                            <input type="range" id="sty_outlineWidth" min="0" max="10" step="1" value="2">
                         </div>
                         <div class="setting-row">
                             <label>顏色</label>
                             <input type="color" id="sty_outlineColor" value="#000000">
                         </div>
                         <div class="setting-row">
-                            <label>透明度</label>
-                            <div class="flex items-center gap-2 w-full">
-                                <input type="range" id="sty_outlineAlpha" min="0" max="1" step="0.1" value="1">
-                                <input type="number" id="sty_outlineAlpha_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="1" step="0.1" value="1">
-                            </div>
+                            <label>外框透明度</label>
+                            <input type="range" id="sty_outlineAlpha" min="0" max="1" step="0.1" value="1">
                         </div>
                     </div>
 
@@ -413,18 +391,12 @@
                             <input type="color" id="sty_bgColor2" value="#000000">
                         </div>
                         <div class="setting-row">
-                            <label>透明度</label>
-                            <div class="flex items-center gap-2 w-full">
-                                <input type="range" id="sty_bgAlpha" min="0" max="1" step="0.1" value="0.5">
-                                <input type="number" id="sty_bgAlpha_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="1" step="0.1" value="0.5">
-                            </div>
+                            <label>背景透明度</label>
+                            <input type="range" id="sty_bgAlpha" min="0" max="1" step="0.1" value="0.5">
                         </div>
                         <div class="setting-row">
                             <label>圓角</label>
-                            <div class="flex items-center gap-2 w-full">
-                                <input type="range" id="sty_borderRadius" min="0" max="50" step="1" value="4">
-                                <input type="number" id="sty_borderRadius_num" class="w-16 bg-slate-900 border border-slate-600 rounded px-1" min="0" max="50" step="1" value="4">
-                            </div>
+                            <input type="range" id="sty_borderRadius" min="0" max="50" step="1" value="4">
                         </div>
                     </div>
                 </div>
@@ -625,7 +597,46 @@
         }
 
         // --- Firebase 初始化與連線狀態 ---
-        let currentUser = null;
+        let app, auth, db, appId, currentUser = null;
+        const connectionStatus = document.getElementById('connectionStatus');
+        const connectionDot = document.getElementById('connectionDot');
+
+        try {
+            const configStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+            const firebaseConfig = JSON.parse(configStr);
+            if (Object.keys(firebaseConfig).length > 0) {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (e) {
+                        console.error("Auth Error:", e);
+                    }
+                };
+                initAuth();
+                
+                onAuthStateChanged(auth, user => {
+                    currentUser = user;
+                    if(user) {
+                        connectionStatus.innerText = '雲端已連線';
+                        connectionDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                    }
+                    if (currentView === 'home') {
+                        loadProjectsList();
+                    }
+                });
+            }
+        } catch (error) {
+            console.warn("Firebase init failed, running in strictly local mode.");
+        }
 
         // --- 核心狀態 ---
         let currentProjectId = null;
@@ -819,22 +830,11 @@
             showToast("準備 FFmpeg 引擎中... (第一次載入可能需要幾分鐘)");
 
             try {
-                
-                if (typeof FFmpeg === 'undefined') {
-                    showToast("FFmpeg 引擎正在載入，請稍候...");
-                    await new Promise((resolve, reject) => {
-                        const script = document.createElement('script');
-                        script.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.8/dist/ffmpeg.min.js';
-                        script.onload = resolve;
-                        script.onerror = () => reject(new Error('無法載入 FFmpeg 腳本'));
-                        document.head.appendChild(script);
-                    });
-                }
                 if (!window.ffmpeg) {
                     const { createFFmpeg } = FFmpeg;
                     window.ffmpeg = createFFmpeg({ 
                         log: true,
-                        corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+                        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
                     });
                     await window.ffmpeg.load();
                 }
@@ -970,6 +970,16 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             }
 
             let cloudMsg = "";
+            // 3. 若有連線，同步至 Firebase
+            if (currentUser && db) {
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'projects', currentProjectId);
+                    await setDoc(docRef, projectData);
+                    cloudMsg = "與雲端";
+                } catch (err) {
+                    console.warn("Cloud save issue:", err);
+                }
+            }
 
             currentProjectLabel.innerText = currentProjectName;
             showToast(`專案已儲存至本機${cloudMsg}`);
@@ -986,7 +996,26 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 const localProjects = await getLocalProjects();
                 localProjects.forEach(p => projectsMap.set(p.id, p));
 
-                
+                // 2. 獲取雲端專案 (如果連線)
+                if (currentUser && db) {
+                    try {
+                        const q = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'projects');
+                        const snapshot = await getDocs(q);
+                        snapshot.forEach(doc => {
+                            const p = doc.data();
+                            if (projectsMap.has(p.id)) {
+                                const existing = projectsMap.get(p.id);
+                                if ((p.updatedAt || 0) > (existing.updatedAt || 0)) {
+                                    projectsMap.set(p.id, p); // 雲端較新，覆寫
+                                }
+                            } else {
+                                projectsMap.set(p.id, p); // 新增雲端專案
+                            }
+                        });
+                    } catch (e) {
+                        console.warn("Cloud fetching failed, showing local only.", e);
+                    }
+                }
 
                 let projects = Array.from(projectsMap.values());
                 projects.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
@@ -1044,7 +1073,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                                 await deleteProjectLocallyData(p.id);
                                 await deleteMediaLocally(p.id); 
                                 
-                                
+                                // 2. 刪除雲端
+                                if (currentUser && db) {
+                                    try {
+                                        await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'projects', p.id));
+                                    } catch(err) { console.warn("Cloud delete failed"); }
+                                }
 
                                 showToast("已刪除專案");
                                 if (currentProjectId === p.id) {
@@ -1585,13 +1619,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     document.getElementById('sty_bgColor2').value = sub.bgColor2 || sub.bgColor1 || '#000000';
                     document.getElementById('sty_bgAlpha').value = sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5;
                     document.getElementById('sty_borderRadius').value = sub.borderRadius || 4;
-                    document.getElementById('sty_textAlpha_num').value = document.getElementById('sty_textAlpha').value;
-                    document.getElementById('sty_outlineWidth_num').value = document.getElementById('sty_outlineWidth').value;
-                    document.getElementById('sty_outlineAlpha_num').value = document.getElementById('sty_outlineAlpha').value;
-                    document.getElementById('sty_bgAlpha_num').value = document.getElementById('sty_bgAlpha').value;
-                    document.getElementById('sty_borderRadius_num').value = document.getElementById('sty_borderRadius').value;
-                    document.getElementById('sty_posX').value = Math.round(((sub.posX !== undefined ? sub.posX : 0.5) - 0.5) * 1920);
-                    document.getElementById('sty_posY').value = Math.round(((sub.posY !== undefined ? sub.posY : 0.9) - 0.5) * 1080);
                 }
             } else if (selectedSubtitleIds.size > 1) {
                 noSelection.classList.add('hidden');
@@ -1870,12 +1897,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     <!-- FFmpeg & Subtitle Rendering Logic -->
     <script>
         // --- Style bindings ---
-        
         const styleInputs = [
-            'sty_fontSize', 'sty_color1', 'sty_color2', 'sty_textAlpha', 'sty_textAlpha_num', 'sty_bold',
-            'sty_outlineWidth', 'sty_outlineWidth_num', 'sty_outlineColor', 'sty_outlineAlpha', 'sty_outlineAlpha_num',
-            'sty_bgColor1', 'sty_bgColor2', 'sty_bgAlpha', 'sty_bgAlpha_num', 'sty_borderRadius', 'sty_borderRadius_num',
-            'sty_posX', 'sty_posY'
+            'sty_fontSize', 'sty_color1', 'sty_color2', 'sty_textAlpha', 'sty_bold',
+            'sty_outlineWidth', 'sty_outlineColor', 'sty_outlineAlpha',
+            'sty_bgColor1', 'sty_bgColor2', 'sty_bgAlpha', 'sty_borderRadius'
         ];
         
         function applyStyleToSub(sub) {
@@ -1891,29 +1916,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             sub.bgColor2 = document.getElementById('sty_bgColor2').value;
             sub.bgAlpha = parseFloat(document.getElementById('sty_bgAlpha').value);
             sub.borderRadius = parseInt(document.getElementById('sty_borderRadius').value);
-            
-            let cx = parseFloat(document.getElementById('sty_posX').value) || 0;
-            let cy = parseFloat(document.getElementById('sty_posY').value) || 0;
-            sub.posX = (cx / 1920) + 0.5;
-            sub.posY = (cy / 1080) + 0.5;
         }
-
-        function syncSliders(id, val) {
-            if (id.endsWith('_num')) {
-                const base = id.replace('_num', '');
-                if (document.getElementById(base)) document.getElementById(base).value = val;
-            } else {
-                const num = id + '_num';
-                if (document.getElementById(num)) document.getElementById(num).value = val;
-            }
-        }
-
 
         styleInputs.forEach(id => {
             const el = document.getElementById(id);
             if(el) {
-                el.addEventListener('input', (e) => {
-                    syncSliders(id, e.target.value);
+                el.addEventListener('input', () => {
                     const targetEl = document.querySelector('input[name="applyTarget"]:checked');
                     if (!targetEl) return;
                     const target = targetEl.value;
@@ -1976,7 +1984,8 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 
                 if (sub.outlineWidth > 0) {
                     let oc = hexToRgba(sub.outlineColor || '#000000', sub.outlineAlpha !== undefined ? sub.outlineAlpha : 1);
-                    div.style.webkitTextStroke = `${sub.outlineWidth}px ${oc}`;
+                    let w = sub.outlineWidth;
+                    div.style.textShadow = `-${w}px -${w}px 0 ${oc}, ${w}px -${w}px 0 ${oc}, -${w}px ${w}px 0 ${oc}, ${w}px ${w}px 0 ${oc}`;
                 }
                 
                 let bgAlpha = sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5;
