@@ -411,8 +411,7 @@
                         </div>
                     </div>
                     <div class="mt-4 flex gap-2">
-                        <button id="btnApplyAllStyles" class="w-1/2 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition font-bold">套用至全部</button>
-                        <button id="btnSetAsDefault" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded text-sm transition font-bold">設為預設樣式</button>
+                        <button id="btnApplyAllStyles" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded text-sm transition font-bold">套用至全部並設為預設</button>
                     </div>
                 </div>
                 </div>
@@ -685,7 +684,6 @@
 
         // --- UI 輔助函數 ---
         function showToast(msg, isError = false) {
-            window.showToast = showToast;
             toastEl.innerText = msg;
             toastEl.className = `toast show ${isError ? 'error' : ''}`;
             setTimeout(() => toastEl.classList.remove('show'), 3000);
@@ -2044,38 +2042,40 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         document.getElementById('btnApplyAllStyles').addEventListener('click', () => {
             let refSub = window.isEditingDefault ? window.defaultSubtitleStyle : null;
+            
             if (!refSub && window.selectedSubtitleIds && window.selectedSubtitleIds.size > 0) {
                 const refId = Array.from(window.selectedSubtitleIds)[0];
                 refSub = window.subtitles.find(s => s.id === refId);
             }
+            
             if (refSub) {
+                // Update all existing subtitles
                 if (window.subtitles) {
                     window.subtitles.forEach(s => {
-                        s.fontSize = refSub.fontSize; s.color1 = refSub.color1; s.color2 = refSub.color2; s.textAlpha = refSub.textAlpha; s.bold = refSub.bold;
-                        s.bgColor1 = refSub.bgColor1; s.bgColor2 = refSub.bgColor2; s.bgAlpha = refSub.bgAlpha; s.borderRadius = refSub.borderRadius;
-                        s.posX = refSub.posX; s.posY = refSub.posY;
+                        s.fontSize = refSub.fontSize;
+                        s.color1 = refSub.color1;
+                        s.color2 = refSub.color2;
+                        s.textAlpha = refSub.textAlpha;
+                        s.bold = refSub.bold;
                         s.outlines = JSON.parse(JSON.stringify(refSub.outlines || []));
+                        s.bgColor1 = refSub.bgColor1;
+                        s.bgColor2 = refSub.bgColor2;
+                        s.bgAlpha = refSub.bgAlpha;
+                        s.borderRadius = refSub.borderRadius;
+                        s.posX = refSub.posX;
+                        s.posY = refSub.posY;
                     });
                 }
-                if (window.renderCanvasOverlay) window.renderCanvasOverlay();
-                if(window.showToast) window.showToast("已套用至全部現有字幕");
-            }
-        });
-
-        document.getElementById('btnSetAsDefault').addEventListener('click', () => {
-            let refSub = window.isEditingDefault ? window.defaultSubtitleStyle : null;
-            if (!refSub && window.selectedSubtitleIds && window.selectedSubtitleIds.size > 0) {
-                const refId = Array.from(window.selectedSubtitleIds)[0];
-                refSub = window.subtitles.find(s => s.id === refId);
-            }
-            if (refSub) {
+                // Update global default
                 Object.assign(window.defaultSubtitleStyle, {
                     fontSize: refSub.fontSize, color1: refSub.color1, color2: refSub.color2, textAlpha: refSub.textAlpha, bold: refSub.bold,
+                    outlines: JSON.parse(JSON.stringify(refSub.outlines || [])),
                     bgColor1: refSub.bgColor1, bgColor2: refSub.bgColor2, bgAlpha: refSub.bgAlpha, borderRadius: refSub.borderRadius,
-                    posX: refSub.posX, posY: refSub.posY,
-                    outlines: JSON.parse(JSON.stringify(refSub.outlines || []))
+                    posX: refSub.posX, posY: refSub.posY
                 });
-                if(window.showToast) window.showToast("已更新新增字幕的預設樣式");
+                
+                if (window.renderCanvasOverlay) window.renderCanvasOverlay();
+                showToast("已套用至全部字幕並更新為預設樣式");
             }
         });
         
