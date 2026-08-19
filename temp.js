@@ -587,7 +587,7 @@
                     text: sub.text,
                     ...JSON.parse(JSON.stringify(window.defaultSubtitleStyle))
                 }));
-                window.subtitles = window.subtitles.concat(mapped);
+                window.subtitles.push(...mapped);
                 if(typeof resolveOverlaps !== 'undefined') resolveOverlaps();
                 if(typeof saveState !== 'undefined') saveState();
                 if(typeof renderSubtitles !== 'undefined') renderSubtitles();
@@ -629,7 +629,7 @@ self.onmessage = async (e) => {
                 language: 'chinese',
                 task: 'transcribe',
                 callback_function: x => {
-                    self.postMessage({ status: 'transcribe_progress', data: x });
+                    self.postMessage({ status: 'transcribe_progress' });
                 }
             });
             self.postMessage({ status: 'done', chunks: result.chunks });
@@ -641,6 +641,9 @@ self.onmessage = async (e) => {
 `;
         let aiWorker = null;
 
+        
+        let aiState = 'idle'; // 'idle', 'running', 'done'
+        
         document.getElementById('aiTranscribeBtn').addEventListener('click', async () => {
             if (!window.mediaFile || (!window.mediaFile.blob && !window.mediaFile.url)) {
                 if(typeof showToast !== 'undefined') showToast('請先載入媒體檔案', true);
@@ -648,6 +651,12 @@ self.onmessage = async (e) => {
             }
             
             aiModal.classList.remove('hidden');
+
+            if (aiState !== 'idle') {
+                return; // Already running or done, just show the modal
+            }
+
+            aiState = 'running';
             aiStatusText.innerText = '提取音訊中...';
             aiProgressText.innerText = '0%';
             aiProgressBar.style.width = '0%';
@@ -673,6 +682,7 @@ self.onmessage = async (e) => {
                 drawWaveform(audioBuffer);
             } catch (e) {
                 aiStatusText.innerText = '音訊提取失敗: ' + e.message;
+                aiState = 'idle';
                 return;
             }
 
@@ -695,8 +705,9 @@ self.onmessage = async (e) => {
                         aiProgressText.innerText = '處理中';
                         aiProgressBar.classList.add('animate-pulse');
                     } else if (data.status === 'transcribe_progress') {
-                        // We could show partial text if we want, but let's just keep it pulsating
+                        // Keep pulsating
                     } else if (data.status === 'done') {
+                        aiState = 'done';
                         aiStatusText.innerText = 'AI 辨識完成！請在下方確認或修改結果。';
                         aiProgressBar.classList.remove('animate-pulse');
                         aiProgressBar.style.width = '100%';
@@ -716,10 +727,16 @@ self.onmessage = async (e) => {
                         if (aiPendingSubtitles.length > 0) {
                             aiApplyBtn.disabled = false;
                         }
+                        
+                        // Auto open modal when done
+                        aiModal.classList.remove('hidden');
+                        if(typeof showToast !== 'undefined') showToast('AI 辨識完成！');
                     } else if (data.status === 'error') {
+                        aiState = 'idle';
                         aiStatusText.innerText = 'AI 辨識錯誤: ' + data.error;
                         aiProgressBar.classList.remove('animate-pulse');
                         aiProgressBar.style.width = '0%';
+                        if(typeof showToast !== 'undefined') showToast('AI 辨識發生錯誤', true);
                     }
                 };
                 aiWorker.postMessage({ type: 'init' });
@@ -732,6 +749,12 @@ self.onmessage = async (e) => {
             }, 1000);
         });
 
+        // Add a way to reset AI state if they apply it
+        const originalApplyClick = aiApplyBtn.onclick;
+        aiApplyBtn.addEventListener('click', () => {
+            aiState = 'idle';
+        });
+    
         // --- Export Video using FFmpeg ---
         const exportVideoBtn = document.getElementById('exportVideoBtn');
         let ffmpeg = null;
