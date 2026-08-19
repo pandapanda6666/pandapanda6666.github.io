@@ -172,9 +172,6 @@
             background: #0f172a; border: 1px solid #475569; color: white; border-radius: 4px; padding: 2px 4px; font-size: 12px; width: 100%;
         }
         .setting-row input[type="color"] { padding: 0; height: 24px; cursor: pointer; }
-    
-        .safe-zone-tiktok { background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1080" height="1920" fill="none" stroke="red" stroke-width="4" stroke-dasharray="20,20"/><rect x="880" y="800" width="200" height="900" fill="rgba(255,0,0,0.3)"/><rect x="0" y="1400" width="1080" height="520" fill="rgba(255,0,0,0.3)"/><text x="50" y="1500" fill="white" font-size="60">TikTok/Shorts 遮擋區</text></svg>') center/contain no-repeat; }
-        .safe-zone-ig { background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="1080" height="1920" fill="none" stroke="red" stroke-width="4" stroke-dasharray="20,20"/><rect x="900" y="1000" width="180" height="700" fill="rgba(255,0,0,0.3)"/><rect x="0" y="1500" width="1080" height="420" fill="rgba(255,0,0,0.3)"/><text x="50" y="1600" fill="white" font-size="60">IG Reels 遮擋區</text></svg>') center/contain no-repeat; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.8/dist/ffmpeg.min.js"></script>
 </head>
@@ -271,13 +268,6 @@
                 <span class="text-xs text-slate-500 ml-2 hidden xl:inline">快捷鍵: Ctrl+C/V(複製), Del(刪除), Ctrl+Z/Y(復原/重作)</span>
             </div>
             <div class="flex gap-2">
-                 
-                 <select id="safeZoneSelect" class="bg-slate-800 text-slate-300 text-sm px-2 py-1 rounded border border-slate-700 mr-2">
-                     <option value="none">無安全框</option>
-                     <option value="tiktok">TikTok / Shorts</option>
-                     <option value="ig">IG Reels</option>
-                 </select>
-                 <button id="aiTranscribeBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm transition shadow shadow-purple-900/50 flex items-center gap-1">✨ AI 自動辨識</button>
                  <label class="flex items-center gap-1 text-sm text-slate-300 mr-4 cursor-pointer select-none"><input type="checkbox" id="autoSnapToggle" checked class="form-checkbox"> 自動貼齊</label>
                  <button id="addSubtitleBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition">+ 新增字幕段落</button>
             </div>
@@ -293,11 +283,9 @@
                     <audio id="mainAudio" class="hidden"></audio>
                     
                     <!-- 即時字幕預覽疊加層 -->
-                    
                     <div id="subtitleOverlay" class="absolute bottom-10 left-0 right-0 text-center px-4 pointer-events-none">
                         <span class="bg-black/70 text-white text-xl px-2 py-1 rounded hidden" id="overlayText"></span>
                     </div>
-                    <div id="safeZoneOverlay" class="absolute inset-0 pointer-events-none hidden z-30"></div>
                 </div>
 
                 <!-- 控制鈕 -->
@@ -362,15 +350,7 @@
                     </div>
 
                     <div class="style-group">
-                        
                         <h4>文字設定</h4>
-                        <div class="setting-row">
-                            <label>字型</label>
-                            <select id="sty_fontFamily" class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1">
-                                <option value="sans-serif">預設無襯線體</option>
-                                <option value="serif">預設襯線體</option>
-                            </select>
-                        </div>
                         <div class="setting-row">
                             <label>大小</label>
                             <input type="number" id="sty_fontSize" value="32" min="10" max="200">
@@ -890,7 +870,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     let bc = toAssColor(sub.bgColor1 || '#000000', sub.bgAlpha !== undefined ? sub.bgAlpha : 0.5);
                     
                     let fs = sub.fontSize || 32;
-                    let fontName = sub.fontFamily || 'sans-serif';
                     let bold = sub.bold ? -1 : 0; 
                     
                     let px = sub.posX !== undefined ? sub.posX : 0.5;
@@ -909,13 +888,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                         const ol = outlines[i];
                         if (currentWidth > 0) {
                             let oc = toAssColor(ol.color || '#000000', ol.alpha !== undefined ? ol.alpha : 1);
-                            let tags = `{\\pos(${x},${y})\\fs${fs}\\fn${fontName}\\1c${oc}\\3c${oc}\\4c${bc}\\b${bold}\\bord${currentWidth}\\BorderStyle3}`;
+                            let tags = `{\\pos(${x},${y})\\fs${fs}\\1c${oc}\\3c${oc}\\4c${bc}\\b${bold}\\bord${currentWidth}\\BorderStyle3}`;
                             assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${tags}${text}\n`;
                         }
                         currentWidth -= parseInt(ol.width || 0);
                     }
                     
-                    let mainTags = `{\\pos(${x},${y})\\fs${fs}\\fn${fontName}\\1c${c1}\\3c${c1}\\4c${bc}\\b${bold}\\bord0\\BorderStyle3}`;
+                    let mainTags = `{\\pos(${x},${y})\\fs${fs}\\1c${c1}\\3c${c1}\\4c${bc}\\b${bold}\\bord0\\BorderStyle3}`;
                     assContent += `Dialogue: 0,${start},${end},Default,,0,0,0,,${mainTags}${text}\n`;
     
                 });
@@ -1183,7 +1162,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         }
 
         // --- 歷史紀錄 (Undo/Redo) ---
-        window.saveState = saveState; function saveState() {
+        function saveState() {
             if (historyIndex < history.length - 1) {
                 history = history.slice(0, historyIndex + 1);
             }
@@ -1492,7 +1471,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
         // 渲染字幕塊
         
-        window.resolveOverlaps = resolveOverlaps; function resolveOverlaps() {
+        function resolveOverlaps() {
             if (!subtitles || subtitles.length === 0) return false;
             subtitles.sort((a, b) => a.start - b.start);
             let changed = false;
@@ -1511,7 +1490,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             return changed;
         }
     
-        window.renderSubtitles = renderSubtitles; function renderSubtitles() {
+        function renderSubtitles() {
             subtitleBlocksContainer.innerHTML = '';
             subtitles.forEach(sub => {
                 const block = document.createElement('div');
@@ -1604,7 +1583,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         }
 
         // 更新編輯器面板
-        window.updateEditor = updateEditor; function updateEditor() {
+        function updateEditor() {
             if (selectedSubtitleIds.size === 1) {
                 noSelection.classList.add('hidden');
                 singleEditor.classList.remove('hidden');
@@ -1621,7 +1600,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     editEnd.value = formatTimeCode(sub.end);
                     editText.value = sub.text;
                     
-                    document.getElementById('sty_fontFamily').value = sub.fontFamily || 'sans-serif';
                     document.getElementById('sty_fontSize').value = sub.fontSize || 32;
                     document.getElementById('sty_color1').value = sub.color1 || '#ffffff';
                     document.getElementById('sty_color2').value = sub.color2 || sub.color1 || '#ffffff';
@@ -1811,7 +1789,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             }
         });
 
-        document.getElementById("editText").addEventListener('input', () => {
+        editText.addEventListener('input', () => {
             if (selectedSubtitleIds.size === 1) {
                 const sub = subtitles.find(s => s.id === Array.from(selectedSubtitleIds)[0]);
                 if (sub) {
@@ -2115,7 +2093,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         
         
         window.defaultSubtitleStyle = {
-            fontFamily: 'sans-serif',
             fontSize: 32, color1: '#ffffff', color2: '#ffffff', textAlpha: 1, bold: false,
             outlines: [{width: 2, color: '#000000', alpha: 1}],
             bgColor1: '#000000', bgColor2: '#000000', bgAlpha: 0.5, borderRadius: 4,
@@ -2130,7 +2107,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             window.isEditingDefault = true;
             
             const def = window.defaultSubtitleStyle;
-            document.getElementById('sty_fontFamily').value = def.fontFamily || 'sans-serif';
             document.getElementById('sty_fontSize').value = def.fontSize;
             document.getElementById('sty_color1').value = def.color1;
             document.getElementById('sty_color2').value = def.color2;
@@ -2177,7 +2153,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             }
             if (refSub) {
                 Object.assign(window.defaultSubtitleStyle, {
-                    fontFamily: refSub.fontFamily, fontSize: refSub.fontSize, color1: refSub.color1, color2: refSub.color2, textAlpha: refSub.textAlpha, bold: refSub.bold,
+                    fontSize: refSub.fontSize, color1: refSub.color1, color2: refSub.color2, textAlpha: refSub.textAlpha, bold: refSub.bold,
                     bgColor1: refSub.bgColor1, bgColor2: refSub.bgColor2, bgAlpha: refSub.bgAlpha, borderRadius: refSub.borderRadius,
                     posX: refSub.posX, posY: refSub.posY,
                     outlines: JSON.parse(JSON.stringify(refSub.outlines || []))
@@ -2187,14 +2163,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         });
         
         const styleInputs = [
-            'sty_fontFamily', 'sty_fontSize', 'sty_color1', 'sty_color2', 'sty_textAlpha', 'sty_textAlpha_num', 'sty_bold',
+            'sty_fontSize', 'sty_color1', 'sty_color2', 'sty_textAlpha', 'sty_textAlpha_num', 'sty_bold',
             
             'sty_bgColor1', 'sty_bgColor2', 'sty_bgAlpha', 'sty_bgAlpha_num', 'sty_borderRadius', 'sty_borderRadius_num',
             'sty_posX', 'sty_posY'
         ];
         
         function applyStyleToSub(sub) {
-            sub.fontFamily = document.getElementById('sty_fontFamily').value;
             sub.fontSize = parseInt(document.getElementById('sty_fontSize').value);
             sub.color1 = document.getElementById('sty_color1').value;
             sub.color2 = document.getElementById('sty_color2').value;
@@ -2381,195 +2356,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if (overlayContainer) { overlayContainer.querySelectorAll('.draggable-sub').forEach(el => el.classList.remove('dragging')); }
             }
         });
-
-                // Split (Shift+Enter)
-        editText.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.shiftKey) {
-                e.preventDefault();
-                if (window.selectedSubtitleIds && window.selectedSubtitleIds.size === 1) {
-                    const subId = Array.from(window.selectedSubtitleIds)[0];
-                    const subIndex = window.subtitles.findIndex(s => s.id === subId);
-                    const sub = window.subtitles[subIndex];
-                    
-                    const cursorPos = document.getElementById("editText").selectionStart;
-                    const text1 = sub.text.substring(0, cursorPos).trim();
-                    const text2 = sub.text.substring(cursorPos).trim();
-                    
-                    if (!text1 || !text2) return;
-                    
-                    const ratio = text1.length / (text1.length + text2.length);
-                    const dur = sub.end - sub.start;
-                    const midTime = sub.start + dur * ratio;
-                    
-                    sub.text = text1;
-                    sub.end = midTime;
-                    
-                    const newSub = {
-                        ...JSON.parse(JSON.stringify(sub)),
-                        id: Date.now(),
-                        start: midTime,
-                        end: sub.start + dur,
-                        text: text2
-                    };
-                    
-                    window.subtitles.splice(subIndex + 1, 0, newSub);
-                    window.selectedSubtitleIds.clear();
-                    window.selectedSubtitleIds.add(newSub.id);
-                    if(typeof lastSelectedId !== 'undefined') lastSelectedId = newSub.id;
-                    
-                    if(typeof resolveOverlaps !== 'undefined') resolveOverlaps();
-                    if(typeof saveState !== 'undefined') saveState();
-                    if(typeof renderSubtitles !== 'undefined') renderSubtitles();
-                    if(typeof updateEditor !== 'undefined') updateEditor();
-                }
-            }
-        });
-
-        // Merge (Alt+M)
-        window.addEventListener('keydown', (e) => {
-            if (e.altKey && e.key.toLowerCase() === 'm') {
-                e.preventDefault();
-                if (window.selectedSubtitleIds && window.selectedSubtitleIds.size === 1) {
-                    const subId = Array.from(window.selectedSubtitleIds)[0];
-                    const subIndex = window.subtitles.findIndex(s => s.id === subId);
-                    if (subIndex === -1 || subIndex === window.subtitles.length - 1) return;
-                    
-                    const sub = window.subtitles[subIndex];
-                    const nextSub = window.subtitles[subIndex + 1];
-                    
-                    sub.text = sub.text + ' ' + nextSub.text;
-                    sub.end = Math.max(sub.end, nextSub.end);
-                    
-                    window.subtitles.splice(subIndex + 1, 1);
-                    
-                    if(typeof saveState !== 'undefined') saveState();
-                    if(typeof renderSubtitles !== 'undefined') renderSubtitles();
-                    if(typeof updateEditor !== 'undefined') updateEditor();
-                }
-            }
-        });
-
-        // Safe Zone Select
-        document.getElementById('safeZoneSelect').addEventListener('change', (e) => {
-            const val = e.target.value;
-            const overlay = document.getElementById('safeZoneOverlay');
-            overlay.className = 'absolute inset-0 pointer-events-none z-30 ' + (val === 'none' ? 'hidden' : 'safe-zone-' + val);
-        });
-
-        // Load Local Fonts
-        async function loadLocalFonts() {
-            try {
-                if ('queryLocalFonts' in window) {
-                    const fonts = await window.queryLocalFonts();
-                    const fontSelect = document.getElementById('sty_fontFamily');
-                    const fontMap = new Set();
-                    fonts.forEach(f => {
-                        if (!fontMap.has(f.family)) {
-                            fontMap.add(f.family);
-                            const opt = document.createElement('option');
-                            opt.value = f.family;
-                            opt.innerText = f.family;
-                            fontSelect.appendChild(opt);
-                        }
-                    });
-                }
-            } catch (e) {
-                console.log('Local fonts not available:', e);
-            }
-        }
-        loadLocalFonts();
-
-        // AI Whisper Worker
-        const whisperWorkerCode = \`
-import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
-env.allowLocalModels = false;
-let transcriber = null;
-self.onmessage = async (e) => {
-    const { audioData, type } = e.data;
-    if (type === 'init') {
-        self.postMessage({ status: 'loading', msg: '載入 AI 模型中 (約 75MB)...' });
-        try {
-            transcriber = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
-            self.postMessage({ status: 'ready', msg: '模型載入完成' });
-        } catch (err) {
-            self.postMessage({ status: 'error', error: err.message });
-        }
-    } else if (type === 'transcribe') {
-        if (!transcriber) return;
-        self.postMessage({ status: 'processing', msg: '正在離線辨識語音中 (需時數分鐘)...' });
-        try {
-            const result = await transcriber(audioData, {
-                chunk_length_s: 30,
-                stride_length_s: 5,
-                return_timestamps: true,
-                language: 'chinese',
-                task: 'transcribe'
-            });
-            self.postMessage({ status: 'done', chunks: result.chunks });
-        } catch(err) {
-            self.postMessage({ status: 'error', error: err.message });
-        }
-    }
-};
-\`;
-        let aiWorker = null;
-        document.getElementById('aiTranscribeBtn').addEventListener('click', async () => {
-            if (!window.mediaFile || (!window.mediaFile.blob && !window.mediaFile.url)) {
-                if(typeof showToast !== 'undefined') showToast('請先載入媒體檔案', true);
-                return;
-            }
-            if (!aiWorker) {
-                const blob = new Blob([whisperWorkerCode], { type: 'application/javascript' });
-                aiWorker = new Worker(URL.createObjectURL(blob), { type: 'module' });
-                aiWorker.onmessage = (e) => {
-                    const data = e.data;
-                    if (data.status === 'loading' || data.status === 'processing' || data.status === 'ready') {
-                        if(typeof showToast !== 'undefined') showToast(data.msg);
-                    } else if (data.status === 'done') {
-                        if(typeof showToast !== 'undefined') showToast('AI 辨識完成！');
-                        let newSubs = [];
-                        data.chunks.forEach((chunk, i) => {
-                            if (chunk.timestamp && chunk.timestamp[0] !== null && chunk.timestamp[1] !== null) {
-                                newSubs.push({
-                                    id: Date.now() + i,
-                                    start: chunk.timestamp[0],
-                                    end: chunk.timestamp[1],
-                                    text: chunk.text.trim(),
-                                    ...JSON.parse(JSON.stringify(window.defaultSubtitleStyle))
-                                });
-                            }
-                        });
-                        if (newSubs.length > 0) {
-                            window.subtitles = window.subtitles.concat(newSubs);
-                            if(typeof resolveOverlaps !== 'undefined') resolveOverlaps();
-                            if(typeof saveState !== 'undefined') saveState();
-                            if(typeof renderSubtitles !== 'undefined') renderSubtitles();
-                            if(typeof updateEditor !== 'undefined') updateEditor();
-                        }
-                    } else if (data.status === 'error') {
-                        if(typeof showToast !== 'undefined') showToast('AI 辨識錯誤: ' + data.error, true);
-                    }
-                };
-                aiWorker.postMessage({ type: 'init' });
-            }
-            if(typeof showToast !== 'undefined') showToast('正在提取音訊...');
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-                let arrayBuffer;
-                if (window.mediaFile.blob) {
-                    arrayBuffer = await window.mediaFile.blob.arrayBuffer();
-                } else if (window.mediaFile.url) {
-                    const resp = await fetch(window.mediaFile.url);
-                    arrayBuffer = await resp.arrayBuffer();
-                }
-                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                const float32Array = audioBuffer.getChannelData(0);
-                aiWorker.postMessage({ type: 'transcribe', audioData: float32Array });
-            } catch (e) {
-                if(typeof showToast !== 'undefined') showToast('音訊提取失敗: ' + e.message, true);
-            }
-        });
-
 
         // --- Export Video using FFmpeg ---
         const exportVideoBtn = document.getElementById('exportVideoBtn');
