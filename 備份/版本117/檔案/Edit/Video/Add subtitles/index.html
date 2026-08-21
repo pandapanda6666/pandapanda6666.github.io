@@ -1251,27 +1251,30 @@
                 window.ffmpegExportStartTime = Date.now();
                 
                 if (!window.ffmpeg) {
-                    // Dynamically import ffmpeg v0.12 (ESM)
-                    const { FFmpeg } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js');
-                    const { toBlobURL } = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js');
+                    // Switch to UMD to avoid ES Module relative import bugs inside Blob Workers
+                    if (!window.FFmpegWASM) {
+                        if(window.showLoading) window.showLoading("下載 FFmpeg 腳本...", false);
+                        await new Promise((resolve, reject) => {
+                            const s1 = document.createElement('script');
+                            s1.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';
+                            s1.onload = resolve;
+                            s1.onerror = reject;
+                            document.head.appendChild(s1);
+                        });
+                        await new Promise((resolve, reject) => {
+                            const s2 = document.createElement('script');
+                            s2.src = 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/umd/index.js';
+                            s2.onload = resolve;
+                            s2.onerror = reject;
+                            document.head.appendChild(s2);
+                        });
+                    }
+                    const { FFmpeg } = window.FFmpegWASM;
                     
                     window.ffmpeg = new FFmpeg();
                     
-                    
-                    window.ffmpeg.on('progress', ({ progress }) => {
-                        let percent = progress * 100;
-                        let elapsed = (Date.now() - (window.ffmpegExportStartTime || Date.now())) / 1000;
-                        let eta = -1;
-                        if (progress > 0 && progress <= 1) {
-                            let total = elapsed / progress;
-                            eta = total - elapsed;
-                        }
-                        if (window.updateLoadingProgress) window.updateLoadingProgress(percent, eta);
-                    });
-                    
-                    
-                    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/esm';
-                    const ffmpegURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/esm';
+                    const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+                    const ffmpegURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd';
                     
                     
                     const fetchWithProgress = async (url, mimeType, prefix) => {
@@ -1302,7 +1305,7 @@
                     const [coreURL, wasmURL, classWorkerURL] = await Promise.all([
                         fetchWithProgress(`${baseURL}/ffmpeg-core.js`, 'text/javascript', '核心'),
                         fetchWithProgress(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm', '模組'),
-                        fetchWithProgress(`${ffmpegURL}/worker.js`, 'text/javascript', '執行緒')
+                        fetchWithProgress(`${ffmpegURL}/814.ffmpeg.js`, 'text/javascript', '執行緒')
                     ]);
                     
                     if (window.showLoading) {
