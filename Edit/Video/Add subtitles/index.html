@@ -1022,9 +1022,15 @@
             globalLoadingModal.classList.remove('hidden');
         };
 
-        window.updateLoadingProgress = function(percent) {
+        window.updateLoadingProgress = function(percent, eta = -1) {
             globalLoadingProgressBar.style.width = percent + '%';
-            globalLoadingPercent.innerText = Math.round(percent) + '%';
+            if (eta >= 0) {
+                let mins = Math.floor(eta / 60);
+                let secs = Math.floor(eta % 60).toString().padStart(2, '0');
+                globalLoadingPercent.innerText = Math.round(percent) + '% (預計剩餘: ' + mins + ':' + secs + ')';
+            } else {
+                globalLoadingPercent.innerText = Math.round(percent) + '%';
+            }
         };
 
         window.hideLoading = function() {
@@ -1239,6 +1245,7 @@
 
             try {
                 showLoading("FFmpeg 引擎正在載入，請稍候... (免 SharedArrayBuffer 版)", false);
+                window.ffmpegExportStartTime = Date.now();
                 
                 if (!window.ffmpeg) {
                     // Dynamically import ffmpeg v0.12 (ESM)
@@ -1247,21 +1254,16 @@
                     
                     window.ffmpeg = new FFmpeg();
                     
+                    
                     window.ffmpeg.on('progress', ({ progress }) => {
-                        if (!exportStartTime || exportStartTime === 0) exportStartTime = Date.now();
                         let percent = progress * 100;
-                        let etaStr = '';
-                        if (percent > 0 && percent <= 100) {
-                            let elapsed = Date.now() - exportStartTime;
-                            let estimatedTotal = elapsed / progress;
-                            let remaining = estimatedTotal - elapsed;
-                            let remSec = Math.round(remaining / 1000);
-                            if (remSec < 0) remSec = 0;
-                            let mins = Math.floor(remSec / 60);
-                            let secs = (remSec % 60).toString().padStart(2, '0');
-                            etaStr = ` (預計剩餘 ${mins}:${secs})`;
+                        let elapsed = (Date.now() - (window.ffmpegExportStartTime || Date.now())) / 1000;
+                        let eta = -1;
+                        if (progress > 0 && progress <= 1) {
+                            let total = elapsed / progress;
+                            eta = total - elapsed;
                         }
-                        if (window.updateLoadingProgress) window.updateLoadingProgress(percent, etaStr);
+                        if (window.updateLoadingProgress) window.updateLoadingProgress(percent, eta);
                     });
                     
                     
@@ -1856,7 +1858,9 @@
 
             // 重新載入檔案後，自動儲存至 IndexedDB
             if (currentProjectId) {
+                if(window.showLoading) window.showLoading("正在儲存媒體至本機端草稿，這可能需要幾秒鐘...", false);
                 await saveMediaLocally(currentProjectId, file);
+                if(window.hideLoading) window.hideLoading();
             }
 
             placeholderText.classList.add('hidden');
