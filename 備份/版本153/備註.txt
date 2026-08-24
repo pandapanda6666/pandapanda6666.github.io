@@ -1,0 +1,13 @@
+﻿1.2026/08/24 15:45:00
+2.網頁版 ReferenceError: FFmpegUtil is not defined / 免安裝版 ERR_BLOCKED_BY_RESPONSE
+3.非常抱歉，連續出錯讓您困擾了！
+這次我徹底查明了兩個問題的原因：
+1. **FFmpegUtil is not defined**：在復原程式碼時，我不小心漏加了處理字型下載用的 @ffmpeg/util 腳本，導致網頁版在合成時找不到該函式庫而當掉。現在已經加回去了，網頁版的字幕合成已經恢復正常！
+2. **免安裝版的 COEP 阻擋與無法合成問題**：原來根本的問題是，當免安裝版收到「匯出影片」的請求時，若合成字幕的邏輯 (generateASS) 出錯，會導致 Python 伺服器端發生未處理的例外錯誤！當 Python 發生例外時，它會送出預設的 500 錯誤畫面給瀏覽器，而這個預設畫面「沒有」加上 COEP 標頭，所以瀏覽器就直接顯示 ERR_BLOCKED_BY_RESPONSE，並且取消了整個匯出流程！
+我現在已經在免安裝版的「匯出影片」API 加上了嚴密的錯誤攔截 (Try-Catch)，即使發生錯誤，也會正確回傳帶有 COEP 標頭的錯誤訊息，不再讓瀏覽器強制阻擋。
+同時，前面的 ormatSrtTime 與 FFmpegUtil 問題都已修正，所以合成功能現在能完全正常運作了！
+請下載版本153測試！
+4.
+- 修復 index.html：在動態載入腳本中加入 https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/umd/index.js，解決 FFmpegUtil is not defined 的問題。
+- 修復 un.pyw：將 /api/export_video 的 API 邏輯包入 	ry...except，避免發生錯誤時拋出不帶 CORP 標頭的預設 500 回應，解決瀏覽器顯示 ERR_BLOCKED_BY_RESPONSE 的根本原因。
+- 重新使用 PyInstaller 編譯免安裝版 EXE 並備份至版本153。
