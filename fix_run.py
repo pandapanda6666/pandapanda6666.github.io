@@ -1,9 +1,26 @@
-import os
+﻿with open('run.pyw', 'r', encoding='utf-8') as f:
+    run = f.read()
 
-with open('L:/我的雲端硬碟/硬體及自製軟體/自製軟體/字幕編輯工具/run.py', 'r', encoding='utf-8') as f:
-    run_py = f.read()
+# Add shutdown to DesktopAPIHandler.do_GET and do_POST
+shutdown_logic = """
+    def do_POST(self):
+        if self.path.startswith('/api/shutdown'):
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            import json, threading, os
+            self.wfile.write(json.dumps({"status": "shutting_down"}).encode('utf-8'))
+            threading.Thread(target=lambda: (os._exit(0))).start()
+            return
+        
+        # original do_POST logic follows:
+"""
 
-run_py = run_py.replace("parsed_path.path", "path")
+# Let's see if we can find do_POST
+if 'def do_POST(self):' in run:
+    run = run.replace('def do_POST(self):', shutdown_logic)
+else:
+    print("Could not find do_POST")
 
-with open('L:/我的雲端硬碟/硬體及自製軟體/自製軟體/字幕編輯工具/run.py', 'w', encoding='utf-8') as f:
-    f.write(run_py)
+with open('run.pyw', 'w', encoding='utf-8') as f:
+    f.write(run)
