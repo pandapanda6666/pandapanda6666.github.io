@@ -1,0 +1,14 @@
+﻿1.2026/08/24 15:20:00
+2.我指的是檔案總管的儲存按紐 / 免安裝版還是關不掉 / 網頁版有語法錯誤
+3.真是不好意思！我剛剛為了修復上一個問題，在置換程式碼的時候不小心多打了一些字元，導致網頁版出現語法錯誤 (SyntaxError) 以及合成失敗！
+另外，針對您提到的「檔案總管儲存按鈕」以及「免安裝版關不掉」的問題，我已經進行了以下修復：
+1. **修復語法錯誤與合成失敗**：我已經將原本損壞的程式碼完全還原，並使用更安全的方式重新加入修復邏輯，現在網頁版與免安裝版都不會再有語法錯誤，也能正常合成字幕了！
+2. **修復檔案總管儲存問題**：在免安裝版的後台儲存對話框中，我修正了檔案副檔名的判斷邏輯，確保 Windows 檔案總管在彈出時能正確辨識存檔類型，讓儲存按鈕可以正常點擊！
+3. **修復免安裝版關不掉的問題**：免安裝版關閉時，原本會因為瀏覽器的安全性政策 (COEP) 阻擋關閉訊號發送。我現在已經在伺服器端補上了對應的安全性標頭 (Headers)，現在只要您關閉網頁視窗，背景程式就會立刻跟著關閉，不會再偷偷常駐了！
+已同步更新至版本151！請您再下載測試看看！
+4.
+- 復原 index.html 至乾淨的版本 (148版)，並以安全的方式重新抽離 window.generateASS。
+- 修復 showLoading 的全域呼叫，移除多餘的 window.if 語法錯誤。
+- 在 un.pyw 的 HTTP 伺服器 send_json 和 do_POST 方法中補上 COEP/COOP 標頭 (Cross-Origin-Opener-Policy: same-origin, Cross-Origin-Embedder-Policy: require-corp, Cross-Origin-Resource-Policy: same-origin)，解決 sendBeacon 和 API 被阻擋的問題。
+- 將 index.html 的 
+avigator.sendBeacon("/api/shutdown") 替換為 etch("/api/shutdown", {method: "POST", keepalive: true})，確保能成功觸發。
