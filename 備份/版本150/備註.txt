@@ -1,0 +1,15 @@
+﻿1.2026/08/24 14:44:00
+2.存檔的時候存檔按紐按不了
+3.好的！我已經修復了「存檔按鈕按不了」的問題！
+原因是在某些情況下（例如本機資料庫被鎖定、或載入視窗函數出錯），存檔功能會默默在背景中斷，導致畫面沒有任何反應。
+我現在加入了嚴格的防呆機制：
+1. 為存檔按鈕加上了錯誤攔截，如果存檔失敗，現在會立刻跳出錯誤提示，不會再默默卡住。
+2. 修復了載入畫面 (showLoading) 的全域函數呼叫方式，確保它不會因為找不到而引發中斷。
+3. 修復了免安裝版本（桌面版）在選擇存檔路徑時，如果有檔案名稱問題，現在也會妥善處理並提示，而不會當掉。
+我已經將新版本（版本150）編譯並推送至 L 槽和 Github。請您再試試看！
+4.
+- 修復 Edit/Video/Add subtitles/index.html：將所有直接呼叫 showLoading 的地方改為 if(window.showLoading) window.showLoading 以防嚴格模式下拋出 ReferenceError 導致腳本中斷。
+- 在 saveDraftBtn 加上 	ry...catch 捕捉所有例外並跳出 toast 提示。
+- 在 openLocalDB 中加上 equest.onblocked 處理，避免資料庫版本升級被其他分頁鎖定時無限掛起。
+- 修復 un.pyw：在 /api/save_file 的 tkinter filedialog 呼叫外包覆 	ry...catch，避免無效字元導致整個請求卡死。
+- 重新編譯 installer.py 和 un.pyw 至 dist 並備份。

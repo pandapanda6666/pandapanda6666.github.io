@@ -5,7 +5,7 @@ a = Analysis(
     ['run.pyw'],
     pathex=[],
     binaries=[],
-    datas=[('Edit/Video/Add subtitles/index.html', 'Edit/Video/Add subtitles'), ('Edit/Video/Add subtitles/tailwindcss.js', 'Edit/Video/Add subtitles')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
