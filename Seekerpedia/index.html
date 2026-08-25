@@ -1,72 +1,87 @@
-﻿<!-- 隢?敺?甇斤雯??蝬脣?嚗??乩撩?蝞∠??Ｘ??CORS ??蝬脣??賢??桐葉嚗???⊥???? -->
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>?ａ?蝘?(Seekerpedia)</title>
+    <title>探險者百科 (Seekerpedia)</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
+        /* CSS reset & base */
+        body { margin: 0; padding-top: 50px; padding-bottom: 50px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f4; color: #333; line-height: 1.6; }
+        
         /* Notification Bar */
-        #notificationBar { position: fixed; top: 0; left: 0; width: 100%; background: #d32f2f; color: white; padding: 5px 0; z-index: 9999; display: none; overflow: hidden; white-space: nowrap; }
+        #notificationBar { position: fixed; top: 0; left: 0; width: 100%; background: #d32f2f; color: white; padding: 5px 0; z-index: 9999; display: none; overflow: hidden; white-space: nowrap; height: 30px; line-height: 30px; }
         #notificationMsg { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
         @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
         
-        body { padding-top: 30px; margin: 0; padding-bottom: 50px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f4; color: #333; line-height: 1.6; }
-        .navbar { background-color: #4a6c42; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        /* Navbar */
+        .navbar { position: fixed; top: 30px; left: 0; right: 0; background-color: #4a6c42; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 900; box-sizing: border-box; }
+        
         .nav-left { display: flex; align-items: center; gap: 15px; }
-        .nav-right { display: flex; align-items: center; gap: 15px; }
-        
-        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px; transition: background 0.2s; }
-        .user-profile:hover { background: rgba(255,255,255,0.2); }
-        .user-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
-        .user-info { display: flex; flex-direction: column; font-size: 12px; line-height: 1.2; }
-        .login-btn { background: #fff; color: #4a6c42; padding: 5px 15px; border-radius: 15px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; }
-        .p-coin-img { width: 16px; height: 16px; display: inline-block; vertical-align: middle; }
-
-        .report-btn { position: fixed; bottom: 60px; right: 20px; background: #e65100; color: white; padding: 10px 20px; border-radius: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; z-index: 1000; border: none; }
-        
-        .footer { position: fixed; bottom: 0; width: 100%; background: #333; color: white; text-align: center; padding: 10px 0; font-size: 12px; z-index: 900; }
-        .footer a { color: #aaa; text-decoration: none; }
-        .footer a:hover { color: #fff; }
-
-        .logo { display: flex; align-items: center; gap: 10px; cursor: pointer; text-decoration: none; }
+        .logo { display: flex; align-items: center; gap: 10px; cursor: pointer; text-decoration: none; color: white; }
         .logo:hover { opacity: 0.9; }
-        .logo-text { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
-        .zh-text { font-size: 22px; font-weight: bold; letter-spacing: 2px; }
-        .en-text { font-size: 11px; color: #ddd; letter-spacing: 0.5px; font-family: monospace; }
-
-        .bear { width: 60px; height: 40px; display: flex; align-items: center; }
+        
+        /* Bear SVG & Animation */
+        .bear { width: 50px; height: 35px; display: flex; align-items: center; }
         .bear-svg { width: 100%; height: 100%; }
-        .bear-leg { transform-origin: center top; }
-        .bear-leg-front-left { animation: walkFront 0.5s infinite alternate ease-in-out; }
-        .bear-leg-front-right { animation: walkBack 0.5s infinite alternate ease-in-out; }
-        .bear-leg-back-left { animation: walkBack 0.5s infinite alternate ease-in-out; }
-        .bear-leg-back-right { animation: walkFront 0.5s infinite alternate ease-in-out; }
-        @keyframes walkFront { 0% { transform: rotate(-25deg); } 100% { transform: rotate(25deg); } }
-        @keyframes walkBack { 0% { transform: rotate(25deg); } 100% { transform: rotate(-25deg); } }
-
-        .mode-selector { display: flex; justify-content: center; background: #ddd; padding: 15px; gap: 20px; }
-        .mode-selector button { padding: 10px 30px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid transparent; background: white; color: #555; border-radius: 25px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .bear-leg { transform-origin: top center; }
+        .bear-leg.front { animation: walkFront 0.5s infinite alternate ease-in-out; }
+        .bear-leg.back { animation: walkBack 0.5s infinite alternate ease-in-out; }
+        @keyframes walkFront { 0% { transform: rotate(-20deg); } 100% { transform: rotate(20deg); } }
+        @keyframes walkBack { 0% { transform: rotate(20deg); } 100% { transform: rotate(-20deg); } }
+        
+        .logo-text { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
+        .zh-text { font-size: 20px; font-weight: bold; letter-spacing: 2px; }
+        .en-text { font-size: 11px; color: #ddd; letter-spacing: 0.5px; font-family: monospace; }
+        
+        .nav-right { display: flex; align-items: center; gap: 15px; }
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; color: #333; }
+        .nav-right a { color: white; text-decoration: none; font-weight: bold; font-size: 14px; }
+        
+        /* User Profile & SSO */
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.15); padding: 5px 15px; border-radius: 20px; transition: background 0.2s; }
+        .user-profile:hover { background: rgba(255,255,255,0.25); }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid white; }
+        .user-info { display: flex; flex-direction: column; font-size: 12px; line-height: 1.2; }
+        .login-btn { background: #fff; color: #4a6c42; padding: 6px 16px; border-radius: 15px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; font-size: 14px; }
+        .p-coin-img { width: 14px; height: 14px; display: inline-block; vertical-align: middle; }
+        
+        /* UI Elements */
+        .mode-selector { margin-top: 80px; display: flex; justify-content: center; padding: 15px; gap: 20px; }
+        .mode-selector button { padding: 10px 30px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid transparent; background: #e0e0e0; color: #555; border-radius: 25px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .mode-selector button:hover { border-color: #4a6c42; }
         .mode-selector button.active { background: #4a6c42; color: white; }
-        .container { max-width: 1000px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 500px; margin-bottom: 80px; }
+        
+        .container { max-width: 1000px; margin: 20px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 500px; margin-bottom: 80px; box-sizing: border-box; }
         .hidden { display: none !important; }
         
+        h2 { border-bottom: 2px solid #4a6c42; padding-bottom: 10px; color: #4a6c42; margin-top: 0; }
         form label, #editWorkPanel label { display: block; margin-top: 15px; font-weight: bold; color: #444; }
         form input, form textarea, #editWorkPanel input, #editWorkPanel textarea, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 15px; }
         form button, #addEntryBtn { margin-top: 20px; padding: 10px 20px; font-size: 16px; font-weight: bold; background: #4a6c42; color: white; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
         form button:hover, #addEntryBtn:hover { background: #3a5c32; }
         
+        /* Layouts */
         .browse-layout { display: flex; gap: 30px; margin-top: 20px; }
         .sidebar { width: 250px; border-right: 1px solid #eee; padding-right: 20px; }
+        .sidebar h3 { margin-top: 0; }
         .sidebar ul { list-style: none; padding: 0; }
         .sidebar li { padding: 10px 15px; cursor: pointer; background: #f9f9f9; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid transparent; transition: all 0.2s; }
         .sidebar li:hover { background: #eef2ed; border-left-color: #4a6c42; }
-        .categories ul { list-style: none; padding: 0; margin-top: 10px; }
+        
+        .content { flex-grow: 1; }
+        .categories h3 { margin-top: 0; }
+        .categories ul { list-style: none; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; }
         .categories li { padding: 8px 15px; cursor: pointer; background: #e9ecef; border-radius: 20px; font-size: 14px; transition: background 0.2s; }
         .categories li:hover { background: #d3d9df; }
-        .content { flex-grow: 1; }
+        
+        /* Fixed Buttons & Footer */
+        .report-btn { position: fixed; bottom: 60px; right: 20px; background: #e65100; color: white; padding: 12px 24px; border-radius: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; font-weight: bold; z-index: 1000; border: none; transition: transform 0.2s; }
+        .report-btn:hover { transform: scale(1.05); }
+        .footer { position: fixed; bottom: 0; width: 100%; background: #333; color: white; text-align: center; padding: 10px 0; font-size: 12px; z-index: 900; }
+        .footer a { color: #aaa; text-decoration: none; }
+        .footer a:hover { color: #fff; }
     </style>
 </head>
 <body>
@@ -74,119 +89,121 @@
 
     <nav class="navbar">
         <div class="nav-left">
-            <div class="logo" title="????>
+            <div class="logo" title="回首頁">
                 <div class="bear">
-                    <svg viewBox="0 0 100 60" class="bear-svg">
-                        <g class="bear-leg bear-leg-back-left" transform="translate(30, 35)">
-                            <rect x="-4" y="0" width="8" height="20" rx="4" fill="#5c2e0b" />
-                        </g>
-                        <g class="bear-leg bear-leg-back-right" transform="translate(70, 35)">
-                            <rect x="-4" y="0" width="8" height="20" rx="4" fill="#5c2e0b" />
-                        </g>
-                        <path class="bear-body" d="M 15 35 C 10 20 30 10 50 15 C 70 20 85 10 95 25 C 98 30 90 40 80 40 L 25 40 C 15 40 18 35 15 35 Z" fill="#8B4513" />
-                        <circle cx="85" cy="18" r="4" fill="#8B4513" />
-                        <circle cx="95" cy="22" r="2" fill="#333" />
-                        <circle cx="15" cy="30" r="5" fill="#8B4513" />
-                        <g class="bear-leg bear-leg-front-left" transform="translate(25, 35)">
-                            <rect x="-4" y="0" width="8" height="20" rx="4" fill="#8B4513" />
-                        </g>
-                        <g class="bear-leg bear-leg-front-right" transform="translate(75, 35)">
-                            <rect x="-4" y="0" width="8" height="20" rx="4" fill="#8B4513" />
-                        </g>
+                    <svg viewBox="0 0 100 60" class="bear-svg" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="25" y="30" width="8" height="20" rx="4" fill="#6B3E11" class="bear-leg back" />
+                        <rect x="65" y="30" width="8" height="20" rx="4" fill="#6B3E11" class="bear-leg back" />
+                        <path d="M 20 35 C 10 35 10 20 25 15 C 40 10 60 10 75 15 C 90 20 95 30 90 40 L 25 40 C 15 40 18 35 20 35 Z" fill="#8B4513" />
+                        <circle cx="85" cy="22" r="12" fill="#8B4513" />
+                        <circle cx="78" cy="12" r="5" fill="#8B4513" />
+                        <circle cx="88" cy="20" r="2" fill="#fff" />
+                        <circle cx="89" cy="20" r="1" fill="#000" />
+                        <circle cx="95" cy="25" r="3" fill="#000" />
+                        <rect x="35" y="30" width="8" height="22" rx="4" fill="#8B4513" class="bear-leg front" />
+                        <rect x="75" y="30" width="8" height="22" rx="4" fill="#8B4513" class="bear-leg front" />
                     </svg>
                 </div>
                 <div class="logo-text">
-                    <div class="zh-text">?ａ?蝘?/div>
+                    <div class="zh-text">探險者百科</div>
                     <div class="en-text">Seekerpedia</div>
                 </div>
             </div>
         </div>
         <div class="nav-right" id="navRightPanel">
-            <!-- Rendered by JS -->
+            <!-- Language switcher & Profile (rendered by JS) -->
+            <select id="langSelect">
+                <option value="zh">繁體中文</option>
+                <option value="en">English</option>
+            </select>
+            <a href="#" id="aboutBtn">關於本站</a>
+            <button class="login-btn" onclick="window.location.href='../login-hub/?require=1'">登入/註冊</button>
         </div>
     </nav>
 
     <div class="mode-selector">
-        <button id="browseModeBtn" class="active">?汗?芋撘?/button>
-        <button id="createModeBtn">?菟芋撘?/button>
+        <button id="browseModeBtn" class="active">瀏覽者模式</button>
+        <button id="createModeBtn">創造者模式</button>
     </div>
 
+    <!-- Home Page -->
     <div class="container" id="page-home">
-        <h2>甇∟?靘?ａ?蝘?/h2>
-        <p>?券ㄐ嚗?臭誑?Ｙ揣?車雿??身摰?銝?閫嚗??扛?遣蝡惇?潭?蝘?</p>
-        <p>隢銝?豢??冽?脣?芋撘?/p>
+        <h2>歡迎來到探險者百科</h2>
+        <p>在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！</p>
+        <p>請於上方選擇您想進入的模式。</p>
     </div>
 
+    <!-- About Page -->
     <div class="container hidden" id="page-about">
-        <h2>??祉?</h2>
-        <p>甇斤PandaPanda?I?亙虜??ediaWiki?嗆??曄?嚗??餃蔣??隤芥??怎??曄??冽??/p>
+        <h2>關於本站</h2>
+        <p>此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。</p>
     </div>
 
     <!-- Creator Mode Pages -->
     <div class="container hidden" id="page-create">
-        <h2>撱箇??曄?</h2>
+        <h2>建立百科</h2>
         <form id="createForm">
-            <label>?曄?/雿??迂:</label>
-            <input type="text" id="workName" required placeholder="靘?嚗??拇郭??>
-            <label>隞晶 (撠??箝??潭迨雿????桀摰?:</label>
-            <textarea id="workIntro" rows="3" placeholder="蝪∟膩甇支???.."></textarea>
-            <label>??:</label>
-            <input type="text" id="workCategory" placeholder="靘?: 撠牧, 瞍怎, ?餃蔣">
-            <label>閮剖??賊?:</label>
-            <input type="text" id="workSettings" placeholder="閮剖??賊?...">
-            <button type="submit">撱箇?雿??曄?</button>
+            <label>百科/作品名稱:</label>
+            <input type="text" id="workName" required placeholder="例如：哈利波特">
+            <label>介紹 (將作為「關於此作品」條目內容):</label>
+            <textarea id="workIntro" rows="3" placeholder="簡述此作品..."></textarea>
+            <label>分類:</label>
+            <input type="text" id="workCategory" placeholder="例如: 小說, 漫畫, 電影">
+            <label>設定選項 (例如: 允許訪客編輯等):</label>
+            <input type="text" id="workSettings" placeholder="設定選項...">
+            <button type="submit">建立作品百科</button>
         </form>
     </div>
 
     <div class="container hidden" id="page-edit">
-        <h2>蝺刻摩?曄? (閮剖???????</h2>
-        <select id="editWorkSelect"><option value="">?豢?閬楊頛舐?雿?</option></select>
+        <h2>編輯百科 (設定分類及條目)</h2>
+        <select id="editWorkSelect"><option value="">選擇要編輯的作品</option></select>
         
         <div id="editWorkPanel" class="hidden">
-            <h3 style="margin-top:20px; border-bottom: 2px solid #4a6c42; padding-bottom: 5px;">?啣?璇</h3>
-            <label>璇?? (靘?嚗犖?押暺?瘜?:</label>
-            <input type="text" id="entryCategory" placeholder="???迂">
-            <label>璇璅? (靘?嚗銝憭?:</label>
-            <input type="text" id="entryTitle" placeholder="璅?">
-            <label>?批捆:</label>
-            <textarea id="entryContent" rows="4" placeholder="閰喟敦?批捆..."></textarea>
-            <button id="addEntryBtn">?啣?璇</button>
+            <h3 style="margin-top:20px; border-bottom: 2px solid #eee; padding-bottom: 5px;">新增條目</h3>
+            <label>條目分類 (例如：人物、地點、魔法):</label>
+            <input type="text" id="entryCategory" placeholder="分類名稱">
+            <label>條目標題 (例如：鄧不利多):</label>
+            <input type="text" id="entryTitle" placeholder="標題">
+            <label>內容:</label>
+            <textarea id="entryContent" rows="4" placeholder="詳細內容..."></textarea>
+            <button id="addEntryBtn">新增條目</button>
 
-            <h3 style="margin-top:20px; border-bottom: 2px solid #ccc; padding-bottom: 5px;">?暹?璇蝞∠?</h3>
+            <h3 style="margin-top:30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">現有條目管理</h3>
             <div id="editEntryList"></div>
         </div>
     </div>
 
     <!-- Browse Mode Pages -->
     <div class="container hidden" id="page-browse">
-        <h2>?汗?曄?</h2>
+        <h2>瀏覽百科</h2>
         <div class="browse-layout">
             <div class="sidebar">
-                <h3>雿??”</h3>
+                <h3>作品列表</h3>
                 <ul id="browseWorkList"></ul>
             </div>
             <div class="content">
                 <div id="browseWorkDetail" class="hidden">
-                    <h2 id="bTitle" style="border-bottom: 2px solid #4a6c42; padding-bottom: 10px;"></h2>
+                    <h2 id="bTitle"></h2>
                     <p id="bIntro" style="font-size: 1.1em; color: #555;"></p>
                     <div class="meta" id="bMeta" style="background: #eee; padding: 10px; border-radius: 5px;"></div>
-                    <hr>
+                    <hr style="border:0; border-top:1px solid #ddd; margin: 20px 0;">
                     <div class="categories">
-                        <h3>?桅? / ??</h3>
-                        <ul id="bCategoryList" style="display:flex; gap:10px; flex-wrap:wrap;"></ul>
+                        <h3>目錄 / 分類</h3>
+                        <ul id="bCategoryList"></ul>
                     </div>
                     <div id="bEntryDetail" class="hidden" style="margin-top:20px; padding:20px; border:1px solid #ddd; border-radius:5px; background:#fafafa;">
-                        <h3 id="bEntryTitle" style="color: #4a6c42;"></h3>
-                        <p id="bEntryContent" style="white-space: pre-wrap;"></p>
+                        <h3 id="bEntryTitle" style="color: #4a6c42; margin-top:0;"></h3>
+                        <p id="bEntryContent" style="white-space: pre-wrap; margin-bottom:0;"></p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <button class="report-btn" onclick="window.location.href='../login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)">???</button>
+    <button class="report-btn" onclick="window.location.href='../login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)">回報問題</button>
     <div class="footer">
-        <a href="../">?????&copy; 2026 PandaPanda?I?亙虜 All Rights Reserved.</a>
+        <a href="../">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
     </div>
 
     <script>
@@ -199,7 +216,7 @@
             if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
         };
         window.addEventListener('unhandledrejection', function(event) {
-            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise?啣虜: ' + (event.reason ? event.reason.message || event.reason : '?芰?航炊'), url: window.location.href, line: 0 });
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
         });
 
         const appId = window.location.hostname + window.location.pathname;
@@ -219,7 +236,7 @@
                     const text = await res.text();
                     sUrl = atob(text.trim().split('').reverse().join(''));
                 } catch(e) {
-                    document.body.innerHTML += '<h2 style="text-align:center; margin-top:50px;">隡箸??券??憭望?嚗?蝔??岫</h2>';
+                    document.body.innerHTML += '<h2 style="text-align:center; margin-top:50px; color:#d32f2f;">伺服器連線失敗，請稍後再試</h2>';
                     return;
                 }
             }
@@ -227,7 +244,7 @@
             socket = io(sUrl, { transports: ['websocket'] });
 
             socket.on('connect', () => {
-                socket.emit('initClientInfo', { location: '?芰?圈?', device: navigator.userAgent });
+                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
                 socket.emit('joinGameRoom', { room: appId, characterData: {} });
                 checkLogin();
                 loadCloudData();
@@ -266,9 +283,10 @@
         function renderUserUI() {
             const r = document.getElementById('navRightPanel');
             r.innerHTML = `
-                <a href="#" id="aboutBtn">??祉?</a>
+                <select id="langSelect"><option value="zh">繁體中文</option><option value="en">English</option></select>
+                <a href="#" id="aboutBtn">關於本站</a>
                 <div class="user-profile" onclick="window.location.href='../login-hub/?from=' + encodeURIComponent(window.location.href)">
-                    <img src="${currentUser.avatar || 'https://via.placeholder.com/30'}" class="user-avatar">
+                    <img src="${currentUser.avatar || 'https://via.placeholder.com/32'}" class="user-avatar">
                     <div class="user-info">
                         <span>${currentUser.nickname || currentUser.username}</span>
                         <span><img src="../shop/coin.svg" class="p-coin-img"> ${currentUser.pCoin || 0}</span>
@@ -281,8 +299,9 @@
         function renderGuestUI() {
             const r = document.getElementById('navRightPanel');
             r.innerHTML = `
-                <a href="#" id="aboutBtn">??祉?</a>
-                <button class="login-btn" onclick="window.location.href='../login-hub/?require=1'">?餃/閮餃?</button>
+                <select id="langSelect"><option value="zh">繁體中文</option><option value="en">English</option></select>
+                <a href="#" id="aboutBtn">關於本站</a>
+                <button class="login-btn" onclick="window.location.href='../login-hub/?require=1'">登入/註冊</button>
             `;
             document.getElementById('aboutBtn').onclick = () => showPage('about');
         }
@@ -300,7 +319,7 @@
         function saveCloudData() {
             if(!socket || !socket.connected) return;
             socket.emit('saveAppData', { appId: appId, data: db });
-            socket.emit('logAppMessage', { appId: appId, message: '?湔鈭蝘摰?, type: 'info' });
+            socket.emit('logAppMessage', { appId: appId, message: '更新了百科內容', type: 'info' });
         }
 
         // Navigation
@@ -311,6 +330,14 @@
         }
 
         document.querySelector('.logo').onclick = () => showPage('home');
+        
+        document.addEventListener('click', (e) => {
+            if(e.target.id === 'aboutBtn') {
+                e.preventDefault();
+                showPage('about');
+            }
+        });
+
         document.getElementById('browseModeBtn').onclick = (e) => {
             e.target.classList.add('active');
             document.getElementById('createModeBtn').classList.remove('active');
@@ -326,7 +353,7 @@
         // Create Work
         document.getElementById('createForm').onsubmit = (e) => {
             e.preventDefault();
-            if(!socket || !socket.connected) { alert("撠???嚗瘜摮?); return; }
+            if(!socket || !socket.connected) { alert("尚未連線，無法儲存"); return; }
             
             const wName = document.getElementById('workName').value;
             const wIntro = document.getElementById('workIntro').value;
@@ -339,14 +366,14 @@
                 settings: document.getElementById('workSettings').value,
                 entries: [{
                     id: Date.now() + 1,
-                    category: '?身',
-                    title: '?甇支???,
+                    category: '預設',
+                    title: '關於此作品',
                     content: wIntro
                 }]
             };
             db.works.push(newWork);
             saveCloudData();
-            alert("?曄?撌脣遣蝡?");
+            alert("百科已建立！");
             document.getElementById('createForm').reset();
             showPage('edit');
             renderEditSelect();
@@ -355,7 +382,7 @@
         // Edit Work
         function renderEditSelect() {
             const sel = document.getElementById('editWorkSelect');
-            sel.innerHTML = '<option value="">?豢?閬楊頛舐?雿?</option>';
+            sel.innerHTML = '<option value="">選擇要編輯的作品</option>';
             db.works.forEach(w => sel.innerHTML += `<option value="${w.id}">${w.name}</option>`);
         }
 
@@ -368,15 +395,15 @@
         };
 
         document.getElementById('addEntryBtn').onclick = () => {
-            if(!socket || !socket.connected) { alert("撠???嚗瘜摮?); return; }
+            if(!socket || !socket.connected) { alert("尚未連線，無法儲存"); return; }
             const workId = document.getElementById('editWorkSelect').value;
             const work = db.works.find(w => w.id == workId);
             if (!work) return;
             
             work.entries.push({
                 id: Date.now(),
-                category: document.getElementById('entryCategory').value || '?芸?憿?,
-                title: document.getElementById('entryTitle').value || '?芸??,
+                category: document.getElementById('entryCategory').value || '未分類',
+                title: document.getElementById('entryTitle').value || '未命名',
                 content: document.getElementById('entryContent').value || ''
             });
             saveCloudData();
@@ -392,12 +419,12 @@
             const work = db.works.find(w => w.id == workId);
             const list = document.getElementById('editEntryList');
             if(work.entries.length === 0) {
-                list.innerHTML = '<p style="color:#777;">?桀??∩遙雿??柴?/p>';
+                list.innerHTML = '<p style="color:#777;">目前無任何條目。</p>';
                 return;
             }
             list.innerHTML = work.entries.map(e => `
                 <div style="border:1px solid #ddd; padding:15px; margin-top:10px; border-radius:5px; background:#fff;">
-                    <div style="color: #666; font-size:0.9em; margin-bottom:5px;">[??: ${e.category}]</div>
+                    <div style="color: #666; font-size:0.9em; margin-bottom:5px;">[分類: ${e.category}]</div>
                     <h4 style="margin:0 0 10px 0; color:#333;">${e.title}</h4>
                     <p style="margin:0; white-space:pre-wrap; color:#555;">${e.content}</p>
                 </div>
@@ -408,7 +435,7 @@
         function renderBrowseList() {
             const ul = document.getElementById('browseWorkList');
             if(db.works.length === 0) {
-                ul.innerHTML = '<li style="background:transparent;">?桀??∠蝘???/li>';
+                ul.innerHTML = '<li style="background:transparent; padding:10px;">目前無百科作品</li>';
                 return;
             }
             ul.innerHTML = db.works.map(w => `<li onclick="showWork(${w.id})">${w.name}</li>`).join('');
@@ -420,7 +447,7 @@
             document.getElementById('bEntryDetail').classList.add('hidden');
             document.getElementById('bTitle').innerText = work.name;
             document.getElementById('bIntro').innerText = work.intro;
-            document.getElementById('bMeta').innerText = `??: ${work.category} | 閮剖??賊?: ${work.settings}`;
+            document.getElementById('bMeta').innerText = `分類: ${work.category} | 設定選項: ${work.settings}`;
             
             const cats = {};
             work.entries.forEach(e => {
@@ -432,7 +459,7 @@
             catList.innerHTML = '';
             
             if(Object.keys(cats).length === 0) {
-                catList.innerHTML = '<li>撠璇</li>';
+                catList.innerHTML = '<li>尚無條目</li>';
                 return;
             }
             
@@ -452,7 +479,7 @@
             catList.innerHTML = entries.map(e => `<li onclick="showEntry(${e.id}, ${workId})">${e.title}</li>`).join('');
             
             const backLi = document.createElement('li');
-            backLi.innerText = '??餈?雿?擐?';
+            backLi.innerText = '← 返回作品首頁';
             backLi.style.background = '#4a6c42';
             backLi.style.color = 'white';
             backLi.onclick = () => showWork(workId);
