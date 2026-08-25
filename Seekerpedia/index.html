@@ -7,39 +7,35 @@
     <title>探險者百科 (Seekerpedia)</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        /* CSS reset & base */
         body { margin: 0; padding-top: 50px; padding-bottom: 50px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f4; color: #333; line-height: 1.6; }
         
-        /* Notification Bar */
         #notificationBar { position: fixed; top: 0; left: 0; width: 100%; background: #d32f2f; color: white; padding: 5px 0; z-index: 9999; display: none; overflow: hidden; white-space: nowrap; height: 30px; line-height: 30px; }
         #notificationMsg { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
         @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
         
-        /* Navbar */
         .navbar { position: fixed; top: 30px; left: 0; right: 0; background-color: #4a6c42; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 900; box-sizing: border-box; }
         
         .nav-left { display: flex; align-items: center; gap: 15px; }
         .logo { display: flex; align-items: center; gap: 10px; cursor: pointer; text-decoration: none; color: white; }
         .logo:hover { opacity: 0.9; }
         
-        /* Bear SVG & Animation */
-        .bear { width: 50px; height: 35px; display: flex; align-items: center; }
+        /* Realistic Bear Silhouette & Animation */
+        .bear { width: 70px; height: 45px; display: flex; align-items: center; }
         .bear-svg { width: 100%; height: 100%; }
         .bear-leg { transform-origin: top center; }
-        .bear-leg.front { animation: walkFront 0.5s infinite alternate ease-in-out; }
-        .bear-leg.back { animation: walkBack 0.5s infinite alternate ease-in-out; }
-        @keyframes walkFront { 0% { transform: rotate(-20deg); } 100% { transform: rotate(20deg); } }
-        @keyframes walkBack { 0% { transform: rotate(20deg); } 100% { transform: rotate(-20deg); } }
+        .bear-leg.front { animation: walkFront 0.6s infinite alternate ease-in-out; }
+        .bear-leg.back { animation: walkBack 0.6s infinite alternate ease-in-out; }
+        @keyframes walkFront { 0% { transform: rotate(-15deg); } 100% { transform: rotate(15deg); } }
+        @keyframes walkBack { 0% { transform: rotate(15deg); } 100% { transform: rotate(-15deg); } }
         
-        .logo-text { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
-        .zh-text { font-size: 20px; font-weight: bold; letter-spacing: 2px; }
-        .en-text { font-size: 11px; color: #ddd; letter-spacing: 0.5px; font-family: monospace; }
+        .logo-text { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+        .zh-text { font-size: 20px; font-weight: bold; letter-spacing: 2px; line-height: 1.2; }
+        .en-text { font-size: 11px; color: #ddd; letter-spacing: 0.5px; font-family: monospace; line-height: 1.1; }
         
         .nav-right { display: flex; align-items: center; gap: 15px; }
-        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; color: #333; }
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; color: #333; outline: none; }
         .nav-right a { color: white; text-decoration: none; font-weight: bold; font-size: 14px; }
         
-        /* User Profile & SSO */
         .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.15); padding: 5px 15px; border-radius: 20px; transition: background 0.2s; }
         .user-profile:hover { background: rgba(255,255,255,0.25); }
         .user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid white; }
@@ -47,7 +43,6 @@
         .login-btn { background: #fff; color: #4a6c42; padding: 6px 16px; border-radius: 15px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; font-size: 14px; }
         .p-coin-img { width: 14px; height: 14px; display: inline-block; vertical-align: middle; }
         
-        /* UI Elements */
         .mode-selector { margin-top: 80px; display: flex; justify-content: center; padding: 15px; gap: 20px; }
         .mode-selector button { padding: 10px 30px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid transparent; background: #e0e0e0; color: #555; border-radius: 25px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .mode-selector button:hover { border-color: #4a6c42; }
@@ -62,7 +57,6 @@
         form button, #addEntryBtn { margin-top: 20px; padding: 10px 20px; font-size: 16px; font-weight: bold; background: #4a6c42; color: white; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
         form button:hover, #addEntryBtn:hover { background: #3a5c32; }
         
-        /* Layouts */
         .browse-layout { display: flex; gap: 30px; margin-top: 20px; }
         .sidebar { width: 250px; border-right: 1px solid #eee; padding-right: 20px; }
         .sidebar h3 { margin-top: 0; }
@@ -76,7 +70,6 @@
         .categories li { padding: 8px 15px; cursor: pointer; background: #e9ecef; border-radius: 20px; font-size: 14px; transition: background 0.2s; }
         .categories li:hover { background: #d3d9df; }
         
-        /* Fixed Buttons & Footer */
         .report-btn { position: fixed; bottom: 60px; right: 20px; background: #e65100; color: white; padding: 12px 24px; border-radius: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; font-weight: bold; z-index: 1000; border: none; transition: transform 0.2s; }
         .report-btn:hover { transform: scale(1.05); }
         .footer { position: fixed; bottom: 0; width: 100%; background: #333; color: white; text-align: center; padding: 10px 0; font-size: 12px; z-index: 900; }
@@ -89,97 +82,99 @@
 
     <nav class="navbar">
         <div class="nav-left">
-            <div class="logo" title="回首頁">
+            <div class="logo" title="回首頁" id="logoBtn">
                 <div class="bear">
-                    <svg viewBox="0 0 100 60" class="bear-svg" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="25" y="30" width="8" height="20" rx="4" fill="#6B3E11" class="bear-leg back" />
-                        <rect x="65" y="30" width="8" height="20" rx="4" fill="#6B3E11" class="bear-leg back" />
-                        <path d="M 20 35 C 10 35 10 20 25 15 C 40 10 60 10 75 15 C 90 20 95 30 90 40 L 25 40 C 15 40 18 35 20 35 Z" fill="#8B4513" />
-                        <circle cx="85" cy="22" r="12" fill="#8B4513" />
-                        <circle cx="78" cy="12" r="5" fill="#8B4513" />
-                        <circle cx="88" cy="20" r="2" fill="#fff" />
-                        <circle cx="89" cy="20" r="1" fill="#000" />
-                        <circle cx="95" cy="25" r="3" fill="#000" />
-                        <rect x="35" y="30" width="8" height="22" rx="4" fill="#8B4513" class="bear-leg front" />
-                        <rect x="75" y="30" width="8" height="22" rx="4" fill="#8B4513" class="bear-leg front" />
+                    <svg viewBox="0 0 120 70" class="bear-svg" xmlns="http://www.w3.org/2000/svg">
+                        <!-- 後腳 (深棕色) -->
+                        <g class="bear-leg back" transform="translate(35, 40)">
+                            <path d="M -4,0 C -4,12 -2,22 -3,28 L 3,28 C 3,20 5,10 5,0 Z" fill="#3E2723"/>
+                        </g>
+                        <g class="bear-leg back" transform="translate(85, 40)">
+                            <path d="M -3,0 C -2,12 -1,22 -2,28 L 4,28 C 4,20 4,10 4,0 Z" fill="#3E2723"/>
+                        </g>
+                        
+                        <!-- 真實棕熊剪影主體 -->
+                        <path d="M 10,45 C 8,35 18,18 45,22 C 65,25 85,10 105,20 C 112,23 118,32 116,42 C 114,48 102,48 95,45 C 80,50 50,55 30,48 C 20,48 12,48 10,45 Z" fill="#5D4037"/>
+                        
+                        <!-- 前腳 (淺棕色) -->
+                        <g class="bear-leg front" transform="translate(30, 40)">
+                            <path d="M -5,0 C -5,12 -3,22 -4,28 L 2,28 C 2,20 4,10 4,0 Z" fill="#5D4037"/>
+                        </g>
+                        <g class="bear-leg front" transform="translate(90, 40)">
+                            <path d="M -4,0 C -3,12 -1,22 -2,28 L 4,28 C 4,20 4,10 4,0 Z" fill="#5D4037"/>
+                        </g>
                     </svg>
                 </div>
                 <div class="logo-text">
-                    <div class="zh-text">探險者百科</div>
+                    <div class="zh-text" data-i18n="pedia_title">探險者百科</div>
                     <div class="en-text">Seekerpedia</div>
                 </div>
             </div>
         </div>
         <div class="nav-right" id="navRightPanel">
-            <!-- Language switcher & Profile (rendered by JS) -->
-            <select id="langSelect">
-                <option value="zh">繁體中文</option>
-                <option value="en">English</option>
-            </select>
-            <a href="#" id="aboutBtn">關於本站</a>
-            <button class="login-btn" onclick="window.location.href='../login-hub/?require=1'">登入/註冊</button>
+            <!-- Rendered by JS -->
         </div>
     </nav>
 
     <div class="mode-selector">
-        <button id="browseModeBtn" class="active">瀏覽者模式</button>
-        <button id="createModeBtn">創造者模式</button>
+        <button id="browseModeBtn" class="active" data-i18n="mode_browse">瀏覽者模式</button>
+        <button id="createModeBtn" data-i18n="mode_create">創造者模式</button>
     </div>
 
     <!-- Home Page -->
     <div class="container" id="page-home">
-        <h2>歡迎來到探險者百科</h2>
-        <p>在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！</p>
-        <p>請於上方選擇您想進入的模式。</p>
+        <h2 data-i18n="welcome_title">歡迎來到探險者百科</h2>
+        <p data-i18n="welcome_desc">在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！</p>
+        <p data-i18n="welcome_hint">請於上方選擇您想進入的模式。</p>
     </div>
 
     <!-- About Page -->
     <div class="container hidden" id="page-about">
-        <h2>關於本站</h2>
-        <p>此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。</p>
+        <h2 data-i18n="about_title">關於本站</h2>
+        <p data-i18n="about_desc">此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。</p>
     </div>
 
     <!-- Creator Mode Pages -->
     <div class="container hidden" id="page-create">
-        <h2>建立百科</h2>
+        <h2 data-i18n="create_title">建立百科</h2>
         <form id="createForm">
-            <label>百科/作品名稱:</label>
+            <label data-i18n="lbl_work_name">百科/作品名稱:</label>
             <input type="text" id="workName" required placeholder="例如：哈利波特">
-            <label>介紹 (將作為「關於此作品」條目內容):</label>
+            <label data-i18n="lbl_work_intro">介紹 (將作為「關於此作品」條目內容):</label>
             <textarea id="workIntro" rows="3" placeholder="簡述此作品..."></textarea>
-            <label>分類:</label>
+            <label data-i18n="lbl_work_cat">分類:</label>
             <input type="text" id="workCategory" placeholder="例如: 小說, 漫畫, 電影">
-            <label>設定選項 (例如: 允許訪客編輯等):</label>
+            <label data-i18n="lbl_work_set">設定選項 (例如: 允許訪客編輯等):</label>
             <input type="text" id="workSettings" placeholder="設定選項...">
-            <button type="submit">建立作品百科</button>
+            <button type="submit" data-i18n="btn_create">建立作品百科</button>
         </form>
     </div>
 
     <div class="container hidden" id="page-edit">
-        <h2>編輯百科 (設定分類及條目)</h2>
-        <select id="editWorkSelect"><option value="">選擇要編輯的作品</option></select>
+        <h2 data-i18n="edit_title">編輯百科 (設定分類及條目)</h2>
+        <select id="editWorkSelect"><option value="" data-i18n="sel_edit_work">選擇要編輯的作品</option></select>
         
         <div id="editWorkPanel" class="hidden">
-            <h3 style="margin-top:20px; border-bottom: 2px solid #eee; padding-bottom: 5px;">新增條目</h3>
-            <label>條目分類 (例如：人物、地點、魔法):</label>
+            <h3 style="margin-top:20px; border-bottom: 2px solid #eee; padding-bottom: 5px;" data-i18n="edit_add_title">新增條目</h3>
+            <label data-i18n="lbl_entry_cat">條目分類 (例如：人物、地點、魔法):</label>
             <input type="text" id="entryCategory" placeholder="分類名稱">
-            <label>條目標題 (例如：鄧不利多):</label>
+            <label data-i18n="lbl_entry_title">條目標題 (例如：鄧不利多):</label>
             <input type="text" id="entryTitle" placeholder="標題">
-            <label>內容:</label>
+            <label data-i18n="lbl_entry_content">內容:</label>
             <textarea id="entryContent" rows="4" placeholder="詳細內容..."></textarea>
-            <button id="addEntryBtn">新增條目</button>
+            <button id="addEntryBtn" data-i18n="btn_add_entry">新增條目</button>
 
-            <h3 style="margin-top:30px; border-bottom: 2px solid #eee; padding-bottom: 5px;">現有條目管理</h3>
+            <h3 style="margin-top:30px; border-bottom: 2px solid #eee; padding-bottom: 5px;" data-i18n="edit_manage_title">現有條目管理</h3>
             <div id="editEntryList"></div>
         </div>
     </div>
 
     <!-- Browse Mode Pages -->
     <div class="container hidden" id="page-browse">
-        <h2>瀏覽百科</h2>
+        <h2 data-i18n="browse_title">瀏覽百科</h2>
         <div class="browse-layout">
             <div class="sidebar">
-                <h3>作品列表</h3>
+                <h3 data-i18n="browse_work_list">作品列表</h3>
                 <ul id="browseWorkList"></ul>
             </div>
             <div class="content">
@@ -189,7 +184,7 @@
                     <div class="meta" id="bMeta" style="background: #eee; padding: 10px; border-radius: 5px;"></div>
                     <hr style="border:0; border-top:1px solid #ddd; margin: 20px 0;">
                     <div class="categories">
-                        <h3>目錄 / 分類</h3>
+                        <h3 data-i18n="browse_cat_title">目錄 / 分類</h3>
                         <ul id="bCategoryList"></ul>
                     </div>
                     <div id="bEntryDetail" class="hidden" style="margin-top:20px; padding:20px; border:1px solid #ddd; border-radius:5px; background:#fafafa;">
@@ -201,9 +196,9 @@
         </div>
     </div>
 
-    <button class="report-btn" onclick="window.location.href='../login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)">回報問題</button>
+    <button class="report-btn" data-i18n="btn_report" onclick="window.location.href='../login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)">回報問題</button>
     <div class="footer">
-        <a href="../">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+        <a href="../" data-i18n="footer_copy">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
     </div>
 
     <script>
@@ -218,6 +213,110 @@
         window.addEventListener('unhandledrejection', function(event) {
             if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
         });
+
+        // i18n
+        const i18n = {
+            zh: {
+                pedia_title: "探險者百科",
+                about_site: "關於本站",
+                login_reg: "登入/註冊",
+                mode_browse: "瀏覽者模式",
+                mode_create: "創造者模式",
+                welcome_title: "歡迎來到探險者百科",
+                welcome_desc: "在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！",
+                welcome_hint: "請於上方選擇您想進入的模式。",
+                about_title: "關於本站",
+                about_desc: "此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。",
+                create_title: "建立百科",
+                lbl_work_name: "百科/作品名稱:",
+                lbl_work_intro: "介紹 (將作為「關於此作品」條目內容):",
+                lbl_work_cat: "分類:",
+                lbl_work_set: "設定選項 (例如: 允許訪客編輯等):",
+                btn_create: "建立作品百科",
+                edit_title: "編輯百科 (設定分類及條目)",
+                sel_edit_work: "選擇要編輯的作品",
+                edit_add_title: "新增條目",
+                lbl_entry_cat: "條目分類 (例如：人物、地點、魔法):",
+                lbl_entry_title: "條目標題 (例如：鄧不利多):",
+                lbl_entry_content: "內容:",
+                btn_add_entry: "新增條目",
+                edit_manage_title: "現有條目管理",
+                browse_title: "瀏覽百科",
+                browse_work_list: "作品列表",
+                browse_cat_title: "目錄 / 分類",
+                btn_report: "回報問題",
+                footer_copy: "版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.",
+                alert_save_fail: "尚未連線，無法儲存",
+                alert_created: "百科已建立！",
+                no_entry: "目前無任何條目。",
+                no_work: "目前無百科作品",
+                no_entry_cat: "尚無條目",
+                back_work: "← 返回作品首頁",
+                cat_tag: "分類: ",
+                set_tag: " | 設定選項: ",
+                entry_cat_tag: "分類: ",
+                unclassified: "未分類",
+                unnamed: "未命名"
+            },
+            en: {
+                pedia_title: "Seekerpedia",
+                about_site: "About",
+                login_reg: "Login/Register",
+                mode_browse: "Browse Mode",
+                mode_create: "Creator Mode",
+                welcome_title: "Welcome to Seekerpedia",
+                welcome_desc: "Explore the settings and worldviews of various works, or build your own encyclopedia here!",
+                welcome_hint: "Please select a mode above.",
+                about_title: "About",
+                about_desc: "This is a MediaWiki-architecture encyclopedia developed by PandaPanda's AI daily life, dedicated to movies, novels, and animations.",
+                create_title: "Create Encyclopedia",
+                lbl_work_name: "Encyclopedia/Work Name:",
+                lbl_work_intro: "Introduction (Used for 'About this work' entry):",
+                lbl_work_cat: "Category:",
+                lbl_work_set: "Settings (e.g., Allow guest edit):",
+                btn_create: "Create Work",
+                edit_title: "Edit Encyclopedia",
+                sel_edit_work: "Select a work to edit",
+                edit_add_title: "Add Entry",
+                lbl_entry_cat: "Entry Category (e.g. Characters, Magic):",
+                lbl_entry_title: "Entry Title (e.g. Dumbledore):",
+                lbl_entry_content: "Content:",
+                btn_add_entry: "Add Entry",
+                edit_manage_title: "Manage Entries",
+                browse_title: "Browse Encyclopedia",
+                browse_work_list: "Work List",
+                browse_cat_title: "Categories",
+                btn_report: "Report Issue",
+                footer_copy: "Copyright © 2026 PandaPanda's AI Daily Life All Rights Reserved.",
+                alert_save_fail: "Not connected, cannot save.",
+                alert_created: "Encyclopedia created!",
+                no_entry: "No entries currently.",
+                no_work: "No encyclopedia works currently.",
+                no_entry_cat: "No entries yet",
+                back_work: "← Back to Work",
+                cat_tag: "Category: ",
+                set_tag: " | Settings: ",
+                entry_cat_tag: "Category: ",
+                unclassified: "Unclassified",
+                unnamed: "Unnamed"
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function updateLang() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(i18n[currentLang][key]) {
+                    el.innerText = i18n[currentLang][key];
+                }
+            });
+            
+            // Re-render components relying on localized strings
+            renderEditSelect();
+            if(document.getElementById('editWorkSelect').value) renderEditEntries(document.getElementById('editWorkSelect').value);
+            renderBrowseList();
+        }
 
         const appId = window.location.hostname + window.location.pathname;
         let socket;
@@ -283,8 +382,11 @@
         function renderUserUI() {
             const r = document.getElementById('navRightPanel');
             r.innerHTML = `
-                <select id="langSelect"><option value="zh">繁體中文</option><option value="en">English</option></select>
-                <a href="#" id="aboutBtn">關於本站</a>
+                <select id="langSelect">
+                    <option value="zh" ${currentLang==='zh'?'selected':''}>繁體中文</option>
+                    <option value="en" ${currentLang==='en'?'selected':''}>English</option>
+                </select>
+                <a href="#" id="aboutBtn" data-i18n="about_site">${i18n[currentLang].about_site}</a>
                 <div class="user-profile" onclick="window.location.href='../login-hub/?from=' + encodeURIComponent(window.location.href)">
                     <img src="${currentUser.avatar || 'https://via.placeholder.com/32'}" class="user-avatar">
                     <div class="user-info">
@@ -293,17 +395,20 @@
                     </div>
                 </div>
             `;
-            document.getElementById('aboutBtn').onclick = () => showPage('about');
+            document.getElementById('langSelect').onchange = (e) => { currentLang = e.target.value; updateLang(); };
         }
 
         function renderGuestUI() {
             const r = document.getElementById('navRightPanel');
             r.innerHTML = `
-                <select id="langSelect"><option value="zh">繁體中文</option><option value="en">English</option></select>
-                <a href="#" id="aboutBtn">關於本站</a>
-                <button class="login-btn" onclick="window.location.href='../login-hub/?require=1'">登入/註冊</button>
+                <select id="langSelect">
+                    <option value="zh" ${currentLang==='zh'?'selected':''}>繁體中文</option>
+                    <option value="en" ${currentLang==='en'?'selected':''}>English</option>
+                </select>
+                <a href="#" id="aboutBtn" data-i18n="about_site">${i18n[currentLang].about_site}</a>
+                <button class="login-btn" data-i18n="login_reg" onclick="window.location.href='../login-hub/?require=1'">${i18n[currentLang].login_reg}</button>
             `;
-            document.getElementById('aboutBtn').onclick = () => showPage('about');
+            document.getElementById('langSelect').onchange = (e) => { currentLang = e.target.value; updateLang(); };
         }
 
         function loadCloudData() {
@@ -329,7 +434,7 @@
             document.getElementById(`page-${id}`).classList.remove('hidden');
         }
 
-        document.querySelector('.logo').onclick = () => showPage('home');
+        document.getElementById('logoBtn').onclick = () => showPage('home');
         
         document.addEventListener('click', (e) => {
             if(e.target.id === 'aboutBtn') {
@@ -353,7 +458,7 @@
         // Create Work
         document.getElementById('createForm').onsubmit = (e) => {
             e.preventDefault();
-            if(!socket || !socket.connected) { alert("尚未連線，無法儲存"); return; }
+            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
             
             const wName = document.getElementById('workName').value;
             const wIntro = document.getElementById('workIntro').value;
@@ -373,7 +478,7 @@
             };
             db.works.push(newWork);
             saveCloudData();
-            alert("百科已建立！");
+            alert(i18n[currentLang].alert_created);
             document.getElementById('createForm').reset();
             showPage('edit');
             renderEditSelect();
@@ -382,7 +487,7 @@
         // Edit Work
         function renderEditSelect() {
             const sel = document.getElementById('editWorkSelect');
-            sel.innerHTML = '<option value="">選擇要編輯的作品</option>';
+            sel.innerHTML = `<option value="">${i18n[currentLang].sel_edit_work}</option>`;
             db.works.forEach(w => sel.innerHTML += `<option value="${w.id}">${w.name}</option>`);
         }
 
@@ -395,15 +500,15 @@
         };
 
         document.getElementById('addEntryBtn').onclick = () => {
-            if(!socket || !socket.connected) { alert("尚未連線，無法儲存"); return; }
+            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
             const workId = document.getElementById('editWorkSelect').value;
             const work = db.works.find(w => w.id == workId);
             if (!work) return;
             
             work.entries.push({
                 id: Date.now(),
-                category: document.getElementById('entryCategory').value || '未分類',
-                title: document.getElementById('entryTitle').value || '未命名',
+                category: document.getElementById('entryCategory').value || i18n[currentLang].unclassified,
+                title: document.getElementById('entryTitle').value || i18n[currentLang].unnamed,
                 content: document.getElementById('entryContent').value || ''
             });
             saveCloudData();
@@ -419,12 +524,12 @@
             const work = db.works.find(w => w.id == workId);
             const list = document.getElementById('editEntryList');
             if(work.entries.length === 0) {
-                list.innerHTML = '<p style="color:#777;">目前無任何條目。</p>';
+                list.innerHTML = `<p style="color:#777;">${i18n[currentLang].no_entry}</p>`;
                 return;
             }
             list.innerHTML = work.entries.map(e => `
                 <div style="border:1px solid #ddd; padding:15px; margin-top:10px; border-radius:5px; background:#fff;">
-                    <div style="color: #666; font-size:0.9em; margin-bottom:5px;">[分類: ${e.category}]</div>
+                    <div style="color: #666; font-size:0.9em; margin-bottom:5px;">[${i18n[currentLang].entry_cat_tag}${e.category}]</div>
                     <h4 style="margin:0 0 10px 0; color:#333;">${e.title}</h4>
                     <p style="margin:0; white-space:pre-wrap; color:#555;">${e.content}</p>
                 </div>
@@ -435,7 +540,7 @@
         function renderBrowseList() {
             const ul = document.getElementById('browseWorkList');
             if(db.works.length === 0) {
-                ul.innerHTML = '<li style="background:transparent; padding:10px;">目前無百科作品</li>';
+                ul.innerHTML = `<li style="background:transparent; padding:10px;">${i18n[currentLang].no_work}</li>`;
                 return;
             }
             ul.innerHTML = db.works.map(w => `<li onclick="showWork(${w.id})">${w.name}</li>`).join('');
@@ -447,7 +552,7 @@
             document.getElementById('bEntryDetail').classList.add('hidden');
             document.getElementById('bTitle').innerText = work.name;
             document.getElementById('bIntro').innerText = work.intro;
-            document.getElementById('bMeta').innerText = `分類: ${work.category} | 設定選項: ${work.settings}`;
+            document.getElementById('bMeta').innerText = `${i18n[currentLang].cat_tag}${work.category}${i18n[currentLang].set_tag}${work.settings}`;
             
             const cats = {};
             work.entries.forEach(e => {
@@ -459,7 +564,7 @@
             catList.innerHTML = '';
             
             if(Object.keys(cats).length === 0) {
-                catList.innerHTML = '<li>尚無條目</li>';
+                catList.innerHTML = `<li>${i18n[currentLang].no_entry_cat}</li>`;
                 return;
             }
             
@@ -479,7 +584,7 @@
             catList.innerHTML = entries.map(e => `<li onclick="showEntry(${e.id}, ${workId})">${e.title}</li>`).join('');
             
             const backLi = document.createElement('li');
-            backLi.innerText = '← 返回作品首頁';
+            backLi.innerText = i18n[currentLang].back_work;
             backLi.style.background = '#4a6c42';
             backLi.style.color = 'white';
             backLi.onclick = () => showWork(workId);
