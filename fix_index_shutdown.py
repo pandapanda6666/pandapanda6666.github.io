@@ -1,7 +1,9 @@
 ﻿with open('Edit/Video/Add subtitles/index.html', 'r', encoding='utf-8') as f:
-    html = f.read()
+    text = f.read()
 
-html = html.replace('console.log("Desktop mode enabled!");', 'console.log("Desktop mode enabled!");\n            window.addEventListener("beforeunload", () => { navigator.sendBeacon("/api/shutdown"); });')
+text = text.replace('fetch("/api/shutdown", { method: "POST", keepalive: true }).catch(e=>console.error(e));',
+                    'navigator.sendBeacon("/api/shutdown");')
 
 with open('Edit/Video/Add subtitles/index.html', 'w', encoding='utf-8') as f:
-    f.write(html)
+    f.write(text)
+print("index.html sendBeacon restored.")

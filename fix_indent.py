@@ -1,16 +1,11 @@
-﻿with open('run.pyw', 'r', encoding='utf-8') as f:
-    lines = f.readlines()
+﻿with open('installer.py', 'r', encoding='utf-8') as f:
+    text = f.read()
 
+lines = text.split('\n')
 for i, line in enumerate(lines):
-    if '"Cross-Origin-Embedder-Policy", "require-corp"' in line and '"Cross-Origin-Resource-Policy"' not in lines[i+1]:
-        # get indentation
-        indent = len(line) - len(line.lstrip())
-        lines[i] = line + (" " * indent) + 'self.send_header("Cross-Origin-Resource-Policy", "cross-origin")\n'
-    elif '"Cross-Origin-Resource-Policy"' in line:
-        # fix existing bad indentation
-        indent = len(lines[i-1]) - len(lines[i-1].lstrip())
-        lines[i] = (" " * indent) + line.lstrip()
+    if line.startswith('    uninst_path') or line.startswith('    with open') or line.startswith('        f.write') or line.startswith('    winreg.SetValueEx(key, "UninstallString"'):
+        lines[i] = '        ' + line.strip()
 
-with open('run.pyw', 'w', encoding='utf-8') as f:
-    f.writelines(lines)
-print("run.pyw indentation fixed.")
+with open('installer.py', 'w', encoding='utf-8') as f:
+    f.write('\n'.join(lines))
+print("Indentation fixed.")
