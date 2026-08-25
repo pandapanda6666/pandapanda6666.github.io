@@ -1,1 +1,2 @@
 探險者百科
+Seekerpedia
