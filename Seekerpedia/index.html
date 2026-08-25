@@ -1,34 +1,92 @@
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>探險者百科 (Seekerpedia)</title>
-    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        /* Notification Bar */
+        #notificationBar { position: fixed; top: 0; left: 0; width: 100%; background: #d32f2f; color: white; padding: 5px 0; z-index: 9999; display: none; overflow: hidden; white-space: nowrap; }
+        #notificationMsg { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+        
+        body { padding-top: 30px; margin: 0; padding-bottom: 50px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f4; color: #333; line-height: 1.6; }
+        .navbar { background-color: #4a6c42; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .nav-left { display: flex; align-items: center; gap: 15px; }
+        .nav-right { display: flex; align-items: center; gap: 15px; }
+        
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px; transition: background 0.2s; }
+        .user-profile:hover { background: rgba(255,255,255,0.2); }
+        .user-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+        .user-info { display: flex; flex-direction: column; font-size: 12px; line-height: 1.2; }
+        .login-btn { background: #fff; color: #4a6c42; padding: 5px 15px; border-radius: 15px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; }
+        .p-coin-img { width: 16px; height: 16px; display: inline-block; vertical-align: middle; }
+
+        .report-btn { position: fixed; bottom: 60px; right: 20px; background: #e65100; color: white; padding: 10px 20px; border-radius: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); cursor: pointer; font-weight: bold; z-index: 1000; border: none; }
+        
+        .footer { position: fixed; bottom: 0; width: 100%; background: #333; color: white; text-align: center; padding: 10px 0; font-size: 12px; z-index: 900; }
+        .footer a { color: #aaa; text-decoration: none; }
+        .footer a:hover { color: #fff; }
+
+        .logo { display: flex; align-items: center; gap: 10px; cursor: pointer; text-decoration: none; }
+        .logo:hover { opacity: 0.9; }
+        .logo-text { display: flex; flex-direction: column; justify-content: center; line-height: 1.1; }
+        .zh-text { font-size: 22px; font-weight: bold; letter-spacing: 2px; }
+        .en-text { font-size: 11px; color: #ddd; letter-spacing: 0.5px; font-family: monospace; }
+
+        .bear { width: 60px; height: 40px; display: flex; align-items: center; }
+        .bear-svg { width: 100%; height: 100%; }
+        .bear-leg { transform-origin: center top; }
+        .bear-leg-front-left { animation: walkFront 0.5s infinite alternate ease-in-out; }
+        .bear-leg-front-right { animation: walkBack 0.5s infinite alternate ease-in-out; }
+        .bear-leg-back-left { animation: walkBack 0.5s infinite alternate ease-in-out; }
+        .bear-leg-back-right { animation: walkFront 0.5s infinite alternate ease-in-out; }
+        @keyframes walkFront { 0% { transform: rotate(-25deg); } 100% { transform: rotate(25deg); } }
+        @keyframes walkBack { 0% { transform: rotate(25deg); } 100% { transform: rotate(-25deg); } }
+
+        .mode-selector { display: flex; justify-content: center; background: #ddd; padding: 15px; gap: 20px; }
+        .mode-selector button { padding: 10px 30px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid transparent; background: white; color: #555; border-radius: 25px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .mode-selector button:hover { border-color: #4a6c42; }
+        .mode-selector button.active { background: #4a6c42; color: white; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 500px; margin-bottom: 80px; }
+        .hidden { display: none !important; }
+        
+        form label, #editWorkPanel label { display: block; margin-top: 15px; font-weight: bold; color: #444; }
+        form input, form textarea, #editWorkPanel input, #editWorkPanel textarea, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 15px; }
+        form button, #addEntryBtn { margin-top: 20px; padding: 10px 20px; font-size: 16px; font-weight: bold; background: #4a6c42; color: white; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+        form button:hover, #addEntryBtn:hover { background: #3a5c32; }
+        
+        .browse-layout { display: flex; gap: 30px; margin-top: 20px; }
+        .sidebar { width: 250px; border-right: 1px solid #eee; padding-right: 20px; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li { padding: 10px 15px; cursor: pointer; background: #f9f9f9; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid transparent; transition: all 0.2s; }
+        .sidebar li:hover { background: #eef2ed; border-left-color: #4a6c42; }
+        .categories ul { list-style: none; padding: 0; margin-top: 10px; }
+        .categories li { padding: 8px 15px; cursor: pointer; background: #e9ecef; border-radius: 20px; font-size: 14px; transition: background 0.2s; }
+        .categories li:hover { background: #d3d9df; }
+        .content { flex-grow: 1; }
+    </style>
 </head>
 <body>
+    <div id="notificationBar"><div id="notificationMsg"></div></div>
+
     <nav class="navbar">
         <div class="nav-left">
             <div class="logo" title="回首頁">
                 <div class="bear">
                     <svg viewBox="0 0 100 60" class="bear-svg">
-                        <!-- 後面的腿 (較暗) -->
                         <g class="bear-leg bear-leg-back-left" transform="translate(30, 35)">
                             <rect x="-4" y="0" width="8" height="20" rx="4" fill="#5c2e0b" />
                         </g>
                         <g class="bear-leg bear-leg-back-right" transform="translate(70, 35)">
                             <rect x="-4" y="0" width="8" height="20" rx="4" fill="#5c2e0b" />
                         </g>
-                        
-                        <!-- 身體與頭部 (棕色) -->
                         <path class="bear-body" d="M 15 35 C 10 20 30 10 50 15 C 70 20 85 10 95 25 C 98 30 90 40 80 40 L 25 40 C 15 40 18 35 15 35 Z" fill="#8B4513" />
-                        <!-- 圓圓的熊耳與鼻子 -->
                         <circle cx="85" cy="18" r="4" fill="#8B4513" />
                         <circle cx="95" cy="22" r="2" fill="#333" />
-                        <!-- 尾巴 -->
                         <circle cx="15" cy="30" r="5" fill="#8B4513" />
-
-                        <!-- 前面的腿 (棕色) -->
                         <g class="bear-leg bear-leg-front-left" transform="translate(25, 35)">
                             <rect x="-4" y="0" width="8" height="20" rx="4" fill="#8B4513" />
                         </g>
@@ -43,12 +101,8 @@
                 </div>
             </div>
         </div>
-        <div class="nav-right">
-            <select id="langSelect">
-                <option value="zh">繁體中文</option>
-                <option value="en">English</option>
-            </select>
-            <a href="#" id="aboutBtn">關於本站</a>
+        <div class="nav-right" id="navRightPanel">
+            <!-- Rendered by JS -->
         </div>
     </nav>
 
@@ -65,8 +119,7 @@
 
     <div class="container hidden" id="page-about">
         <h2>關於本站</h2>
-        <p>探險者百科 (Seekerpedia) 是一個致力於記錄各類作品（小說、漫畫、電影等）世界觀與設定的共筆平台。</p>
-        <p>MediaWiki架構概念應用，資料即時連動至伺服器端。</p>
+        <p>此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。</p>
     </div>
 
     <!-- Creator Mode Pages -->
@@ -75,12 +128,12 @@
         <form id="createForm">
             <label>百科/作品名稱:</label>
             <input type="text" id="workName" required placeholder="例如：哈利波特">
-            <label>介紹:</label>
+            <label>介紹 (將作為「關於此作品」條目內容):</label>
             <textarea id="workIntro" rows="3" placeholder="簡述此作品..."></textarea>
             <label>分類:</label>
             <input type="text" id="workCategory" placeholder="例如: 小說, 漫畫, 電影">
-            <label>設定 (整體世界觀等):</label>
-            <textarea id="workSettings" rows="3"></textarea>
+            <label>設定選項:</label>
+            <input type="text" id="workSettings" placeholder="設定選項...">
             <button type="submit">建立作品百科</button>
         </form>
     </div>
@@ -131,6 +184,312 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <button class="report-btn" onclick="window.location.href='../login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)">回報問題</button>
+    <div class="footer">
+        <a href="https://pandapanda6666.github.io">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+    </div>
+
+    <script>
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, args);
+        };
+        window.onerror = function(msg, url, line) { 
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+        });
+
+        const appId = window.location.hostname + window.location.pathname;
+        let socket;
+        let db = { works: [] };
+        let currentUser = null;
+
+        async function initNetwork() {
+            let sUrl = '';
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('server')) {
+                sUrl = decodeURIComponent(params.get('server'));
+            } else {
+                try {
+                    const res = await fetch('../login-hub/server_url.txt');
+                    if(!res.ok) throw new Error('Fetch err');
+                    const text = await res.text();
+                    sUrl = atob(text.trim().split('').reverse().join(''));
+                } catch(e) {
+                    document.body.innerHTML += '<h2 style="text-align:center; margin-top:50px;">伺服器連線失敗，請稍後再試</h2>';
+                    return;
+                }
+            }
+
+            socket = io(sUrl, { transports: ['websocket'] });
+
+            socket.on('connect', () => {
+                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                checkLogin();
+                loadCloudData();
+            });
+
+            socket.on('loginResult', (data) => {
+                if (data.success) {
+                    currentUser = data.user;
+                    localStorage.setItem('panda_session_token', data.token);
+                    renderUserUI();
+                } else {
+                    localStorage.removeItem('panda_session_token');
+                    renderGuestUI();
+                }
+            });
+
+            socket.on('broadcastSchedule', (list) => {
+                window.broadcasts = list;
+                localStorage.setItem('broadcasts', JSON.stringify(list));
+            });
+        }
+
+        function checkLogin() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token') || localStorage.getItem('panda_session_token');
+            if (token) {
+                socket.emit('tokenLogin', { token: token });
+                if(params.get('token')) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } else {
+                renderGuestUI();
+            }
+        }
+
+        function renderUserUI() {
+            const r = document.getElementById('navRightPanel');
+            r.innerHTML = `
+                <a href="#" id="aboutBtn">關於本站</a>
+                <div class="user-profile" onclick="window.location.href='../login-hub/?from=' + encodeURIComponent(window.location.href)">
+                    <img src="${currentUser.avatar || 'https://via.placeholder.com/30'}" class="user-avatar">
+                    <div class="user-info">
+                        <span>${currentUser.nickname || currentUser.username}</span>
+                        <span><img src="https://pandapanda6666.github.io/shop/coin.svg" class="p-coin-img"> ${currentUser.pCoin || 0}</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('aboutBtn').onclick = () => showPage('about');
+        }
+
+        function renderGuestUI() {
+            const r = document.getElementById('navRightPanel');
+            r.innerHTML = `
+                <a href="#" id="aboutBtn">關於本站</a>
+                <button class="login-btn" onclick="window.location.href='../login-hub/?require=1'">登入/註冊</button>
+            `;
+            document.getElementById('aboutBtn').onclick = () => showPage('about');
+        }
+
+        function loadCloudData() {
+            socket.emit('getAppData', { appId: appId }, (res) => {
+                if (res && res.data && res.data.works) {
+                    db = res.data;
+                }
+                renderEditSelect();
+                renderBrowseList();
+            });
+        }
+
+        function saveCloudData() {
+            if(!socket || !socket.connected) return;
+            socket.emit('saveAppData', { appId: appId, data: db });
+            socket.emit('logAppMessage', { appId: appId, message: '更新了百科內容', type: 'info' });
+        }
+
+        // Navigation
+        const pages = ['home', 'about', 'create', 'edit', 'browse'];
+        function showPage(id) {
+            pages.forEach(p => document.getElementById(`page-${p}`).classList.add('hidden'));
+            document.getElementById(`page-${id}`).classList.remove('hidden');
+        }
+
+        document.querySelector('.logo').onclick = () => showPage('home');
+        document.getElementById('browseModeBtn').onclick = (e) => {
+            e.target.classList.add('active');
+            document.getElementById('createModeBtn').classList.remove('active');
+            showPage('browse');
+            if(socket && socket.connected) loadCloudData();
+        };
+        document.getElementById('createModeBtn').onclick = (e) => {
+            e.target.classList.add('active');
+            document.getElementById('browseModeBtn').classList.remove('active');
+            showPage('create');
+        };
+
+        // Create Work
+        document.getElementById('createForm').onsubmit = (e) => {
+            e.preventDefault();
+            if(!socket || !socket.connected) { alert("尚未連線，無法儲存"); return; }
+            
+            const wName = document.getElementById('workName').value;
+            const wIntro = document.getElementById('workIntro').value;
+            
+            const newWork = {
+                id: Date.now(),
+                name: wName,
+                intro: wIntro,
+                category: document.getElementById('workCategory').value,
+                settings: document.getElementById('workSettings').value,
+                entries: [{
+                    id: Date.now() + 1,
+                    category: '預設',
+                    title: '關於此作品',
+                    content: wIntro
+                }]
+            };
+            db.works.push(newWork);
+            saveCloudData();
+            alert("百科已建立！");
+            document.getElementById('createForm').reset();
+            showPage('edit');
+            renderEditSelect();
+        };
+
+        // Edit Work
+        function renderEditSelect() {
+            const sel = document.getElementById('editWorkSelect');
+            sel.innerHTML = '<option value="">選擇要編輯的作品</option>';
+            db.works.forEach(w => sel.innerHTML += `<option value="${w.id}">${w.name}</option>`);
+        }
+
+        document.getElementById('editWorkSelect').onchange = (e) => {
+            const val = e.target.value;
+            const panel = document.getElementById('editWorkPanel');
+            if (!val) { panel.classList.add('hidden'); return; }
+            panel.classList.remove('hidden');
+            renderEditEntries(val);
+        };
+
+        document.getElementById('addEntryBtn').onclick = () => {
+            if(!socket || !socket.connected) { alert("尚未連線，無法儲存"); return; }
+            const workId = document.getElementById('editWorkSelect').value;
+            const work = db.works.find(w => w.id == workId);
+            if (!work) return;
+            
+            work.entries.push({
+                id: Date.now(),
+                category: document.getElementById('entryCategory').value || '未分類',
+                title: document.getElementById('entryTitle').value || '未命名',
+                content: document.getElementById('entryContent').value || ''
+            });
+            saveCloudData();
+            
+            document.getElementById('entryCategory').value = '';
+            document.getElementById('entryTitle').value = '';
+            document.getElementById('entryContent').value = '';
+            
+            renderEditEntries(workId);
+        };
+
+        function renderEditEntries(workId) {
+            const work = db.works.find(w => w.id == workId);
+            const list = document.getElementById('editEntryList');
+            if(work.entries.length === 0) {
+                list.innerHTML = '<p style="color:#777;">目前無任何條目。</p>';
+                return;
+            }
+            list.innerHTML = work.entries.map(e => `
+                <div style="border:1px solid #ddd; padding:15px; margin-top:10px; border-radius:5px; background:#fff;">
+                    <div style="color: #666; font-size:0.9em; margin-bottom:5px;">[分類: ${e.category}]</div>
+                    <h4 style="margin:0 0 10px 0; color:#333;">${e.title}</h4>
+                    <p style="margin:0; white-space:pre-wrap; color:#555;">${e.content}</p>
+                </div>
+            `).join('');
+        }
+
+        // Browse Mode
+        function renderBrowseList() {
+            const ul = document.getElementById('browseWorkList');
+            if(db.works.length === 0) {
+                ul.innerHTML = '<li style="background:transparent;">目前無百科作品</li>';
+                return;
+            }
+            ul.innerHTML = db.works.map(w => `<li onclick="showWork(${w.id})">${w.name}</li>`).join('');
+        }
+
+        function showWork(workId) {
+            const work = db.works.find(w => w.id == workId);
+            document.getElementById('browseWorkDetail').classList.remove('hidden');
+            document.getElementById('bEntryDetail').classList.add('hidden');
+            document.getElementById('bTitle').innerText = work.name;
+            document.getElementById('bIntro').innerText = work.intro;
+            document.getElementById('bMeta').innerText = `分類: ${work.category} | 設定選項: ${work.settings}`;
+            
+            const cats = {};
+            work.entries.forEach(e => {
+                if (!cats[e.category]) cats[e.category] = [];
+                cats[e.category].push(e);
+            });
+            
+            const catList = document.getElementById('bCategoryList');
+            catList.innerHTML = '';
+            
+            if(Object.keys(cats).length === 0) {
+                catList.innerHTML = '<li>尚無條目</li>';
+                return;
+            }
+            
+            Object.keys(cats).forEach(c => {
+                const li = document.createElement('li');
+                li.innerText = c;
+                li.onclick = () => renderBrowseEntries(workId, c);
+                catList.appendChild(li);
+            });
+        }
+
+        function renderBrowseEntries(workId, category) {
+            const work = db.works.find(w => w.id == workId);
+            const entries = work.entries.filter(e => e.category === category);
+            
+            const catList = document.getElementById('bCategoryList');
+            catList.innerHTML = entries.map(e => `<li onclick="showEntry(${e.id}, ${workId})">${e.title}</li>`).join('');
+            
+            const backLi = document.createElement('li');
+            backLi.innerText = '← 返回作品首頁';
+            backLi.style.background = '#4a6c42';
+            backLi.style.color = 'white';
+            backLi.onclick = () => showWork(workId);
+            catList.prepend(backLi);
+        }
+
+        function showEntry(entryId, workId) {
+            const work = db.works.find(w => w.id == workId);
+            const entry = work.entries.find(e => e.id == entryId);
+            document.getElementById('bEntryDetail').classList.remove('hidden');
+            document.getElementById('bEntryTitle').innerText = entry.title;
+            document.getElementById('bEntryContent').innerText = entry.content;
+        }
+
+        // Marquee Logic
+        fetch('../login-hub/server_broadcast.json').then(res=>res.json()).then(list => { 
+            window.broadcasts = list; 
+            localStorage.setItem('broadcasts', JSON.stringify(list)); 
+        }).catch(() => { 
+            window.broadcasts = JSON.parse(localStorage.getItem('broadcasts')||'[]'); 
+        });
+
+        setInterval(() => {
+            const now = Date.now(); const bar = document.getElementById('notificationBar'); const msgText = document.getElementById('notificationMsg');
+            let activeMsg = null; const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            for (let b of list) {
+                const st = new Date(b.startTime).getTime();
+                if (b.mode === 1) {
+                    const intervalMs = b.intervalMin * 60000; const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    if (now >= st && now <= end) { const elapsed = now - st; if (elapsed % intervalMs < 60000) activeMsg = b.message; }
+                } else if (b.mode === 2) { const et = new Date(b.endTime).getTime(); if (now >= st && now <= et) activeMsg = b.message; }
+            }
+            if (activeMsg) { msgText.innerText = activeMsg; bar.style.display = 'block'; } else { bar.style.display = 'none'; }
+        }, 1000);
+
+        // Init
+        window.onload = initNetwork;
+    </script>
 </body>
 </html>
