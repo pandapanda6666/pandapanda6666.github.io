@@ -126,7 +126,7 @@
 
     <div class="mode-selector">
         <button id="browseModeBtn" class="active" data-i18n="mode_browse">瀏覽者模式</button>
-        <button id="createModeBtn" data-i18n="mode_create">創造百科</button>
+        <button id="createModeBtn" data-i18n="mode_create">創造者模式</button>
     </div>
 
     <!-- Home Page -->
@@ -260,7 +260,7 @@
                 about_site: "關於本站",
                 login_reg: "登入/註冊",
                 mode_browse: "瀏覽者模式",
-                mode_create: "創造百科",
+                mode_create: "創造者模式",
                 welcome_title: "歡迎來到探險者百科",
                 welcome_desc: "此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。<br><br>在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！",
                 welcome_hint: "請於上方選擇您想進入的模式。",
@@ -302,7 +302,7 @@
                 about_site: "About",
                 login_reg: "Login/Register",
                 mode_browse: "Browse Mode",
-                mode_create: "Create Work",
+                mode_create: "Creator Mode",
                 welcome_title: "Welcome to Seekerpedia",
                 welcome_desc: "This is a MediaWiki-architecture encyclopedia developed by PandaPanda\\'s AI daily life, dedicated to movies, novels, and animations.<br><br>Explore the settings and worldviews of various works, or build your own encyclopedia here!",
                 welcome_hint: "Please select a mode above.",
@@ -454,7 +454,7 @@
                     db = res.data;
                 }
                 renderBrowseList();
-                if(currentViewWorkId) showWork(currentViewWorkId);
+                if(currentViewWorkId) showWork(currentViewWorkId);\n                handleUrlRouting();
             });
         }
 
@@ -512,14 +512,14 @@
             const wBanner = await processImage(bannerFile, 1200);
             
             const newWork = {
-                id: Date.now(),
+                id: generateId(8),
                 name: wName,
                 intro: wIntro,
                 category: document.getElementById('workCategory').value,
                 cover: wCover,
                 banner: wBanner,
                 entries: [{
-                    id: Date.now() + 1,
+                    id: generateId(10),
                     category: '預設',
                     title: '關於此作品',
                     content: wIntro
@@ -545,7 +545,7 @@
             ul.innerHTML = db.works.map(w => `<li onclick="showWork(${w.id})">${w.name}</li>`).join('');
         }
 
-        function showWork(workId) {
+        function showWork(workId, pushUrl = true) {\n            if(pushUrl) updateUrlParams(workId, null);
             const work = db.works.find(w => w.id == workId);
             if(!work) return;
             currentViewWorkId = workId;
@@ -602,7 +602,7 @@
             catList.prepend(backLi);
         }
 
-        function showEntry(entryId, workId) {
+        function showEntry(entryId, workId, pushUrl = true) {\n            if(pushUrl) updateUrlParams(workId, entryId);
             const work = db.works.find(w => w.id == workId);
             const entry = work.entries.find(e => e.id == entryId);
             if(!entry) return;
@@ -619,7 +619,7 @@
         }
         
         function backToWork() {
-            if(currentViewWorkId) showWork(currentViewWorkId);
+            if(currentViewWorkId) showWork(currentViewWorkId);\n                handleUrlRouting();
         }
 
         // Wiki Syntax Parser
@@ -773,6 +773,75 @@
                     li.style.display = '';
                 } else {
                     li.style.display = 'none';
+                }
+            }
+        }
+\n        
+        function generateId(length) {
+            let result = '';
+            for(let i=0; i<length; i++) {
+                result += Math.floor(Math.random() * 10);
+            }
+            return result;
+        }
+
+        // Override original ID generation in saveWikiEntry and createForm
+        window.oldSaveWikiEntry = window.saveWikiEntry;
+        window.saveWikiEntry = function() {
+            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            const work = db.works.find(w => w.id == currentViewWorkId);
+            if (!work) return;
+            const entryId = document.getElementById('editEntryId').value;
+            const cat = document.getElementById('editEntryCat').value || i18n[currentLang].unclassified;
+            const title = document.getElementById('editEntryTitle').value || i18n[currentLang].unnamed;
+            const content = document.getElementById('editEntryContent').value || '';
+            
+            if (entryId) {
+                const entry = work.entries.find(e => e.id == entryId);
+                entry.category = cat;
+                entry.title = title;
+                entry.content = content;
+            } else {
+                const newId = generateId(10);
+                work.entries.push({ id: newId, category: cat, title: title, content: content });
+                currentViewEntryId = newId; 
+            }
+            saveCloudData();
+            document.getElementById('wikiEditorOverlay').classList.add('hidden');
+            showEntry(currentViewEntryId || entryId, currentViewWorkId);
+        };
+        
+        // Push State functions
+        function updateUrlParams(workId, entryId) {
+            const url = new URL(window.location);
+            if(workId) url.searchParams.set('work', workId);
+            else url.searchParams.delete('work');
+            
+            if(entryId) url.searchParams.set('entry', entryId);
+            else url.searchParams.delete('entry');
+            
+            window.history.pushState({ work: workId, entry: entryId }, '', url);
+        }
+        
+        window.onpopstate = function(event) {
+            handleUrlRouting();
+        };
+        
+        function handleUrlRouting() {
+            const params = new URLSearchParams(window.location.search);
+            const w = params.get('work');
+            const e = params.get('entry');
+            if(db && db.works && db.works.length > 0) {
+                if(w) {
+                    document.getElementById('browseModeBtn').click();
+                    if(e) showEntry(e, w, false);
+                    else showWork(w, false);
+                } else {
+                    // if in browse mode but no work, just show browse list
+                    if(!document.getElementById('page-browse').classList.contains('hidden')) {
+                        document.getElementById('browseWorkDetail').classList.add('hidden');
+                        document.getElementById('bEntryDetail').classList.add('hidden');
+                    }
                 }
             }
         }
