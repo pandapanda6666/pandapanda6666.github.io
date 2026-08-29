@@ -625,38 +625,67 @@
         // Wiki Syntax Parser
         function parseWikitext(text, workId) {
             if(!text) return "";
-            // Replace [[Title]] with appropriate links
-            return text.replace(/\[\[(.*?)\]\]/g, (match, title) => {
+            let parsed = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            // {{Infobox | key=value}}
+            parsed = parsed.replace(/\{\{Infobox([\s\S]*?)\}\}/g, (match, content) => {
+                const rows = content.split('|').slice(1).map(r => {
+                    const parts = r.split('=');
+                    if(parts.length >= 2) return `<tr><th style="background:#eaecf0; text-align:left; padding:5px; border:1px solid #a2a9b1; width:30%; font-weight:bold;">${parts[0].trim()}</th><td style="padding:5px; border:1px solid #a2a9b1;">${parts.slice(1).join('=').trim()}</td></tr>`;
+                    return '';
+                }).join('');
+                return `<table style="float:right; clear:right; margin: 0 0 1em 1em; width: 300px; background: #f8f9fa; border: 1px solid #a2a9b1; border-collapse: collapse; font-size: 90%;"><tbody>${rows}</tbody></table>`;
+            });
+
+            // Headings
+            parsed = parsed.replace(/^======(.*?)======/gm, '<h6>$1</h6>');
+            parsed = parsed.replace(/^=====(.*?)=====/gm, '<h5>$1</h5>');
+            parsed = parsed.replace(/^====(.*?)====/gm, '<h4>$1</h4>');
+            parsed = parsed.replace(/^===(.*?)===/gm, '<h3>$1</h3>');
+            parsed = parsed.replace(/^==(.*?)==/gm, '<h2>$1</h2>');
+
+            // Bold & Italic
+            parsed = parsed.replace(/'''(.*?)'''/g, '<b>$1</b>');
+            parsed = parsed.replace(/''(.*?)''/g, '<i>$1</i>');
+            
+            // External Links
+            parsed = parsed.replace(/\[(https?:\/\/[^\s\]]+)\s+([^\]]+)\]/g, '<a href="$1" target="_blank" style="color:#3366cc; text-decoration:none;">$2 <span style="font-size:0.8em">↗</span></a>');
+
+            // Internal Links
+            parsed = parsed.replace(/\[\[(.*?)\]\]/g, (match, title) => {
                 const work = db.works.find(w => w.id == workId);
                 const exists = work.entries.find(e => e.title === title);
                 if (exists) {
-                    return `<a href="#" style="color:#0645ad; text-decoration:none;" onclick="showEntry(${exists.id}, ${workId}); return false;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${title}</a>`;
+                    return `<a href="#" style="color:#0645ad; text-decoration:none;" onclick="showEntry(${exists.id}, ${workId}); return false;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" title="${title}">${title}</a>`;
                 } else {
-                    return `<a href="#" style="color:#ba0000; text-decoration:none;" onclick="openWikiEditor(null, '${title.replace(/'/g, "\\'")}'); return false;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${title}</a>`;
+                    return `<a href="#" style="color:#ba0000; text-decoration:none;" onclick="openWikiEditor(null, '${title.replace(/'/g, "\\'")}); return false;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" title="${title} (尚未撰寫)">${title}</a>`;
                 }
             });
-        }
-
-        
-        async function processImage(file, maxWidth) {
-            return new Promise((resolve) => {
-                if (!file) return resolve('');
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let w = img.width; let h = img.height;
-                        if (w > maxWidth) { h = Math.floor((maxWidth / w) * h); w = maxWidth; }
-                        canvas.width = w; canvas.height = h;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, w, h);
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
-                    };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+            
+            // Table of Contents
+            const headings = [];
+            let tocHtml = '';
+            parsed = parsed.replace(/<h([2-3])>(.*?)<\/h\1>/g, (match, level, title) => {
+                const id = 'h_' + Math.random().toString(36).substr(2, 9);
+                headings.push({ level: parseInt(level), title, id });
+                return `<h${level} id="${id}" style="border-bottom: ${level=='2'?'1px solid #a2a9b1':'none'}; padding-bottom: ${level=='2'?'3px':'0'}; font-family: 'Linux Libertine', 'Georgia', 'Times', serif; margin-top:1.2em;">${title}</h${level}>`;
             });
+            
+            if (headings.length >= 3) {
+                tocHtml = '<div style="display:inline-block; border: 1px solid #a2a9b1; background-color: #f8f9fa; padding: 10px 20px 10px 10px; margin-bottom: 20px; font-size: 95%;"><div style="font-weight:bold; text-align:center; margin-bottom:5px;">目錄</div><ul style="list-style:none; padding-left:0; margin:0;">';
+                headings.forEach(h => {
+                    const pad = (h.level - 2) * 20;
+                    tocHtml += `<li style="margin-left:${pad}px;"><a href="#${h.id}" style="color:#0645ad; text-decoration:none;">${h.title}</a></li>`;
+                });
+                tocHtml += '</ul></div>';
+            }
+            
+            // Brs
+            parsed = parsed.replace(/\n/g, '<br>');
+            parsed = parsed.replace(/<table([\s\S]*?)<\/table>/g, m => m.replace(/<br>/g, ''));
+            parsed = parsed.replace(/<div style="display:inline-block; border: 1px solid #a2a9b1([\s\S]*?)<\/div>/g, m => m.replace(/<br>/g, ''));
+
+            return tocHtml + parsed;
         }
 
         // Wiki Editor Logic
