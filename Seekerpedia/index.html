@@ -81,7 +81,18 @@
         .wiki-content { font-size: 15px; line-height: 1.8; color: #222; }
         .wiki-content h1, .wiki-content h2 { border-bottom: 1px solid #a2a9b1; padding-bottom: 5px; }
         
-        /* Wiki Editor */
+        
+        /* Modal Overlay for Wiki Editor */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; width: 90%; max-width: 800px; border-radius: 8px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; position: relative; }
+        .close-btn { position: absolute; right: 20px; top: 20px; font-size: 24px; cursor: pointer; color: #999; }
+        .close-btn:hover { color: #333; }
+        
+        .file-input-wrapper { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
+        .file-input-wrapper input[type=file] { flex-grow: 1; padding: 5px; }
+        
+        #wikiEditor { background: transparent; border: none; padding: 0; box-shadow: none; margin-top: 0; }
+
         #wikiEditor { background: #fff; border: 1px solid #ccc; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; }
         .wiki-hint { font-size: 12px; color: #666; margin-top: 5px; }
 
@@ -144,11 +155,11 @@
             <label data-i18n="lbl_work_cat">分類:</label>
             <input type="text" id="workCategory" placeholder="例如: 小說, 漫畫, 電影">
             
-            <label data-i18n="lbl_work_cover">封面圖片網址 (Cover URL):</label>
-            <input type="text" id="workCover" placeholder="輸入圖片網址 (選填)">
+            <label data-i18n="lbl_work_cover">上傳封面圖片 (Cover):</label>
+            <input type="file" id="workCoverFile" accept="image/*">
             
-            <label data-i18n="lbl_work_banner">橫幅圖片網址 (Banner URL):</label>
-            <input type="text" id="workBanner" placeholder="輸入圖片網址 (選填)">
+            <label data-i18n="lbl_work_banner">上傳橫幅圖片 (Banner):</label>
+            <input type="file" id="workBannerFile" accept="image/*">
             
             <button type="submit" data-i18n="btn_create">建立作品百科</button>
         </form>
@@ -197,9 +208,12 @@
                     <div id="bEntryContent" class="wiki-content"></div>
                 </div>
 
-                <!-- Wiki Editor -->
-                <div id="wikiEditor" class="hidden">
-                    <h2 id="editorTitle" data-i18n="edit_add_title">編輯條目</h2>
+                <!-- Wiki Editor Modal -->
+                <div id="wikiEditorOverlay" class="modal-overlay hidden">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="cancelWikiEditor()">&times;</span>
+                    <div id="wikiEditor">
+                    <h2 id="editorTitle" data-i18n="edit_add_title" style="margin-top:0;">編輯 / 建立條目</h2>
                     <input type="hidden" id="editEntryId">
                     
                     <label data-i18n="lbl_entry_cat">條目分類 (例如：人物、地點):</label>
@@ -214,6 +228,8 @@
                     
                     <button class="action-btn" onclick="saveWikiEntry()" data-i18n="btn_save">儲存變更</button>
                     <button class="action-btn secondary" onclick="cancelWikiEditor()" data-i18n="btn_cancel">取消</button>
+                    </div>
+                </div>
                 </div>
             </div>
         </div>
@@ -470,21 +486,30 @@
             showPage('browse');
             if(socket && socket.connected) loadCloudData();
         };
+        
         document.getElementById('createModeBtn').onclick = (e) => {
+            if (!currentUser) {
+                alert(i18n[currentLang].alert_login_req || "請先登入才能使用創造者模式！");
+                window.location.href = '../login-hub/?require=1';
+                return;
+            }
+
             e.target.classList.add('active');
             document.getElementById('browseModeBtn').classList.remove('active');
             showPage('create');
         };
 
         // Create Work
-        document.getElementById('createForm').onsubmit = (e) => {
+        document.getElementById('createForm').onsubmit = async (e) => {
             e.preventDefault();
             if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
             
             const wName = document.getElementById('workName').value;
             const wIntro = document.getElementById('workIntro').value;
-            const wCover = document.getElementById('workCover').value;
-            const wBanner = document.getElementById('workBanner').value;
+            const coverFile = document.getElementById('workCoverFile').files[0];
+            const bannerFile = document.getElementById('workBannerFile').files[0];
+            const wCover = await processImage(coverFile, 400);
+            const wBanner = await processImage(bannerFile, 1200);
             
             const newWork = {
                 id: Date.now(),
@@ -527,7 +552,7 @@
             currentViewEntryId = null;
             
             document.getElementById('browseWorkDetail').classList.remove('hidden');
-            document.getElementById('bEntryDetail').classList.add('hidden');
+            
             document.getElementById('wikiEditor').classList.add('hidden');
             
             document.getElementById('bTitle').innerText = work.name;
@@ -585,7 +610,7 @@
             currentViewWorkId = workId;
             currentViewEntryId = entryId;
             
-            document.getElementById('browseWorkDetail').classList.add('hidden');
+            
             document.getElementById('wikiEditor').classList.add('hidden');
             document.getElementById('bEntryDetail').classList.remove('hidden');
             
@@ -612,11 +637,33 @@
             });
         }
 
+        
+        async function processImage(file, maxWidth) {
+            return new Promise((resolve) => {
+                if (!file) return resolve('');
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width; let h = img.height;
+                        if (w > maxWidth) { h = Math.floor((maxWidth / w) * h); w = maxWidth; }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         // Wiki Editor Logic
         window.openWikiEditor = function(entryId = null, defaultTitle = '') {
-            document.getElementById('browseWorkDetail').classList.add('hidden');
-            document.getElementById('bEntryDetail').classList.add('hidden');
-            document.getElementById('wikiEditor').classList.remove('hidden');
+            
+            
+            document.getElementById('wikiEditorOverlay').classList.remove('hidden');
             
             if (entryId) {
                 const work = db.works.find(w => w.id == currentViewWorkId);
@@ -638,11 +685,7 @@
         };
 
         window.cancelWikiEditor = function() {
-            if (currentViewEntryId) {
-                showEntry(currentViewEntryId, currentViewWorkId);
-            } else {
-                showWork(currentViewWorkId);
-            }
+            document.getElementById('wikiEditorOverlay').classList.add('hidden');
         };
 
         window.saveWikiEntry = function() {
@@ -667,6 +710,7 @@
             }
             
             saveCloudData();
+            document.getElementById('wikiEditorOverlay').classList.add('hidden');
             showEntry(currentViewEntryId || entryId, currentViewWorkId);
         };
 
