@@ -417,22 +417,58 @@
         }
 
         function renderUserUI() {
+            if (!currentUser) return renderGuestUI();
             const r = document.getElementById('navRightPanel');
-            r.innerHTML = `
+            
+            const res = currentUser;
+            const avatarUrl = res.avatar || '';
+            const nick = res.nickname || res.username || '使用者';
+            const avatarHTML = avatarUrl ? <img src="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;"> : <svg viewBox="0 0 24 24" style="fill:#2c5e32;width:24px;height:24px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>;
+            
+            r.innerHTML = 
                 <select id="langSelect">
-                    <option value="zh" ${currentLang==='zh'?'selected':''}>繁體中文</option>
-                    <option value="en" ${currentLang==='en'?'selected':''}>English</option>
+                    <option value="zh" >繁體中文</option>
+                    <option value="en" >English</option>
                 </select>
-                <a href="#" id="aboutBtn" data-i18n="about_site">${i18n[currentLang].about_site}</a>
-                <div class="user-profile" onclick="window.location.href='../login-hub/?from=' + encodeURIComponent(window.location.href)">
-                    <img src="${(currentUser || {}).avatar || 'https://via.placeholder.com/32'}" class="user-avatar">
-                    <div class="user-info">
-                        <span>${(currentUser || {}).nickname || (currentUser || {}).username}</span>
-                        <span><img src="../shop/coin.svg" class="p-coin-img"> ${(currentUser || {}).pCoin || 0}</span>
+                <a href="#" id="aboutBtn" data-i18n="about_site"></a>
+                <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
+                    <div class="user-info" style="display:flex;align-items:center;gap:8px;">
+                        <div class="avatar" style="width:36px;height:36px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;"></div>
+                        <div class="details" style="display:flex;flex-direction:column;">
+                            <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
+                            <span class="name" title="" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                        </div>
+                    </div>
+                    <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                    <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
+                        <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">⚙️ 帳號設定</div>
+                        <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">🚪 登出</div>
                     </div>
                 </div>
-            `;
+            ;
+            
             document.getElementById('langSelect').onchange = (e) => { currentLang = e.target.value; updateLang(); };
+            
+            const toggle = document.getElementById('user-profile-toggle');
+            const dropdown = document.getElementById('user-dropdown');
+            
+            toggle.onclick = (e) => {
+                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                e.stopPropagation();
+            };
+            
+            document.addEventListener('click', () => {
+                if(dropdown) dropdown.style.display = 'none';
+            });
+            
+            document.getElementById('btn-settings').onclick = () => {
+                window.location.href = '../login-hub/?action=editProfile&from=' + encodeURIComponent(window.location.href);
+            };
+            
+            document.getElementById('btn-logout').onclick = () => {
+                localStorage.removeItem('panda_session_token');
+                window.location.reload();
+            };
         }
 
         function renderGuestUI() {
