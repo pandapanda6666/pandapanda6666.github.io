@@ -1135,13 +1135,10 @@
                 if (event.key === 'F2') return;
                 
                 if (event.keyCode === 123 || (event.ctrlKey && event.shiftKey && event.keyCode === 73) || (event.metaKey && event.altKey && event.keyCode === 73)) {
-                    event.preventDefault();
                     showSecurityWarning();
                 }
             });
-            document.addEventListener('contextmenu', event => {
-                if (localStorage.getItem('isImmune') !== 'true') event.preventDefault();
-            });
+
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function showLoader() { loadingOverlay.style.display = 'flex'; }
@@ -1257,24 +1254,32 @@
             const pageSections = document.querySelectorAll('.page-section');
             let projectsLoaded = false;
 
+            function switchPage(pageId, updateUrl = true) {
+                navLinks.forEach(l => l.classList.toggle('active', l.dataset.page === pageId));
+                pageSections.forEach(section => section.classList.toggle('active', section.id === pageId));
+                if (pageId === 'tools' && !projectsLoaded) {
+                    scanAndLoadFolders();
+                    projectsLoaded = true;
+                }
+                if (updateUrl) {
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('page', pageId);
+                    window.history.pushState({ path: newUrl.href }, '', newUrl.href);
+                }
+            }
+
             navLinks.forEach(link => {
                 link.addEventListener('click', function(event) {
                     event.preventDefault();
-                    const pageId = this.dataset.page;
-                    
-                    navLinks.forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-
-                    pageSections.forEach(section => {
-                        section.classList.toggle('active', section.id === pageId);
-                    });
-                    
-                    if (pageId === 'tools' && !projectsLoaded) {
-                        scanAndLoadFolders();
-                        projectsLoaded = true;
-                    }
+                    switchPage(this.dataset.page, true);
                 });
             });
+
+            const initialPage = new URLSearchParams(window.location.search).get('page');
+            if (initialPage && document.getElementById(initialPage)) {
+                switchPage(initialPage, false);
+            }
+
 
             document.getElementById('report-issue-btn').addEventListener('click', function() {
                 window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
