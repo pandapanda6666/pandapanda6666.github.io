@@ -912,10 +912,26 @@ document.addEventListener("DOMContentLoaded", () => {
         setInterval(() => {
             if (video.readyState >= 2 && !video.paused && !video.ended) {
                 ctx.clearRect(0, 0, 32, 32);
-                ctx.drawImage(video, 0, 0, 32, 32);
+                
+                // Calculate aspect ratio
+                const vRatio = video.videoWidth / video.videoHeight;
+                let drawWidth = 32;
+                let drawHeight = 32;
+                let offsetX = 0;
+                let offsetY = 0;
+                
+                if (vRatio > 1) { // Wider than square
+                    drawHeight = 32 / vRatio;
+                    offsetY = (32 - drawHeight) / 2;
+                } else { // Taller than square
+                    drawWidth = 32 * vRatio;
+                    offsetX = (32 - drawWidth) / 2;
+                }
+                
+                ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
                 link.href = canvas.toDataURL('image/png');
             }
-        }, 100); // 10 fps
+        }, 16); // ~60 fps (1000/60)
     }
 });
 </script>
