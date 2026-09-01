@@ -3,43 +3,34 @@ import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 const modelId = "Phi-3-mini-4k-instruct-q4f16_1-MLC";
 let engine;
 let fileTree = {};
-let currentSchoolFiles = [];
 let schoolDataChunks = [];
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
-document.getElementById('folder-input').addEventListener('change', async (e) => {
-    const files = e.target.files;
-    fileTree = {};
-    
-    for (let f of files) {
-        if (f.name.toLowerCase().endsWith('.pdf')) {
-            const pathParts = f.webkitRelativePath.split('/');
-            if (pathParts.length >= 6) {
-                const school = pathParts[pathParts.length - 2];
-                const district = pathParts[pathParts.length - 3];
-                const city = pathParts[pathParts.length - 4];
-                const level = pathParts[pathParts.length - 5];
-                const type = pathParts[pathParts.length - 6];
-                
-                if(!fileTree[type]) fileTree[type] = {};
-                if(!fileTree[type][level]) fileTree[type][level] = {};
-                if(!fileTree[type][level][city]) fileTree[type][level][city] = {};
-                if(!fileTree[type][level][city][district]) fileTree[type][level][city][district] = {};
-                if(!fileTree[type][level][city][district][school]) fileTree[type][level][city][district][school] = [];
-                
-                fileTree[type][level][city][district][school].push(f);
-            }
-        }
-    }
-    updateDropdowns();
-});
 
 const selType = document.getElementById('sel-type');
 const selLevel = document.getElementById('sel-level');
 const selCity = document.getElementById('sel-city');
 const selDistrict = document.getElementById('sel-district');
 const selSchool = document.getElementById('sel-school');
+
+// Fetch file tree on load
+async function loadFileTree() {
+    try {
+        const res = await fetch('file_index.json');
+        fileTree = await res.json();
+        
+        selType.disabled = false;
+        selLevel.disabled = false;
+        selCity.disabled = false;
+        selDistrict.disabled = false;
+        selSchool.disabled = false;
+        
+        updateDropdowns();
+    } catch(e) {
+        console.error("Failed to load file tree", e);
+        document.getElementById('chat-box').innerHTML = '<p class="text-danger">無法載入校規目錄，請確認 file_index.json 存在。</p>';
+    }
+}
 
 function updateDropdowns() {
     selType.innerHTML = '<option value="">選擇公私立</option>';
@@ -71,16 +62,17 @@ function updateDropdowns() {
     
     selSchool.onchange = async () => {
         if(selSchool.value) {
-            currentSchoolFiles = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
-            document.getElementById('chat-box').innerHTML = '<p class="text-primary">正在讀取校規 PDF 檔案內容...</p>';
+            const pdfPaths = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
+            document.getElementById('chat-box').innerHTML = '<p class="text-primary">正在下載並讀取校規 PDF 檔案內容...</p>';
             let fullText = "";
-            for(let f of currentSchoolFiles) {
-                fullText += await extractTextFromPDF(f) + "\n\n";
+            for(let path of pdfPaths) {
+                // path is relative like: 公立/國民中學/...
+                fullText += await extractTextFromPDFUrl('校規/' + path) + "\n\n";
             }
             
-            // 更穩定的分塊策略 (Fixed-size chunking with overlap)
+            // 固定長度切割，避免超過 Token 限制
             schoolDataChunks = [];
-            const chunkSize = 500; // 字元
+            const chunkSize = 500;
             const overlap = 50;
             let currentIdx = 0;
             while(currentIdx < fullText.length) {
@@ -101,9 +93,10 @@ function updateDropdowns() {
     };
 }
 
-async function extractTextFromPDF(file) {
+async function extractTextFromPDFUrl(url) {
     try {
-        const arrayBuffer = await file.arrayBuffer();
+        const res = await fetch(url);
+        const arrayBuffer = await res.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
         let texts = [];
         for (let j = 1; j <= pdf.numPages; j++) {
@@ -113,7 +106,7 @@ async function extractTextFromPDF(file) {
         }
         return texts.join('\n');
     } catch(e) {
-        console.error(e);
+        console.error("Error reading PDF", e);
         return "";
     }
 }
@@ -193,10 +186,9 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     
     let relevantChunks = searchRelevantChunks(query, 10);
     
-    // 嚴格限制 context 長度以避免 Context Window 超出 (token exceed 錯誤)
     let context = "";
     let usedChunks = [];
-    const MAX_CONTEXT_LENGTH = 1500; // 約1500中文字元，遠低於 4096 tokens
+    const MAX_CONTEXT_LENGTH = 1500;
     for(let chunk of relevantChunks) {
         if(context.length + chunk.length > MAX_CONTEXT_LENGTH) {
             break;
@@ -239,3 +231,6 @@ document.getElementById('btn-search').addEventListener('click', async () => {
         chatBox.innerHTML = `<p class="text-danger">發生錯誤: ${e.message}</p>`;
     }
 });
+
+// Load the file index
+loadFileTree();
