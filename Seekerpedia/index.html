@@ -890,5 +890,35 @@
         // Init
         window.onload = initNetwork;
     </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const video = document.querySelector('.bear video');
+    if (video) {
+        // 設定 crossOrigin 避免 Canvas 污染 (雖然同網域不需要，但保險起見)
+        video.crossOrigin = "anonymous";
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        let link = document.querySelector("link[rel*='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.type = 'image/x-icon';
+            link.rel = 'shortcut icon';
+            document.head.appendChild(link);
+        }
+
+        setInterval(() => {
+            if (video.readyState >= 2 && !video.paused && !video.ended) {
+                ctx.clearRect(0, 0, 32, 32);
+                ctx.drawImage(video, 0, 0, 32, 32);
+                link.href = canvas.toDataURL('image/png');
+            }
+        }, 100); // 10 fps
+    }
+});
+</script>
+
 </body>
 </html>
