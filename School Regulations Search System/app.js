@@ -77,8 +77,20 @@ function updateDropdowns() {
             for(let f of currentSchoolFiles) {
                 fullText += await extractTextFromPDF(f) + "\n\n";
             }
-            // Chunking
-            schoolDataChunks = fullText.split(/\n\n|\n第/).map(c => c.trim()).filter(c => c.length > 20);
+            
+            // 更穩定的分塊策略 (Fixed-size chunking with overlap)
+            schoolDataChunks = [];
+            const chunkSize = 500; // 字元
+            const overlap = 50;
+            let currentIdx = 0;
+            while(currentIdx < fullText.length) {
+                let chunk = fullText.slice(currentIdx, currentIdx + chunkSize);
+                if (chunk.trim().length > 20) {
+                    schoolDataChunks.push(chunk.trim());
+                }
+                currentIdx += (chunkSize - overlap);
+            }
+
             document.getElementById('chat-box').innerHTML = '<p class="text-success">校規讀取完成，可以開始查詢囉！</p>';
             document.getElementById('query-input').disabled = false;
             document.getElementById('btn-search').disabled = false;
@@ -139,7 +151,7 @@ document.getElementById('btn-delete-model').addEventListener('click', async () =
     }
 });
 
-function searchRelevantChunks(query, topK = 3) {
+function searchRelevantChunks(query, topK = 10) {
     let scoredChunks = schoolDataChunks.map(chunk => {
         let score = 0;
         const keywords = query.split('');
@@ -179,8 +191,19 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = '<p class="text-primary">檢索校規資料中...</p>';
     
-    const relevantChunks = searchRelevantChunks(query, 4);
-    const context = relevantChunks.join('\n---\n');
+    let relevantChunks = searchRelevantChunks(query, 10);
+    
+    // 嚴格限制 context 長度以避免 Context Window 超出 (token exceed 錯誤)
+    let context = "";
+    let usedChunks = [];
+    const MAX_CONTEXT_LENGTH = 1500; // 約1500中文字元，遠低於 4096 tokens
+    for(let chunk of relevantChunks) {
+        if(context.length + chunk.length > MAX_CONTEXT_LENGTH) {
+            break;
+        }
+        context += chunk + '\n---\n';
+        usedChunks.push(chunk);
+    }
     
     chatBox.innerHTML = '<p class="text-primary">AI正在思考並生成回覆...</p>';
     
@@ -200,7 +223,7 @@ document.getElementById('btn-search').addEventListener('click', async () => {
         let responseHtml = `<div><strong>AI 回覆：</strong><br>${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div>`;
         
         responseHtml += `<hr><h5>來源資料：</h5>`;
-        relevantChunks.forEach((chunk, index) => {
+        usedChunks.forEach((chunk, index) => {
             const highlightedChunk = highlightText(chunk, query);
             responseHtml += `
                 <div class="source-box" onclick="this.querySelector('.source-content').style.display = this.querySelector('.source-content').style.display === 'block' ? 'none' : 'block'">
