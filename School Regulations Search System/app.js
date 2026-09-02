@@ -188,17 +188,32 @@ function updateDropdowns() {
                 fullSchoolText += await extractTextFromPDFUrl(url) + "\n\n";
             }
             
-            // Chunking
-            schoolDataChunks = [];
-            const chunkSize = 500;
-            const overlap = 50;
-            let currentIdx = 0;
-            while(currentIdx < fullSchoolText.length) {
-                let chunk = fullSchoolText.slice(currentIdx, currentIdx + chunkSize);
-                if (chunk.trim().length > 20) {
-                    schoolDataChunks.push(chunk.trim());
+            // Better chunking: Split by sentences to give precise highlights, but keep context for AI
+            const splitRegex = /([。；？！\n])/; 
+            let rawPieces = fullSchoolText.split(splitRegex);
+            let sentences = [];
+            let currentSentence = "";
+            for(let i=0; i<rawPieces.length; i++) {
+                currentSentence += rawPieces[i];
+                if(rawPieces[i].match(splitRegex)) {
+                    if(currentSentence.trim().length > 5) sentences.push(currentSentence.trim());
+                    currentSentence = "";
                 }
-                currentIdx += (chunkSize - overlap);
+            }
+            if(currentSentence.trim().length > 5) sentences.push(currentSentence.trim());
+
+            schoolDataChunks = [];
+            for(let i = 0; i < sentences.length; i++) {
+                let contextArr = [];
+                // Give previous and next sentences for AI context
+                if(i > 0) contextArr.push(sentences[i-1]);
+                contextArr.push(sentences[i]);
+                if(i < sentences.length - 1) contextArr.push(sentences[i+1]);
+                
+                schoolDataChunks.push({
+                    exactMatch: sentences[i],
+                    contextBlock: contextArr.join(' ')
+                });
             }
 
             document.getElementById('chat-box').innerHTML = '<div class="text-center text-success mt-4"><i class="fas fa-check-circle fa-3x mb-3"></i><p>校規讀取完成，請在上方輸入問題開始查詢！</p></div>';
@@ -311,23 +326,25 @@ function searchRelevantChunks(query, topK = 10) {
         bigrams.push(cleanQuery.substring(i, i+2));
     }
     
-    let scoredChunks = schoolDataChunks.map(chunk => {
+    let scoredChunks = schoolDataChunks.map(item => {
         let score = 0;
+        let textToSearch = item.exactMatch;
         const words = query.split(/[ \u3000]+/);
         words.forEach(w => {
-            if (w.trim().length >= 2 && chunk.includes(w.trim())) score += 20;
+            if (w.trim().length >= 2 && textToSearch.includes(w.trim())) score += 20;
         });
         bigrams.forEach(bg => {
-            if (chunk.includes(bg)) score += 5;
+            if (textToSearch.includes(bg)) score += 5;
         });
         const chars = cleanQuery.split('');
         chars.forEach(c => {
-            if (c.trim() && chunk.includes(c)) score += 1;
+            if (c.trim() && textToSearch.includes(c)) score += 1;
         });
-        return { chunk, score };
+        return { item, score };
     });
+    scoredChunks = scoredChunks.filter(sc => sc.score > 0);
     scoredChunks.sort((a, b) => b.score - a.score);
-    return scoredChunks.slice(0, topK).map(sc => sc.chunk);
+    return scoredChunks.slice(0, topK).map(sc => sc.item);
 }
 
 function highlightFullText(usedChunks) {
@@ -357,17 +374,17 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>檢索校規資料中...</p></div>';
     
-    let relevantChunks = searchRelevantChunks(query, 10);
+    let relevantItems = searchRelevantChunks(query, 10);
     
     let context = "";
     let usedChunks = [];
     const MAX_CONTEXT_LENGTH = 1500;
-    for(let chunk of relevantChunks) {
-        if(context.length + chunk.length > MAX_CONTEXT_LENGTH) {
+    for(let item of relevantItems) {
+        if(context.length + item.contextBlock.length > MAX_CONTEXT_LENGTH) {
             break;
         }
-        context += chunk + '\n---\n';
-        usedChunks.push(chunk);
+        context += item.contextBlock + '\n---\n';
+        usedChunks.push(item.exactMatch);
     }
     
     const isCasual = document.getElementById('tone-casual').checked;
