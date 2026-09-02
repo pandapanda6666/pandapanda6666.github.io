@@ -7,6 +7,37 @@ let schoolDataChunks = [];
 let fullSchoolText = "";
 let currentPdfUrl = "";
 
+let chatHistory = JSON.parse(localStorage.getItem('schoolChatHistory') || '[]');
+const historyBox = document.getElementById('history-box');
+
+function renderHistory() {
+    if (!historyBox) return;
+    if (chatHistory.length === 0) {
+        historyBox.innerHTML = '<p class="text-muted small">暫無查詢紀錄。</p>';
+        return;
+    }
+    let html = '';
+    [...chatHistory].reverse().forEach(item => {
+        html += `
+        <div class="card mb-3 shadow-sm border-0 bg-light">
+            <div class="card-body">
+                <div class="text-primary fw-bold mb-2"><i class="fas fa-question-circle"></i> ${item.query}</div>
+                <div class="bg-white p-3 rounded border mb-2 text-dark" style="font-size:0.95rem;">${item.reply.replace(/\n/g, '<br>')}</div>
+                <div class="text-muted text-end" style="font-size: 0.75rem;">${item.time}</div>
+            </div>
+        </div>`;
+    });
+    historyBox.innerHTML = html;
+}
+
+document.getElementById('btn-clear-history')?.addEventListener('click', () => {
+    if(confirm('確定要清空所有歷史紀錄嗎？')) {
+        chatHistory = [];
+        localStorage.removeItem('schoolChatHistory');
+        renderHistory();
+    }
+});
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
 const selType = document.getElementById('sel-type');
@@ -379,8 +410,15 @@ document.getElementById('btn-search').addEventListener('click', async () => {
         
         chatBox.innerHTML = responseHtml;
         
-        // Setup initial highlight index
-        window.currentHighlightIdx = -1;
+        
+        // Save to history
+        chatHistory.push({
+            query: query,
+            reply: reply.choices[0].message.content,
+            time: new Date().toLocaleString()
+        });
+        localStorage.setItem('schoolChatHistory', JSON.stringify(chatHistory));
+        renderHistory();
         
     } catch (e) {
         chatBox.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> 發生錯誤: ${e.message}</div>`;
@@ -411,5 +449,7 @@ window.navigateHighlight = function(direction) {
     document.getElementById('highlight-counter').innerText = `${window.currentHighlightIdx + 1} / ${marks.length}`;
 };
 
+// Initial render
+renderHistory();
 // Load the file index dynamically
 loadGitHubTree();
