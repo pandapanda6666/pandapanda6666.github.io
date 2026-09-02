@@ -65,35 +65,77 @@ async function loadGitHubTree() {
     }
 }
 
+let savedSelection = {
+    type: localStorage.getItem('selType'),
+    level: localStorage.getItem('selLevel'),
+    city: localStorage.getItem('selCity'),
+    district: localStorage.getItem('selDistrict'),
+    school: localStorage.getItem('selSchool')
+};
+
 function updateDropdowns() {
     selType.innerHTML = '<option value="">選擇公私立</option>';
     Object.keys(fileTree).forEach(t => selType.innerHTML += `<option value="${t}">${t}</option>`);
     
-    selType.onchange = () => {
+    if (savedSelection.type && fileTree[savedSelection.type]) {
+        selType.value = savedSelection.type;
+    }
+    
+    selType.onchange = (e) => {
+        if (e && e.isTrusted) savedSelection = {}; 
+        localStorage.setItem('selType', selType.value);
+        
         selLevel.innerHTML = '<option value="">選擇學制</option>';
         if(selType.value) Object.keys(fileTree[selType.value]).forEach(l => selLevel.innerHTML += `<option value="${l}">${l}</option>`);
-        selLevel.onchange();
+        
+        if (savedSelection.level && selType.value === savedSelection.type && fileTree[selType.value][savedSelection.level]) {
+            selLevel.value = savedSelection.level;
+        }
+        selLevel.onchange(e);
     };
     
-    selLevel.onchange = () => {
+    selLevel.onchange = (e) => {
+        if (e && e.isTrusted) savedSelection = {}; 
+        localStorage.setItem('selLevel', selLevel.value);
+        
         selCity.innerHTML = '<option value="">選擇縣市</option>';
         if(selType.value && selLevel.value) Object.keys(fileTree[selType.value][selLevel.value]).forEach(c => selCity.innerHTML += `<option value="${c}">${c}</option>`);
-        selCity.onchange();
+        
+        if (savedSelection.city && fileTree[selType.value] && fileTree[selType.value][selLevel.value] && fileTree[selType.value][selLevel.value][savedSelection.city]) {
+            selCity.value = savedSelection.city;
+        }
+        selCity.onchange(e);
     };
     
-    selCity.onchange = () => {
+    selCity.onchange = (e) => {
+        if (e && e.isTrusted) savedSelection = {};
+        localStorage.setItem('selCity', selCity.value);
+        
         selDistrict.innerHTML = '<option value="">選擇鄉鎮市區</option>';
         if(selType.value && selLevel.value && selCity.value) Object.keys(fileTree[selType.value][selLevel.value][selCity.value]).forEach(d => selDistrict.innerHTML += `<option value="${d}">${d}</option>`);
-        selDistrict.onchange();
+        
+        if (savedSelection.district && fileTree[selType.value] && fileTree[selType.value][selLevel.value] && fileTree[selType.value][selLevel.value][selCity.value] && fileTree[selType.value][selLevel.value][selCity.value][savedSelection.district]) {
+            selDistrict.value = savedSelection.district;
+        }
+        selDistrict.onchange(e);
     };
     
-    selDistrict.onchange = () => {
+    selDistrict.onchange = (e) => {
+        if (e && e.isTrusted) savedSelection = {};
+        localStorage.setItem('selDistrict', selDistrict.value);
+        
         selSchool.innerHTML = '<option value="">選擇學校</option>';
         if(selType.value && selLevel.value && selCity.value && selDistrict.value) Object.keys(fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value]).forEach(s => selSchool.innerHTML += `<option value="${s}">${s}</option>`);
-        selSchool.onchange();
+        
+        if (savedSelection.school && fileTree[selType.value] && fileTree[selType.value][selLevel.value] && fileTree[selType.value][selLevel.value][selCity.value] && fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value] && fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][savedSelection.school]) {
+            selSchool.value = savedSelection.school;
+        }
+        selSchool.onchange(e);
     };
     
-    selSchool.onchange = async () => {
+    selSchool.onchange = async (e) => {
+        if (e && e.isTrusted) savedSelection = {};
+        localStorage.setItem('selSchool', selSchool.value);
         if(selSchool.value) {
             let pdfPaths = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
             
@@ -137,6 +179,11 @@ function updateDropdowns() {
             btnViewPdf.disabled = true;
         }
     };
+    
+    // Trigger the initial cascade if we have a saved type
+    if (selType.value) {
+        selType.onchange();
+    }
 }
 
 btnViewPdf.addEventListener('click', () => {
