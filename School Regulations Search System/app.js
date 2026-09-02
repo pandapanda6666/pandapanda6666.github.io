@@ -4,6 +4,8 @@ const modelId = "Phi-3-mini-4k-instruct-q4f16_1-MLC";
 let engine;
 let fileTree = {};
 let schoolDataChunks = [];
+let fullSchoolText = "";
+let currentPdfUrl = "";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
@@ -12,12 +14,43 @@ const selLevel = document.getElementById('sel-level');
 const selCity = document.getElementById('sel-city');
 const selDistrict = document.getElementById('sel-district');
 const selSchool = document.getElementById('sel-school');
+const btnViewPdf = document.getElementById('btn-view-pdf');
 
-// Fetch file tree on load
-async function loadFileTree() {
+// Fetch file tree directly from GitHub API
+async function loadGitHubTree() {
     try {
-        const res = await fetch('file_index.json');
-        fileTree = await res.json();
+        const repoUrl = 'https://api.github.com/repos/pandapanda6666/pandapanda6666.github.io/git/trees/main?recursive=1';
+        const res = await fetch(repoUrl);
+        const data = await res.json();
+        
+        fileTree = {};
+        
+        const prefix = 'School Regulations Search System/校規/';
+        for (let item of data.tree) {
+            if (item.type === 'blob' && item.path.startsWith(prefix) && item.path.toLowerCase().endsWith('.pdf')) {
+                // Ignore backup folders
+                if(item.path.includes('【備份】')) continue;
+                
+                const relativePath = item.path.substring(prefix.length);
+                const parts = relativePath.split('/');
+                
+                if (parts.length >= 6) {
+                    const type_name = parts[0];
+                    const level = parts[1];
+                    const city = parts[2];
+                    const district = parts[3];
+                    const school = parts[4];
+                    
+                    if (!fileTree[type_name]) fileTree[type_name] = {};
+                    if (!fileTree[type_name][level]) fileTree[type_name][level] = {};
+                    if (!fileTree[type_name][level][city]) fileTree[type_name][level][city] = {};
+                    if (!fileTree[type_name][level][city][district]) fileTree[type_name][level][city][district] = {};
+                    if (!fileTree[type_name][level][city][district][school]) fileTree[type_name][level][city][district][school] = [];
+                    
+                    fileTree[type_name][level][city][district][school].push(item.path);
+                }
+            }
+        }
         
         selType.disabled = false;
         selLevel.disabled = false;
@@ -27,8 +60,8 @@ async function loadFileTree() {
         
         updateDropdowns();
     } catch(e) {
-        console.error("Failed to load file tree", e);
-        document.getElementById('chat-box').innerHTML = '<p class="text-danger">無法載入校規目錄，請確認 file_index.json 存在。</p>';
+        console.error("Failed to load GitHub tree", e);
+        document.getElementById('chat-box').innerHTML = '<p class="text-danger">無法載入 GitHub 目錄結構，請確認網路連線或 API 限制。</p>';
     }
 }
 
@@ -62,36 +95,55 @@ function updateDropdowns() {
     
     selSchool.onchange = async () => {
         if(selSchool.value) {
-            const pdfPaths = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
-            document.getElementById('chat-box').innerHTML = '<p class="text-primary">正在下載並讀取校規 PDF 檔案內容...</p>';
-            let fullText = "";
-            for(let path of pdfPaths) {
-                // path is relative like: 公立/國民中學/...
-                fullText += await extractTextFromPDFUrl('校規/' + path) + "\n\n";
+            let pdfPaths = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
+            
+            // Check for all.pdf prioritization
+            const allPdf = pdfPaths.find(p => p.toLowerCase().endsWith('all.pdf'));
+            if(allPdf) {
+                pdfPaths = [allPdf]; // Only read all.pdf if it exists
             }
             
-            // 固定長度切割，避免超過 Token 限制
+            // For viewing manually
+            currentPdfUrl = 'https://pandapanda6666.github.io/' + pdfPaths[0];
+            btnViewPdf.disabled = false;
+            
+            document.getElementById('chat-box').innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>正在下載並解析校規 PDF 檔案內容...</p></div>';
+            
+            fullSchoolText = "";
+            for(let path of pdfPaths) {
+                const url = 'https://pandapanda6666.github.io/' + path;
+                fullSchoolText += await extractTextFromPDFUrl(url) + "\n\n";
+            }
+            
+            // Chunking
             schoolDataChunks = [];
             const chunkSize = 500;
             const overlap = 50;
             let currentIdx = 0;
-            while(currentIdx < fullText.length) {
-                let chunk = fullText.slice(currentIdx, currentIdx + chunkSize);
+            while(currentIdx < fullSchoolText.length) {
+                let chunk = fullSchoolText.slice(currentIdx, currentIdx + chunkSize);
                 if (chunk.trim().length > 20) {
                     schoolDataChunks.push(chunk.trim());
                 }
                 currentIdx += (chunkSize - overlap);
             }
 
-            document.getElementById('chat-box').innerHTML = '<p class="text-success">校規讀取完成，可以開始查詢囉！</p>';
+            document.getElementById('chat-box').innerHTML = '<div class="text-center text-success mt-4"><i class="fas fa-check-circle fa-3x mb-3"></i><p>校規讀取完成，請在上方輸入問題開始查詢！</p></div>';
             document.getElementById('query-input').disabled = false;
             document.getElementById('btn-search').disabled = false;
         } else {
             document.getElementById('query-input').disabled = true;
             document.getElementById('btn-search').disabled = true;
+            btnViewPdf.disabled = true;
         }
     };
 }
+
+btnViewPdf.addEventListener('click', () => {
+    if(currentPdfUrl) {
+        window.open(currentPdfUrl, '_blank');
+    }
+});
 
 async function extractTextFromPDFUrl(url) {
     try {
@@ -114,16 +166,39 @@ async function extractTextFromPDFUrl(url) {
 async function initModel() {
     document.getElementById('loading-overlay').style.display = 'block';
     const progressEl = document.getElementById('loading-progress');
+    const pBar = document.getElementById('progress-bar');
+    const pSize = document.getElementById('progress-size');
+    const pTime = document.getElementById('progress-time');
+    
     try {
         engine = new webllm.MLCEngine();
         engine.setInitProgressCallback((report) => {
             progressEl.innerText = report.text;
+            
+            const percent = Math.round(report.progress * 100);
+            pBar.style.width = percent + '%';
+            pBar.innerText = percent + '%';
+            
+            let timeElapsed = report.timeElapsed;
+            if (report.progress > 0 && report.progress < 1) {
+                const totalTime = timeElapsed / report.progress;
+                const remainTime = totalTime - timeElapsed;
+                pTime.innerHTML = `<i class="fas fa-clock"></i> 剩餘: ${Math.round(remainTime)}s / 總: ${Math.round(totalTime)}s`;
+            } else if (report.progress >= 1) {
+                pTime.innerHTML = `<i class="fas fa-check"></i> 完成`;
+            }
+            
+            let match = report.text.match(/(\d+(?:\.\d+)?[KMGB]+)\s*\/\s*(\d+(?:\.\d+)?[KMGB]+)/i);
+            if(match) {
+                pSize.innerHTML = `<i class="fas fa-download"></i> 大小: ${match[1]} / ${match[2]}`;
+            }
         });
         await engine.reload(modelId);
         document.getElementById('loading-overlay').style.display = 'none';
     } catch (e) {
         console.error(e);
         progressEl.innerText = "模型載入失敗: " + e.message;
+        pBar.classList.replace('progress-bar-animated', 'bg-danger');
     }
 }
 
@@ -131,13 +206,19 @@ document.getElementById('btn-delete-model').addEventListener('click', async () =
     if (confirm('確定要刪除已下載的模型快取嗎？')) {
         try {
             const cacheNames = await caches.keys();
+            let deleted = false;
             for (const name of cacheNames) {
-                if (name.includes('webllm')) {
+                if (name.includes('webllm') || name.includes('tvm')) {
                     await caches.delete(name);
+                    deleted = true;
                 }
             }
-            alert('模型已刪除。下次查詢將會重新下載。');
-            engine = null;
+            if(deleted) {
+                alert('模型已成功刪除。下次查詢將會重新下載。');
+                engine = null;
+            } else {
+                alert('沒有找到模型快取，可能是尚未下載。');
+            }
         } catch(e) {
             alert('刪除失敗: ' + e.message);
         }
@@ -161,16 +242,20 @@ function searchRelevantChunks(query, topK = 10) {
     return scoredChunks.slice(0, topK).map(sc => sc.chunk);
 }
 
-function highlightText(text, query) {
-    let highlighted = text;
-    const words = query.split(/[ \u3000]+/); 
-    words.forEach(w => {
-        if(w.trim().length >= 2) { 
-            const regex = new RegExp(`(${w.trim()})`, 'gi');
-            highlighted = highlighted.replace(regex, '<span class="highlight">$1</span>');
-        }
-    });
-    return highlighted;
+function highlightFullText(usedChunks) {
+    let highlightedText = fullSchoolText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
+    // Sort chunks by length descending so longer chunks are highlighted first
+    usedChunks.sort((a, b) => b.length - a.length);
+    
+    for(let chunk of usedChunks) {
+        // Escape special regex chars
+        const safeChunk = chunk.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${safeChunk})`, 'g');
+        highlightedText = highlightedText.replace(regex, '<mark class="highlight">$1</mark>');
+    }
+    
+    return highlightedText;
 }
 
 document.getElementById('btn-search').addEventListener('click', async () => {
@@ -182,7 +267,7 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     }
     
     const chatBox = document.getElementById('chat-box');
-    chatBox.innerHTML = '<p class="text-primary">檢索校規資料中...</p>';
+    chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>檢索校規資料中...</p></div>';
     
     let relevantChunks = searchRelevantChunks(query, 10);
     
@@ -197,9 +282,14 @@ document.getElementById('btn-search').addEventListener('click', async () => {
         usedChunks.push(chunk);
     }
     
-    chatBox.innerHTML = '<p class="text-primary">AI正在思考並生成回覆...</p>';
+    const isCasual = document.getElementById('tone-casual').checked;
+    const toneInstruction = isCasual 
+        ? "請用非常白話、輕鬆且生活化的口吻回答，如果原文中有像是『不啃不消』這種太抽象的詞，請一定要轉換成現代人(或國高中生)也能輕鬆看懂的白話文。" 
+        : "請使用正式、嚴謹的口吻與專業的詞彙回答。";
+
+    const systemPrompt = `你是一個專業的校規查詢助理。請根據以下【校規資料】回答使用者的問題。如果資料中沒有提及，請直接回答「根據提供的校規資料，無法找到相關規定。」${toneInstruction}請一律使用繁體中文回答。\n\n【校規資料】\n${context}`;
     
-    const systemPrompt = `你是一個專業的校規查詢助理。請根據以下【校規資料】回答使用者的問題。如果資料中沒有提及，請直接回答「根據提供的校規資料，無法找到相關規定。」請使用繁體中文回答。\n\n【校規資料】\n${context}`;
+    chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-grow mb-3"></div><p>AI正在思考並生成回覆...</p></div>';
     
     const messages = [
         { role: "system", content: systemPrompt },
@@ -212,25 +302,24 @@ document.getElementById('btn-search').addEventListener('click', async () => {
             temperature: 0.1
         });
         
-        let responseHtml = `<div><strong>AI 回覆：</strong><br>${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div>`;
+        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2">${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div></div>`;
         
-        responseHtml += `<hr><h5>來源資料：</h5>`;
-        usedChunks.forEach((chunk, index) => {
-            const highlightedChunk = highlightText(chunk, query);
-            responseHtml += `
-                <div class="source-box" onclick="this.querySelector('.source-content').style.display = this.querySelector('.source-content').style.display === 'block' ? 'none' : 'block'">
-                    📄 來源段落 ${index + 1} (點擊展開/收合)
-                    <div class="source-content">${highlightedChunk.replace(/\n/g, '<br>')}</div>
-                </div>
-            `;
-        });
+        const highlightedFullDoc = highlightFullText(usedChunks);
+        
+        responseHtml += `<hr><h5 class="text-secondary"><i class="fas fa-highlighter"></i> 完整參考來源 (黃色高光為 AI 使用到的段落)：</h5>`;
+        responseHtml += `
+            <div class="source-box" onclick="const content = this.querySelector('.source-content'); content.style.display = content.style.display === 'block' ? 'none' : 'block'">
+                <i class="fas fa-book"></i> 點擊此處展開 / 收合整份校規文件
+                <div class="source-content" onclick="event.stopPropagation();">${highlightedFullDoc}</div>
+            </div>
+        `;
         
         chatBox.innerHTML = responseHtml;
         
     } catch (e) {
-        chatBox.innerHTML = `<p class="text-danger">發生錯誤: ${e.message}</p>`;
+        chatBox.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> 發生錯誤: ${e.message}</div>`;
     }
 });
 
-// Load the file index
-loadFileTree();
+// Load the file index dynamically
+loadGitHubTree();

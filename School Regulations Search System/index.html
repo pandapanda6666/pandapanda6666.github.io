@@ -4,57 +4,148 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>校規查詢系統</title>
+    <link rel="icon" href="school.svg" type="image/svg+xml">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
-        body { font-family: 'Microsoft JhengHei', sans-serif; padding: 20px; background-color: #f8f9fa; }
-        .highlight { background-color: yellow; font-weight: bold; }
-        #chat-box { border: 1px solid #ccc; padding: 15px; border-radius: 8px; background: white; min-height: 200px; margin-bottom: 20px; }
-        .source-box { border: 1px solid #17a2b8; padding: 10px; margin-top: 10px; border-radius: 5px; background: #e0f7fa; cursor: pointer; }
-        .source-content { display: none; margin-top: 10px; padding: 10px; border-top: 1px dashed #17a2b8; }
-        #loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 1000; text-align: center; padding-top: 20vh; }
+        body { 
+            font-family: 'Microsoft JhengHei', sans-serif; 
+            background-color: #f0f2f5; 
+            padding-bottom: 50px;
+        }
+        .header-banner {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px 0;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .main-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-top: -20px;
+        }
+        .highlight { background-color: #ffe066; font-weight: bold; border-radius: 3px; padding: 0 2px; }
+        #chat-box { border: 1px solid #e1e4e8; padding: 20px; border-radius: 10px; background: #fafbfc; min-height: 250px; margin-bottom: 20px; font-size: 1.05rem; line-height: 1.6; }
+        .source-box { 
+            border: 1px solid #cce5ff; 
+            padding: 15px; 
+            margin-top: 15px; 
+            border-radius: 8px; 
+            background: #ffffff; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+        .source-content { 
+            display: none; 
+            margin-top: 15px; 
+            padding: 15px; 
+            border-top: 1px solid #eee;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }
+        #loading-overlay { 
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(255,255,255,0.9); z-index: 1000; text-align: center; padding-top: 15vh; 
+        }
+        .progress { height: 25px; border-radius: 15px; font-size: 1rem; font-weight: bold; }
+        .progress-bar { background-color: #28a745; transition: width 0.3s ease; }
+        .small-msg { font-size: 0.8rem; color: #6c757d; margin-top: 5px; }
+        .stat-badge { font-size: 0.9rem; padding: 8px 12px; }
     </style>
 </head>
 <body>
     <div id="loading-overlay">
-        <h3>正在下載並載入本機 AI 模型...</h3>
-        <p>這可能需要幾分鐘的時間。下載完成後模型會存放在瀏覽器快取中。</p>
-        <div class="spinner-border text-primary" role="status"></div>
-        <p id="loading-progress" class="mt-3"></p>
+        <div class="container" style="max-width: 600px;">
+            <h2 class="mb-3 text-primary"><i class="fas fa-microchip"></i> 載入本機 AI 模型</h2>
+            <p class="text-muted mb-4">模型下載後會存放在瀏覽器快取中，下次開啟將會秒速載入。</p>
+            
+            <div class="progress mb-2">
+                <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;">0%</div>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3 text-muted">
+                <span id="progress-size" class="stat-badge badge bg-light text-dark border">計算中...</span>
+                <span id="progress-time" class="stat-badge badge bg-light text-dark border">計算時間...</span>
+            </div>
+            
+            <div id="loading-progress" class="small-msg">正在初始化...</div>
+        </div>
+    </div>
+
+    <div class="header-banner text-center mb-4">
+        <h1><i class="fas fa-school"></i> 智慧校規查詢系統</h1>
+        <p class="mb-0 text-light">完全在您的瀏覽器端執行，保障隱私與安全</p>
     </div>
 
     <div class="container">
-        <h1 class="text-center mb-4">🏫 校規查詢系統 (WebLLM 本機執行)</h1>
-        
-        <div class="row mb-3">
-            <div class="col-md-2">
-                <select id="sel-type" class="form-select" disabled><option value="">載入中...</option></select>
+        <div class="main-card">
+            <h4 class="mb-3 border-bottom pb-2"><i class="fas fa-search-location"></i> 選擇學校</h4>
+            <div class="row g-2 mb-3">
+                <div class="col-md-2">
+                    <select id="sel-type" class="form-select" disabled><option value="">載入資料中...</option></select>
+                </div>
+                <div class="col-md-2">
+                    <select id="sel-level" class="form-select" disabled><option value="">選擇學制</option></select>
+                </div>
+                <div class="col-md-2">
+                    <select id="sel-city" class="form-select" disabled><option value="">選擇縣市</option></select>
+                </div>
+                <div class="col-md-3">
+                    <select id="sel-district" class="form-select" disabled><option value="">選擇鄉鎮市區</option></select>
+                </div>
+                <div class="col-md-3">
+                    <select id="sel-school" class="form-select" disabled><option value="">選擇學校</option></select>
+                </div>
             </div>
-            <div class="col-md-2">
-                <select id="sel-level" class="form-select" disabled><option value="">選擇學制</option></select>
+            
+            <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
+                <button class="btn btn-outline-info" id="btn-view-pdf" disabled>
+                    <i class="fas fa-file-pdf"></i> 手動查看原始校規 PDF
+                </button>
+                <button class="btn btn-outline-danger ms-auto" id="btn-delete-model">
+                    <i class="fas fa-trash-alt"></i> 刪除 AI 模型
+                </button>
             </div>
-            <div class="col-md-2">
-                <select id="sel-city" class="form-select" disabled><option value="">選擇縣市</option></select>
-            </div>
-            <div class="col-md-3">
-                <select id="sel-district" class="form-select" disabled><option value="">選擇鄉鎮市區</option></select>
-            </div>
-            <div class="col-md-3">
-                <select id="sel-school" class="form-select" disabled><option value="">選擇學校</option></select>
-            </div>
-        </div>
-        
-        <div class="mb-3 d-flex gap-2">
-            <button class="btn btn-outline-danger" id="btn-delete-model">刪除並重新下載模型</button>
-        </div>
 
-        <div class="input-group mb-3">
-            <input type="text" id="query-input" class="form-control" placeholder="輸入要查的東西，例如：服儀規定是什麼？" disabled>
-            <button class="btn btn-primary" id="btn-search" disabled>查詢</button>
-        </div>
+            <h4 class="mb-3 border-bottom pb-2"><i class="fas fa-robot"></i> AI 查詢設定</h4>
+            <div class="row g-2 mb-3 align-items-center">
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold">回答語氣：</label>
+                </div>
+                <div class="col-auto">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="toneOptions" id="tone-formal" value="正式" checked>
+                        <label class="btn btn-outline-primary" for="tone-formal">正式</label>
+                      
+                        <input type="radio" class="btn-check" name="toneOptions" id="tone-casual" value="白話">
+                        <label class="btn btn-outline-primary" for="tone-casual">白話</label>
+                    </div>
+                </div>
+                <div class="col text-muted small">
+                    (例如白話：把「不啃不消」等太抽象的詞轉換成好懂的句子)
+                </div>
+            </div>
 
-        <div id="chat-box">
-            <p class="text-muted">請先選擇學校，系統將自動下載並解析校規檔案，完成後即可開始查詢。</p>
+            <div class="input-group mb-4">
+                <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                <input type="text" id="query-input" class="form-control form-control-lg" placeholder="輸入想查詢的校規，例如：服儀規定是什麼？" disabled>
+                <button class="btn btn-primary btn-lg px-4" id="btn-search" disabled>開始查詢</button>
+            </div>
+
+            <div id="chat-box">
+                <div class="text-center text-muted mt-4">
+                    <i class="fas fa-book-open fa-3x mb-3 text-light-gray"></i>
+                    <p>請先選擇學校，系統將自動下載解析檔案，完成後即可查詢。</p>
+                </div>
+            </div>
         </div>
     </div>
 
