@@ -104,14 +104,14 @@ function updateDropdowns() {
             }
             
             // For viewing manually
-            currentPdfUrl = 'https://pandapanda6666.github.io/' + pdfPaths[0];
+            currentPdfUrl = 'https://pandapanda6666.github.io/' + pdfPaths[0].split('/').map(encodeURIComponent).join('/');
             btnViewPdf.disabled = false;
             
             document.getElementById('chat-box').innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>正在下載並解析校規 PDF 檔案內容...</p></div>';
             
             fullSchoolText = "";
             for(let path of pdfPaths) {
-                const url = 'https://pandapanda6666.github.io/' + path;
+                const url = 'https://pandapanda6666.github.io/' + path.split('/').map(encodeURIComponent).join('/');
                 fullSchoolText += await extractTextFromPDFUrl(url) + "\n\n";
             }
             
@@ -299,7 +299,9 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     try {
         const reply = await engine.chat.completions.create({
             messages: messages,
-            temperature: 0.1
+            temperature: 0.1,
+            repetition_penalty: 1.1,
+            frequency_penalty: 0.5
         });
         
         let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2">${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div></div>`;
