@@ -245,6 +245,7 @@ async function initModel() {
     document.getElementById('loading-overlay').style.display = 'block';
     const progressEl = document.getElementById('loading-progress');
     const pBar = document.getElementById('progress-bar');
+    const pText = document.getElementById('progress-text');
     const pSize = document.getElementById('progress-size');
     const pTime = document.getElementById('progress-time');
     
@@ -255,7 +256,7 @@ async function initModel() {
             
             const percent = Math.round(report.progress * 100);
             pBar.style.width = percent + '%';
-            pBar.innerText = percent + '%';
+            pText.innerText = percent + '%';
             
             let timeElapsed = report.timeElapsed;
             if (report.progress > 0 && report.progress < 1) {
@@ -397,12 +398,10 @@ ${context}
     try {
         const reply = await engine.chat.completions.create({
             messages: messages,
-            temperature: 0.1,
-            repetition_penalty: 1.1,
-            frequency_penalty: 0.5
+            temperature: 0.1
         });
         
-        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2">${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div></div>`;
+        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2 text-dark">${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div></div>`;
         
         const highlightedFullDoc = highlightFullText(usedChunks);
         
