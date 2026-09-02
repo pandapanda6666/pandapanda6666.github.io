@@ -273,15 +273,24 @@ document.getElementById('btn-delete-model').addEventListener('click', async () =
 });
 
 function searchRelevantChunks(query, topK = 10) {
+    let cleanQuery = query.replace(/[的了嗎是在上有跟和與或就才不會了啊呢]/g, '');
+    let bigrams = [];
+    for(let i=0; i<cleanQuery.length-1; i++) {
+        bigrams.push(cleanQuery.substring(i, i+2));
+    }
+    
     let scoredChunks = schoolDataChunks.map(chunk => {
         let score = 0;
-        const keywords = query.split('');
-        keywords.forEach(kw => {
-            if (kw.trim() && chunk.includes(kw)) score++;
-        });
-        const words = query.split(' ');
+        const words = query.split(/[ \u3000]+/);
         words.forEach(w => {
-            if (w.trim() && chunk.includes(w)) score += 5;
+            if (w.trim().length >= 2 && chunk.includes(w.trim())) score += 20;
+        });
+        bigrams.forEach(bg => {
+            if (chunk.includes(bg)) score += 5;
+        });
+        const chars = cleanQuery.split('');
+        chars.forEach(c => {
+            if (c.trim() && chunk.includes(c)) score += 1;
         });
         return { chunk, score };
     });
@@ -334,7 +343,7 @@ document.getElementById('btn-search').addEventListener('click', async () => {
         ? "請用非常白話、輕鬆且生活化的口吻回答，如果原文中有像是『不啃不消』這種太抽象的詞，請一定要轉換成現代人(或國高中生)也能輕鬆看懂的白話文。" 
         : "請使用正式、嚴謹的口吻與專業的詞彙回答。";
 
-    const systemPrompt = `你是一個專業的校規查詢助理。請根據以下【校規資料】回答使用者的問題。如果資料中沒有提及，請直接回答「根據提供的校規資料，無法找到相關規定。」${toneInstruction}請一律使用繁體中文回答。\n\n【校規資料】\n${context}`;
+    const systemPrompt = `你是一個專業的校規查詢助理。請根據以下【校規資料】回答使用者的問題。請詳細說明校規的具體規定，必須清楚引述具體的條文或相關規定內容。如果資料中沒有提及，請直接回答「根據提供的校規資料，無法找到相關規定。」${toneInstruction}請一律使用繁體中文回答。\n\n【校規資料】\n${context}`;
     
     chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-grow mb-3"></div><p>AI正在思考並生成回覆...</p></div>';
     
@@ -357,18 +366,50 @@ document.getElementById('btn-search').addEventListener('click', async () => {
         
         responseHtml += `<hr><h5 class="text-secondary"><i class="fas fa-highlighter"></i> 完整參考來源 (黃色高光為 AI 使用到的段落)：</h5>`;
         responseHtml += `
-            <div class="source-box" onclick="const content = this.querySelector('.source-content'); content.style.display = content.style.display === 'block' ? 'none' : 'block'">
-                <i class="fas fa-book"></i> 點擊此處展開 / 收合整份校規文件
-                <div class="source-content" onclick="event.stopPropagation();">${highlightedFullDoc}</div>
+            <div class="mb-2">
+                <button class="btn btn-sm btn-outline-primary" onclick="navigateHighlight(-1)"><i class="fas fa-chevron-up"></i> 上一處</button>
+                <button class="btn btn-sm btn-outline-primary" onclick="navigateHighlight(1)"><i class="fas fa-chevron-down"></i> 下一處</button>
+                <span id="highlight-counter" class="ms-2 text-muted small">0 / 0</span>
+            </div>
+            <div class="source-box" onclick="const content = this.querySelector('.source-content'); content.style.display = 'block';">
+                <i class="fas fa-book"></i> 點擊此處展開整份校規文件
+                <div class="source-content" id="full-doc-content" onclick="event.stopPropagation();">${highlightedFullDoc}</div>
             </div>
         `;
         
         chatBox.innerHTML = responseHtml;
         
+        // Setup initial highlight index
+        window.currentHighlightIdx = -1;
+        
     } catch (e) {
         chatBox.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> 發生錯誤: ${e.message}</div>`;
     }
 });
+
+window.navigateHighlight = function(direction) {
+    const marks = document.querySelectorAll('#full-doc-content mark.highlight');
+    if(marks.length === 0) return;
+    
+    const contentBox = document.getElementById('full-doc-content');
+    if(contentBox) contentBox.style.display = 'block';
+    
+    marks.forEach(m => {
+        m.style.border = 'none';
+        m.style.boxShadow = 'none';
+    });
+    
+    window.currentHighlightIdx += direction;
+    if(window.currentHighlightIdx < 0) window.currentHighlightIdx = marks.length - 1;
+    if(window.currentHighlightIdx >= marks.length) window.currentHighlightIdx = 0;
+    
+    const target = marks[window.currentHighlightIdx];
+    target.style.border = '2px solid red';
+    target.style.boxShadow = '0 0 5px red';
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    document.getElementById('highlight-counter').innerText = `${window.currentHighlightIdx + 1} / ${marks.length}`;
+};
 
 // Load the file index dynamically
 loadGitHubTree();
