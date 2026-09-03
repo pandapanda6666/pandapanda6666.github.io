@@ -40,6 +40,27 @@ document.getElementById('btn-clear-history')?.addEventListener('click', () => {
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
+const selModel = document.getElementById('model-select');
+const apiKeyContainer = document.getElementById('api-key-container');
+const apiKeyInput = document.getElementById('api-key-input');
+
+if (localStorage.getItem('selectedModel')) selModel.value = localStorage.getItem('selectedModel');
+if (localStorage.getItem('geminiApiKey')) apiKeyInput.value = localStorage.getItem('geminiApiKey');
+
+selModel.addEventListener('change', () => {
+    localStorage.setItem('selectedModel', selModel.value);
+    if (selModel.selectedOptions[0].dataset.type === 'api') {
+        apiKeyContainer.style.display = 'block';
+    } else {
+        apiKeyContainer.style.display = 'none';
+    }
+});
+selModel.dispatchEvent(new Event('change'));
+
+apiKeyInput.addEventListener('input', () => {
+    localStorage.setItem('geminiApiKey', apiKeyInput.value);
+});
+
 const selType = document.getElementById('sel-type');
 const selLevel = document.getElementById('sel-level');
 const selCity = document.getElementById('sel-city');
@@ -256,7 +277,9 @@ async function extractTextFromPDFUrl(url) {
     }
 }
 
-async function initModel() {
+let currentLoadedModelId = "";
+
+async function initModel(targetModelId) {
     document.getElementById('loading-overlay').style.display = 'block';
     const progressEl = document.getElementById('loading-progress');
     const pBar = document.getElementById('progress-bar');
@@ -277,7 +300,7 @@ async function initModel() {
             if (report.progress > 0 && report.progress < 1) {
                 const totalTime = timeElapsed / report.progress;
                 const remainTime = totalTime - timeElapsed;
-                pTime.innerHTML = `<i class="fas fa-clock"></i> 剩餘: ${Math.round(remainTime)}s / 總: ${Math.round(totalTime)}s`;
+                pTime.innerHTML = `<i class="fas fa-clock"></i> 剩餘: ${Math.round(remainTime)}s / 總計 ${Math.round(totalTime)}s`;
             } else if (report.progress >= 1) {
                 pTime.innerHTML = `<i class="fas fa-check"></i> 完成`;
             }
@@ -287,7 +310,8 @@ async function initModel() {
                 pSize.innerHTML = `<i class="fas fa-download"></i> 大小: ${match[1]} / ${match[2]}`;
             }
         });
-        await engine.reload(modelId);
+        await engine.reload(targetModelId);
+        currentLoadedModelId = targetModelId;
         document.getElementById('loading-overlay').style.display = 'none';
     } catch (e) {
         console.error(e);
@@ -363,12 +387,41 @@ function highlightFullText(usedChunks) {
     return highlightedText;
 }
 
+async function fetchGeminiAPI(systemPrompt, userQuery, model, apiKey) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ parts: [{ text: userQuery }] }],
+            generationConfig: { temperature: 0.1 }
+        })
+    });
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error.message || "API 請求失敗");
+    }
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+}
+
 document.getElementById('btn-search').addEventListener('click', async () => {
     const query = document.getElementById('query-input').value.trim();
     if (!query) return;
     
-    if (!engine) {
-        await initModel();
+    const selectedModelValue = selModel.value;
+    const isApi = selModel.selectedOptions[0].dataset.type === 'api';
+
+    if (isApi) {
+        if (!apiKeyInput.value.trim()) {
+            alert("請先輸入 API 金鑰！");
+            return;
+        }
+    } else {
+        if (!engine || currentLoadedModelId !== selectedModelValue) {
+            await initModel(selectedModelValue);
+        }
     }
     
     const chatBox = document.getElementById('chat-box');
@@ -407,20 +460,26 @@ ${context}
     
     chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-grow mb-3"></div><p>AI正在思考並生成回覆...</p></div>';
     
-    const messages = [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: query }
-    ];
-    
     try {
-        const reply = await engine.chat.completions.create({
-            messages: messages,
-            temperature: 0.1,
-            repetition_penalty: 1.05,
-            frequency_penalty: 0.2
-        });
+        let aiReplyText = "";
         
-        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2 text-dark">${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div></div>`;
+        if (isApi) {
+            aiReplyText = await fetchGeminiAPI(systemPrompt, query, selectedModelValue, apiKeyInput.value.trim());
+        } else {
+            const messages = [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: query }
+            ];
+            const reply = await engine.chat.completions.create({
+                messages: messages,
+                temperature: 0.1,
+                repetition_penalty: 1.05,
+                frequency_penalty: 0.2
+            });
+            aiReplyText = reply.choices[0].message.content;
+        }
+        
+        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2 text-dark">${aiReplyText.replace(/\n/g, '<br>')}</div></div>`;
         
         const highlightedFullDoc = highlightFullText(usedChunks);
         
@@ -439,11 +498,12 @@ ${context}
         
         chatBox.innerHTML = responseHtml;
         
+        window.currentHighlightIdx = -1;
         
         // Save to history
         chatHistory.push({
             query: query,
-            reply: reply.choices[0].message.content,
+            reply: aiReplyText,
             time: new Date().toLocaleString()
         });
         localStorage.setItem('schoolChatHistory', JSON.stringify(chatHistory));

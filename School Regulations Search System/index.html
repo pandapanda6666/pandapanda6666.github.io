@@ -74,21 +74,55 @@
             
             <div class="d-flex justify-content-between mb-3 text-muted">
                 <span id="progress-size" class="stat-badge badge bg-light text-dark border">計算中...</span>
-                <span id="progress-time" class="stat-badge badge bg-light text-dark border">計算時間...</span>
+                <span id="progress-time" class="stat-badge badge bg-light text-dark border">計算中...</span>
             </div>
             
             <div id="loading-progress" class="small-msg">正在初始化...</div>
         </div>
     </div>
-
-    <div class="header-banner text-center mb-4">
+            
+            <div class="header-banner text-center mb-4">
         <h1><i class="fas fa-school"></i> 智慧校規查詢系統</h1>
         <p class="mb-0 text-light">完全在您的瀏覽器端執行，保障隱私與安全</p>
     </div>
 
     <div class="container">
         <div class="main-card">
-            <h4 class="mb-3 border-bottom pb-2"><i class="fas fa-search-location"></i> 選擇學校</h4>
+            
+            <h4 class="mt-2 mb-3 border-bottom pb-2"><i class="fas fa-cog"></i> AI 查詢設定</h4>
+            
+            <h5 class="mb-2 mt-3"><i class="fas fa-brain"></i> 選擇 AI 模型 (依智商排序)</h5>
+            <select id="model-select" class="form-select mb-2">
+                <option value="gemini-1.5-pro-latest" data-type="api">Gemini 1.5 Pro (需 API 金鑰) - 智商極高 🧠</option>
+                <option value="gemini-1.5-flash-latest" data-type="api">Gemini 1.5 Flash (需 API 金鑰) - 智商高 ⚡</option>
+                <option value="Llama-3.1-8B-Instruct-q4f32_1-MLC" data-type="local">Llama 3.1 8B (本機模型) - 智商中高 🦙</option>
+                <option value="Phi-3-mini-4k-instruct-q4f16_1-MLC" data-type="local" selected>Phi-3 Mini (本機模型) - 智商中 (輕量快速) ⚡</option>
+            </select>
+            
+            <div id="api-key-container" class="mb-3" style="display: none;">
+                <input type="password" id="api-key-input" class="form-control" placeholder="請輸入 Google Gemini API 金鑰 (不會上傳伺服器)">
+                <small class="text-muted">可至 <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a> 免費取得</small>
+            </div>
+
+            <div class="row g-2 mb-4 align-items-center mt-2">
+                <div class="col-auto">
+                    <label class="col-form-label fw-bold">回答語氣：</label>
+                </div>
+                <div class="col-auto">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="toneOptions" id="tone-formal" value="正式" checked>
+                        <label class="btn btn-outline-primary" for="tone-formal">正式</label>
+                      
+                        <input type="radio" class="btn-check" name="toneOptions" id="tone-casual" value="白話">
+                        <label class="btn btn-outline-primary" for="tone-casual">白話</label>
+                    </div>
+                </div>
+                <div class="col text-muted small">
+                    (例如白話：把「不啃不消」等太抽象的詞轉換成好懂的句子)
+                </div>
+            </div>
+
+            <h4 class="mb-3 border-bottom pb-2 mt-4"><i class="fas fa-search-location"></i> 選擇學校</h4>
             <div class="row g-2 mb-3">
                 <div class="col-md-2">
                     <select id="sel-type" class="form-select" disabled><option value="">載入資料中...</option></select>
@@ -109,36 +143,17 @@
             
             <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
                 <button class="btn btn-outline-info" id="btn-view-pdf" disabled>
-                    <i class="fas fa-file-pdf"></i> 手動查看原始校規 PDF
+                    <i class="fas fa-file-pdf"></i> 手動查看原始 PDF
                 </button>
                 <button class="btn btn-outline-danger ms-auto" id="btn-delete-model">
                     <i class="fas fa-trash-alt"></i> 刪除 AI 模型
                 </button>
             </div>
 
-            <h4 class="mb-3 border-bottom pb-2"><i class="fas fa-robot"></i> AI 查詢設定</h4>
-            <div class="row g-2 mb-3 align-items-center">
-                <div class="col-auto">
-                    <label class="col-form-label fw-bold">回答語氣：</label>
-                </div>
-                <div class="col-auto">
-                    <div class="btn-group" role="group">
-                        <input type="radio" class="btn-check" name="toneOptions" id="tone-formal" value="正式" checked>
-                        <label class="btn btn-outline-primary" for="tone-formal">正式</label>
-                      
-                        <input type="radio" class="btn-check" name="toneOptions" id="tone-casual" value="白話">
-                        <label class="btn btn-outline-primary" for="tone-casual">白話</label>
-                    </div>
-                </div>
-                <div class="col text-muted small">
-                    (例如白話：把「不啃不消」等太抽象的詞轉換成好懂的句子)
-                </div>
-            </div>
-
-            <div class="input-group mb-4">
+            <div class="input-group mb-4 mt-4">
                 <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
-                <input type="text" id="query-input" class="form-control form-control-lg" placeholder="輸入想查詢的校規，例如：服儀規定是什麼？" disabled>
-                <button class="btn btn-primary btn-lg px-4" id="btn-search" disabled>開始查詢</button>
+                <input type="text" id="query-input" class="form-control form-control-lg" placeholder="輸入要查詢的事項，例如：背包規定是什麼？" disabled>
+                <button class="btn btn-primary btn-lg px-4" id="btn-search" disabled>AI 查詢</button>
             </div>
 
             <div id="chat-box">
@@ -157,9 +172,9 @@
     </div>
     
     <div style="position: fixed; bottom: 10px; right: 15px; color: #888; font-size: 0.85rem; z-index: 100; font-weight: bold;">
-        v1.0.2
+        v1.1.0
     </div>
 
-    <script type="module" src="app.js?v=3"></script>
+    <script type="module" src="app.js?v=4"></script>
 </body>
 </html>
