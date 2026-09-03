@@ -389,7 +389,7 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     
     const isCasual = document.getElementById('tone-casual').checked;
     const toneInstruction = isCasual 
-        ? "請用非常白話、輕鬆且生活化的口吻回答，如果原文中有像是『不啃不消』這種太抽象的詞，請一定要轉換成現代人(或國高中生)也能輕鬆看懂的白話文。" 
+        ? "請用非常白話、輕鬆且生活化的口吻回答，將生硬的條文轉換成國高中生也能輕鬆看懂的白話文。" 
         : "請使用正式、嚴謹的口吻與專業的詞彙回答。";
 
     const systemPrompt = `你是一個專業的校規查詢助理。請【只根據】以下提供的【校規資料】來回答使用者的問題。
@@ -415,7 +415,9 @@ ${context}
     try {
         const reply = await engine.chat.completions.create({
             messages: messages,
-            temperature: 0.1
+            temperature: 0.1,
+            repetition_penalty: 1.05,
+            frequency_penalty: 0.2
         });
         
         let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2 text-dark">${reply.choices[0].message.content.replace(/\n/g, '<br>')}</div></div>`;
