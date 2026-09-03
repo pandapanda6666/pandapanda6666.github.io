@@ -5,7 +5,6 @@ import * as CANNON from 'cannon-es';
 let scene, camera, renderer, world;
 let mazeBody, ballBody;
 let mazeVisual, ballVisual, exitVisual;
-let winZoneLight;
 
 let socket;
 const WS_URL = 'ws://localhost:50500/rab';
@@ -53,7 +52,7 @@ const levels = [
     {
         width: 15, depth: 15,
         time: 60,
-        startPos: [-5, 5], // x, z
+        startPos: [-5, 5],
         exitPos: [5, -5],
         walls: [
             { w: 6, h: 2, d: 0.5, x: 0, z: -3 },
@@ -155,7 +154,7 @@ function initThree() {
 
 function initCannon() {
     world = new CANNON.World();
-    world.gravity.set(0, -30, 0); // Stronger gravity for crisp movement
+    world.gravity.set(0, -30, 0);
     world.broadphase = new CANNON.SAPBroadphase(world);
     world.solver.iterations = 20;
     const defaultMat = new CANNON.Material("default");
@@ -257,8 +256,6 @@ function buildLevel(cfg) {
     exitVisual.position.set(cfg.exitPos[0], 0.05, cfg.exitPos[1]);
     mazeVisual.add(exitVisual);
     
-    // Add text on exit using simple sprite or just wait for color change. Color change is enough.
-
     // Ball
     const radius = 0.5;
     ballBody = new CANNON.Body({
@@ -472,6 +469,11 @@ function animate() {
     renderer.render(scene, camera);
 }
 
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
 // Run!
 init();
-
