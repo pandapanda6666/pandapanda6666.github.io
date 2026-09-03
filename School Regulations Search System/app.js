@@ -349,23 +349,47 @@ function searchRelevantChunks(query, topK = 10) {
     for(let i=0; i<cleanQuery.length-1; i++) {
         bigrams.push(cleanQuery.substring(i, i+2));
     }
-    
+    const chars = cleanQuery.split('');
+    const words = query.split(/[ \u3000]+/).filter(w => w.trim().length >= 2);
+
+    let dfBigrams = {};
+    let dfChars = {};
+    let dfWords = {};
+    const totalDocs = schoolDataChunks.length;
+
+    schoolDataChunks.forEach(item => {
+        let text = item.exactMatch;
+        bigrams.forEach(bg => { if (text.includes(bg)) dfBigrams[bg] = (dfBigrams[bg] || 0) + 1; });
+        chars.forEach(c => { if (text.includes(c)) dfChars[c] = (dfChars[c] || 0) + 1; });
+        words.forEach(w => { if (text.includes(w)) dfWords[w] = (dfWords[w] || 0) + 1; });
+    });
+
     let scoredChunks = schoolDataChunks.map(item => {
         let score = 0;
         let textToSearch = item.exactMatch;
-        const words = query.split(/[ \u3000]+/);
+        
         words.forEach(w => {
-            if (w.trim().length >= 2 && textToSearch.includes(w.trim())) score += 20;
+            if (textToSearch.includes(w)) {
+                let idf = Math.log(totalDocs / (1 + (dfWords[w] || 0)));
+                score += 20 * idf;
+            }
         });
         bigrams.forEach(bg => {
-            if (textToSearch.includes(bg)) score += 5;
+            if (textToSearch.includes(bg)) {
+                let idf = Math.log(totalDocs / (1 + (dfBigrams[bg] || 0)));
+                score += 5 * idf;
+            }
         });
-        const chars = cleanQuery.split('');
         chars.forEach(c => {
-            if (c.trim() && textToSearch.includes(c)) score += 1;
+            if (textToSearch.includes(c)) {
+                let idf = Math.log(totalDocs / (1 + (dfChars[c] || 0)));
+                score += 1 * idf;
+            }
         });
+        
         return { item, score };
     });
+    
     scoredChunks = scoredChunks.filter(sc => sc.score > 0);
     scoredChunks.sort((a, b) => b.score - a.score);
     return scoredChunks.slice(0, topK).map(sc => sc.item);
