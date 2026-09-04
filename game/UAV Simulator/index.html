@@ -268,71 +268,60 @@
         }
 
         function setupLoadedModel(model, isCustom, droneName) {
+            let foundProps = false;
+            model.traverse((child) => { if(child.isMesh && child.name.toLowerCase().includes('prop')) foundProps = true; });
+
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
-                    if (isCustom) {
+                    if (foundProps) {
                         if (child.name.toLowerCase().includes('prop')) propellers.push(child);
                     } else {
-                        // 【黑科技】Web GL Vertex Shader 即時頂點運算切割靜態模型
-                        // 讓原本一體成型的靜態 GLB 模型的螺旋槳強制在 GPU 層級旋轉！
+                        // 如果網路下載的真實模型沒有獨立的螺旋槳，強制使用 Shader 讓它轉動
                         const mat = child.material.clone();
                         mat.onBeforeCompile = (shader) => {
                             shader.uniforms.time = { value: 0 };
                             activeShaders.push(shader);
                             shader.vertexShader = shader.vertexShader.replace(
                                 '#include <common>',
-                                `#include <common>
-                                uniform float time;`
+                                #include <common>\nuniform float time;
                             );
                             shader.vertexShader = shader.vertexShader.replace(
                                 '#include <begin_vertex>',
-                                `#include <begin_vertex>
+                                #include <begin_vertex>
                                 // 判斷是否為高處的螺旋槳頂點
                                 if (position.y > 10.0) {
-                                    // 動態計算四個馬達的中心點 (根據模型座標)
                                     float cx = (position.x > 0.0) ? (position.z > 0.0 ? 8.8 : 15.0) : (position.z > 0.0 ? -8.8 : -15.0);
                                     float cz = (position.z > 0.0) ? 26.6 : -17.7;
-                                    
-                                    // 將頂點平移到原點、旋轉、再平移回去
-                                    float dx = position.x - cx;
-                                    float dz = position.z - cz;
-                                    
-                                    // 判斷正反轉
+                                    float dx = position.x - cx; float dz = position.z - cz;
                                     float dir = (position.x * position.z > 0.0) ? -1.0 : 1.0;
                                     float angle = time * 30.0 * dir;
-                                    
-                                    float s = sin(angle);
-                                    float c = cos(angle);
-                                    
+                                    float s = sin(angle); float c = cos(angle);
                                     transformed.x = cx + dx * c - dz * s;
                                     transformed.z = cz + dx * s + dz * c;
-                                    
-                                    // 啟動時加入微小的 Y 軸模糊模擬殘影
                                     transformed.y += sin(time * 100.0 + position.x) * 0.2;
-                                }`
+                                }
                             );
                         };
                         child.material = mat;
-                        
-                        // 根據無人機名字動態改變機身顏色 (簡單染個色)
+                    }
+
+                    if (!isCustom) {
                         let hash = 0; if(droneName) for(let i=0; i<droneName.length; i++) hash = droneName.charCodeAt(i) + ((hash<<5)-hash);
                         function r() { let x = Math.sin(hash++)*10000; return x - Math.floor(x); }
-                        if (!child.material.map) { // 如果沒有貼圖，換個顏色
-                            child.material.color.setHSL(r(), 0.6, 0.5);
-                        }
+                        if (!child.material.map) child.material.color.setHSL(r(), 0.6, 0.5);
                     }
                 }
             });
 
-            // 調整大小與位置
             if (!isCustom) {
                 model.scale.set(0.005, 0.005, 0.005);
-                model.rotation.y = Math.PI; // 轉向前方
+                model.rotation.y = Math.PI;
             } else {
-                model.scale.set(0.1, 0.1, 0.1); 
+                model.scale.set(0.005, 0.005, 0.005); 
+                model.rotation.y = Math.PI;
             }
             model.position.set(0, 0, 0);
             
@@ -342,7 +331,8 @@
             fpvCameraPos.set(0, 0.08, -0.05);
             if (isFPV) resetFPVCamera();
         }
-function buildProceduralDrone(modelStr) {
+
+        function buildProceduralDrone(modelStr) {
             const n = modelStr.toLowerCase();
             
             // 基礎設定檔
