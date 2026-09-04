@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D無人機模擬器 - 極致逼真版</title>
+    <title>3D無人機模擬器 - 萬千機型版</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; }
         #ui-container { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; color: white; width: 300px; }
@@ -226,258 +226,190 @@
         const fpvCameraPos = new THREE.Vector3();
         let currentCamTilt = 0;
 
+        // 超級模組化生成系統
         function buildDrone(modelStr) {
             while(droneGroup.children.length > 0){ droneGroup.remove(droneGroup.children[0]); }
             propellers.length = 0;
             
+            // 使用字串生成唯一的 Hash Seed，確保每台完全不同
             let hash = 0;
             for (let i = 0; i < modelStr.length; i++) { hash = modelStr.charCodeAt(i) + ((hash << 5) - hash); }
             function random() { var x = Math.sin(hash++) * 10000; return x - Math.floor(x); }
 
-            const name = modelStr.toLowerCase();
-            let dClass = 'freestyle';
-            if(name.includes('mobula') || name.includes('meteor') || name.includes('tiny') || name.includes('cetus') || name.includes('humming') || name.includes('beebrain')) dClass = 'whoop';
-            else if(name.includes('five33') || name.includes('racer') || name.includes('spec') || name.includes('racing') || name.includes('glide') || name.includes('switchback')) dClass = 'racing';
-            else if(name.includes('7') || name.includes('long') || name.includes('source one 7') || name.includes('crooked')) dClass = 'longrange';
+            // === 隨機決定模組類型 (保證每台完全不同) ===
+            const bodyStyle = Math.floor(random() * 5); // 0: Hexagon, 1: Slim, 2: Wide, 3: Box, 4: Split
+            const armStyle = Math.floor(random() * 4);  // 0: Straight, 1: Tapered, 2: Curved, 3: Skeleton
+            const topStyle = Math.floor(random() * 5);  // 0: Flat, 1: Pod, 2: Double Plate, 3: Minimal, 4: Cage
+            const motorStyle = Math.floor(random() * 3); // 0: Flat, 1: Tall, 2: Bell
+            const camStyle = Math.floor(random() * 4);  // 0: TPU Mount, 1: Carbon Side Plates, 2: Integrated, 3: Naked
+            
+            // 基礎參數
+            const isWhoop = modelStr.toLowerCase().match(/(whoop|mobula|meteor|tiny|cetus|beebrain)/);
+            const isLongRange = modelStr.toLowerCase().match(/(7|long|source one 7)/);
+            
+            const scaleMultiplier = isWhoop ? 0.3 : (isLongRange ? 1.5 : (0.8 + random() * 0.4));
+            const armLength = (0.35 + random() * 0.15) * scaleMultiplier;
+            const propRadius = (0.2 + random() * 0.08) * scaleMultiplier;
+            const armAngle = (Math.PI / 6) + random() * (Math.PI / 6); // Deadcat to TrueX
 
-            // Materials
-            const carbonMat = new THREE.MeshStandardMaterial({ map: carbonTex, roughness: 0.7, metalness: 0.4 });
+            // 獨特材質庫
+            const frameColor = new THREE.Color().setHSL(random(), 0.5, 0.2);
+            const isPlasticFrame = random() > 0.7 || isWhoop;
+            const mainMat = isPlasticFrame ? new THREE.MeshStandardMaterial({ color: frameColor, roughness: 0.3 }) 
+                                           : new THREE.MeshStandardMaterial({ map: carbonTex, roughness: 0.7, metalness: 0.4 });
             const standoffMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.9, 0.5), metalness: 0.8, roughness: 0.2 });
-            const stackMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.9 });
-            const motorStatorMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.4 });
+            const tpuMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.9, 0.5), roughness: 0.8 });
+            const stackMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.9 });
             const motorBellMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.8, 0.4), metalness: 0.9, roughness: 0.1 });
             const propColor = new THREE.Color().setHSL(random(), 0.9, 0.4);
             const propMat = new THREE.MeshStandardMaterial({ color: propColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
             const blurMat = new THREE.MeshBasicMaterial({ color: propColor, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
-            const camMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8 });
-            const lensMat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 1.0, roughness: 0.0 });
-            const batteryMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7 });
-            const strapMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.9 });
-            const wireMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.8 });
-            const plasticMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.8, 0.5), roughness: 0.4 }); // For whoops & TPU
-            const tpuMat = new THREE.MeshStandardMaterial({ color: 0x2288ff, roughness: 0.8 }); // 3D printed TPU color
 
-            // Dimensions based on class
-            let armAngle = (random() > 0.5) ? Math.PI / 4 : (Math.PI / 6 + random() * 0.2); // True X or Deadcat
-            let armLength = 0.45;
-            let propRadius = 0.25;
-            let armWidth = 0.04;
-            let hasDucts = false;
-            let hasSharkFin = false;
-            let hasActionCam = false;
+            const extrudeSettings = { depth: 0.03 * scaleMultiplier, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 };
 
-            if (dClass === 'whoop') {
-                armLength = 0.15 + random() * 0.05;
-                propRadius = 0.12;
-                armWidth = 0.015;
-                hasDucts = true;
-            } else if (dClass === 'racing') {
-                armLength = 0.35 + random() * 0.05;
-                propRadius = 0.25;
-                armWidth = 0.02; // Very skinny arms
-                hasSharkFin = true;
-            } else if (dClass === 'longrange') {
-                armLength = 0.6 + random() * 0.1;
-                propRadius = 0.35; // 7 inch props
-                armWidth = 0.05;
-                armAngle = Math.PI / 3; // Deadcat front
-                hasActionCam = true;
-            } else {
-                // Freestyle
-                armLength = 0.4 + random() * 0.05;
-                propRadius = 0.25;
-                armWidth = 0.04;
-                hasActionCam = true;
-            }
-
-            // --- Extrude Custom Bottom Plate Shape ---
-            const plateShape = new THREE.Shape();
-            const bodyW = (dClass === 'racing' || dClass === 'whoop') ? 0.08 : 0.12;
-            const bodyL = (dClass === 'racing') ? 0.12 : 0.18;
+            // === 1. 生成中央底板 ===
+            const bodyGeo = new THREE.Group();
+            let basePlate;
+            const bodyW = 0.1 * scaleMultiplier * (bodyStyle === 1 ? 0.6 : (bodyStyle === 2 ? 1.4 : 1.0));
+            const bodyL = 0.15 * scaleMultiplier * (bodyStyle === 1 ? 1.5 : (bodyStyle === 2 ? 0.8 : 1.0));
             
-            // Draw central body
-            plateShape.moveTo(bodyW, bodyL);
-            plateShape.lineTo(bodyW, -bodyL);
-            plateShape.lineTo(-bodyW, -bodyL);
-            plateShape.lineTo(-bodyW, bodyL);
-            plateShape.lineTo(bodyW, bodyL);
+            const shape = new THREE.Shape();
+            if (bodyStyle === 0) { // Hexagon
+                shape.moveTo(0, bodyL); shape.lineTo(bodyW, bodyL*0.5); shape.lineTo(bodyW, -bodyL*0.5); shape.lineTo(0, -bodyL); shape.lineTo(-bodyW, -bodyL*0.5); shape.lineTo(-bodyW, bodyL*0.5);
+            } else if (bodyStyle === 1 || bodyStyle === 2 || bodyStyle === 3) { // Rect variations
+                shape.moveTo(bodyW, bodyL); shape.lineTo(bodyW, -bodyL); shape.lineTo(-bodyW, -bodyL); shape.lineTo(-bodyW, bodyL);
+            } else { // Split / H-Frame
+                shape.moveTo(bodyW, bodyL); shape.lineTo(bodyW*0.5, bodyL); shape.lineTo(bodyW*0.5, -bodyL); shape.lineTo(bodyW, -bodyL);
+                shape.lineTo(-bodyW, -bodyL); shape.lineTo(-bodyW*0.5, -bodyL); shape.lineTo(-bodyW*0.5, bodyL); shape.lineTo(-bodyW, bodyL);
+            }
+            
+            const bPlateGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            bPlateGeo.rotateX(Math.PI / 2);
+            basePlate = new THREE.Mesh(bPlateGeo, mainMat);
+            bodyGeo.add(basePlate);
 
-            const extrudeSettings = { depth: 0.03, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 };
-            const bottomPlateGeo = new THREE.ExtrudeGeometry(plateShape, extrudeSettings);
-            bottomPlateGeo.rotateX(Math.PI / 2); // Lay flat
-            const bottomPlate = new THREE.Mesh(bottomPlateGeo, dClass === 'whoop' ? plasticMat : carbonMat);
-            bottomPlate.castShadow = true;
-            droneGroup.add(bottomPlate);
-
-            // Top Plate / Canopy
-            if (dClass === 'whoop') {
-                const canopyGeo = new THREE.SphereGeometry(0.08, 16, 16, 0, Math.PI*2, 0, Math.PI/2);
-                const canopy = new THREE.Mesh(canopyGeo, plasticMat);
-                canopy.position.y = 0.03;
-                droneGroup.add(canopy);
-            } else {
-                const topPlateGeo = new THREE.ExtrudeGeometry(plateShape, extrudeSettings);
-                topPlateGeo.rotateX(Math.PI / 2);
-                const topPlate = new THREE.Mesh(topPlateGeo, carbonMat);
-                topPlate.position.y = 0.15;
-                topPlate.scale.set(0.8, 1, 0.8);
-                topPlate.castShadow = true;
-                droneGroup.add(topPlate);
-
+            // === 2. 生成頂部結構 ===
+            if (topStyle === 0) { // Flat plate
+                const tPlate = new THREE.Mesh(bPlateGeo, mainMat);
+                tPlate.position.y = 0.15 * scaleMultiplier;
+                bodyGeo.add(tPlate);
                 // Standoffs
-                for (let i of [-1, 1]) {
-                    for (let j of [-1, 1]) {
-                        const standoffGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.12, 8);
-                        const standoff = new THREE.Mesh(standoffGeo, standoffMat);
-                        standoff.position.set(i * bodyW * 0.7, 0.09, j * bodyL * 0.7);
-                        droneGroup.add(standoff);
-                    }
+                for(let i of [-1, 1]) for(let j of [-1, 1]) {
+                    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.12*scaleMultiplier, 8), standoffMat);
+                    st.position.set(i*bodyW*0.8, 0.08*scaleMultiplier, j*bodyL*0.8);
+                    bodyGeo.add(st);
+                }
+            } else if (topStyle === 1) { // Pod (Canopy)
+                const pod = new THREE.Mesh(new THREE.SphereGeometry(bodyW, 16, 16, 0, Math.PI*2, 0, Math.PI/2), tpuMat);
+                pod.position.y = 0.03 * scaleMultiplier;
+                pod.scale.set(1, 1.5, 1.5);
+                bodyGeo.add(pod);
+            } else if (topStyle === 2) { // Double Plate
+                const t1 = new THREE.Mesh(bPlateGeo, mainMat); t1.position.y = 0.1 * scaleMultiplier; t1.scale.set(0.8,1,0.8); bodyGeo.add(t1);
+                const t2 = new THREE.Mesh(bPlateGeo, mainMat); t2.position.y = 0.2 * scaleMultiplier; t2.scale.set(0.6,1,0.6); bodyGeo.add(t2);
+            } else if (topStyle === 4) { // Cage
+                for(let i of [-1, 1]) {
+                    const cageGeo = new THREE.TorusGeometry(bodyL*0.8, 0.01, 8, 16, Math.PI);
+                    const cage = new THREE.Mesh(cageGeo, standoffMat);
+                    cage.position.set(i*bodyW*0.8, 0.03*scaleMultiplier, 0);
+                    cage.rotation.y = Math.PI/2;
+                    bodyGeo.add(cage);
                 }
             }
 
-            // Stack (FC/ESC)
-            if (dClass !== 'whoop') {
-                const escGeo = new THREE.BoxGeometry(0.12, 0.03, 0.12);
-                const esc = new THREE.Mesh(escGeo, stackMat);
-                esc.position.set(0, 0.05, 0);
-                droneGroup.add(esc);
-                const fcGeo = new THREE.BoxGeometry(0.12, 0.03, 0.12);
-                const fc = new THREE.Mesh(fcGeo, stackMat);
-                fc.position.set(0, 0.09, 0);
-                droneGroup.add(fc);
+            // === 3. 生成堆疊 (FC/ESC) ===
+            const esc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.2, 0.03, bodyW*1.2), stackMat);
+            esc.position.set(0, 0.05*scaleMultiplier, 0); bodyGeo.add(esc);
+            if(random()>0.3) {
+                const fc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.2, 0.03, bodyW*1.2), stackMat);
+                fc.position.set(0, 0.09*scaleMultiplier, 0); bodyGeo.add(fc);
             }
 
-            // Battery
-            const hasBatteryTop = (dClass === 'freestyle' || dClass === 'longrange') ? (random() > 0.5) : (dClass === 'racing');
-            if (dClass !== 'whoop') {
-                const batGeo = new THREE.BoxGeometry(0.12, 0.1, 0.25);
-                const bat = new THREE.Mesh(batGeo, batteryMat);
-                bat.position.y = hasBatteryTop ? 0.22 : -0.08;
-                droneGroup.add(bat);
+            droneGroup.add(bodyGeo);
 
-                const strapGeo = new THREE.BoxGeometry(0.13, 0.11, 0.04);
-                const strap = new THREE.Mesh(strapGeo, strapMat);
-                strap.position.y = hasBatteryTop ? 0.22 : -0.08;
-                droneGroup.add(strap);
-            }
-
-            // Accessories
-            if (hasSharkFin) {
-                const finShape = new THREE.Shape();
-                finShape.moveTo(0, 0); finShape.lineTo(0.05, 0); finShape.lineTo(0.05, 0.1); finShape.lineTo(0, 0);
-                const finGeo = new THREE.ExtrudeGeometry(finShape, {depth:0.01, bevelEnabled:false});
-                const fin = new THREE.Mesh(finGeo, tpuMat);
-                fin.position.set(0, 0.16, -0.05);
-                droneGroup.add(fin);
-            }
-            if (hasActionCam) {
-                const acGeo = new THREE.BoxGeometry(0.12, 0.1, 0.06);
-                const ac = new THREE.Mesh(acGeo, tpuMat); // TPU Mount
-                ac.rotation.x = Math.PI / 6; // 30 deg up
-                ac.position.set(0, 0.22, -0.15);
-                droneGroup.add(ac);
-            }
-            // Antenna (Lollipop)
-            if (dClass !== 'whoop') {
-                const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.15), wireMat);
-                antStem.position.set(0, 0.1, 0.15);
-                antStem.rotation.x = -Math.PI / 4;
-                const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.03), plasticMat);
-                antHead.position.set(0, 0.06, 0.06);
-                antStem.add(antHead);
-                droneGroup.add(antStem);
-            }
-
-            // FPV Camera
-            currentCamTilt = (dClass === 'racing') ? (Math.PI / 4) : (Math.PI / 12 + random() * (Math.PI / 6)); 
+            // === 4. 生成攝影機與天線 ===
+            currentCamTilt = Math.PI / 12 + random() * (Math.PI / 4);
             const camGroup = new THREE.Group();
-            const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), camMat);
+            const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.08*scaleMultiplier, 0.08*scaleMultiplier, 0.08*scaleMultiplier), new THREE.MeshStandardMaterial({color:0x111}));
             camGroup.add(camBody);
-            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.06, 16), lensMat);
-            lens.rotation.x = Math.PI / 2; lens.position.z = -0.04;
+            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.025*scaleMultiplier, 0.025*scaleMultiplier, 0.06*scaleMultiplier, 16), new THREE.MeshStandardMaterial({color:0x000, metalness:1}));
+            lens.rotation.x = Math.PI/2; lens.position.z = -0.04*scaleMultiplier;
             camGroup.add(lens);
-            
-            // Side plates for camera
-            if (dClass !== 'whoop') {
-                const sidePGeo = new THREE.BoxGeometry(0.01, 0.1, 0.1);
-                const leftP = new THREE.Mesh(sidePGeo, carbonMat); leftP.position.set(-0.05, 0, 0);
-                const rightP = new THREE.Mesh(sidePGeo, carbonMat); rightP.position.set(0.05, 0, 0);
-                camGroup.add(leftP); camGroup.add(rightP);
+
+            if (camStyle === 0) { // TPU mount
+                const mount = new THREE.Mesh(new THREE.BoxGeometry(0.1*scaleMultiplier, 0.1*scaleMultiplier, 0.05*scaleMultiplier), tpuMat);
+                mount.position.z = 0.05*scaleMultiplier; camGroup.add(mount);
+            } else if (camStyle === 1) { // Carbon side plates
+                const sp = new THREE.BoxGeometry(0.01, 0.1*scaleMultiplier, 0.1*scaleMultiplier);
+                const l = new THREE.Mesh(sp, mainMat); l.position.x = -0.05*scaleMultiplier; camGroup.add(l);
+                const r = new THREE.Mesh(sp, mainMat); r.position.x = 0.05*scaleMultiplier; camGroup.add(r);
             }
-
-            camGroup.position.set(0, dClass==='whoop'?0.05:0.1, -0.2);
-            camGroup.rotation.x = currentCamTilt; 
+            
+            camGroup.position.set(0, 0.1*scaleMultiplier, -bodyL*0.9);
+            camGroup.rotation.x = currentCamTilt;
             droneGroup.add(camGroup);
-            fpvCameraPos.set(0, (dClass==='whoop'?0.05:0.1) + Math.sin(currentCamTilt)*0.07, -0.2 - Math.cos(currentCamTilt)*0.07);
+            fpvCameraPos.set(0, camGroup.position.y + Math.sin(currentCamTilt)*0.07, camGroup.position.z - Math.cos(currentCamTilt)*0.07);
 
-            // Arms & Motors
+            // 天線
+            const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.15*scaleMultiplier), new THREE.MeshStandardMaterial({color:0x000}));
+            antStem.position.set(0, 0.1*scaleMultiplier, bodyL*0.8); antStem.rotation.x = -Math.PI / 4;
+            const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.03*scaleMultiplier), tpuMat);
+            antHead.position.set(0, 0.06*scaleMultiplier, 0.06*scaleMultiplier); antStem.add(antHead);
+            droneGroup.add(antStem);
+
+            // === 5. 生成機臂與馬達 ===
+            const armX = Math.sin(armAngle) * armLength;
+            const armZ = Math.cos(armAngle) * armLength;
+
             function createArm(targetX, targetZ) {
                 const armGroup = new THREE.Group();
                 const dist = Math.sqrt(targetX*targetX + targetZ*targetZ);
-                
-                // Detailed arm
+                const aw = 0.04 * scaleMultiplier * (armStyle === 1 ? 1.5 : (armStyle === 3 ? 1.2 : 1.0)); // Base arm width
+
                 const armShape = new THREE.Shape();
-                armShape.moveTo(-armWidth/2, 0);
-                armShape.lineTo(armWidth/2, 0);
-                armShape.lineTo(armWidth/2, dist);
-                armShape.lineTo(-armWidth/2, dist);
-                armShape.lineTo(-armWidth/2, 0);
+                if (armStyle === 0 || armStyle === 3) { // Straight
+                    armShape.moveTo(-aw/2, 0); armShape.lineTo(aw/2, 0); armShape.lineTo(aw/2, dist); armShape.lineTo(-aw/2, dist);
+                } else if (armStyle === 1) { // Tapered
+                    armShape.moveTo(-aw/2, 0); armShape.lineTo(aw/2, 0); armShape.lineTo(aw/4, dist); armShape.lineTo(-aw/4, dist);
+                } else if (armStyle === 2) { // Curved
+                    armShape.moveTo(-aw/2, 0); armShape.lineTo(aw/2, 0); 
+                    armShape.quadraticCurveTo(aw, dist/2, aw/2, dist);
+                    armShape.lineTo(-aw/2, dist);
+                    armShape.quadraticCurveTo(-aw, dist/2, -aw/2, 0);
+                }
+                // (Skeleton holes would require path holes, skipped for perf, using visual trick)
+                
                 const armGeo = new THREE.ExtrudeGeometry(armShape, extrudeSettings);
                 armGeo.rotateX(Math.PI / 2);
-                
-                const arm = new THREE.Mesh(armGeo, dClass === 'whoop' ? plasticMat : carbonMat);
+                const arm = new THREE.Mesh(armGeo, mainMat);
                 arm.rotation.y = Math.atan2(targetX, targetZ);
                 armGroup.add(arm);
 
-                if (dClass !== 'whoop') {
-                    const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, dist*0.9, 4), wireMat);
-                    wire.rotation.x = Math.PI / 2;
-                    wire.position.set(targetX*0.45, 0.02, targetZ*0.45);
-                    wire.rotation.y = Math.atan2(targetX, targetZ) + Math.PI/2;
-                    armGroup.add(wire);
-                }
-
+                // 馬達
                 const motorPos = new THREE.Vector3(targetX, 0.015, targetZ);
-                
-                const sGeo = new THREE.CylinderGeometry(propRadius*0.3, propRadius*0.3, 0.04, 16);
-                const stator = new THREE.Mesh(sGeo, motorStatorMat);
-                stator.position.copy(motorPos); stator.position.y += 0.02;
-                armGroup.add(stator);
+                const stH = motorStyle === 1 ? 0.06 : 0.03;
+                const stator = new THREE.Mesh(new THREE.CylinderGeometry(propRadius*0.25, propRadius*0.25, stH, 16), new THREE.MeshStandardMaterial({color:0x333}));
+                stator.position.copy(motorPos); stator.position.y += stH/2; armGroup.add(stator);
 
-                const bGeo = new THREE.CylinderGeometry(propRadius*0.32, propRadius*0.32, 0.05, 16);
-                const bell = new THREE.Mesh(bGeo, motorBellMat);
-                bell.position.copy(motorPos); bell.position.y += 0.065;
-                armGroup.add(bell);
+                const blH = motorStyle === 2 ? 0.06 : 0.04;
+                const bellGeo = motorStyle === 2 ? new THREE.SphereGeometry(propRadius*0.28, 16, 16, 0, Math.PI*2, 0, Math.PI/2) : new THREE.CylinderGeometry(propRadius*0.28, propRadius*0.28, blH, 16);
+                const bell = new THREE.Mesh(bellGeo, motorBellMat);
+                bell.position.copy(motorPos); bell.position.y += stH + blH/2 - 0.01; armGroup.add(bell);
 
-                // Ducts for whoop/cinewhoop
-                if (hasDucts) {
-                    const ductGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
-                        new THREE.Vector3(-propRadius-0.02, 0, 0), new THREE.Vector3(0, 0, -propRadius-0.02),
-                        new THREE.Vector3(propRadius+0.02, 0, 0), new THREE.Vector3(0, 0, propRadius+0.02),
-                        new THREE.Vector3(-propRadius-0.02, 0, 0)
-                    ]), 32, 0.02, 8, true);
-                    const duct = new THREE.Mesh(ductGeo, plasticMat);
-                    duct.position.copy(motorPos);
-                    duct.position.y += 0.08;
-                    armGroup.add(duct);
-                }
-
+                // 螺旋槳
                 const propGroup = new THREE.Group();
                 const blades = [];
-                const numBlades = (dClass === 'whoop') ? 4 : (random() > 0.5 ? 3 : 2);
+                const numBlades = Math.floor(2 + random() * 4); // 2 to 5 blades
                 for (let i = 0; i < numBlades; i++) {
-                    const bladeMesh = new THREE.Mesh(new THREE.BoxGeometry(propRadius, 0.004, propRadius*0.12), propMat);
-                    bladeMesh.position.x = propRadius / 2; bladeMesh.rotation.x = Math.PI / 15; 
+                    const blade = new THREE.Mesh(new THREE.BoxGeometry(propRadius, 0.004, propRadius*0.15), propMat);
+                    blade.position.x = propRadius / 2; blade.rotation.x = Math.PI / 12; 
                     const pivot = new THREE.Group(); pivot.rotation.y = (Math.PI * 2 / numBlades) * i;
-                    pivot.add(bladeMesh); propGroup.add(pivot); blades.push(bladeMesh);
+                    pivot.add(blade); propGroup.add(pivot); blades.push(blade);
                 }
                 const blurMesh = new THREE.Mesh(new THREE.CylinderGeometry(propRadius, propRadius, 0.001, 32), blurMat);
                 propGroup.add(blurMesh);
 
-                const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.03, 8), standoffMat);
-                nut.position.y = 0.015; propGroup.add(nut);
-
-                propGroup.position.copy(motorPos); propGroup.position.y += 0.1;
+                propGroup.position.copy(motorPos); propGroup.position.y += stH + blH;
                 armGroup.add(propGroup);
                 
                 propGroup.userData = { blades: blades, blur: blurMesh };
@@ -485,8 +417,6 @@
                 droneGroup.add(armGroup);
             }
 
-            const armX = Math.sin(armAngle) * armLength;
-            const armZ = Math.cos(armAngle) * armLength;
             createArm(-armX, -armZ); createArm(armX, -armZ); createArm(-armX, armZ); createArm(armX, armZ);   
         }
 
@@ -519,13 +449,11 @@
 
         let controlMode = 'american';
         const keys = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false };
-
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (key === 'w') keys.w = true; if (key === 'a') keys.a = true; if (key === 's') keys.s = true; if (key === 'd') keys.d = true;
             if (e.key === 'ArrowUp') keys.up = true; if (e.key === 'ArrowDown') keys.down = true; if (e.key === 'ArrowLeft') keys.left = true; if (e.key === 'ArrowRight') keys.right = true;
         });
-
         window.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
             if (key === 'w') keys.w = false; if (key === 'a') keys.a = false; if (key === 's') keys.s = false; if (key === 'd') keys.d = false;
@@ -537,10 +465,10 @@
         modeSwitchBtn.addEventListener('click', () => {
             if (controlMode === 'american') {
                 controlMode = 'japanese'; modeSwitchBtn.textContent = '目前模式：日本手';
-                instructionsText.innerHTML = `[日本手 操作說明]<br>W S 鍵：油門<br>A D 鍵：水平轉動<br>上下鍵：前後傾斜<br>左右鍵：左右傾斜<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
+                instructionsText.innerHTML = [日本手 操作說明]<br>W S 鍵：油門<br>A D 鍵：水平轉動<br>上下鍵：前後傾斜<br>左右鍵：左右傾斜<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小;
             } else {
                 controlMode = 'american'; modeSwitchBtn.textContent = '目前模式：美國手';
-                instructionsText.innerHTML = `[美國手 操作說明]<br>上下鍵：油門<br>左右鍵：水平轉動<br>W S 鍵：前後傾斜<br>A D 鍵：左右傾斜<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
+                instructionsText.innerHTML = [美國手 操作說明]<br>上下鍵：油門<br>左右鍵：水平轉動<br>W S 鍵：前後傾斜<br>A D 鍵：左右傾斜<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小;
             }
         });
 
@@ -604,7 +532,6 @@
                     gainNodes.forEach(gain => gain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.1));
                 }
             }
-
             renderer.render(scene, camera);
         }
         animate();
