@@ -23,6 +23,7 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
     <div id="crosshair"></div>
@@ -236,7 +237,57 @@
         let currentCamTilt = 0;
 
         // 【極致還原真實物理結構庫】
+        
+        const gltfLoader = new THREE.GLTFLoader();
+
         function buildDrone(modelStr) {
+            while(droneGroup.children.length > 0){ droneGroup.remove(droneGroup.children[0]); }
+            propellers.length = 0;
+            const n = modelStr.toLowerCase();
+            
+            // 嘗試載入真實的 3D 模型 (.glb)
+            // 檔名格式為：models/模型名稱.glb (例如 models/Nazgul XL5.glb)
+            const modelUrl = `models/${modelStr}.glb`;
+            
+            gltfLoader.load(
+                modelUrl,
+                function (gltf) {
+                    const model = gltf.scene;
+                    
+                    // 找出模型裡的螺旋槳以便加上旋轉動畫
+                    model.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            // 如果物件名稱包含 prop 或 propeller，就加入螺旋槳陣列
+                            if (child.name.toLowerCase().includes('prop')) {
+                                propellers.push(child);
+                            }
+                        }
+                    });
+
+                    // 調整模型大小與位置
+                    model.scale.set(0.1, 0.1, 0.1); 
+                    model.position.set(0, 0, 0);
+                    
+                    droneGroup.add(model);
+                    
+                    // 根據載入的真實模型設定攝影機位置
+                    currentCamTilt = Math.PI / 6;
+                    fpvCameraPos.set(0, 0.1, -0.1);
+                    if (isFPV) resetFPVCamera();
+                },
+                undefined,
+                function (error) {
+                    // 如果沒有找到對應的 .glb 檔案，退回使用程式生成的「幾何方塊」模型
+                    buildProceduralDrone(modelStr);
+                }
+            );
+        }
+
+        // 把原本的 buildDrone 改名為 buildProceduralDrone 作為備用方案
+        function buildProceduralDrone(modelStr) {
+
             while(droneGroup.children.length > 0){ droneGroup.remove(droneGroup.children[0]); }
             propellers.length = 0;
             const n = modelStr.toLowerCase();
@@ -513,6 +564,8 @@
             createArm(Math.sin(angleF)*L, -Math.cos(angleF)*L);
             createArm(-Math.sin(angleB)*L, Math.cos(angleB)*L);
             createArm(Math.sin(angleB)*L, Math.cos(angleB)*L);
+        }
+
         }
 
         const modelSelect = document.getElementById('droneModelSelect');
