@@ -248,71 +248,101 @@
             camera: new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9 })
         };
 
-        // 1. 中央機身
-        const bodyGeo = new THREE.BoxGeometry(0.8, 0.3, 1.2);
-        const bodyMesh = new THREE.Mesh(bodyGeo, materials.body);
-        bodyMesh.castShadow = true;
-        droneGroup.add(bodyMesh);
-
-        // 2. 攝影機 (辨識前方)
-        const camGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 16);
-        const camMesh = new THREE.Mesh(camGeo, materials.camera);
-        camMesh.rotation.z = Math.PI / 2;
-        camMesh.position.set(0, 0, -0.65);
-        droneGroup.add(camMesh);
-
-        // 機臂與馬達設置函數
-        const propellers = []; // 儲存螺旋槳以便動畫旋轉
-        function createArm(x, z, isFront) {
-            const armGroup = new THREE.Group();
+        // 建立無人機模型的函數
+        function buildDrone(seedStr) {
+            // 清除現有模型
+            while(droneGroup.children.length > 0){ 
+                droneGroup.remove(droneGroup.children[0]); 
+            }
             
-            // 機臂
-            const armLength = 1.2;
-            const armGeo = new THREE.CylinderGeometry(0.05, 0.05, armLength, 8);
-            const armMesh = new THREE.Mesh(armGeo, isFront ? materials.armFront : materials.armBack);
-            armMesh.rotation.x = Math.PI / 2;
-            armMesh.position.set(0, 0, armLength / 2);
-            armGroup.add(armMesh);
+            // 簡易的字串 hash 函數
+            let hash = 0;
+            for (let i = 0; i < seedStr.length; i++) {
+                hash = seedStr.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // 使用 hash 產生偽隨機數 0~1
+            function random() {
+                var x = Math.sin(hash++) * 10000;
+                return x - Math.floor(x);
+            }
 
-            // 馬達
-            const motorGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 16);
-            const motorMesh = new THREE.Mesh(motorGeo, materials.motor);
-            motorMesh.position.set(0, 0.1, armLength);
-            armGroup.add(motorMesh);
-
-            // 螺旋槳
-            const propGroup = new THREE.Group();
-            const propGeo = new THREE.BoxGeometry(1.0, 0.02, 0.1);
-            const propMesh = new THREE.Mesh(propGeo, materials.propeller);
-            propGroup.add(propMesh);
-            propGroup.position.set(0, 0.25, armLength);
-            armGroup.add(propGroup);
+            const bodyColor = new THREE.Color().setHSL(random(), 0.7, 0.5);
+            const armColor = new THREE.Color().setHSL(random(), 0.7, 0.5);
+            const propColor = new THREE.Color().setHSL(random(), 0.8, 0.4);
             
-            propellers.push(propGroup);
+            const bodyWidth = 0.5 + random() * 0.6;
+            const bodyHeight = 0.2 + random() * 0.3;
+            const bodyLength = 0.8 + random() * 0.8;
+            
+            const armLength = 0.8 + random() * 1.0;
+            const propSize = 0.6 + random() * 0.8;
 
-            // 定位整個機臂
-            const angle = Math.atan2(x, z);
-            armGroup.rotation.y = angle;
-            droneGroup.add(armGroup);
+            materials.body.color = bodyColor;
+            materials.armBack.color = armColor;
+            materials.armFront.color = new THREE.Color(0xcc0000); // 保持紅色
+            materials.propeller.color = propColor;
+
+            // 1. 中央機身
+            const bodyGeo = new THREE.BoxGeometry(bodyWidth, bodyHeight, bodyLength);
+            const bodyMesh = new THREE.Mesh(bodyGeo, materials.body);
+            bodyMesh.castShadow = true;
+            droneGroup.add(bodyMesh);
+
+            // 2. 攝影機 (辨識前方)
+            const camGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 16);
+            const camMesh = new THREE.Mesh(camGeo, materials.camera);
+            camMesh.rotation.z = Math.PI / 2;
+            camMesh.position.set(0, bodyHeight/2, -bodyLength/2 - 0.05);
+            droneGroup.add(camMesh);
+
+            propellers.length = 0; // 清空舊的螺旋槳
+            
+            function createArm(x, z, isFront) {
+                const armGroup = new THREE.Group();
+                
+                // 機臂
+                const armGeo = new THREE.CylinderGeometry(0.05, 0.05, armLength, 8);
+                const armMesh = new THREE.Mesh(armGeo, isFront ? materials.armFront : materials.armBack);
+                armMesh.rotation.x = Math.PI / 2;
+                armMesh.position.set(0, 0, armLength / 2);
+                armGroup.add(armMesh);
+
+                // 馬達
+                const motorGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 16);
+                const motorMesh = new THREE.Mesh(motorGeo, materials.motor);
+                motorMesh.position.set(0, 0.1, armLength);
+                armGroup.add(motorMesh);
+
+                // 螺旋槳
+                const propGroup = new THREE.Group();
+                const propGeo = new THREE.BoxGeometry(propSize, 0.02, 0.1);
+                const propMesh = new THREE.Mesh(propGeo, materials.propeller);
+                propGroup.add(propMesh);
+                propGroup.position.set(0, 0.25, armLength);
+                armGroup.add(propGroup);
+                
+                propellers.push(propGroup);
+
+                // 定位整個機臂
+                const angle = Math.atan2(x, z);
+                armGroup.rotation.y = angle;
+                droneGroup.add(armGroup);
+            }
+
+            createArm(-1, -1, true);  // 左前
+            createArm(1, -1, true);   // 右前
+            createArm(-1, 1, false);  // 左後
+            createArm(1, 1, false);   // 右後
         }
-
-        // 建立四個機臂 (X, Z座標) - Z軸負方向為前方
-        createArm(-1, -1, true);  // 左前
-        createArm(1, -1, true);   // 右前
-        createArm(-1, 1, false);  // 左後
-        createArm(1, 1, false);   // 右後
 
         // 模型切換事件
         const modelSelect = document.getElementById('droneModelSelect');
         modelSelect.addEventListener('change', (e) => {
-            // 為了表現更換了模型，隨機改變機身與後機臂的顏色
-            // 前機臂保持紅色作為方向參考
-            const randomColorBody = Math.floor(Math.random()*16777215);
-            const randomColorArm = Math.floor(Math.random()*16777215);
-            
-            materials.body.color.setHex(randomColorBody);
-            materials.armBack.color.setHex(randomColorArm);
+            buildDrone(e.target.value);
         });
+
+        // 初始建立
+        buildDrone(modelSelect.value);
 
         // 控制狀態
         let controlMode = 'american'; // 'american' 或 'japanese'
