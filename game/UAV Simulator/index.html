@@ -238,55 +238,111 @@
 
         // 【極致還原真實物理結構庫】
         
+        
         const gltfLoader = new THREE.GLTFLoader();
+        let activeShaders = []; // 用來存取材質的 shader 以更新時間
 
         function buildDrone(modelStr) {
             while(droneGroup.children.length > 0){ droneGroup.remove(droneGroup.children[0]); }
             propellers.length = 0;
+            activeShaders = [];
             const n = modelStr.toLowerCase();
             
-            // 嘗試載入真實的 3D 模型 (.glb)
-            // 檔名格式為：models/模型名稱.glb (例如 models/Nazgul XL5.glb)
+            // 優先載入專屬模型，若無則載入預設超高畫質模型
             const modelUrl = `models/${modelStr}.glb`;
             
             gltfLoader.load(
                 modelUrl,
-                function (gltf) {
-                    const model = gltf.scene;
-                    
-                    // 找出模型裡的螺旋槳以便加上旋轉動畫
-                    model.traverse((child) => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                            // 如果物件名稱包含 prop 或 propeller，就加入螺旋槳陣列
-                            if (child.name.toLowerCase().includes('prop')) {
-                                propellers.push(child);
-                            }
-                        }
-                    });
-
-                    // 調整模型大小與位置
-                    model.scale.set(0.1, 0.1, 0.1); 
-                    model.position.set(0, 0, 0);
-                    
-                    droneGroup.add(model);
-                    
-                    // 根據載入的真實模型設定攝影機位置
-                    currentCamTilt = Math.PI / 6;
-                    fpvCameraPos.set(0, 0.1, -0.1);
-                    if (isFPV) resetFPVCamera();
-                },
+                function (gltf) { setupLoadedModel(gltf.scene, true); },
                 undefined,
-                function (error) {
-                    // 如果沒有找到對應的 .glb 檔案，退回使用程式生成的「幾何方塊」模型
-                    buildProceduralDrone(modelStr);
+                function () {
+                    // 若無專屬模型，使用黑科技預設的高品質模型
+                    gltfLoader.load(
+                        'models/default_drone.glb',
+                        function (gltf) { setupLoadedModel(gltf.scene, false, n); },
+                        undefined,
+                        function () { buildProceduralDrone(modelStr); }
+                    );
                 }
             );
         }
 
-        // 把原本的 buildDrone 改名為 buildProceduralDrone 作為備用方案
-        function buildProceduralDrone(modelStr) {
+        function setupLoadedModel(model, isCustom, droneName) {
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    
+                    if (isCustom) {
+                        if (child.name.toLowerCase().includes('prop')) propellers.push(child);
+                    } else {
+                        // 【黑科技】Web GL Vertex Shader 即時頂點運算切割靜態模型
+                        // 讓原本一體成型的靜態 GLB 模型的螺旋槳強制在 GPU 層級旋轉！
+                        const mat = child.material.clone();
+                        mat.onBeforeCompile = (shader) => {
+                            shader.uniforms.time = { value: 0 };
+                            activeShaders.push(shader);
+                            shader.vertexShader = shader.vertexShader.replace(
+                                '#include <common>',
+                                `#include <common>
+                                uniform float time;`
+                            );
+                            shader.vertexShader = shader.vertexShader.replace(
+                                '#include <begin_vertex>',
+                                `#include <begin_vertex>
+                                // 判斷是否為高處的螺旋槳頂點
+                                if (position.y > 10.0) {
+                                    // 動態計算四個馬達的中心點 (根據模型座標)
+                                    float cx = (position.x > 0.0) ? (position.z > 0.0 ? 8.8 : 15.0) : (position.z > 0.0 ? -8.8 : -15.0);
+                                    float cz = (position.z > 0.0) ? 26.6 : -17.7;
+                                    
+                                    // 將頂點平移到原點、旋轉、再平移回去
+                                    float dx = position.x - cx;
+                                    float dz = position.z - cz;
+                                    
+                                    // 判斷正反轉
+                                    float dir = (position.x * position.z > 0.0) ? -1.0 : 1.0;
+                                    float angle = time * 30.0 * dir;
+                                    
+                                    float s = sin(angle);
+                                    float c = cos(angle);
+                                    
+                                    transformed.x = cx + dx * c - dz * s;
+                                    transformed.z = cz + dx * s + dz * c;
+                                    
+                                    // 啟動時加入微小的 Y 軸模糊模擬殘影
+                                    transformed.y += sin(time * 100.0 + position.x) * 0.2;
+                                }`
+                            );
+                        };
+                        child.material = mat;
+                        
+                        // 根據無人機名字動態改變機身顏色 (簡單染個色)
+                        let hash = 0; if(droneName) for(let i=0; i<droneName.length; i++) hash = droneName.charCodeAt(i) + ((hash<<5)-hash);
+                        function r() { let x = Math.sin(hash++)*10000; return x - Math.floor(x); }
+                        if (!child.material.map) { // 如果沒有貼圖，換個顏色
+                            child.material.color.setHSL(r(), 0.6, 0.5);
+                        }
+                    }
+                }
+            });
+
+            // 調整大小與位置
+            if (!isCustom) {
+                model.scale.set(0.005, 0.005, 0.005);
+                model.rotation.y = Math.PI; // 轉向前方
+            } else {
+                model.scale.set(0.1, 0.1, 0.1); 
+            }
+            model.position.set(0, 0, 0);
+            
+            droneGroup.add(model);
+            
+            currentCamTilt = Math.PI / 6;
+            fpvCameraPos.set(0, 0.08, -0.05);
+            if (isFPV) resetFPVCamera();
+        }
+function buildProceduralDrone(modelStr) {
             const n = modelStr.toLowerCase();
             
             // 基礎設定檔
@@ -660,7 +716,16 @@
             const blurOpacity = THREE.MathUtils.clamp((totalSpeed - 0.2) * 1.5, 0, 0.4);
             const bladeOpacity = THREE.MathUtils.clamp(1.0 - (totalSpeed - 0.2) * 2, 0.1, 0.7);
 
+            
+            // 黑科技：更新 Shader 裡的時間變數來轉動靜態模型的螺旋槳
+            if (activeShaders.length > 0) {
+                activeShaders.forEach(shader => {
+                    shader.uniforms.time.value += totalSpeed;
+                });
+            }
+
             if (propellers.length === 4) {
+
                 propellers.forEach((prop, index) => {
                     prop.rotation.y += (index % 2 === 0) ? totalSpeed : -totalSpeed;
                     if(prop.userData.blur) prop.userData.blur.material.opacity = blurOpacity;
