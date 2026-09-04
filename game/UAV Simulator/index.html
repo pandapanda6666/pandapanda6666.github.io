@@ -3,425 +3,315 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>目錄索引</title>
+    <title>3D無人機模擬器</title>
     <style>
-        /* 採用程式碼A的綠色系配色變數 */
-        :root {
-            --primary-color: #2c5e32;
-            --secondary-color: #3c6e42;
-            --background-color: #f0f8e8;
-            --card-bg-color: #ffffff;
-            --text-color: #3d3d3d;
-            --border-color: #dde8d4;
-        }
-
         body {
-            background-color: var(--background-color);
-            color: var(--text-color);
-            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            line-height: 1.7;
-        }
-
-        header {
-            border-bottom: 2px solid var(--border-color);
-            padding: 3rem 1.5rem;
-            background-color: #e4f0d8; /* 配合A主題微調的頂部背景 */
-            text-align: center;
-        }
-
-        #main-title {
-            font-size: 2.5rem;
-            font-weight: 900;
-            color: var(--primary-color);
-            margin: 0 0 10px 0;
-        }
-
-        #main-subtitle {
-            color: #555;
-            font-size: 1.1rem;
-            margin: 0;
-        }
-
-        main {
-            flex-grow: 1;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            padding: 2rem;
-            box-sizing: border-box;
-        }
-
-        /* 網格與卡片樣式 */
-        #folder-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-        }
-
-        .project-card {
-            background-color: var(--card-bg-color);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
             overflow: hidden;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: block;
-            color: inherit;
+            background-color: #87CEEB; /* 天空藍背景 */
+            font-family: sans-serif;
         }
-
-        .project-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
-            border-color: var(--primary-color);
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
         }
-
-        .card-content {
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-bottom: 10px;
         }
-
-        .img-container {
-            width: 5rem;
-            height: 5rem;
-            flex-shrink: 0;
-            background: #f0f0f0;
-            border-radius: 0.75rem;
-            overflow: hidden;
-            border: 1px solid #e5e7eb;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        button:hover {
+            background-color: #45a049;
         }
-
-        .project-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .instructions {
+            font-size: 14px;
+            line-height: 1.5;
         }
-
-        .img-fallback-text {
-            font-size: 0.7rem;
-            color: #9ca3af;
-            font-weight: bold;
-            text-align: center;
-            line-height: 1.2;
-            padding: 4px;
-        }
-
-        .text-content {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .project-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin: 0;
-        }
-
-        .project-desc {
-            margin-top: 0.25rem;
-            font-size: 0.875rem;
-            color: #666;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .arrow-icon {
-            color: var(--secondary-color);
-            flex-shrink: 0;
-        }
-
-        #loading-indicator {
-            text-align: center;
-            padding: 3rem 0;
-            color: #666;
-        }
-        
-        .loading-spinner-small {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 3px solid #ccc;
-            border-top-color: var(--primary-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 0.5rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         footer {
-            border-top: 2px solid var(--border-color);
-            padding: 2rem 1.5rem;
-            background-color: #e4f0d8;
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
             text-align: center;
-            color: #777;
-            font-size: 0.9em;
-            margin-top: auto;
+            color: white;
+            z-index: 10;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px black;
         }
-
         footer a {
-            color: var(--primary-color);
+            color: #4CAF50;
             text-decoration: none;
-            font-weight: bold;
         }
-
         footer a:hover {
             text-decoration: underline;
         }
     </style>
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
-    <header>
-        <div class="max-w-6xl mx-auto text-center">
-            <h1 id="main-title">載入中...</h1>
-            <p id="main-subtitle"></p>
+    <div id="ui-container">
+        <button id="modeSwitchBtn">目前模式：美國手</button>
+        <div class="instructions" id="instructionsText">
+            [美國手 操作說明]<br>
+            上下鍵：油門 (螺旋槳加速)<br>
+            左右鍵：水平轉動 (Yaw)<br>
+            W S 鍵：前後傾斜 (Pitch)<br>
+            A D 鍵：左右傾斜 (Roll)
         </div>
-    </header>
+    </div>
 
-    <main>
-        <div id="folder-list">
-            <!-- 資料夾卡片將在此生成 -->
-        </div>
-        
-        <div id="loading-indicator">
-            <div class="loading-spinner-small"></div>
-            <p id="loading-text">正在自動辨識目錄結構...</p>
-        </div>
-    </main>
-
-    <footer>
-        <p id="copyright-text">
-            版權所有 © 2026 
-            <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> 
-            All Rights Reserved.
-        </p>
-    </footer>
+    <!-- 版權宣告 -->
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
 
     <script>
-        const isZH = navigator.language.startsWith('zh');
-        
-        // 語系字典
-        const i18n = {
-            zh: {
-                loading: "載入中...",
-                reading: "正在自動辨識目錄結構...",
-                noContent: "目前沒有可顯示的項目",
-                apiLimit: "GitHub API 達到上限，請稍候",
-                defaultSubtitle: "自動掃描的專案清單",
-                noDescription: "無說明文字",
-                noIcon: "載入預覽中",
-                scanError: "讀取目錄失敗",
-                localError: "請於 GitHub Pages 運行"
-            },
-            en: {
-                loading: "Loading...",
-                reading: "Scanning folders automatically...",
-                noContent: "No items found",
-                apiLimit: "API rate limit reached",
-                defaultSubtitle: "Automated Project List",
-                noDescription: "No description",
-                noIcon: "Loading Preview",
-                scanError: "Failed to scan",
-                localError: "Run on GitHub Pages"
-            }
+        // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
+
+        // 基本場景設置
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 3, 6);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // 燈光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // 網格地板 (提供視覺參考)
+        const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x888888);
+        gridHelper.position.y = -2;
+        scene.add(gridHelper);
+
+        // 建立無人機模型
+        const droneGroup = new THREE.Group();
+        scene.add(droneGroup);
+
+        const materials = {
+            body: new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7 }),
+            armFront: new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.5 }),
+            armBack: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }),
+            motor: new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 }),
+            propeller: new THREE.MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0.7 }),
+            camera: new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0.9 })
         };
 
-        const t = isZH ? i18n.zh : i18n.en;
+        // 1. 中央機身
+        const bodyGeo = new THREE.BoxGeometry(0.8, 0.3, 1.2);
+        const bodyMesh = new THREE.Mesh(bodyGeo, materials.body);
+        bodyMesh.castShadow = true;
+        droneGroup.add(bodyMesh);
 
-        function getAbsoluteUrl(relativePath) {
-            try {
-                let base = window.location.href;
-                if (!base.endsWith('/') && !base.includes('.html')) base += '/';
-                base = base.replace(/\/index\.html$/, '/'); // 採用 A 的相對路徑精準修正邏輯
-                return new URL(relativePath, base).href;
-            } catch (e) {
-                return relativePath;
-            }
+        // 2. 攝影機 (辨識前方)
+        const camGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 16);
+        const camMesh = new THREE.Mesh(camGeo, materials.camera);
+        camMesh.rotation.z = Math.PI / 2;
+        camMesh.position.set(0, 0, -0.65);
+        droneGroup.add(camMesh);
+
+        // 機臂與馬達設置函數
+        const propellers = []; // 儲存螺旋槳以便動畫旋轉
+        function createArm(x, z, isFront) {
+            const armGroup = new THREE.Group();
+            
+            // 機臂
+            const armLength = 1.2;
+            const armGeo = new THREE.CylinderGeometry(0.05, 0.05, armLength, 8);
+            const armMesh = new THREE.Mesh(armGeo, isFront ? materials.armFront : materials.armBack);
+            armMesh.rotation.x = Math.PI / 2;
+            armMesh.position.set(0, 0, armLength / 2);
+            armGroup.add(armMesh);
+
+            // 馬達
+            const motorGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.2, 16);
+            const motorMesh = new THREE.Mesh(motorGeo, materials.motor);
+            motorMesh.position.set(0, 0.1, armLength);
+            armGroup.add(motorMesh);
+
+            // 螺旋槳
+            const propGroup = new THREE.Group();
+            const propGeo = new THREE.BoxGeometry(1.0, 0.02, 0.1);
+            const propMesh = new THREE.Mesh(propGeo, materials.propeller);
+            propGroup.add(propMesh);
+            propGroup.position.set(0, 0.25, armLength);
+            armGroup.add(propGroup);
+            
+            propellers.push(propGroup);
+
+            // 定位整個機臂
+            const angle = Math.atan2(x, z);
+            armGroup.rotation.y = angle;
+            droneGroup.add(armGroup);
         }
 
-        function handleImageError(img, projectUrl) {
-            const previewUrl = `https://s.wordpress.com/mshots/v1/${encodeURIComponent(projectUrl)}?w=400`;
-            if (img.src !== previewUrl) {
-                img.src = previewUrl;
+        // 建立四個機臂 (X, Z座標) - Z軸負方向為前方
+        createArm(-1, -1, true);  // 左前
+        createArm(1, -1, true);   // 右前
+        createArm(-1, 1, false);  // 左後
+        createArm(1, 1, false);   // 右後
+
+        // 控制狀態
+        let controlMode = 'american'; // 'american' 或 'japanese'
+        
+        const keys = {
+            w: false, a: false, s: false, d: false,
+            up: false, down: false, left: false, right: false
+        };
+
+        // 按鍵監聽
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') keys.w = true;
+            if (key === 'a') keys.a = true;
+            if (key === 's') keys.s = true;
+            if (key === 'd') keys.d = true;
+            if (e.key === 'ArrowUp') keys.up = true;
+            if (e.key === 'ArrowDown') keys.down = true;
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowRight') keys.right = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') keys.w = false;
+            if (key === 'a') keys.a = false;
+            if (key === 's') keys.s = false;
+            if (key === 'd') keys.d = false;
+            if (e.key === 'ArrowUp') keys.up = false;
+            if (e.key === 'ArrowDown') keys.down = false;
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowRight') keys.right = false;
+        });
+
+        // UI 模式切換
+        const modeSwitchBtn = document.getElementById('modeSwitchBtn');
+        const instructionsText = document.getElementById('instructionsText');
+
+        modeSwitchBtn.addEventListener('click', () => {
+            if (controlMode === 'american') {
+                controlMode = 'japanese';
+                modeSwitchBtn.textContent = '目前模式：日本手';
+                instructionsText.innerHTML = `
+                    [日本手 操作說明]<br>
+                    W S 鍵：油門 (螺旋槳加速)<br>
+                    A D 鍵：水平轉動 (Yaw)<br>
+                    上下鍵：前後傾斜 (Pitch)<br>
+                    左右鍵：左右傾斜 (Roll)
+                `;
             } else {
-                img.parentElement.innerHTML = `<div class="img-fallback-text">${t.noIcon}</div>`;
+                controlMode = 'american';
+                modeSwitchBtn.textContent = '目前模式：美國手';
+                instructionsText.innerHTML = `
+                    [美國手 操作說明]<br>
+                    上下鍵：油門 (螺旋槳加速)<br>
+                    左右鍵：水平轉動 (Yaw)<br>
+                    W S 鍵：前後傾斜 (Pitch)<br>
+                    A D 鍵：左右傾斜 (Roll)
+                `;
             }
-        }
+        });
 
-        // 移植自 B 檔案的後端邏輯：動態解析 GitHub Pages 的帳號、儲存庫與路徑
-        async function getRepoInfo() {
-            const hostname = window.location.hostname;
-            const pathname = window.location.pathname;
-            
-            if (!hostname.includes('github.io')) return null;
+        // 動畫變數
+        let targetPitch = 0;
+        let targetRoll = 0;
+        const maxTilt = Math.PI / 6; // 最大傾斜角 30度
+        const maxYaw = 10 * (Math.PI / 180); // 最大旋轉角 10度 (轉換為弧度)
+        const lerpSpeed = 0.1;       // 平滑過渡速度
 
-            const user = hostname.split('.')[0];
-            const cleanPath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
-            const pathParts = cleanPath.split('/').filter(p => p !== '');
+        // 視窗縮放適應
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
 
-            // 若在根目錄
-            if (pathParts.length === 0) {
-                return { user, repo: `${user}.github.io`, subPath: '' };
-            }
+        // 渲染迴圈
+        function animate() {
+            requestAnimationFrame(animate);
 
-            const testRepo = pathParts[0];
-            try {
-                const res = await fetch(`https://api.github.com/repos/${user}/${testRepo}`);
-                if (res.ok) {
-                    return { user, repo: testRepo, subPath: pathParts.slice(1).join('/') };
-                }
-            } catch (e) {}
-            
-            return { user, repo: `${user}.github.io`, subPath: pathParts.join('/') };
-        }
+            // 解析控制輸入
+            let inputThrottle = 0;
+            let inputYaw = 0;
+            let inputPitch = 0;
+            let inputRoll = 0;
 
-        async function init() {
-            document.getElementById('loading-text').textContent = t.reading;
-            document.getElementById('main-title').textContent = t.loading;
-            
-            await updateTitleFromReadme();
-            
-            if (window.location.protocol === 'file:') {
-                document.getElementById('loading-indicator').innerHTML = `<p style="color: #d9534f; font-style: italic;">${t.localError}</p>`;
-                return;
-            }
-            
-            await scanAndLoadFolders();
-        }
-
-        async function updateTitleFromReadme() {
-            const titleElement = document.getElementById('main-title');
-            const subtitleElement = document.getElementById('main-subtitle');
-            
-            try {
-                const response = await fetch(getAbsoluteUrl('./README.md'));
-                if (response.ok) {
-                    const text = await response.text();
-                    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                    if (lines.length > 0) {
-                        const extractedTitle = lines[0].replace(/^#\s*/, '').trim();
-                        titleElement.textContent = extractedTitle;
-                        document.title = extractedTitle;
-                        subtitleElement.textContent = lines.length > 1 ? lines[1] : t.defaultSubtitle;
-                        return;
-                    }
-                }
-            } catch (e) {}
-            
-            fallbackTitle();
-        }
-
-        function fallbackTitle() {
-            const url = window.location.href;
-            let title = url.replace('https://pandapanda6666.github.io/', '').replace(/\//g, '');
-            if (!title || title.includes('index.html')) {
-                title = isZH ? "專案目錄" : "Project Directory";
-            }
-            document.getElementById('main-title').textContent = title;
-            document.title = title;
-            document.getElementById('main-subtitle').textContent = t.defaultSubtitle;
-        }
-
-        // 結合 B 的動態資料源與 A 的卡片元素生成邏輯
-        async function scanAndLoadFolders() {
-            const container = document.getElementById('folder-list');
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const repoInfo = await getRepoInfo();
-            
-            if (!repoInfo) {
-                loadingIndicator.innerHTML = `<p style="color: #d9534f;">${t.scanError}</p>`;
-                return;
-            }
-
-            try {
-                const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
-                const response = await fetch(apiUrl);
+            if (controlMode === 'american') {
+                // 美國手邏輯
+                if (keys.up) inputThrottle += 1;
+                if (keys.down) inputThrottle -= 1;
+                if (keys.left) inputYaw += 1;
+                if (keys.right) inputYaw -= 1;
                 
-                if (!response.ok) {
-                    if (response.status === 403) throw new Error(t.apiLimit);
-                    throw new Error(t.scanError);
-                }
-
-                const contents = await response.json();
-                // 篩選出非隱藏資料夾
-                const directories = contents.filter(item => item.type === 'dir' && !item.name.startsWith('.'));
-
-                let hasContent = false;
-                container.innerHTML = ''; 
-
-                for (const item of directories) {
-                    try {
-                        const folder = item.name;
-                        const projectUrl = getAbsoluteUrl(`./${folder}/`);
-                        const readmeUrl = getAbsoluteUrl(`./${folder}/README.md`);
-                        const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
-                        
-                        const readmeRes = await fetch(readmeUrl);
-                        if (!readmeRes.ok) continue; 
-
-                        const text = await readmeRes.text();
-                        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                        if (lines.length === 0) continue;
-
-                        hasContent = true;
-                        const name = lines[0].replace(/^#\s*/, '').trim();
-                        const desc = lines.length > 1 ? lines[1].trim() : t.noDescription;
-
-                        const cardHTML = `
-                            <a href="${projectUrl}" class="project-card">
-                                <div class="card-content">
-                                    <div class="img-container">
-                                        <img src="${iconUrl}" alt="${name}" class="project-img" 
-                                             onerror="handleImageError(this, '${projectUrl}')">
-                                    </div>
-                                    <div class="text-content">
-                                        <h3 class="project-title">${name}</h3>
-                                        <p class="project-desc">${desc}</p>
-                                    </div>
-                                    <div class="arrow-icon">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </a>
-                        `;
-                        
-                        const tempDiv = document.createElement('div');
-                        tempDiv.innerHTML = cardHTML.trim();
-                        container.appendChild(tempDiv.firstChild);
-
-                    } catch (e) {
-                        console.warn("Skipping folder:", item.name, e);
-                    }
-                }
-
-                loadingIndicator.style.display = 'none';
-                if (!hasContent) container.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#999;">${t.noContent}</div>`;
-
-            } catch (error) {
-                loadingIndicator.innerHTML = `<p style="color: #d9534f;">${error.message}</p>`;
+                if (keys.w) inputPitch += 1;
+                if (keys.s) inputPitch -= 1;
+                if (keys.a) inputRoll += 1;
+                if (keys.d) inputRoll -= 1;
+            } else {
+                // 日本手邏輯 (WSAD 與 方向鍵反轉)
+                if (keys.w) inputThrottle += 1;
+                if (keys.s) inputThrottle -= 1;
+                if (keys.a) inputYaw += 1;
+                if (keys.d) inputYaw -= 1;
+                
+                if (keys.up) inputPitch += 1;
+                if (keys.down) inputPitch -= 1;
+                if (keys.left) inputRoll += 1;
+                if (keys.right) inputRoll -= 1;
             }
+
+            // 計算姿態目標值
+            // Pitch (前後傾斜) - 往前傾(W)代表機頭朝下，即繞X軸旋轉負值
+            targetPitch = -inputPitch * maxTilt;
+            // Roll (左右傾斜) - 修正反轉問題，往左傾對應Z軸正旋轉
+            targetRoll = inputRoll * maxTilt;
+            // Yaw (水平轉動) - 限制轉動 10 度，無輸入時為 0 以便回正
+            const targetYaw = inputYaw * maxYaw; 
+
+            // 平滑套用旋轉 (使用 YXZ 順序確保萬向節鎖問題減輕，Yaw作為基底)
+            const currentPitch = THREE.MathUtils.lerp(droneGroup.rotation.x, targetPitch, lerpSpeed);
+            const currentRoll = THREE.MathUtils.lerp(droneGroup.rotation.z, targetRoll, lerpSpeed);
+            const currentYaw = THREE.MathUtils.lerp(droneGroup.rotation.y, targetYaw, lerpSpeed);
+            
+            droneGroup.rotation.set(currentPitch, currentYaw, currentRoll, 'YXZ');
+
+            // 螺旋槳動畫邏輯
+            // 基礎轉速 + 油門加速 + 姿態控制造成的差速視覺效果
+            const baseSpeed = 0.2;
+            const extraSpeed = (inputThrottle !== 0 || inputPitch !== 0 || inputRoll !== 0 || inputYaw !== 0) ? 0.6 : 0;
+            const totalSpeed = baseSpeed + extraSpeed;
+
+            // 簡單設定交錯旋轉方向
+            propellers[0].rotation.y += totalSpeed; // 左前
+            propellers[1].rotation.y -= totalSpeed; // 右前
+            propellers[2].rotation.y -= totalSpeed; // 左後
+            propellers[3].rotation.y += totalSpeed; // 右後
+
+            renderer.render(scene, camera);
         }
 
-        window.onload = init;
+        animate();
     </script>
 </body>
 </html>
