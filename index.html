@@ -1020,20 +1020,9 @@
                 return;
             }
 
-            const lockoutUntil = localStorage.getItem('lockoutUntil');
-            if (lockoutUntil && Date.now() < parseInt(lockoutUntil, 10)) {
-                 if (localStorage.getItem('isImmune') !== 'true') {
-                    permanentBlock('您因頻繁違規操作已被暫時鎖定', '請稍後再試或按F2輸入密碼');
-                    return;
-                 }
-            } else {
-                localStorage.removeItem('lockoutUntil');
-            }
+            
 
-            if (localStorage.getItem('isImmune') !== 'true' && navigator.brave && await navigator.brave.isBrave()) {
-                permanentBlock('偵測到 Brave 瀏覽器');
-                return;
-            }
+            
 
             const monitorEl = document.getElementById('system-monitor');
             
@@ -1062,8 +1051,7 @@
                     const heightDiff = windowH - innerH;
 
                     if ((widthDiff > threshold || heightDiff > threshold) && localStorage.getItem('isImmune') !== 'true') {
-                         const details = `偵測到內容空間異常\n(外寬: ${windowW} - 內寬: ${innerW} = ${widthDiff})`;
-                        permanentBlock('偵測到開發者工具 (面板佔用空間)', details);
+                        showSecurityWarning();
                     }
                 }
             }
@@ -1090,20 +1078,7 @@
                 }
                 lastWarningTime = now;
 
-                if (warningCount >= 3) {
-                    let ultimateCount = parseInt(localStorage.getItem('ultimateWarningCount') || '0') + 1;
-                    localStorage.setItem('ultimateWarningCount', ultimateCount);
-
-                    if (ultimateCount >= 3) {
-                        localStorage.setItem('lockoutUntil', Date.now() + 3600000); 
-                        localStorage.removeItem('ultimateWarningCount');
-                    } else {
-                        localStorage.setItem('lockoutUntil', Date.now() + 60000); 
-                    }
-                    
-                    permanentBlock('您因頻繁違規操作已被暫時鎖定', '系統將重新導向');
-                    return;
-                }
+                
 
                 if (securityModal.style.display === 'flex') return;
                 securityModal.style.display = 'flex';
