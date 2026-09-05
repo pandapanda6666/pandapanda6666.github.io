@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D無人機模擬器 - 終極擬真版</title>
+    <title>3D無人機模擬器 - 萬千機型版</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; }
-        #ui-container { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; color: white; width: 300px; max-height: 90vh; overflow-y: auto; }
+        #ui-container { position: absolute; top: 20px; left: 20px; z-index: 10; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; color: white; width: 300px; }
         button { padding: 10px 15px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; margin-bottom: 10px; width: 100%; display: block; box-sizing: border-box; transition: background 0.2s; }
         button:hover { background-color: #45a049; }
         button.active { background-color: #f44336; }
@@ -23,7 +23,6 @@
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 </head>
 <body>
     <div id="crosshair"></div>
@@ -34,8 +33,7 @@
         ACRO MODE
     </div>
     <div id="ui-container">
-        <button id="resetCamBtn">重置攝影機視角 📷</button>
-        <button id="viewSwitchBtn">目前視角：第三人稱</button>
+        <button id="viewSwitchBtn">目前視角：第三人稱 (滑鼠可控制)</button>
         <button id="audioBtn">開啟引擎音效 🔊 (點擊啟用)</button>
         <button id="modeSwitchBtn">目前模式：美國手</button>
         <div class="instructions" id="instructionsText">
@@ -197,16 +195,8 @@
         const controls = new THREE.OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true; controls.dampingFactor = 0.05; controls.maxPolarAngle = Math.PI / 2 - 0.05; 
 
-        document.getElementById('resetCamBtn').addEventListener('click', () => {
-            if(!isFPV) {
-                controls.reset();
-                camera.position.set(0, 1.5, 3.5);
-                camera.lookAt(0, 0, 0);
-            }
-        });
-
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(5, 10, 7); dirLight.castShadow = true;
         dirLight.shadow.camera.top = 5; dirLight.shadow.camera.bottom = -5; dirLight.shadow.camera.left = -5; dirLight.shadow.camera.right = 5;
         scene.add(dirLight);
@@ -236,359 +226,187 @@
         const fpvCameraPos = new THREE.Vector3();
         let currentCamTilt = 0;
 
-        // 【極致還原真實物理結構庫】
-        
-        
-        const gltfLoader = new THREE.GLTFLoader();
-        let activeShaders = []; // 用來存取材質的 shader 以更新時間
-
+        // 超級模組化生成系統
         function buildDrone(modelStr) {
             while(droneGroup.children.length > 0){ droneGroup.remove(droneGroup.children[0]); }
             propellers.length = 0;
-            activeShaders = [];
-            const n = modelStr.toLowerCase();
             
-            // 優先載入專屬模型，若無則載入預設超高畫質模型
-            const modelUrl = `models/${modelStr}.glb`;
+            // 使用字串生成唯一的 Hash Seed，確保每台完全不同
+            let hash = 0;
+            for (let i = 0; i < modelStr.length; i++) { hash = modelStr.charCodeAt(i) + ((hash << 5) - hash); }
+            function random() { var x = Math.sin(hash++) * 10000; return x - Math.floor(x); }
+
+            // === 隨機決定模組類型 (保證每台完全不同) ===
+            const bodyStyle = Math.floor(random() * 5); // 0: Hexagon, 1: Slim, 2: Wide, 3: Box, 4: Split
+            const armStyle = Math.floor(random() * 4);  // 0: Straight, 1: Tapered, 2: Curved, 3: Skeleton
+            const topStyle = Math.floor(random() * 5);  // 0: Flat, 1: Pod, 2: Double Plate, 3: Minimal, 4: Cage
+            const motorStyle = Math.floor(random() * 3); // 0: Flat, 1: Tall, 2: Bell
+            const camStyle = Math.floor(random() * 4);  // 0: TPU Mount, 1: Carbon Side Plates, 2: Integrated, 3: Naked
             
-            gltfLoader.load(
-                modelUrl,
-                function (gltf) { setupLoadedModel(gltf.scene, true); },
-                undefined,
-                function () {
-                    // 若無專屬模型，使用黑科技預設的高品質模型
-                    gltfLoader.load(
-                        'models/default_drone.glb',
-                        function (gltf) { setupLoadedModel(gltf.scene, false, n); },
-                        undefined,
-                        function () { buildProceduralDrone(modelStr); }
-                    );
-                }
-            );
-        }
-
-        function setupLoadedModel(model, isCustom, droneName) {
-            let foundProps = false;
-            model.traverse((child) => { if(child.isMesh && child.name.toLowerCase().includes('prop')) foundProps = true; });
-
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    
-                    if (foundProps) {
-                        if (child.name.toLowerCase().includes('prop')) propellers.push(child);
-                    } else {
-                        // 如果網路下載的真實模型沒有獨立的螺旋槳，強制使用 Shader 讓它轉動
-                        const mat = child.material.clone();
-                        mat.onBeforeCompile = (shader) => {
-                            shader.uniforms.time = { value: 0 };
-                            activeShaders.push(shader);
-                            shader.vertexShader = shader.vertexShader.replace(
-                                '#include <common>',
-                                `#include <common>\nuniform float time;`
-                            );
-                            shader.vertexShader = shader.vertexShader.replace(
-                                '#include <begin_vertex>',
-                                `#include <begin_vertex>
-                                // 判斷是否為高處的螺旋槳頂點
-                                if (position.y > 10.0) {
-                                    float cx = (position.x > 0.0) ? (position.z > 0.0 ? 8.8 : 15.0) : (position.z > 0.0 ? -8.8 : -15.0);
-                                    float cz = (position.z > 0.0) ? 26.6 : -17.7;
-                                    float dx = position.x - cx; float dz = position.z - cz;
-                                    float dir = (position.x * position.z > 0.0) ? -1.0 : 1.0;
-                                    float angle = time * 30.0 * dir;
-                                    float s = sin(angle); float c = cos(angle);
-                                    transformed.x = cx + dx * c - dz * s;
-                                    transformed.z = cz + dx * s + dz * c;
-                                    transformed.y += sin(time * 100.0 + position.x) * 0.2;
-                                }`
-                            );
-                        };
-                        child.material = mat;
-                    }
-
-                                if (!isCustom) {
-                model.scale.set(1.5, 1.5, 1.5);
-                // 調整黑科技模型的預設轉向
-                model.rotation.y = Math.PI / 2;
-            } else {
-                model.scale.set(1.0, 1.0, 1.0); 
-            }
-            model.position.set(0, 0, 0);
+            // 基礎參數
+            const isWhoop = modelStr.toLowerCase().match(/(whoop|mobula|meteor|tiny|cetus|beebrain)/);
+            const isLongRange = modelStr.toLowerCase().match(/(7|long|source one 7)/);
             
-            droneGroup.add(model);
-            
-            currentCamTilt = Math.PI / 6;
-            fpvCameraPos.set(0, 0.08, -0.05);
-            if (isFPV) resetFPVCamera();
-        }
+            const scaleMultiplier = isWhoop ? 0.3 : (isLongRange ? 1.5 : (0.8 + random() * 0.4));
+            const armLength = (0.35 + random() * 0.15) * scaleMultiplier;
+            const propRadius = (0.2 + random() * 0.08) * scaleMultiplier;
+            const armAngle = (Math.PI / 6) + random() * (Math.PI / 6); // Deadcat to TrueX
 
-        function buildProceduralDrone(modelStr) {
-            const n = modelStr.toLowerCase();
-            
-            // 基礎設定檔
-            let config = {
-                class: 'freestyle',
-                scale: 1.0,
-                armLayout: 'truex', 
-                armWidth: 0.035,
-                hasTopPlate: true,
-                hasCanopy: false,
-                hasActionCam: true,
-                hasSharkFin: false,
-                hasDucts: false,
-                isPlastic: false,
-                isCetus: false, 
-                isArmattan: false, 
-                frameColor: 0x222222,
-                tpuColor: 0x00aaff,
-                propColor: 0x222222,
-                motorColor: 0x111111,
-                standoffColor: 0xaaaaaa,
-                propBlades: 3,
-                stackHeight: 0.05
-            };
+            // 獨特材質庫
+            const frameColor = new THREE.Color().setHSL(random(), 0.5, 0.2);
+            const isPlasticFrame = random() > 0.7 || isWhoop;
+            const mainMat = isPlasticFrame ? new THREE.MeshStandardMaterial({ color: frameColor, roughness: 0.3 }) 
+                                           : new THREE.MeshStandardMaterial({ map: carbonTex, roughness: 0.7, metalness: 0.4 });
+            const standoffMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.9, 0.5), metalness: 0.8, roughness: 0.2 });
+            const tpuMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.9, 0.5), roughness: 0.8 });
+            const stackMat = new THREE.MeshStandardMaterial({ color: 0x111, roughness: 0.9 });
+            const motorBellMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(random(), 0.8, 0.4), metalness: 0.9, roughness: 0.1 });
+            const propColor = new THREE.Color().setHSL(random(), 0.9, 0.4);
+            const propMat = new THREE.MeshStandardMaterial({ color: propColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+            const blurMat = new THREE.MeshBasicMaterial({ color: propColor, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
 
-            // 型號細節配對
-            if (n.includes('nazgul')) {
-                config.tpuColor = 0x00ff00; config.propColor = 0x00ff00; config.armWidth = 0.045;
-            } else if (n.includes('cetus')) {
-                config.class = 'whoop'; config.scale = 0.4; config.isCetus = true; config.isPlastic = true; 
-                config.frameColor = 0xffffff; config.hasDucts = true; config.hasCanopy = true; config.hasActionCam = false; config.hasTopPlate = false; config.propBlades = 4;
-            } else if (n.includes('mobula')) {
-                config.class = 'whoop'; config.scale = 0.3; config.isPlastic = true; config.frameColor = 0x111111; config.tpuColor = 0xff0000;
-                config.hasDucts = true; config.hasCanopy = true; config.hasActionCam = false; config.hasTopPlate = false; config.propColor = 0xff0000;
-            } else if (n.includes('tiny hawk') || n.includes('tinyhawk')) {
-                config.class = 'whoop'; config.scale = 0.35; config.isPlastic = true; config.frameColor = 0xffffff; config.tpuColor = 0xff0000;
-                config.armLayout = 'stretched'; config.hasDucts = true; config.hasCanopy = true; config.hasActionCam = false; config.hasTopPlate = false; config.propBlades = 4;
-            } else if (n.includes('five33') || n.includes('switchback') || n.includes('spec 7')) {
-                config.class = 'racing'; config.scale = 0.9; config.armWidth = 0.015; config.tpuColor = 0x00ffff; config.propColor = 0x00ffff;
-                config.hasSharkFin = true; config.hasActionCam = false; config.stackHeight = 0.04;
-            } else if (n.includes('source one') || n.includes('cannonball') || n.includes('70')) {
-                config.class = 'longrange'; config.scale = 1.4; config.armLayout = 'deadcat'; config.propBlades = 2; config.armWidth = 0.04; config.tpuColor = 0x222222;
-            } else if (n.includes('armattan') || n.includes('chameleon') || n.includes('marmotte') || n.includes('badger')) {
-                config.isArmattan = true; config.tpuColor = 0xff5500; config.hasTopPlate = false;
-            } else {
-                let hash = 0; for(let i=0; i<n.length; i++) hash = n.charCodeAt(i) + ((hash<<5)-hash);
-                function r() { let x = Math.sin(hash++)*10000; return x - Math.floor(x); }
-                config.tpuColor = new THREE.Color().setHSL(r(), 0.8, 0.5).getHex();
-                config.propColor = new THREE.Color().setHSL(r(), 0.7, 0.4).getHex();
-                if (n.includes('7') || n.includes('long')) { config.class = 'longrange'; config.scale = 1.3; config.armLayout = 'deadcat'; }
-                else if (n.includes('racer') || n.includes('racing')) { config.class = 'racing'; config.armWidth = 0.02; config.hasSharkFin = true; config.hasActionCam = false; }
-                else if (n.match(/(whoop|tiny|micro)/)) { config.class = 'whoop'; config.scale = 0.35; config.isPlastic = true; config.hasDucts = true; config.hasCanopy = true; config.hasTopPlate = false; }
-            }
+            const extrudeSettings = { depth: 0.03 * scaleMultiplier, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 };
 
-            const s = config.scale;
-            const mainMat = config.isPlastic ? new THREE.MeshStandardMaterial({ color: config.frameColor, roughness: 0.3 }) : new THREE.MeshStandardMaterial({ map: carbonTex, roughness: 0.8, metalness: 0.2 });
-            const standoffMat = new THREE.MeshStandardMaterial({ color: config.standoffColor, metalness: 0.7, roughness: 0.3 });
-            const tpuMat = new THREE.MeshStandardMaterial({ color: config.tpuColor, roughness: 0.7 });
-            const stackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
-            const motorBellMat = new THREE.MeshStandardMaterial({ color: config.motorColor, metalness: 0.8, roughness: 0.2 });
-            const propMat = new THREE.MeshStandardMaterial({ color: config.propColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
-            const blurMat = new THREE.MeshBasicMaterial({ color: config.propColor, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
-
+            // === 1. 生成中央底板 ===
             const bodyGeo = new THREE.Group();
-            const bodyW = 0.08 * s * (config.class === 'racing' ? 0.6 : 1.0);
-            const bodyL = 0.16 * s;
+            let basePlate;
+            const bodyW = 0.1 * scaleMultiplier * (bodyStyle === 1 ? 0.6 : (bodyStyle === 2 ? 1.4 : 1.0));
+            const bodyL = 0.15 * scaleMultiplier * (bodyStyle === 1 ? 1.5 : (bodyStyle === 2 ? 0.8 : 1.0));
             
-            if (config.isCetus) {
-                const shellGeo = new THREE.SphereGeometry(bodyW*1.8, 32, 32);
-                const shell = new THREE.Mesh(shellGeo, mainMat);
-                shell.scale.set(1, 0.3, 1.3); shell.position.y = 0.05 * s;
-                bodyGeo.add(shell);
-            } else {
-                // 更真實的底板形狀 (X型倒角)
-                const shape = new THREE.Shape();
-                shape.moveTo(bodyW, bodyL*0.8); 
-                shape.lineTo(bodyW*0.5, bodyL); shape.lineTo(-bodyW*0.5, bodyL);
-                shape.lineTo(-bodyW, bodyL*0.8); shape.lineTo(-bodyW, -bodyL*0.8);
-                shape.lineTo(-bodyW*0.5, -bodyL); shape.lineTo(bodyW*0.5, -bodyL);
-                shape.lineTo(bodyW, -bodyL*0.8); shape.lineTo(bodyW, bodyL*0.8);
-                
-                const bPlateGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.04*s, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 });
-                bPlateGeo.rotateX(Math.PI / 2);
-                bodyGeo.add(new THREE.Mesh(bPlateGeo, mainMat));
+            const shape = new THREE.Shape();
+            if (bodyStyle === 0) { // Hexagon
+                shape.moveTo(0, bodyL); shape.lineTo(bodyW, bodyL*0.5); shape.lineTo(bodyW, -bodyL*0.5); shape.lineTo(0, -bodyL); shape.lineTo(-bodyW, -bodyL*0.5); shape.lineTo(-bodyW, bodyL*0.5);
+            } else if (bodyStyle === 1 || bodyStyle === 2 || bodyStyle === 3) { // Rect variations
+                shape.moveTo(bodyW, bodyL); shape.lineTo(bodyW, -bodyL); shape.lineTo(-bodyW, -bodyL); shape.lineTo(-bodyW, bodyL);
+            } else { // Split / H-Frame
+                shape.moveTo(bodyW, bodyL); shape.lineTo(bodyW*0.5, bodyL); shape.lineTo(bodyW*0.5, -bodyL); shape.lineTo(bodyW, -bodyL);
+                shape.lineTo(-bodyW, -bodyL); shape.lineTo(-bodyW*0.5, -bodyL); shape.lineTo(-bodyW*0.5, bodyL); shape.lineTo(-bodyW, bodyL);
             }
+            
+            const bPlateGeo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            bPlateGeo.rotateX(Math.PI / 2);
+            basePlate = new THREE.Mesh(bPlateGeo, mainMat);
+            bodyGeo.add(basePlate);
 
-            // 頂板與銅柱
-            if (config.hasCanopy && !config.isCetus) {
-                const podGeo = new THREE.CylinderGeometry(bodyW*1.2, bodyW*1.4, 0.1*s, 16);
-                podGeo.rotateX(Math.PI/2);
-                const pod = new THREE.Mesh(podGeo, config.isPlastic ? mainMat : tpuMat);
-                pod.position.set(0, 0.08*s, -0.02*s); bodyGeo.add(pod);
-            } else if (config.hasTopPlate && !config.isCetus) {
-                const shape = new THREE.Shape();
-                shape.moveTo(bodyW*0.8, bodyL*0.7); shape.lineTo(-bodyW*0.8, bodyL*0.7);
-                shape.lineTo(-bodyW*0.8, -bodyL*0.7); shape.lineTo(bodyW*0.8, -bodyL*0.7);
-                const tPlateGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.03*s, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 });
-                tPlateGeo.rotateX(Math.PI / 2);
-                const tPlate = new THREE.Mesh(tPlateGeo, mainMat);
-                tPlate.position.y = config.stackHeight * 2 * s;
+            // === 2. 生成頂部結構 ===
+            if (topStyle === 0) { // Flat plate
+                const tPlate = new THREE.Mesh(bPlateGeo, mainMat);
+                tPlate.position.y = 0.15 * scaleMultiplier;
                 bodyGeo.add(tPlate);
-                
+                // Standoffs
                 for(let i of [-1, 1]) for(let j of [-1, 1]) {
-                    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, (config.stackHeight*2-0.02)*s, 8), standoffMat);
-                    st.position.set(i*bodyW*0.7, config.stackHeight*s, j*bodyL*0.6); bodyGeo.add(st);
+                    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.12*scaleMultiplier, 8), standoffMat);
+                    st.position.set(i*bodyW*0.8, 0.08*scaleMultiplier, j*bodyL*0.8);
+                    bodyGeo.add(st);
                 }
-            } else if (config.isArmattan) {
-                const cageMat = new THREE.MeshStandardMaterial({ color: config.tpuColor, metalness: 0.8, roughness: 0.3 });
-                const cageGeo = new THREE.TorusGeometry(bodyW*0.8, 0.012, 8, 16, Math.PI);
-                const cageL = new THREE.Mesh(cageGeo, cageMat); cageL.position.set(-bodyW*0.8, 0.1*s, -bodyL*0.6); cageL.rotation.y = Math.PI/2; bodyGeo.add(cageL);
-                const cageR = new THREE.Mesh(cageGeo, cageMat); cageR.position.set(bodyW*0.8, 0.1*s, -bodyL*0.6); cageR.rotation.y = Math.PI/2; bodyGeo.add(cageR);
+            } else if (topStyle === 1) { // Pod (Canopy)
+                const pod = new THREE.Mesh(new THREE.SphereGeometry(bodyW, 16, 16, 0, Math.PI*2, 0, Math.PI/2), tpuMat);
+                pod.position.y = 0.03 * scaleMultiplier;
+                pod.scale.set(1, 1.5, 1.5);
+                bodyGeo.add(pod);
+            } else if (topStyle === 2) { // Double Plate
+                const t1 = new THREE.Mesh(bPlateGeo, mainMat); t1.position.y = 0.1 * scaleMultiplier; t1.scale.set(0.8,1,0.8); bodyGeo.add(t1);
+                const t2 = new THREE.Mesh(bPlateGeo, mainMat); t2.position.y = 0.2 * scaleMultiplier; t2.scale.set(0.6,1,0.6); bodyGeo.add(t2);
+            } else if (topStyle === 4) { // Cage
+                for(let i of [-1, 1]) {
+                    const cageGeo = new THREE.TorusGeometry(bodyL*0.8, 0.01, 8, 16, Math.PI);
+                    const cage = new THREE.Mesh(cageGeo, standoffMat);
+                    cage.position.set(i*bodyW*0.8, 0.03*scaleMultiplier, 0);
+                    cage.rotation.y = Math.PI/2;
+                    bodyGeo.add(cage);
+                }
             }
 
-            // 電池 (LiPo Battery) 與綁帶
-            if (!config.isPlastic && !config.isCetus) {
-                // 電池本體
-                const lipoMat = new THREE.MeshStandardMaterial({ color: 0x112244, roughness: 0.6 });
-                const lipoGeo = new THREE.BoxGeometry(bodyW*1.4, 0.15*s, bodyL*1.4);
-                const lipo = new THREE.Mesh(lipoGeo, lipoMat);
-                const lipoY = (config.hasTopPlate ? config.stackHeight * 2 * s : 0) + 0.08*s;
-                lipo.position.set(0, lipoY, 0.02*s);
-                bodyGeo.add(lipo);
-                
-                // 電池綁帶 (Strap)
-                const strapMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-                const strap = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.45, 0.16*s, 0.04*s), strapMat);
-                strap.position.set(0, lipoY, 0.02*s); bodyGeo.add(strap);
-                
-                // 電池線 (XT60)
-                const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.1*s), new THREE.MeshStandardMaterial({color:0xaa0000}));
-                wire.position.set(bodyW*0.5, lipoY, bodyL*0.8); wire.rotation.z = Math.PI/2; bodyGeo.add(wire);
+            // === 3. 生成堆疊 (FC/ESC) ===
+            const esc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.2, 0.03, bodyW*1.2), stackMat);
+            esc.position.set(0, 0.05*scaleMultiplier, 0); bodyGeo.add(esc);
+            if(random()>0.3) {
+                const fc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.2, 0.03, bodyW*1.2), stackMat);
+                fc.position.set(0, 0.09*scaleMultiplier, 0); bodyGeo.add(fc);
             }
 
-            // 電控塔 (Stack: FC + ESC)
-            if (!config.isPlastic && !config.isCetus) {
-                const esc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.1, 0.02, bodyW*1.1), stackMat);
-                esc.position.set(0, config.stackHeight*0.8*s, 0); bodyGeo.add(esc);
-                const fc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.1, 0.02, bodyW*1.1), stackMat);
-                fc.position.set(0, config.stackHeight*1.5*s, 0); bodyGeo.add(fc);
-            }
             droneGroup.add(bodyGeo);
 
-            // 攝影機 (FPV Cam)
-            currentCamTilt = (config.class === 'racing') ? Math.PI/3 : Math.PI/6;
+            // === 4. 生成攝影機與天線 ===
+            currentCamTilt = Math.PI / 12 + random() * (Math.PI / 4);
             const camGroup = new THREE.Group();
-            const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.06*s, 0.06*s, 0.06*s), new THREE.MeshStandardMaterial({color:0x111}));
+            const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.08*scaleMultiplier, 0.08*scaleMultiplier, 0.08*scaleMultiplier), new THREE.MeshStandardMaterial({color:0x111}));
             camGroup.add(camBody);
-            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.02*s, 0.02*s, 0.05*s, 16), new THREE.MeshStandardMaterial({color:0x000, metalness:1}));
-            lens.rotation.x = Math.PI/2; lens.position.z = -0.03*s; camGroup.add(lens);
+            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.025*scaleMultiplier, 0.025*scaleMultiplier, 0.06*scaleMultiplier, 16), new THREE.MeshStandardMaterial({color:0x000, metalness:1}));
+            lens.rotation.x = Math.PI/2; lens.position.z = -0.04*scaleMultiplier;
+            camGroup.add(lens);
 
-            if (config.hasCanopy || config.isCetus) {
-                camGroup.position.set(0, 0.08*s, -bodyL*0.8);
-            } else if (config.isArmattan) {
-                camGroup.position.set(0, 0.1*s, -bodyL*0.9);
-            } else {
-                camGroup.position.set(0, config.stackHeight*s, -bodyL*0.9);
-                // 碳纖維相機側板
-                const sp = new THREE.BoxGeometry(0.01, 0.1*s, 0.1*s);
-                const l = new THREE.Mesh(sp, mainMat); l.position.x = -0.04*s; camGroup.add(l);
-                const r = new THREE.Mesh(sp, mainMat); r.position.x = 0.04*s; camGroup.add(r);
+            if (camStyle === 0) { // TPU mount
+                const mount = new THREE.Mesh(new THREE.BoxGeometry(0.1*scaleMultiplier, 0.1*scaleMultiplier, 0.05*scaleMultiplier), tpuMat);
+                mount.position.z = 0.05*scaleMultiplier; camGroup.add(mount);
+            } else if (camStyle === 1) { // Carbon side plates
+                const sp = new THREE.BoxGeometry(0.01, 0.1*scaleMultiplier, 0.1*scaleMultiplier);
+                const l = new THREE.Mesh(sp, mainMat); l.position.x = -0.05*scaleMultiplier; camGroup.add(l);
+                const r = new THREE.Mesh(sp, mainMat); r.position.x = 0.05*scaleMultiplier; camGroup.add(r);
             }
             
+            camGroup.position.set(0, 0.1*scaleMultiplier, -bodyL*0.9);
             camGroup.rotation.x = currentCamTilt;
             droneGroup.add(camGroup);
-            fpvCameraPos.set(0, camGroup.position.y + Math.sin(currentCamTilt)*0.06, camGroup.position.z - Math.cos(currentCamTilt)*0.06);
+            fpvCameraPos.set(0, camGroup.position.y + Math.sin(currentCamTilt)*0.07, camGroup.position.z - Math.cos(currentCamTilt)*0.07);
 
-            // 運動相機座 (GoPro Mount)
-            if (config.hasActionCam) {
-                const mount = new THREE.Mesh(new THREE.BoxGeometry(0.12*s, 0.12*s, 0.08*s), tpuMat);
-                mount.rotation.x = Math.PI/6; mount.position.set(0, (config.stackHeight*2 + 0.12)*s, -0.08*s);
-                droneGroup.add(mount);
-                // GoPro 本體
-                const gopro = new THREE.Mesh(new THREE.BoxGeometry(0.1*s, 0.08*s, 0.05*s), new THREE.MeshStandardMaterial({color:0x222}));
-                gopro.position.set(0, 0.02*s, -0.02*s); mount.add(gopro);
-            }
-            
-            // 鯊魚鰭 (Turtle Mode Fin)
-            if (config.hasSharkFin) {
-                const finShape = new THREE.Shape();
-                finShape.moveTo(0,0); finShape.lineTo(0.05*s,0); finShape.lineTo(0.05*s,0.15*s); finShape.lineTo(0,0);
-                const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, {depth:0.015, bevelEnabled:false}), tpuMat);
-                fin.position.set(0, (config.stackHeight*2 + 0.02)*s, 0); droneGroup.add(fin);
-            }
+            // 天線
+            const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.15*scaleMultiplier), new THREE.MeshStandardMaterial({color:0x000}));
+            antStem.position.set(0, 0.1*scaleMultiplier, bodyL*0.8); antStem.rotation.x = -Math.PI / 4;
+            const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.03*scaleMultiplier), tpuMat);
+            antHead.position.set(0, 0.06*scaleMultiplier, 0.06*scaleMultiplier); antStem.add(antHead);
+            droneGroup.add(antStem);
 
-            // VTX 圖傳天線 (Lollipop)
-            if (!config.isPlastic && !config.isCetus) {
-                const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.18*s), new THREE.MeshStandardMaterial({color:0x111}));
-                antStem.position.set(0, config.stackHeight*s, bodyL*0.9); antStem.rotation.x = -Math.PI / 4;
-                const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.03*s), tpuMat);
-                antHead.position.set(0, 0.09*s, 0); antStem.add(antHead);
-                droneGroup.add(antStem);
-            }
-
-            // 機臂與馬達
-            let angleF = Math.PI/4, angleB = Math.PI/4;
-            if (config.armLayout === 'deadcat') { angleF = Math.PI/3.2; angleB = Math.PI/5.5; }
-            if (config.armLayout === 'stretched') { angleF = Math.PI/5; angleB = Math.PI/5; }
-
-            const L = (config.class === 'whoop' ? 0.2 : (config.class === 'longrange' ? 0.6 : 0.4)) * s;
-            const R = (config.class === 'whoop' ? 0.12 : (config.class === 'longrange' ? 0.35 : 0.25)) * s;
+            // === 5. 生成機臂與馬達 ===
+            const armX = Math.sin(armAngle) * armLength;
+            const armZ = Math.cos(armAngle) * armLength;
 
             function createArm(targetX, targetZ) {
                 const armGroup = new THREE.Group();
                 const dist = Math.sqrt(targetX*targetX + targetZ*targetZ);
-                const aw = config.armWidth * s;
+                const aw = 0.04 * scaleMultiplier * (armStyle === 1 ? 1.5 : (armStyle === 3 ? 1.2 : 1.0)); // Base arm width
 
-                // 繪製更真實的機臂形狀
-                if (!config.isCetus) {
-                    const armShape = new THREE.Shape();
-                    armShape.moveTo(-aw*0.6, 0); armShape.lineTo(aw*0.6, 0); 
-                    armShape.lineTo(aw*0.4, dist); armShape.lineTo(-aw*0.4, dist);
-                    const armGeo = new THREE.ExtrudeGeometry(armShape, { depth: 0.04 * s, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 });
-                    armGeo.rotateX(Math.PI / 2);
-                    const arm = new THREE.Mesh(armGeo, mainMat);
-                    arm.rotation.y = Math.atan2(targetX, targetZ);
-                    armGroup.add(arm);
+                const armShape = new THREE.Shape();
+                if (armStyle === 0 || armStyle === 3) { // Straight
+                    armShape.moveTo(-aw/2, 0); armShape.lineTo(aw/2, 0); armShape.lineTo(aw/2, dist); armShape.lineTo(-aw/2, dist);
+                } else if (armStyle === 1) { // Tapered
+                    armShape.moveTo(-aw/2, 0); armShape.lineTo(aw/2, 0); armShape.lineTo(aw/4, dist); armShape.lineTo(-aw/4, dist);
+                } else if (armStyle === 2) { // Curved
+                    armShape.moveTo(-aw/2, 0); armShape.lineTo(aw/2, 0); 
+                    armShape.quadraticCurveTo(aw, dist/2, aw/2, dist);
+                    armShape.lineTo(-aw/2, dist);
+                    armShape.quadraticCurveTo(-aw, dist/2, -aw/2, 0);
                 }
+                // (Skeleton holes would require path holes, skipped for perf, using visual trick)
+                
+                const armGeo = new THREE.ExtrudeGeometry(armShape, extrudeSettings);
+                armGeo.rotateX(Math.PI / 2);
+                const arm = new THREE.Mesh(armGeo, mainMat);
+                arm.rotation.y = Math.atan2(targetX, targetZ);
+                armGroup.add(arm);
 
-                // 馬達底座 (Stator) 與 馬達鐘 (Bell)
-                const motorPos = new THREE.Vector3(targetX, 0.02, targetZ);
-                const stH = 0.03*s;
-                const stator = new THREE.Mesh(new THREE.CylinderGeometry(R*0.25, R*0.25, stH, 16), new THREE.MeshStandardMaterial({color:0x333, metalness:0.5}));
+                // 馬達
+                const motorPos = new THREE.Vector3(targetX, 0.015, targetZ);
+                const stH = motorStyle === 1 ? 0.06 : 0.03;
+                const stator = new THREE.Mesh(new THREE.CylinderGeometry(propRadius*0.25, propRadius*0.25, stH, 16), new THREE.MeshStandardMaterial({color:0x333}));
                 stator.position.copy(motorPos); stator.position.y += stH/2; armGroup.add(stator);
 
-                const blH = 0.04*s;
-                // 馬達鐘加上紋路
-                const bellGeo = new THREE.CylinderGeometry(R*0.28, R*0.28, blH, 24);
+                const blH = motorStyle === 2 ? 0.06 : 0.04;
+                const bellGeo = motorStyle === 2 ? new THREE.SphereGeometry(propRadius*0.28, 16, 16, 0, Math.PI*2, 0, Math.PI/2) : new THREE.CylinderGeometry(propRadius*0.28, propRadius*0.28, blH, 16);
                 const bell = new THREE.Mesh(bellGeo, motorBellMat);
-                bell.position.copy(motorPos); bell.position.y += stH + blH/2 - 0.005; 
-                
-                // 加上馬達軸心
-                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, blH*1.5), new THREE.MeshStandardMaterial({color:0xffffff, metalness:1}));
-                bell.add(shaft);
-                armGroup.add(bell);
+                bell.position.copy(motorPos); bell.position.y += stH + blH/2 - 0.01; armGroup.add(bell);
 
-                // 保護圈 (Ducts)
-                if (config.hasDucts || config.isCetus) {
-                    const ductGeo = new THREE.CylinderGeometry(R+0.015, R+0.015, 0.08*s, 32, 1, true);
-                    const duct = new THREE.Mesh(ductGeo, new THREE.MeshStandardMaterial({color: config.frameColor, side: THREE.DoubleSide}));
-                    duct.position.copy(motorPos); duct.position.y += 0.05*s;
-                    armGroup.add(duct);
-                    
-                    const supportGeo = new THREE.BoxGeometry(R*2.1, 0.01, 0.01);
-                    const support = new THREE.Mesh(supportGeo, mainMat); support.position.copy(motorPos); support.position.y += 0.02; armGroup.add(support);
-                    const support2 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, R*2.1), mainMat); support2.position.copy(motorPos); support2.position.y += 0.02; armGroup.add(support2);
-                }
-
-                // 螺旋槳 (Props) - 改用帶有弧度的形狀
+                // 螺旋槳
                 const propGroup = new THREE.Group();
                 const blades = [];
-                for (let i = 0; i < config.propBlades; i++) {
-                    const bladeShape = new THREE.Shape();
-                    bladeShape.moveTo(0, -0.02); bladeShape.quadraticCurveTo(R*0.5, -0.05, R, -0.01);
-                    bladeShape.quadraticCurveTo(R*0.8, 0.05, 0, 0.02);
-                    const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.005, bevelEnabled:false });
-                    bladeGeo.rotateX(Math.PI/2);
-                    const blade = new THREE.Mesh(bladeGeo, propMat);
-                    
-                    // 讓槳葉有傾斜角 (Pitch)
-                    blade.rotation.x = Math.PI / 10; 
-                    const pivot = new THREE.Group(); pivot.rotation.y = (Math.PI * 2 / config.propBlades) * i;
+                const numBlades = Math.floor(2 + random() * 4); // 2 to 5 blades
+                for (let i = 0; i < numBlades; i++) {
+                    const blade = new THREE.Mesh(new THREE.BoxGeometry(propRadius, 0.004, propRadius*0.15), propMat);
+                    blade.position.x = propRadius / 2; blade.rotation.x = Math.PI / 12; 
+                    const pivot = new THREE.Group(); pivot.rotation.y = (Math.PI * 2 / numBlades) * i;
                     pivot.add(blade); propGroup.add(pivot); blades.push(blade);
                 }
-                const blurMesh = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 0.001, 32), blurMat);
+                const blurMesh = new THREE.Mesh(new THREE.CylinderGeometry(propRadius, propRadius, 0.001, 32), blurMat);
                 propGroup.add(blurMesh);
 
                 propGroup.position.copy(motorPos); propGroup.position.y += stH + blH;
@@ -599,10 +417,7 @@
                 droneGroup.add(armGroup);
             }
 
-            createArm(-Math.sin(angleF)*L, -Math.cos(angleF)*L);
-            createArm(Math.sin(angleF)*L, -Math.cos(angleF)*L);
-            createArm(-Math.sin(angleB)*L, Math.cos(angleB)*L);
-            createArm(Math.sin(angleB)*L, Math.cos(angleB)*L);
+            createArm(-armX, -armZ); createArm(armX, -armZ); createArm(-armX, armZ); createArm(armX, armZ);   
         }
 
         const modelSelect = document.getElementById('droneModelSelect');
@@ -625,7 +440,7 @@
                 controls.enabled = false; crosshair.style.display = 'block'; osd.style.display = 'block';
                 droneGroup.add(camera); resetFPVCamera();
             } else {
-                viewSwitchBtn.textContent = '目前視角：第三人稱';
+                viewSwitchBtn.textContent = '目前視角：第三人稱 (滑鼠可控制)';
                 controls.enabled = true; crosshair.style.display = 'none'; osd.style.display = 'none';
                 droneGroup.remove(camera); scene.add(camera);
                 camera.position.set(0, 1.5, 3.5); camera.lookAt(0, 0, 0);
@@ -698,16 +513,7 @@
             const blurOpacity = THREE.MathUtils.clamp((totalSpeed - 0.2) * 1.5, 0, 0.4);
             const bladeOpacity = THREE.MathUtils.clamp(1.0 - (totalSpeed - 0.2) * 2, 0.1, 0.7);
 
-            
-            // 黑科技：更新 Shader 裡的時間變數來轉動靜態模型的螺旋槳
-            if (activeShaders.length > 0) {
-                activeShaders.forEach(shader => {
-                    shader.uniforms.time.value += totalSpeed;
-                });
-            }
-
             if (propellers.length === 4) {
-
                 propellers.forEach((prop, index) => {
                     prop.rotation.y += (index % 2 === 0) ? totalSpeed : -totalSpeed;
                     if(prop.userData.blur) prop.userData.blur.material.opacity = blurOpacity;

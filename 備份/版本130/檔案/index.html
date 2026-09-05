@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D無人機模擬器</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87CEEB; /* 天空藍背景 */
+            font-family: sans-serif;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .instructions {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        footer {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 10;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px black;
+        }
+        footer a {
+            color: #4CAF50;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+        #model-select-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        select {
+            padding: 8px;
+            margin-top: 5px;
+            border-radius: 4px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            font-size: 14px;
+        }
+    </style>
+    <!-- 引入 Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="ui-container">
+        <button id="modeSwitchBtn">目前模式：美國手</button>
+        <div class="instructions" id="instructionsText">
+            [美國手 操作說明]<br>
+            上下鍵：油門 (螺旋槳加速)<br>
+            左右鍵：水平轉動 (Yaw)<br>
+            W S 鍵：前後傾斜 (Pitch)<br>
+            A D 鍵：左右傾斜 (Roll)
+        </div>
+    </div>
+
+    <!-- 模型選擇 UI -->
+    <div id="model-select-container">
+        <label for="droneModelSelect">選擇無人機型號：</label>
+        <select id="droneModelSelect">
+            <option value="HX115">HX115 (預設)</option>
+            <option value="TBS Oblivion">TBS Oblivion</option>
+            <option value="7 Wonders 3D">7 Wonders 3D</option>
+            <option value="AcroBee">AcroBee</option>
+            <option value="AcroBee PMB">AcroBee PMB</option>
+            <option value="Aero Elite Racing">Aero Elite Racing</option>
+            <option value="Air 65 Freestyle">Air 65 Freestyle</option>
+            <option value="Air 65 Racing">Air 65 Racing</option>
+            <option value="AOS 5.5">AOS 5.5</option>
+            <option value="Arch Angel Orange">Arch Angel Orange</option>
+            <option value="Arch Angle Blue">Arch Angle Blue</option>
+            <option value="Armattan Badger">Armattan Badger</option>
+            <option value="Armattan Chameleon">Armattan Chameleon</option>
+            <option value="Armattan Marmotte">Armattan Marmotte</option>
+            <option value="AstroX SL5">AstroX SL5</option>
+            <option value="AttoFPV Photon">AttoFPV Photon</option>
+            <option value="BabyFox">BabyFox</option>
+            <option value="Bahamut">Bahamut</option>
+            <option value="Beebrain">Beebrain</option>
+            <option value="BetaFPV 75x">BetaFPV 75x</option>
+            <option value="BMS JS-1">BMS JS-1</option>
+            <option value="Broadsword">Broadsword</option>
+            <option value="ButterFly EVO">ButterFly EVO</option>
+            <option value="Cannonball 800">Cannonball 800</option>
+            <option value="CarbiX Zero">CarbiX Zero</option>
+            <option value="Carolina XC">Carolina XC</option>
+            <option value="Cetus PRO">Cetus PRO</option>
+            <option value="Cetus X">Cetus X</option>
+            <option value="Chief">Chief</option>
+            <option value="Cidora">Cidora</option>
+            <option value="CrazyBee Micro">CrazyBee Micro</option>
+            <option value="D-Rock">D-Rock</option>
+            <option value="DGI">DGI</option>
+            <option value="Diatone GTB339">Diatone GTB339</option>
+            <option value="Din Drones OZR-5X">Din Drones OZR-5X</option>
+            <option value="Dominator">Dominator</option>
+            <option value="Dreadnought">Dreadnought</option>
+            <option value="DRP Mib 5">DRP Mib 5</option>
+            <option value="Five33 Light Switch">Five33 Light Switch</option>
+            <option value="Five33 MidMount">Five33 MidMount</option>
+            <option value="Five33 Spec 7">Five33 Spec 7</option>
+            <option value="Five33 Switchback">Five33 Switchback</option>
+            <option value="FlipMode">FlipMode</option>
+            <option value="Flynoceros Aether">Flynoceros Aether</option>
+            <option value="Fox Crooked">Fox Crooked</option>
+            <option value="Fox Racing V1">Fox Racing V1</option>
+            <option value="FPVCycle Glide">FPVCycle Glide</option>
+            <option value="Heavy Metal">Heavy Metal</option>
+            <option value="Hornet">Hornet</option>
+            <option value="Hummingbird RS">Hummingbird RS</option>
+            <option value="HummingBird V3">HummingBird V3</option>
+            <option value="iXC13">iXC13</option>
+            <option value="JuiceMode">JuiceMode</option>
+            <option value="Junior Racer">Junior Racer</option>
+            <option value="Karearea Talon">Karearea Talon</option>
+            <option value="Kauri X">Kauri X</option>
+            <option value="Lethal Conception">Lethal Conception</option>
+            <option value="Lumenier QAV-S">Lumenier QAV-S</option>
+            <option value="Mad Lite">Mad Lite</option>
+            <option value="MAD Open">MAD Open</option>
+            <option value="Meteor 65">Meteor 65</option>
+            <option value="Mobula 6">Mobula 6</option>
+            <option value="Mobula 6 2024">Mobula 6 2024</option>
+            <option value="Mode 2 Ghost">Mode 2 Ghost</option>
+            <option value="MoonGoat">MoonGoat</option>
+            <option value="MultiGP PRO Spec">MultiGP PRO Spec</option>
+            <option value="Nazgul XL5">Nazgul XL5</option>
+            <option value="Neato Fastback">Neato Fastback</option>
+            <option value="Open Racer">Open Racer</option>
+            <option value="Ossa">Ossa</option>
+            <option value="Ostrich Air">Ostrich Air</option>
+            <option value="Panda Cavity">Panda Cavity</option>
+            <option value="PantherMM">PantherMM</option>
+            <option value="Project399 PRIG">Project399 PRIG</option>
+            <option value="Race Whoop">Race Whoop</option>
+            <option value="Roma F5">Roma F5</option>
+            <option value="Rooster">Rooster</option>
+            <option value="Shocker">Shocker</option>
+            <option value="Singularitum V5">Singularitum V5</option>
+            <option value="SkyX Killer">SkyX Killer</option>
+            <option value="Slam Nasty">Slam Nasty</option>
+            <option value="Slicer SR5">Slicer SR5</option>
+            <option value="SniperX">SniperX</option>
+            <option value="Solleva">Solleva</option>
+            <option value="Source One 7">Source One 7</option>
+            <option value="Source X">Source X</option>
+            <option value="Stealth 5">Stealth 5</option>
+            <option value="Strix">Strix</option>
+            <option value="Super 70">Super 70</option>
+            <option value="Switchback Zero">Switchback Zero</option>
+            <option value="Tazmanian">Tazmanian</option>
+            <option value="TBS Source One">TBS Source One</option>
+            <option value="TBS Spec">TBS Spec</option>
+            <option value="Thor X">Thor X</option>
+            <option value="Tiny Hawk">Tiny Hawk</option>
+            <option value="Tiny Hawk 2">Tiny Hawk 2</option>
+            <option value="Tiny Trainer">Tiny Trainer</option>
+            <option value="Twig XL 3">Twig XL 3</option>
+            <option value="Typhon">Typhon</option>
+            <option value="Velocity">Velocity</option>
+            <option value="Yakuza">Yakuza</option>
+            <option value="ZeroGrav">ZeroGrav</option>
+        </select>
+    </div>
+
+    <!-- 版權宣告 -->
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+
+    <script>
+        // 版權所有 © 2026 PandaPanda的AI日常 (https://pandapanda6666.github.io) All Rights Reserved.
+
+        // 基本場景設置
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 3, 6);
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // 燈光
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(5, 10, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // 網格地板 (提供視覺參考)
+        const gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x888888);
+        gridHelper.position.y = -2;
+        scene.add(gridHelper);
+
+        // 建立無人機模型
+        const droneGroup = new THREE.Group();
+        scene.add(droneGroup);
+
+        const materials = {
+            body: new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7 }),
+            armFront: new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.5 }), 
+            armBack: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 }),
+            motor: new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 }),
+            propeller: new THREE.MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
+            camera: new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 }),
+            lens: new THREE.MeshStandardMaterial({ color: 0x050505, metalness: 1.0, roughness: 0.0 }),
+            accessory: new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.6 })
+        };
+
+        const propellers = []; // 在這裡定義全域變數，修正未定義錯誤
+
+        // 建立無人機模型的函數
+        function buildDrone(seedStr) {
+            // 清除現有模型
+            while(droneGroup.children.length > 0){ 
+                droneGroup.remove(droneGroup.children[0]); 
+            }
+            
+            // 簡易的字串 hash 函數
+            let hash = 0;
+            for (let i = 0; i < seedStr.length; i++) {
+                hash = seedStr.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            // 使用 hash 產生偽隨機數 0~1
+            function random() {
+                var x = Math.sin(hash++) * 10000;
+                return x - Math.floor(x);
+            }
+
+            const bodyHue = random();
+            materials.body.color.setHSL(bodyHue, 0.7, 0.4);
+            materials.armBack.color.setHSL((bodyHue + 0.5) % 1.0, 0.7, 0.5);
+            materials.propeller.color.setHSL(random(), 0.8, 0.3);
+            materials.accessory.color.setHSL(random(), 0.9, 0.5);
+            materials.armFront.color.setHex(0xcc0000); // 保持紅色
+            
+            const isXFrame = random() > 0.5; // X型 或 寬型
+            const armAngle = isXFrame ? Math.PI / 4 : (Math.PI / 6 + random() * 0.2);
+            const armLength = 0.8 + random() * 0.6;
+            const propRadius = 0.4 + random() * 0.4;
+            
+            // --- 核心機身 ---
+            const bodyStyle = Math.floor(random() * 3);
+            let bodyGeo;
+            if (bodyStyle === 0) {
+                // 方塊型
+                bodyGeo = new THREE.BoxGeometry(0.5 + random()*0.3, 0.2 + random()*0.2, 0.8 + random()*0.4);
+            } else if (bodyStyle === 1) {
+                // 圓柱型
+                bodyGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.0 + random()*0.4, 8);
+                bodyGeo.rotateX(Math.PI / 2);
+            } else {
+                // 鑽石型
+                bodyGeo = new THREE.CylinderGeometry(0.3, 0.4, 0.8 + random()*0.3, 4);
+                bodyGeo.rotateX(Math.PI / 4);
+                bodyGeo.rotateZ(Math.PI / 2);
+            }
+            const bodyMesh = new THREE.Mesh(bodyGeo, materials.body);
+            bodyMesh.castShadow = true;
+            droneGroup.add(bodyMesh);
+
+            // --- 攝影機座 (精緻化) ---
+            const camGroup = new THREE.Group();
+            const camBaseGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+            const camBase = new THREE.Mesh(camBaseGeo, materials.camera);
+            camGroup.add(camBase);
+            
+            const lensGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.35, 16);
+            const lens = new THREE.Mesh(lensGeo, materials.lens);
+            lens.rotation.x = Math.PI / 2;
+            camGroup.add(lens);
+            
+            camGroup.position.set(0, 0.1, - (0.5 + random() * 0.2));
+            const camTilt = - (0.1 + random() * 0.5); // 攝影機仰角
+            camGroup.rotation.x = camTilt;
+            droneGroup.add(camGroup);
+
+            // --- 電池 / 配件 ---
+            const hasBatteryTop = random() > 0.5;
+            const batGeo = new THREE.BoxGeometry(0.3, 0.2, 0.6);
+            const batMesh = new THREE.Mesh(batGeo, materials.accessory);
+            batMesh.position.y = hasBatteryTop ? 0.25 : -0.25;
+            droneGroup.add(batMesh);
+
+            // --- 天線 ---
+            const antennaType = Math.floor(random() * 3);
+            if (antennaType === 1) {
+                // 偶極天線
+                const antGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.4);
+                const ant1 = new THREE.Mesh(antGeo, materials.accessory);
+                ant1.position.set(0.1, 0.2, 0.4);
+                ant1.rotation.x = -Math.PI / 4;
+                ant1.rotation.z = Math.PI / 8;
+                droneGroup.add(ant1);
+                
+                const ant2 = new THREE.Mesh(antGeo, materials.accessory);
+                ant2.position.set(-0.1, 0.2, 0.4);
+                ant2.rotation.x = -Math.PI / 4;
+                ant2.rotation.z = -Math.PI / 8;
+                droneGroup.add(ant2);
+            } else if (antennaType === 2) {
+                // 蘑菇天線
+                const antStemGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.3);
+                const antStem = new THREE.Mesh(antStemGeo, materials.camera);
+                antStem.position.set(0, 0.2, 0.5);
+                antStem.rotation.x = -Math.PI / 6;
+                droneGroup.add(antStem);
+                
+                const antHeadGeo = new THREE.SphereGeometry(0.1, 8, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+                const antHead = new THREE.Mesh(antHeadGeo, materials.accessory);
+                antHead.position.set(0, 0.35, 0.58);
+                antHead.rotation.x = -Math.PI / 6;
+                droneGroup.add(antHead);
+            }
+
+            propellers.length = 0; // 清空舊螺旋槳
+            
+            const armX = Math.sin(armAngle);
+            const armZ = Math.cos(armAngle);
+
+            function createArm(xDir, zDir, isFront) {
+                const armGroup = new THREE.Group();
+                
+                // 機臂本身設計 (扁平或粗壯)
+                const isFlatArm = random() > 0.5;
+                const armGeo = isFlatArm ? 
+                    new THREE.BoxGeometry(0.1, 0.05, armLength) :
+                    new THREE.CylinderGeometry(0.06, 0.04, armLength, 8);
+                
+                const armMesh = new THREE.Mesh(armGeo, isFront ? materials.armFront : materials.armBack);
+                if (!isFlatArm) armMesh.rotation.x = Math.PI / 2;
+                armMesh.position.set(0, 0, armLength / 2);
+                armGroup.add(armMesh);
+
+                // 馬達底座
+                const motorGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.25, 16);
+                const motorMesh = new THREE.Mesh(motorGeo, materials.motor);
+                motorMesh.position.set(0, 0.1, armLength);
+                armGroup.add(motorMesh);
+
+                // 螺旋槳
+                const propGroup = new THREE.Group();
+                const numBlades = random() > 0.5 ? 3 : 2; // 2葉或3葉
+                for (let i = 0; i < numBlades; i++) {
+                    const bladeGeo = new THREE.BoxGeometry(propRadius, 0.01, 0.06);
+                    const bladeMesh = new THREE.Mesh(bladeGeo, materials.propeller);
+                    bladeMesh.position.x = propRadius / 2;
+                    // 加入一點傾角讓葉片看起來更真實
+                    bladeMesh.rotation.x = Math.PI / 12; 
+                    
+                    const pivot = new THREE.Group();
+                    pivot.rotation.y = (Math.PI * 2 / numBlades) * i;
+                    pivot.add(bladeMesh);
+                    propGroup.add(pivot);
+                }
+                
+                // 螺旋槳帽
+                const nutGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.06, 8);
+                const nutMesh = new THREE.Mesh(nutGeo, materials.accessory);
+                nutMesh.position.y = 0.03;
+                propGroup.add(nutMesh);
+
+                propGroup.position.set(0, 0.25, armLength);
+                armGroup.add(propGroup);
+                
+                propellers.push(propGroup);
+
+                const angle = Math.atan2(xDir, zDir);
+                armGroup.rotation.y = angle;
+                droneGroup.add(armGroup);
+            }
+
+            createArm(-armX, -armZ, true);  // 左前
+            createArm(armX, -armZ, true);   // 右前
+            createArm(-armX, armZ, false);  // 左後
+            createArm(armX, armZ, false);   // 右後
+        }
+
+        // 模型切換事件
+  // 模型切換事件
+        const modelSelect = document.getElementById('droneModelSelect');
+        modelSelect.addEventListener('change', (e) => {
+            buildDrone(e.target.value);
+        });
+
+        // 初始建立
+        buildDrone(modelSelect.value);
+
+        // 控制狀態
+        let controlMode = 'american'; // 'american' 或 'japanese'
+        
+        const keys = {
+            w: false, a: false, s: false, d: false,
+            up: false, down: false, left: false, right: false
+        };
+
+        // 按鍵監聽
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') keys.w = true;
+            if (key === 'a') keys.a = true;
+            if (key === 's') keys.s = true;
+            if (key === 'd') keys.d = true;
+            if (e.key === 'ArrowUp') keys.up = true;
+            if (e.key === 'ArrowDown') keys.down = true;
+            if (e.key === 'ArrowLeft') keys.left = true;
+            if (e.key === 'ArrowRight') keys.right = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') keys.w = false;
+            if (key === 'a') keys.a = false;
+            if (key === 's') keys.s = false;
+            if (key === 'd') keys.d = false;
+            if (e.key === 'ArrowUp') keys.up = false;
+            if (e.key === 'ArrowDown') keys.down = false;
+            if (e.key === 'ArrowLeft') keys.left = false;
+            if (e.key === 'ArrowRight') keys.right = false;
+        });
+
+        // UI 模式切換
+        const modeSwitchBtn = document.getElementById('modeSwitchBtn');
+        const instructionsText = document.getElementById('instructionsText');
+
+        modeSwitchBtn.addEventListener('click', () => {
+            if (controlMode === 'american') {
+                controlMode = 'japanese';
+                modeSwitchBtn.textContent = '目前模式：日本手';
+                instructionsText.innerHTML = `
+                    [日本手 操作說明]<br>
+                    W S 鍵：油門 (螺旋槳加速)<br>
+                    A D 鍵：水平轉動 (Yaw)<br>
+                    上下鍵：前後傾斜 (Pitch)<br>
+                    左右鍵：左右傾斜 (Roll)
+                `;
+            } else {
+                controlMode = 'american';
+                modeSwitchBtn.textContent = '目前模式：美國手';
+                instructionsText.innerHTML = `
+                    [美國手 操作說明]<br>
+                    上下鍵：油門 (螺旋槳加速)<br>
+                    左右鍵：水平轉動 (Yaw)<br>
+                    W S 鍵：前後傾斜 (Pitch)<br>
+                    A D 鍵：左右傾斜 (Roll)
+                `;
+            }
+        });
+
+        // 動畫變數
+        let targetPitch = 0;
+        let targetRoll = 0;
+        const maxTilt = Math.PI / 6; // 最大傾斜角 30度
+        const maxYaw = 10 * (Math.PI / 180); // 最大旋轉角 10度 (轉換為弧度)
+        const lerpSpeed = 0.1;       // 平滑過渡速度
+
+        // 視窗縮放適應
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 渲染迴圈
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 解析控制輸入
+            let inputThrottle = 0;
+            let inputYaw = 0;
+            let inputPitch = 0;
+            let inputRoll = 0;
+
+            if (controlMode === 'american') {
+                // 美國手邏輯
+                if (keys.up) inputThrottle += 1;
+                if (keys.down) inputThrottle -= 1;
+                if (keys.left) inputYaw += 1;
+                if (keys.right) inputYaw -= 1;
+                
+                if (keys.w) inputPitch += 1;
+                if (keys.s) inputPitch -= 1;
+                if (keys.a) inputRoll += 1;
+                if (keys.d) inputRoll -= 1;
+            } else {
+                // 日本手邏輯 (WSAD 與 方向鍵反轉)
+                if (keys.w) inputThrottle += 1;
+                if (keys.s) inputThrottle -= 1;
+                if (keys.a) inputYaw += 1;
+                if (keys.d) inputYaw -= 1;
+                
+                if (keys.up) inputPitch += 1;
+                if (keys.down) inputPitch -= 1;
+                if (keys.left) inputRoll += 1;
+                if (keys.right) inputRoll -= 1;
+            }
+
+            // 計算姿態目標值
+            // Pitch (前後傾斜) - 往前傾(W)代表機頭朝下，即繞X軸旋轉負值
+            targetPitch = -inputPitch * maxTilt;
+            // Roll (左右傾斜) - 修正反轉問題，往左傾對應Z軸正旋轉
+            targetRoll = inputRoll * maxTilt;
+            // Yaw (水平轉動) - 限制轉動 10 度，無輸入時為 0 以便回正
+            const targetYaw = inputYaw * maxYaw; 
+
+            // 平滑套用旋轉 (使用 YXZ 順序確保萬向節鎖問題減輕，Yaw作為基底)
+            const currentPitch = THREE.MathUtils.lerp(droneGroup.rotation.x, targetPitch, lerpSpeed);
+            const currentRoll = THREE.MathUtils.lerp(droneGroup.rotation.z, targetRoll, lerpSpeed);
+            const currentYaw = THREE.MathUtils.lerp(droneGroup.rotation.y, targetYaw, lerpSpeed);
+            
+            droneGroup.rotation.set(currentPitch, currentYaw, currentRoll, 'YXZ');
+
+            // 螺旋槳動畫邏輯
+            // 基礎轉速 + 油門加速 + 姿態控制造成的差速視覺效果
+            const baseSpeed = 0.2;
+            const extraSpeed = (inputThrottle !== 0 || inputPitch !== 0 || inputRoll !== 0 || inputYaw !== 0) ? 0.6 : 0;
+            const totalSpeed = baseSpeed + extraSpeed;
+
+            // 簡單設定交錯旋轉方向
+            propellers[0].rotation.y += totalSpeed; // 左前
+            propellers[1].rotation.y -= totalSpeed; // 右前
+            propellers[2].rotation.y -= totalSpeed; // 左後
+            propellers[3].rotation.y += totalSpeed; // 右後
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
