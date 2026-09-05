@@ -275,6 +275,31 @@
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
+                    if (isCustom) {
+                        // Apply PBR Materials based on mesh names to make it gorgeous
+                        let mName = child.name.toLowerCase();
+                        let mat = new THREE.MeshStandardMaterial({
+                            color: child.material.color,
+                            metalness: 0.1,
+                            roughness: 0.8
+                        });
+                        if (mName.includes('mat_carbon')) {
+                            mat.metalness = 0.3; mat.roughness = 0.6;
+                        } else if (mName.includes('mat_metal')) {
+                            mat.metalness = 0.9; mat.roughness = 0.2;
+                        } else if (mName.includes('mat_plastic')) {
+                            mat.metalness = 0.1; mat.roughness = 0.2;
+                        } else if (mName.includes('mat_glass')) {
+                            mat.metalness = 0.9; mat.roughness = 0.05;
+                            mat.transparent = true; mat.opacity = 0.6;
+                        }
+                        // Props should be slightly transparent if they are plastic
+                        if (mName.includes('prop')) {
+                            mat.transparent = true; mat.opacity = 0.85;
+                        }
+                        child.material = mat;
+                    }
+
                     
                     if (foundProps) {
                         if (child.name.toLowerCase().includes('prop')) propellers.push(child);
