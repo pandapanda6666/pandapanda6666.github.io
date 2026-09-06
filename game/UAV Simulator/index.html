@@ -261,8 +261,24 @@
                     if (foundProps) {
                         if (child.name.toLowerCase().includes('prop')) {
                             child.geometry.computeBoundingBox();
-                            const center = new THREE.Vector3();
-                            child.geometry.boundingBox.getCenter(center);
+                            const propCenter = new THREE.Vector3();
+                            child.geometry.boundingBox.getCenter(propCenter);
+                            
+                            let center = propCenter.clone();
+                            const idxMatch = child.name.match(/\d+$/);
+                            if (idxMatch) {
+                                const idx = idxMatch[0];
+                                model.traverse(c => {
+                                    if (c.isMesh && c.name.toLowerCase().includes('bell_' + idx)) {
+                                        c.geometry.computeBoundingBox();
+                                        const bellCenter = new THREE.Vector3();
+                                        c.geometry.boundingBox.getCenter(bellCenter);
+                                        center.x = bellCenter.x;
+                                        center.z = bellCenter.z;
+                                    }
+                                });
+                            }
+                            
                             child.geometry.translate(-center.x, -center.y, -center.z);
                             child.position.copy(center);
                             propellers.push(child);
