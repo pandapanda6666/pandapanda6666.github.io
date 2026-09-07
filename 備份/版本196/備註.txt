@@ -1,0 +1,22 @@
+2026/09/07 17:31:51
+不好意思忘記給你連線Rabboni方式了 直接看https://pandapanda6666.github.io/Hardware%20and%20software%20integration/Rabboni/test/
+沒問題，原來你已經有一套成熟的 Rabboni WebSocket 中介軟體 (Middleware) 了！這比 Web Bluetooth 穩定太多了。
+
+我已經立刻拜讀了你提供的原始碼，並將剛剛的控制器系統全部「打掉重練」，完全對接你專屬的架構：
+
+1. **完美對接你的架構 (`ws://localhost:50500/rab`)**：
+   現在網頁會自動連線到你本地的 WebSocket 伺服器，即時接收所有 Rabboni 的數據廣播，並且支援自動重連。
+
+2. **動態裝置綁定介面**：
+   既然是透過 WebSocket 廣播，我把控制介面升級了！現在設定面板的最上方會有兩個下拉式選單：
+   - **搖桿 A (左) 綁定裝置**
+   - **搖桿 B (右) 綁定裝置**
+   系統會自動偵測連線進來的 Rabboni 裝置名稱 (例如 `Rabboni_...`) 並列在選單裡，你可以自由決定哪顆感測器要當左手，哪顆要當右手！如果你選擇「無 (使用鍵盤)」，則會無縫降級回鍵盤控制。
+
+3. **數據同步正規化 (Normalization)**：
+   我也將物理模擬器裡接收 Rabboni 數據的方式進行了微調：如果是「角度同步」模式，會聰明地將數值標準化為 `[-1, 1]` 的區間，完美適配原本無人機的最大傾角參數 (`maxTilt`)，飛起來手感會更細膩逼真！
+
+網頁 (版本 196) 已經推送到 Github 啦！請按下 **Ctrl + F5 強制重新整理**，啟動你的中介軟體就可以直接開飛了！
+1. 修改 rabboni.js：移除 Web Bluetooth API，改寫為透過 WebSocket 連線 `ws://localhost:50500/rab` 接收 Rabboni 廣播資料。
+2. 解析與映射：接收 JSON payload 內的 `acc` 與 `gyr` 陣列，並將 Pitch/Roll 計算方式修改為讀取 G-sensor 重力分佈計算，支援多個連線裝置動態註冊於 `rabboniDevices` 字典中。
+3. UI 改寫：將 index.html 原先的 connect() 按鈕替換為動態下拉式選單 (Select)，讓使用者能將不同的 Rabboni 實體指定給「搖桿 A」或「搖桿 B」，並於物理引擎同步時針對 `sync` 模式實作 `[-1.0, 1.0]` 的數據正規化。

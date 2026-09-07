@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D無人機模擬器 - 終極擬真版</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #87CEEB; font-family: sans-serif; }
+        #ui-container { position: absolute; top: 20px; right: 20px; left: auto; z-index: 10; background: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 8px; color: white; width: 300px; max-height: 90vh; overflow-y: auto; }
+        button { padding: 10px 15px; font-size: 16px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 4px; margin-bottom: 10px; width: 100%; display: block; box-sizing: border-box; transition: background 0.2s; }
+        button:hover { background-color: #45a049; }
+        button.active { background-color: #f44336; }
+        button.active:hover { background-color: #d32f2f; }
+        .instructions { font-size: 14px; line-height: 1.5; margin-top: 10px; color: #ddd; }
+        footer { position: absolute; bottom: 10px; width: 100%; text-align: center; color: white; z-index: 10; font-size: 14px; text-shadow: 1px 1px 2px black; }
+        footer a { color: #4CAF50; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        #model-select-container { position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 8px; color: white; display: flex; flex-direction: column; width: 250px; }
+        select { padding: 8px; margin-top: 5px; border-radius: 4px; background: #333; color: white; border: 1px solid #555; font-size: 14px; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; display: none; z-index: 5; pointer-events: none; }
+        #crosshair::after { content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: rgba(255,0,0,0.8); transform: translate(-50%, -50%); border-radius: 50%; }
+        #osd { position: absolute; bottom: 40px; left: 20px; color: #0f0; font-family: 'Courier New', Courier, monospace; font-size: 18px; text-shadow: 1px 1px 2px #000; z-index: 10; display: none; }
+    
+        #drone-ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 350px;
+            background: rgba(40, 40, 40, 0.9);
+            border: 2px solid #555;
+            border-radius: 10px;
+            padding: 15px;
+            color: white;
+            font-family: sans-serif;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .drone-card {
+            background: rgba(60, 60, 60, 0.8);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .drone-card:hover { border-color: #00b4ff; }
+        .drone-card.active { border-color: #00ffaa; background: rgba(80, 100, 80, 0.9); }
+        .drone-img { width: 60px; height: 60px; background: #222; border-radius: 5px; margin-right: 15px; object-fit: cover; }
+        .drone-info { flex-grow: 1; }
+        .drone-name { font-size: 16px; font-weight: bold; margin-bottom: 5px; }
+        .drone-edit-btn {
+            background: #444; border: 1px solid #666; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 12px;
+        }
+        .drone-edit-btn:hover { background: #666; }
+        .add-drone-btn {
+            background: rgba(60, 60, 60, 0.8); border: 2px dashed #888; border-radius: 8px;
+            padding: 15px; text-align: center; cursor: pointer; color: #aaa; font-weight: bold;
+        }
+        .add-drone-btn:hover { border-color: white; color: white; }
+        
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #333; padding: 20px; border-radius: 10px; width: 400px; max-height: 80vh; overflow-y: auto; color: white;
+        }
+        .modal-header { font-size: 18px; font-weight: bold; margin-bottom: 15px; display: flex; justify-content: space-between; }
+        .close-btn { cursor: pointer; color: #ff5555; }
+        
+        .list-card {
+            background: #444; border-radius: 8px; margin-bottom: 10px; padding: 10px; display: flex; align-items: center; cursor: pointer;
+        }
+        .list-card:hover { background: #555; }
+        .list-card.disabled { opacity: 0.4; cursor: not-allowed; }
+        .list-card.disabled:hover { background: #444; }
+        
+        .param-row { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; }
+        .param-row input { width: 80px; background: #222; border: 1px solid #555; color: white; padding: 3px; }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+    <div id="crosshair"></div>
+    <div id="osd">
+        <span style="color:#ff0">BATT: 16.2V</span><br>
+        THR: <span id="osd-thr">0</span>%<br>
+        RPM: <span id="osd-rpm">0</span><br>
+        ACRO MODE
+    </div>
+    <div id="ui-container">
+        <button id="resetCamBtn">重置攝影機視角 📷</button>
+        <button id="viewSwitchBtn">目前視角：第三人稱</button>
+        <button id="hoverBtn" style="display:none; background-color: #2196F3;" onclick="toggleHover()">開啟滯空模式 (Hover)</button>
+        <button id="headlessBtn" style="display:none; background-color: #9C27B0;" onclick="toggleHeadless()">開啟無頭模式 (Headless)</button>
+        <button id="audioBtn">開啟引擎音效 🔊 (點擊啟用)</button>
+        <button id="rabboniBtn" onclick="document.getElementById('rabboni-modal').style.display='flex'" style="background-color:#009688;">Rabboni 遙控器設定 🎮</button>
+        <button id="modeSwitchBtn">目前模式：美國手</button>
+        <div class="instructions" id="instructionsText">
+            [美國手 操作說明]<br>
+            上下鍵：油門 (螺旋槳加速)<br>
+            左右鍵：水平轉動 (Yaw)<br>
+            W S 鍵：前後傾斜 (Pitch)<br>
+            A D 鍵：左右傾斜 (Roll)<br><br>
+            [滑鼠操作]<br>
+            左鍵拖曳：旋轉視角<br>
+            滾輪：放大縮小
+        </div>
+
+    </div>
+
+<div id="drone-ui-container">
+        <h3 style="margin-top:0; border-bottom: 1px solid #555; padding-bottom: 10px;">機庫 (Hangar)</h3>
+        <div id="active-drones-list"></div>
+        <div class="add-drone-btn" onclick="openAddModal()">+ 新增無人機</div>
+    </div>
+
+    <div id="add-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header"><span>選擇機型</span><span class="close-btn" onclick="closeAddModal()">X</span></div>
+            <div id="full-drones-list"></div>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header"><span id="edit-title">編輯參數</span><span class="close-btn" onclick="closeEditModal()">X</span></div>
+            <div class="param-row"><span>最大傾角 (Max Tilt)</span><input type="number" id="param-tilt" step="0.1"></div>
+            <div class="param-row"><span>偏航速度 (Yaw Speed)</span><input type="number" id="param-yaw" step="0.1"></div>
+            <div class="param-row"><span>油門手感 (Throttle)</span><input type="number" id="param-thr" step="0.1"></div>
+            <div style="text-align: right; margin-top: 15px;"><button onclick="saveParams()" style="background:#00b4ff; color:white; border:none; padding:5px 15px; border-radius:5px; cursor:pointer;">儲存</button></div>
+        </div>
+    </div>
+
+    </div>
+
+    
+
+    <footer>版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.</footer>
+
+    <script>
+        let audioCtx, isAudioEnabled = false;
+        let oscillators = [], gainNodes = [];
+        const audioBtn = document.getElementById('audioBtn');
+        
+        audioBtn.addEventListener('click', () => {
+            if (!isAudioEnabled) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                for(let i=0; i<4; i++) {
+                    let osc = audioCtx.createOscillator();
+                    osc.type = 'sawtooth'; 
+                    let filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass'; filter.frequency.value = 3000;
+                    let gain = audioCtx.createGain(); gain.gain.value = 0.0;
+                    osc.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); oscillators.push(osc); gainNodes.push(gain);
+                }
+                isAudioEnabled = true; audioBtn.textContent = '關閉引擎音效 🔇'; audioBtn.classList.add('active');
+            } else {
+                oscillators.forEach(osc => osc.stop()); oscillators = []; gainNodes = []; audioCtx.close();
+                isAudioEnabled = false; audioBtn.textContent = '開啟引擎音效 🔊 (點擊啟用)'; audioBtn.classList.remove('active');
+            }
+        });
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.5, 3.5);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; controls.dampingFactor = 0.05; controls.maxPolarAngle = Math.PI / 2 - 0.05; 
+
+        document.getElementById('resetCamBtn').addEventListener('click', () => {
+            if(!isFPV) {
+                controls.reset();
+                camera.position.set(0, 1.5, 3.5);
+                camera.lookAt(0, 0, 0);
+            }
+        });
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        dirLight.position.set(5, 10, 7); dirLight.castShadow = true;
+        dirLight.shadow.camera.top = 5; dirLight.shadow.camera.bottom = -5; dirLight.shadow.camera.left = -5; dirLight.shadow.camera.right = 5;
+        scene.add(dirLight);
+
+        const groundCanvas = document.createElement('canvas'); groundCanvas.width = 512; groundCanvas.height = 512;
+        const gCtx = groundCanvas.getContext('2d');
+        gCtx.fillStyle = '#4CAF50'; gCtx.fillRect(0,0,512,512);
+        gCtx.fillStyle = '#388E3C'; gCtx.fillRect(0,0,256,256); gCtx.fillRect(256,256,256,256);
+        const groundTex = new THREE.CanvasTexture(groundCanvas);
+        groundTex.wrapS = THREE.RepeatWrapping; groundTex.wrapT = THREE.RepeatWrapping; groundTex.repeat.set(200, 200);
+        const groundGeo = new THREE.PlaneGeometry(1000, 1000);
+        const groundMat = new THREE.MeshStandardMaterial({ map: groundTex, roughness: 1.0 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2; ground.position.y = -1.5; ground.receiveShadow = true;
+        scene.add(ground);
+
+        const cfCanvas = document.createElement('canvas'); cfCanvas.width = 16; cfCanvas.height = 16;
+        const cfCtx = cfCanvas.getContext('2d');
+        cfCtx.fillStyle = '#1a1a1a'; cfCtx.fillRect(0,0,16,16);
+        cfCtx.fillStyle = '#2a2a2a'; cfCtx.fillRect(0,0,8,8); cfCtx.fillRect(8,8,8,8);
+        const carbonTex = new THREE.CanvasTexture(cfCanvas);
+        carbonTex.wrapS = THREE.RepeatWrapping; carbonTex.wrapT = THREE.RepeatWrapping; carbonTex.repeat.set(4, 4);
+
+        const droneGroup = new THREE.Group();
+        scene.add(droneGroup);
+        const propellers = []; 
+        const fpvCameraPos = new THREE.Vector3();
+        let currentCamTilt = 0;
+
+        // 【極致還原真實物理結構庫】
+        
+        
+        const gltfLoader = new THREE.GLTFLoader();
+        let activeShaders = []; // 用來存取材質的 shader 以更新時間
+
+        function setupLoadedModel(model, isCustom, droneName) {
+            let foundProps = false;
+            model.traverse((child) => { if(child.isMesh && child.name.toLowerCase().includes('prop')) foundProps = true; });
+
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (!child.userData.originalPosition) {
+                        child.userData.originalPosition = child.position.clone();
+                    }
+                    if (isCustom) {
+                        let mName = child.name.toLowerCase();
+                        let mat = new THREE.MeshStandardMaterial({
+                            color: child.material.color,
+                            metalness: 0.1,
+                            roughness: 0.8,
+                            vertexColors: true
+                        });
+                        child.geometry.computeVertexNormals();
+                        if (mName.includes('mat_carbon')) {
+                            mat.metalness = 0.3; mat.roughness = 0.6;
+                        } else if (mName.includes('mat_metal')) {
+                            mat.metalness = 0.9; mat.roughness = 0.2;
+                        } else if (mName.includes('mat_plastic')) {
+                            mat.metalness = 0.1; mat.roughness = 0.2;
+                        } else if (mName.includes('mat_glass')) {
+                            mat.metalness = 0.9; mat.roughness = 0.05;
+                            mat.transparent = true; mat.opacity = 0.6;
+                        }
+                        if (mName.includes('prop')) {
+                            mat.transparent = true; mat.opacity = 0.85;
+                        }
+                        child.material = mat;
+                    }
+
+                    
+                    if (foundProps) {
+                        if (child.name.toLowerCase().includes('prop')) {
+                            child.geometry.computeBoundingBox();
+                            const propCenter = new THREE.Vector3();
+                            child.geometry.boundingBox.getCenter(propCenter);
+                            
+                            let center = propCenter.clone();
+                            const idxMatch = child.name.match(/\d+$/);
+                            if (idxMatch) {
+                                const idx = idxMatch[0];
+                                model.traverse(c => {
+                                    if (c.isMesh && c.name.toLowerCase().includes('bell_' + idx)) {
+                                        c.geometry.computeBoundingBox();
+                                        const bellCenter = new THREE.Vector3();
+                                        c.geometry.boundingBox.getCenter(bellCenter);
+                                        center.x = bellCenter.x;
+                                        center.z = bellCenter.z;
+                                    }
+                                });
+                            }
+                            
+                            child.geometry.translate(-center.x, -center.y, -center.z);
+                            child.position.copy(center);
+                            propellers.push(child);
+                        }
+                    } else {
+                        // 如果網路下載的真實模型沒有獨立的螺旋槳，強制使用 Shader 讓它轉動
+                        const mat = child.material.clone();
+                        mat.onBeforeCompile = (shader) => {
+                            shader.uniforms.time = { value: 0 };
+                            activeShaders.push(shader);
+                            shader.vertexShader = shader.vertexShader.replace(
+                                '#include <common>',
+                                `#include <common>\nuniform float time;`
+                            );
+                            shader.vertexShader = shader.vertexShader.replace(
+                                '#include <begin_vertex>',
+                                `#include <begin_vertex>
+                                // 判斷是否為高處的螺旋槳頂點
+                                if (position.y > 10.0) {
+                                    float cx = (position.x > 0.0) ? (position.z > 0.0 ? 8.8 : 15.0) : (position.z > 0.0 ? -8.8 : -15.0);
+                                    float cz = (position.z > 0.0) ? 26.6 : -17.7;
+                                    float dx = position.x - cx; float dz = position.z - cz;
+                                    float dir = (position.x * position.z > 0.0) ? -1.0 : 1.0;
+                                    float angle = time * 30.0 * dir;
+                                    float s = sin(angle); float c = cos(angle);
+                                    transformed.x = cx + dx * c - dz * s;
+                                    transformed.z = cz + dx * s + dz * c;
+                                    transformed.y += sin(time * 100.0 + position.x) * 0.2;
+                                }`
+                            );
+                        };
+                        child.material = mat;
+                    }
+
+                    if (!isCustom) {
+                        let hash = 0; if(droneName) for(let i=0; i<droneName.length; i++) hash = droneName.charCodeAt(i) + ((hash<<5)-hash);
+                        function r() { let x = Math.sin(hash++)*10000; return x - Math.floor(x); }
+                        if (!child.material.map) child.material.color.setHSL(r(), 0.6, 0.5);
+                    }
+                }
+            });
+
+            if (!isCustom) {
+                model.scale.set(1.5, 1.5, 1.5);
+                model.rotation.y = Math.PI / 2;
+            } else {
+                model.scale.set(2.0, 2.0, 2.0); 
+            }
+            model.position.set(0, 0, 0);
+            
+            droneGroup.add(model);
+            
+            currentCamTilt = Math.PI / 6;
+            if (!isCustom) {
+                fpvCameraPos.set(0, 0.08, -0.05);
+            } else {
+                fpvCameraPos.set(0, 0.034, -0.054); // Exactly at the camera lens for HX115
+            }
+            if (isFPV) resetFPVCamera();
+        }
+
+        function buildProceduralDrone(modelStr) {
+            const n = modelStr.toLowerCase();
+            
+            // 基礎設定檔
+            let config = {
+                class: 'freestyle',
+                scale: 1.0,
+                armLayout: 'truex', 
+                armWidth: 0.035,
+                hasTopPlate: true,
+                hasCanopy: false,
+                hasActionCam: true,
+                hasSharkFin: false,
+                hasDucts: false,
+                isPlastic: false,
+                isCetus: false, 
+                isArmattan: false, 
+                frameColor: 0x222222,
+                tpuColor: 0x00aaff,
+                propColor: 0x222222,
+                motorColor: 0x111111,
+                standoffColor: 0xaaaaaa,
+                propBlades: 3,
+                stackHeight: 0.05
+            };
+
+            // 型號細節配對
+            if (n.includes('nazgul')) {
+                config.tpuColor = 0x00ff00; config.propColor = 0x00ff00; config.armWidth = 0.045;
+            } else if (n.includes('cetus')) {
+                config.class = 'whoop'; config.scale = 0.4; config.isCetus = true; config.isPlastic = true; 
+                config.frameColor = 0xffffff; config.hasDucts = true; config.hasCanopy = true; config.hasActionCam = false; config.hasTopPlate = false; config.propBlades = 4;
+            } else if (n.includes('mobula')) {
+                config.class = 'whoop'; config.scale = 0.3; config.isPlastic = true; config.frameColor = 0x111111; config.tpuColor = 0xff0000;
+                config.hasDucts = true; config.hasCanopy = true; config.hasActionCam = false; config.hasTopPlate = false; config.propColor = 0xff0000;
+            } else if (n.includes('tiny hawk') || n.includes('tinyhawk')) {
+                config.class = 'whoop'; config.scale = 0.35; config.isPlastic = true; config.frameColor = 0xffffff; config.tpuColor = 0xff0000;
+                config.armLayout = 'stretched'; config.hasDucts = true; config.hasCanopy = true; config.hasActionCam = false; config.hasTopPlate = false; config.propBlades = 4;
+            } else if (n.includes('five33') || n.includes('switchback') || n.includes('spec 7')) {
+                config.class = 'racing'; config.scale = 0.9; config.armWidth = 0.015; config.tpuColor = 0x00ffff; config.propColor = 0x00ffff;
+                config.hasSharkFin = true; config.hasActionCam = false; config.stackHeight = 0.04;
+            } else if (n.includes('source one') || n.includes('cannonball') || n.includes('70')) {
+                config.class = 'longrange'; config.scale = 1.4; config.armLayout = 'deadcat'; config.propBlades = 2; config.armWidth = 0.04; config.tpuColor = 0x222222;
+            } else if (n.includes('armattan') || n.includes('chameleon') || n.includes('marmotte') || n.includes('badger')) {
+                config.isArmattan = true; config.tpuColor = 0xff5500; config.hasTopPlate = false;
+            } else {
+                let hash = 0; for(let i=0; i<n.length; i++) hash = n.charCodeAt(i) + ((hash<<5)-hash);
+                function r() { let x = Math.sin(hash++)*10000; return x - Math.floor(x); }
+                config.tpuColor = new THREE.Color().setHSL(r(), 0.8, 0.5).getHex();
+                config.propColor = new THREE.Color().setHSL(r(), 0.7, 0.4).getHex();
+                if (n.includes('7') || n.includes('long')) { config.class = 'longrange'; config.scale = 1.3; config.armLayout = 'deadcat'; }
+                else if (n.includes('racer') || n.includes('racing')) { config.class = 'racing'; config.armWidth = 0.02; config.hasSharkFin = true; config.hasActionCam = false; }
+                else if (n === 'tello') { 
+                    config.class = 'whoop'; config.scale = 0.5; config.isPlastic = true; 
+                    config.hasDucts = true; config.hasCanopy = true; config.hasTopPlate = false; 
+                    config.armLayout = 'truex'; config.tpuColor = 0x222222; config.frameColor = 0x111111; config.propColor = 0x333333; // Tello EDU is dark
+                }
+                else if (n === 'soccer') {
+                    config.class = 'freestyle'; config.scale = 0.8; config.isSoccer = true; 
+                    config.hasCanopy = false; config.hasTopPlate = true; config.tpuColor = 0xff0000;
+                }
+                else if (n.match(/(whoop|tiny|micro)/)) { config.class = 'whoop'; config.scale = 0.35; config.isPlastic = true; config.hasDucts = true; config.hasCanopy = true; config.hasTopPlate = false; }
+            }
+
+            const s = config.scale;
+            const mainMat = config.isPlastic ? new THREE.MeshStandardMaterial({ color: config.frameColor, roughness: 0.3 }) : new THREE.MeshStandardMaterial({ map: carbonTex, roughness: 0.8, metalness: 0.2 });
+            const standoffMat = new THREE.MeshStandardMaterial({ color: config.standoffColor, metalness: 0.7, roughness: 0.3 });
+            const tpuMat = new THREE.MeshStandardMaterial({ color: config.tpuColor, roughness: 0.7 });
+            const stackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const motorBellMat = new THREE.MeshStandardMaterial({ color: config.motorColor, metalness: 0.8, roughness: 0.2 });
+            const propMat = new THREE.MeshStandardMaterial({ color: config.propColor, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+            const blurMat = new THREE.MeshBasicMaterial({ color: config.propColor, transparent: true, opacity: 0.0, side: THREE.DoubleSide });
+
+            const bodyGeo = new THREE.Group();
+            const bodyW = 0.08 * s * (config.class === 'racing' ? 0.6 : 1.0);
+            const bodyL = 0.16 * s;
+            
+            if (config.isCetus) {
+                const shellGeo = new THREE.SphereGeometry(bodyW*1.8, 32, 32);
+                const shell = new THREE.Mesh(shellGeo, mainMat);
+                shell.scale.set(1, 0.3, 1.3); shell.position.y = 0.05 * s;
+                bodyGeo.add(shell);
+            } else {
+                // 更真實的底板形狀 (X型倒角)
+                const shape = new THREE.Shape();
+                shape.moveTo(bodyW, bodyL*0.8); 
+                shape.lineTo(bodyW*0.5, bodyL); shape.lineTo(-bodyW*0.5, bodyL);
+                shape.lineTo(-bodyW, bodyL*0.8); shape.lineTo(-bodyW, -bodyL*0.8);
+                shape.lineTo(-bodyW*0.5, -bodyL); shape.lineTo(bodyW*0.5, -bodyL);
+                shape.lineTo(bodyW, -bodyL*0.8); shape.lineTo(bodyW, bodyL*0.8);
+                
+                const bPlateGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.04*s, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 });
+                bPlateGeo.rotateX(Math.PI / 2);
+                bodyGeo.add(new THREE.Mesh(bPlateGeo, mainMat));
+            }
+
+            // 頂板與銅柱
+            if (config.hasCanopy && !config.isCetus) {
+                const podGeo = new THREE.CylinderGeometry(bodyW*1.2, bodyW*1.4, 0.1*s, 16);
+                podGeo.rotateX(Math.PI/2);
+                const pod = new THREE.Mesh(podGeo, config.isPlastic ? mainMat : tpuMat);
+                pod.position.set(0, 0.08*s, -0.02*s); bodyGeo.add(pod);
+            } else if (config.hasTopPlate && !config.isCetus) {
+                const shape = new THREE.Shape();
+                shape.moveTo(bodyW*0.8, bodyL*0.7); shape.lineTo(-bodyW*0.8, bodyL*0.7);
+                shape.lineTo(-bodyW*0.8, -bodyL*0.7); shape.lineTo(bodyW*0.8, -bodyL*0.7);
+                const tPlateGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.03*s, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 });
+                tPlateGeo.rotateX(Math.PI / 2);
+                const tPlate = new THREE.Mesh(tPlateGeo, mainMat);
+                tPlate.position.y = config.stackHeight * 2 * s;
+                bodyGeo.add(tPlate);
+                
+                for(let i of [-1, 1]) for(let j of [-1, 1]) {
+                    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, (config.stackHeight*2-0.02)*s, 8), standoffMat);
+                    st.position.set(i*bodyW*0.7, config.stackHeight*s, j*bodyL*0.6); bodyGeo.add(st);
+                }
+            } else if (config.isArmattan) {
+                const cageMat = new THREE.MeshStandardMaterial({ color: config.tpuColor, metalness: 0.8, roughness: 0.3 });
+                const cageGeo = new THREE.TorusGeometry(bodyW*0.8, 0.012, 8, 16, Math.PI);
+                const cageL = new THREE.Mesh(cageGeo, cageMat); cageL.position.set(-bodyW*0.8, 0.1*s, -bodyL*0.6); cageL.rotation.y = Math.PI/2; bodyGeo.add(cageL);
+                const cageR = new THREE.Mesh(cageGeo, cageMat); cageR.position.set(bodyW*0.8, 0.1*s, -bodyL*0.6); cageR.rotation.y = Math.PI/2; bodyGeo.add(cageR);
+            }
+
+            // 電池 (LiPo Battery) 與綁帶
+            if (!config.isPlastic && !config.isCetus) {
+                // 電池本體
+                const lipoMat = new THREE.MeshStandardMaterial({ color: 0x112244, roughness: 0.6 });
+                const lipoGeo = new THREE.BoxGeometry(bodyW*1.4, 0.15*s, bodyL*1.4);
+                const lipo = new THREE.Mesh(lipoGeo, lipoMat);
+                const lipoY = (config.hasTopPlate ? config.stackHeight * 2 * s : 0) + 0.08*s;
+                lipo.position.set(0, lipoY, 0.02*s);
+                bodyGeo.add(lipo);
+                
+                // 電池綁帶 (Strap)
+                const strapMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+                const strap = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.45, 0.16*s, 0.04*s), strapMat);
+                strap.position.set(0, lipoY, 0.02*s); bodyGeo.add(strap);
+                
+                // 電池線 (XT60)
+                const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.1*s), new THREE.MeshStandardMaterial({color:0xaa0000}));
+                wire.position.set(bodyW*0.5, lipoY, bodyL*0.8); wire.rotation.z = Math.PI/2; bodyGeo.add(wire);
+            }
+
+            // 電控塔 (Stack: FC + ESC)
+            if (!config.isPlastic && !config.isCetus) {
+                const esc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.1, 0.015*s, bodyW*1.1), stackMat);
+                esc.position.set(0, config.stackHeight*0.4*s, 0); bodyGeo.add(esc);
+                const fc = new THREE.Mesh(new THREE.BoxGeometry(bodyW*1.1, 0.015*s, bodyW*1.1), stackMat);
+                fc.position.set(0, config.stackHeight*0.9*s, 0); bodyGeo.add(fc);
+                
+                // Add 4 stack screws to hold FC and ESC so they don't float!
+                const stackScrewGeo = new THREE.CylinderGeometry(0.005*s, 0.005*s, config.stackHeight*1.6*s, 8);
+                const stackScrewMat = new THREE.MeshStandardMaterial({color: 0x888888, metalness: 0.9});
+                for(let sx of [-1, 1]) {
+                    for(let sz of [-1, 1]) {
+                        const screw = new THREE.Mesh(stackScrewGeo, stackScrewMat);
+                        screw.position.set(sx*bodyW*0.4, config.stackHeight*0.5*s, sz*bodyW*0.4);
+                        bodyGeo.add(screw);
+                    }
+                }
+            }
+            
+            if (config.isSoccer) {
+                const cageRadius = 0.35 * s; // Make it big enough to encapsulate the drone
+                const cageGeo = new THREE.IcosahedronGeometry(cageRadius, 3); // More detailed sphere
+                const wireMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, transparent: true, opacity: 0.8 });
+                const cage = new THREE.Mesh(cageGeo, wireMaterial);
+                cage.position.y = 0.05 * s; // Center it on the drone
+                droneGroup.add(cage);
+            }
+            droneGroup.add(bodyGeo);
+
+
+            // 攝影機 (FPV Cam)
+            currentCamTilt = (config.class === 'racing') ? Math.PI/3 : Math.PI/6;
+            const camGroup = new THREE.Group();
+            const camBody = new THREE.Mesh(new THREE.BoxGeometry(0.06*s, 0.06*s, 0.06*s), new THREE.MeshStandardMaterial({color:0x111}));
+            camGroup.add(camBody);
+            const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.02*s, 0.02*s, 0.05*s, 16), new THREE.MeshStandardMaterial({color:0x000, metalness:1}));
+            lens.rotation.x = Math.PI/2; lens.position.z = -0.03*s; camGroup.add(lens);
+
+            if (config.hasCanopy || config.isCetus) {
+                camGroup.position.set(0, 0.08*s, -bodyL*0.8);
+            } else if (config.isArmattan) {
+                camGroup.position.set(0, 0.1*s, -bodyL*0.9);
+            } else {
+                camGroup.position.set(0, config.stackHeight*s, -bodyL*0.9);
+                // 碳纖維相機側板
+                const sp = new THREE.BoxGeometry(0.01, 0.1*s, 0.1*s);
+                const l = new THREE.Mesh(sp, mainMat); l.position.x = -0.04*s; camGroup.add(l);
+                const r = new THREE.Mesh(sp, mainMat); r.position.x = 0.04*s; camGroup.add(r);
+            }
+            
+            camGroup.rotation.x = currentCamTilt;
+            droneGroup.add(camGroup);
+            fpvCameraPos.set(0, camGroup.position.y + Math.sin(currentCamTilt)*0.06, camGroup.position.z - Math.cos(currentCamTilt)*0.06);
+
+            // 運動相機座 (GoPro Mount)
+            if (config.hasActionCam) {
+                const mount = new THREE.Mesh(new THREE.BoxGeometry(0.12*s, 0.12*s, 0.08*s), tpuMat);
+                mount.rotation.x = Math.PI/6; mount.position.set(0, (config.stackHeight*2 + 0.12)*s, -0.08*s);
+                droneGroup.add(mount);
+                // GoPro 本體
+                const gopro = new THREE.Mesh(new THREE.BoxGeometry(0.1*s, 0.08*s, 0.05*s), new THREE.MeshStandardMaterial({color:0x222}));
+                gopro.position.set(0, 0.02*s, -0.02*s); mount.add(gopro);
+            }
+            
+            // 鯊魚鰭 (Turtle Mode Fin)
+            if (config.hasSharkFin) {
+                const finShape = new THREE.Shape();
+                finShape.moveTo(0,0); finShape.lineTo(0.05*s,0); finShape.lineTo(0.05*s,0.15*s); finShape.lineTo(0,0);
+                const fin = new THREE.Mesh(new THREE.ExtrudeGeometry(finShape, {depth:0.015, bevelEnabled:false}), tpuMat);
+                fin.position.set(0, (config.stackHeight*2 + 0.02)*s, 0); droneGroup.add(fin);
+            }
+
+            // VTX 圖傳天線 (Lollipop)
+            if (!config.isPlastic && !config.isCetus) {
+                const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.18*s), new THREE.MeshStandardMaterial({color:0x111}));
+                antStem.position.set(0, config.stackHeight*s, bodyL*0.9); antStem.rotation.x = -Math.PI / 4;
+                const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.03*s), tpuMat);
+                antHead.position.set(0, 0.09*s, 0); antStem.add(antHead);
+                droneGroup.add(antStem);
+            }
+
+            // 機臂與馬達
+            let angleF = Math.PI/4, angleB = Math.PI/4;
+            if (config.armLayout === 'deadcat') { angleF = Math.PI/3.2; angleB = Math.PI/5.5; }
+            if (config.armLayout === 'stretched') { angleF = Math.PI/5; angleB = Math.PI/5; }
+
+            const L = (config.class === 'whoop' ? 0.2 : (config.class === 'longrange' ? 0.6 : 0.4)) * s;
+            const R = (config.class === 'whoop' ? 0.12 : (config.class === 'longrange' ? 0.35 : 0.25)) * s;
+
+            function createArm(targetX, targetZ) {
+                const armGroup = new THREE.Group();
+                const dist = Math.sqrt(targetX*targetX + targetZ*targetZ);
+                const aw = config.armWidth * s;
+
+                // 繪製更真實的機臂形狀
+                if (!config.isCetus) {
+                    const armShape = new THREE.Shape();
+                    armShape.moveTo(-aw*0.6, 0); armShape.lineTo(aw*0.6, 0); 
+                    armShape.lineTo(aw*0.4, dist); armShape.lineTo(-aw*0.4, dist);
+                    const armGeo = new THREE.ExtrudeGeometry(armShape, { depth: 0.04 * s, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.005, bevelThickness: 0.005 });
+                    armGeo.rotateX(Math.PI / 2);
+                    const arm = new THREE.Mesh(armGeo, mainMat);
+                    arm.rotation.y = Math.atan2(targetX, targetZ);
+                    armGroup.add(arm);
+                }
+
+                // 馬達底座 (Stator) 與 馬達鐘 (Bell)
+                const motorPos = new THREE.Vector3(targetX, 0.0, targetZ);
+                const stH = 0.03*s;
+                const stator = new THREE.Mesh(new THREE.CylinderGeometry(R*0.25, R*0.25, stH, 16), new THREE.MeshStandardMaterial({color:0x333, metalness:0.5}));
+                stator.position.copy(motorPos); stator.position.y += stH/2; armGroup.add(stator);
+
+                const blH = 0.04*s;
+                // 馬達鐘加上紋路
+                const bellGeo = new THREE.CylinderGeometry(R*0.28, R*0.28, blH, 24);
+                const bell = new THREE.Mesh(bellGeo, motorBellMat);
+                bell.position.copy(motorPos); bell.position.y += stH + blH/2 - 0.005; 
+                
+                // 加上馬達軸心
+                const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, blH*1.5), new THREE.MeshStandardMaterial({color:0xffffff, metalness:1}));
+                bell.add(shaft);
+                armGroup.add(bell);
+
+                // 保護圈 (Ducts)
+                if (config.hasDucts || config.isCetus) {
+                    const ductGeo = new THREE.CylinderGeometry(R+0.015, R+0.015, 0.08*s, 32, 1, true);
+                    const duct = new THREE.Mesh(ductGeo, new THREE.MeshStandardMaterial({color: config.frameColor, side: THREE.DoubleSide}));
+                    duct.position.copy(motorPos); duct.position.y += 0.05*s;
+                    armGroup.add(duct);
+                    
+                    const supportGeo = new THREE.BoxGeometry(R*2.1, 0.01, 0.01);
+                    const support = new THREE.Mesh(supportGeo, mainMat); support.position.copy(motorPos); support.position.y += 0.02; armGroup.add(support);
+                    const support2 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.01, R*2.1), mainMat); support2.position.copy(motorPos); support2.position.y += 0.02; armGroup.add(support2);
+                }
+
+                // 螺旋槳 (Props) - 改用帶有弧度的形狀
+                const propGroup = new THREE.Group();
+                const blades = [];
+                for (let i = 0; i < config.propBlades; i++) {
+                    const bladeShape = new THREE.Shape();
+                    bladeShape.moveTo(0, -0.02); bladeShape.quadraticCurveTo(R*0.5, -0.05, R, -0.01);
+                    bladeShape.quadraticCurveTo(R*0.8, 0.05, 0, 0.02);
+                    const bladeGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.005, bevelEnabled:false });
+                    bladeGeo.rotateX(Math.PI/2);
+                    const blade = new THREE.Mesh(bladeGeo, propMat);
+                    
+                    // 讓槳葉有傾斜角 (Pitch)
+                    blade.rotation.x = Math.PI / 10; 
+                    const pivot = new THREE.Group(); pivot.rotation.y = (Math.PI * 2 / config.propBlades) * i;
+                    pivot.add(blade); propGroup.add(pivot); blades.push(blade);
+                }
+                const blurMesh = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 0.001, 32), blurMat);
+                propGroup.add(blurMesh);
+
+                propGroup.position.copy(motorPos); propGroup.position.y += stH + blH;
+                armGroup.add(propGroup);
+                
+                propGroup.userData = { blades: blades, blur: blurMesh };
+                propellers.push(propGroup);
+                droneGroup.add(armGroup);
+            }
+
+            createArm(-Math.sin(angleF)*L, -Math.cos(angleF)*L);
+            createArm(Math.sin(angleF)*L, -Math.cos(angleF)*L);
+            createArm(-Math.sin(angleB)*L, Math.cos(angleB)*L);
+            createArm(Math.sin(angleB)*L, Math.cos(angleB)*L);
+        }
+
+        
+
+        
+        const allDrones = [
+            { id: 'default', name: '預設無人機 (Procedural)', image: '', hasModel: true, modelStr: '', tilt: 45, yaw: 10, thr: 1.0 },
+            { id: 'hx115', name: 'BetaFPV HX115', image: '', hasModel: true, modelStr: 'models/HX115.glb', tilt: 50, yaw: 12, thr: 1.2 },
+            { id: 'tello', name: 'Tello EDU (含滯空)', image: '', hasModel: true, modelStr: 'tello', tilt: 15, yaw: 8, thr: 0.8 },
+            { id: 'soccer', name: '無人機足球 (Drone Soccer)', image: '', hasModel: true, modelStr: 'soccer', tilt: 20, yaw: 8, thr: 0.9 },
+            { id: 'tbs_oblivion', name: 'TBS Oblivion', image: '', hasModel: false, modelStr: '', tilt: 40, yaw: 8, thr: 1.0 },
+            { id: 'iflight_nazgul', name: 'iFlight Nazgul5', image: '', hasModel: false, modelStr: '', tilt: 55, yaw: 15, thr: 1.5 },
+            { id: 'five33', name: 'Five33 Light Switch', image: '', hasModel: false, modelStr: '', tilt: 60, yaw: 14, thr: 1.4 }
+        ];
+
+        let activeDrones = [ allDrones[0], allDrones[1], allDrones[2], allDrones[3] ];
+        let currentDroneId = 'hx115';
+        let editingDrone = null;
+
+        function renderActiveDrones() {
+            const container = document.getElementById('active-drones-list');
+            container.innerHTML = '';
+            activeDrones.forEach(drone => {
+                const isActive = drone.id === currentDroneId ? 'active' : '';
+                container.innerHTML += `
+                    <div class="drone-card ${isActive}" onclick="selectDrone('${drone.id}')">
+                        <div class="drone-img" style="background:${drone.hasModel ? '#00b4ff' : '#444'}"></div>
+                        <div class="drone-info">
+                            <div class="drone-name">${drone.name}</div>
+                            <button class="drone-edit-btn" onclick="event.stopPropagation(); openEditModal('${drone.id}')">參數編輯</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderFullList() {
+            const container = document.getElementById('full-drones-list');
+            container.innerHTML = '';
+            allDrones.forEach(drone => {
+                const isAdded = activeDrones.some(d => d.id === drone.id);
+                const disabledClass = (!drone.hasModel || isAdded) ? 'disabled' : '';
+                const statusText = !drone.hasModel ? '(模型未安裝)' : (isAdded ? '(已新增)' : '');
+                container.innerHTML += `
+                    <div class="list-card ${disabledClass}" onclick="addDrone('${drone.id}')">
+                        <div class="drone-img" style="background:${drone.hasModel ? '#00b4ff' : '#444'}"></div>
+                        <div class="drone-info">
+                            <div class="drone-name">${drone.name}</div>
+                            <div style="font-size:12px; color:#aaa">${statusText}</div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function selectDrone(id) {
+            currentDroneId = id;
+            renderActiveDrones();
+            const drone = activeDrones.find(d => d.id === id);
+            
+            maxTilt = (drone.tilt * Math.PI) / 180;
+            maxYaw = drone.yaw * (Math.PI / 180);
+            
+            while(droneGroup.children.length > 0){ droneGroup.remove(droneGroup.children[0]); }
+            propellers.length = 0;
+            activeShaders = [];
+            
+            
+            if (id === 'tello' || id === 'soccer') {
+                document.getElementById('hoverBtn').style.display = 'block';
+                document.getElementById('headlessBtn').style.display = 'block';
+            } else {
+                document.getElementById('hoverBtn').style.display = 'none';
+                document.getElementById('headlessBtn').style.display = 'none';
+                isHoverMode = false; isHeadlessMode = false;
+                document.getElementById('hoverBtn').innerText = '開啟滯空模式 (Hover)';
+                document.getElementById('headlessBtn').innerText = '開啟無頭模式 (Headless)';
+                document.getElementById('hoverBtn').classList.remove('active');
+                document.getElementById('headlessBtn').classList.remove('active');
+            }
+
+            if (drone.id === 'default') {
+                buildProceduralDrone('Procedural');
+            } else {
+                gltfLoader.load(
+                    drone.modelStr,
+                    function (gltf) { setupLoadedModel(gltf.scene, true); },
+                    undefined,
+                    function () { buildProceduralDrone(drone.id); }
+                );
+            }
+        }
+
+        function addDrone(id) {
+            const drone = allDrones.find(d => d.id === id);
+            if (!drone.hasModel || activeDrones.some(d => d.id === id)) return;
+            activeDrones.push(drone);
+            closeAddModal();
+            renderActiveDrones();
+        }
+
+        function openAddModal() { renderFullList(); document.getElementById('add-modal').style.display = 'flex'; }
+        function closeAddModal() { document.getElementById('add-modal').style.display = 'none'; }
+        
+        function openEditModal(id) {
+            editingDrone = activeDrones.find(d => d.id === id);
+            document.getElementById('edit-title').innerText = `編輯: ${editingDrone.name}`;
+            document.getElementById('param-tilt').value = editingDrone.tilt;
+            document.getElementById('param-yaw').value = editingDrone.yaw;
+            document.getElementById('param-thr').value = editingDrone.thr;
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+        function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+        function saveParams() {
+            if (editingDrone) {
+                editingDrone.tilt = parseFloat(document.getElementById('param-tilt').value);
+                editingDrone.yaw = parseFloat(document.getElementById('param-yaw').value);
+                editingDrone.thr = parseFloat(document.getElementById('param-thr').value);
+                if (currentDroneId === editingDrone.id) selectDrone(currentDroneId); // Reapply
+            }
+            closeEditModal();
+        }
+
+        setTimeout(() => {
+            renderActiveDrones();
+            selectDrone('hx115'); // default to HX115
+        }, 100);
+
+        let isFPV = false;
+        const viewSwitchBtn = document.getElementById('viewSwitchBtn');
+        const crosshair = document.getElementById('crosshair');
+        const osd = document.getElementById('osd');
+
+        function resetFPVCamera() {
+            camera.position.copy(fpvCameraPos); camera.rotation.set(currentCamTilt, 0, 0, 'YXZ');
+        }
+
+        viewSwitchBtn.addEventListener('click', () => {
+            isFPV = !isFPV;
+            if (isFPV) {
+                viewSwitchBtn.textContent = '目前視角：FPV 穿越視角 (無滑鼠)';
+                controls.enabled = false; crosshair.style.display = 'block'; osd.style.display = 'block';
+                droneGroup.add(camera); resetFPVCamera();
+            } else {
+                viewSwitchBtn.textContent = '目前視角：第三人稱';
+                controls.enabled = true; crosshair.style.display = 'none'; osd.style.display = 'none';
+                droneGroup.remove(camera); scene.add(camera);
+                camera.position.set(0, 1.5, 3.5); camera.lookAt(0, 0, 0);
+            }
+        });
+
+        let controlMode = 'american';
+        const keys = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false };
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') keys.w = true; if (key === 'a') keys.a = true; if (key === 's') keys.s = true; if (key === 'd') keys.d = true;
+            if (e.key === 'ArrowUp') keys.up = true; if (e.key === 'ArrowDown') keys.down = true; if (e.key === 'ArrowLeft') keys.left = true; if (e.key === 'ArrowRight') keys.right = true;
+        });
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key === 'w') keys.w = false; if (key === 'a') keys.a = false; if (key === 's') keys.s = false; if (key === 'd') keys.d = false;
+            if (e.key === 'ArrowUp') keys.up = false; if (e.key === 'ArrowDown') keys.down = false; if (e.key === 'ArrowLeft') keys.left = false; if (e.key === 'ArrowRight') keys.right = false;
+        });
+
+        const modeSwitchBtn = document.getElementById('modeSwitchBtn');
+        const instructionsText = document.getElementById('instructionsText');
+        modeSwitchBtn.addEventListener('click', () => {
+            if (controlMode === 'american') {
+                controlMode = 'japanese'; modeSwitchBtn.textContent = '目前模式：日本手';
+                instructionsText.innerHTML = `[日本手 操作說明]<br>W S 鍵：油門<br>A D 鍵：水平轉動<br>上下鍵：前後傾斜<br>左右鍵：左右傾斜<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
+            } else {
+                controlMode = 'american'; modeSwitchBtn.textContent = '目前模式：美國手';
+                instructionsText.innerHTML = `[美國手 操作說明]<br>上下鍵：油門<br>左右鍵：水平轉動<br>W S 鍵：前後傾斜<br>A D 鍵：左右傾斜<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
+            }
+        });
+
+        let targetPitch = 0, targetRoll = 0;
+        let maxTilt = Math.PI / 4; let maxYaw = 10 * (Math.PI / 180); const lerpSpeed = 0.15;
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const osdThr = document.getElementById('osd-thr');
+        const osdRpm = document.getElementById('osd-rpm');
+
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            if (!isFPV) controls.update();
+
+            let inputThrottle = 0, inputYaw = 0, inputPitch = 0, inputRoll = 0;
+            if (controlMode === 'american') {
+                if (keys.up) inputThrottle += 1; if (keys.down) inputThrottle -= 1;
+                if (keys.left) inputYaw += 1; if (keys.right) inputYaw -= 1;
+                if (keys.w) inputPitch += 1; if (keys.s) inputPitch -= 1;
+                if (keys.a) inputRoll += 1; if (keys.d) inputRoll -= 1;
+            } else {
+                if (keys.w) inputThrottle += 1; if (keys.s) inputThrottle -= 1;
+                if (keys.a) inputYaw += 1; if (keys.d) inputYaw -= 1;
+                if (keys.up) inputPitch += 1; if (keys.down) inputPitch -= 1;
+                if (keys.left) inputRoll += 1; if (keys.right) inputRoll -= 1;
+            }
+
+            targetPitch = -inputPitch * maxTilt; targetRoll = inputRoll * maxTilt; const targetYaw = inputYaw * maxYaw; 
+            const currentPitch = THREE.MathUtils.lerp(droneGroup.rotation.x, targetPitch, lerpSpeed);
+            const currentRoll = THREE.MathUtils.lerp(droneGroup.rotation.z, targetRoll, lerpSpeed);
+            const currentYaw = THREE.MathUtils.lerp(droneGroup.rotation.y, targetYaw, lerpSpeed);
+            droneGroup.rotation.set(currentPitch, currentYaw, currentRoll, 'YXZ');
+
+            
+            const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
+            const thrMultiplier = activeDroneObj ? activeDroneObj.thr : 1.0;
+            const throttleVal = Math.max(0, inputThrottle * thrMultiplier);
+ 
+            const totalSpeed = 0.05 + ((throttleVal > 0 || Math.abs(inputPitch)>0 || Math.abs(inputRoll)>0 || Math.abs(inputYaw)>0) ? 0.8 : 0);
+
+            if (isFPV) { osdThr.innerText = (throttleVal * 100).toFixed(0); osdRpm.innerText = (totalSpeed * 5000).toFixed(0); }
+
+            const blurOpacity = THREE.MathUtils.clamp((totalSpeed - 0.2) * 1.5, 0, 0.4);
+            const bladeOpacity = THREE.MathUtils.clamp(1.0 - (totalSpeed - 0.2) * 2, 0.1, 0.7);
+
+            
+            // 黑科技：更新 Shader 裡的時間變數來轉動靜態模型的螺旋槳
+            if (activeShaders.length > 0) {
+                activeShaders.forEach(shader => {
+                    shader.uniforms.time.value += totalSpeed;
+                });
+            }
+
+            if (propellers.length === 4) {
+
+                propellers.forEach((prop, index) => {
+                    prop.rotation.y += (index % 2 === 0) ? totalSpeed : -totalSpeed;
+                    if(prop.userData.blur) prop.userData.blur.material.opacity = blurOpacity;
+                    if(prop.userData.blades) prop.userData.blades.forEach(blade => blade.material.opacity = bladeOpacity);
+                });
+            }
+
+            if (isAudioEnabled && audioCtx && audioCtx.state === 'running') {
+                const baseFreq = 100 + throttleVal * 400, vol = 0.05 + throttleVal * 0.1;
+                const p = inputPitch * 50, r = inputRoll * 50, y = inputYaw * 50;
+                if (oscillators.length === 4) {
+                    oscillators[0].frequency.setTargetAtTime(baseFreq + p - r + y + Math.random()*5, audioCtx.currentTime, 0.1);
+                    oscillators[1].frequency.setTargetAtTime(baseFreq + p + r - y + Math.random()*5, audioCtx.currentTime, 0.1);
+                    oscillators[2].frequency.setTargetAtTime(baseFreq - p - r - y + Math.random()*5, audioCtx.currentTime, 0.1);
+                    oscillators[3].frequency.setTargetAtTime(baseFreq - p + r + y + Math.random()*5, audioCtx.currentTime, 0.1);
+                    gainNodes.forEach(gain => gain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.1));
+                }
+            }
+
+
+
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+    <script src="rabboni.js"></script>
+
+    <script>
+        function updateRabboniConf() {
+            if (typeof controlConfig === 'undefined') return;
+            controlConfig.pitch.stick = document.getElementById('r-pitch-stick').value;
+            controlConfig.pitch.mode = document.getElementById('r-pitch-mode').value;
+            controlConfig.pitch.sens = parseFloat(document.getElementById('r-pitch-sens').value);
+            
+            controlConfig.roll.stick = document.getElementById('r-roll-stick').value;
+            controlConfig.roll.mode = document.getElementById('r-roll-mode').value;
+            controlConfig.roll.sens = parseFloat(document.getElementById('r-roll-sens').value);
+            
+            controlConfig.thrust.stick = document.getElementById('r-thrust-stick').value;
+            controlConfig.thrust.mode = document.getElementById('r-thrust-mode').value;
+            controlConfig.thrust.sens = parseFloat(document.getElementById('r-thrust-sens').value);
+            
+            controlConfig.yaw.stick = document.getElementById('r-yaw-stick').value;
+            controlConfig.yaw.mode = document.getElementById('r-yaw-mode').value;
+            controlConfig.yaw.sens = parseFloat(document.getElementById('r-yaw-sens').value);
+        }
+    </script>
+
+</body>
+</htmllet isHoverMode = false;
+        let isHeadlessMode = false;
+        
+        function toggleHover() {
+            isHoverMode = !isHoverMode;
+            document.getElementById('hoverBtn').innerText = isHoverMode ? '關閉滯空模式 (Hover)' : '開啟滯空模式 (Hover)';
+            document.getElementById('hoverBtn').classList.toggle('active', isHoverMode);
+        }
+        function toggleHeadless() {
+            isHeadlessMode = !isHeadlessMode;
+            document.getElementById('headlessBtn').innerText = isHeadlessMode ? '關閉無頭模式 (Headless)' : '開啟無頭模式 (Headless)';
+            document.getElementById('headlessBtn').classList.toggle('active', isHeadlessMode);
+        }
+        >
