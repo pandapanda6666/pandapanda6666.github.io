@@ -19,8 +19,8 @@ class Rabboni {
             this.ay = data.acc[1];
             this.az = data.acc[2];
             // Calculate Pitch/Roll from gravity (Accel)
-            this.pitch = Math.atan2(this.ay, Math.sqrt(this.ax*this.ax + this.az*this.az)) * 180 / Math.PI;
-            this.roll = Math.atan2(-this.ax, this.az) * 180 / Math.PI;
+            this.pitch = -Math.atan2(this.ay, Math.sqrt(this.ax*this.ax + this.az*this.az)) * 180 / Math.PI;
+            this.roll = -Math.atan2(-this.ax, this.az) * 180 / Math.PI;
         }
         if (data.gyr) {
             this.gx = data.gyr[0];
@@ -30,7 +30,7 @@ class Rabboni {
             // Integrate Yaw
             let now = performance.now();
             let dt = (now - this.lastTime) / 1000.0;
-            this.yaw += this.gz * dt; // assuming gyr is in deg/s
+            if (Math.abs(this.gz) > 1.0) this.yaw += this.gz * dt * 0.5; // added deadband and scaled down if too fast
             this.lastTime = now;
         }
         
@@ -39,7 +39,7 @@ class Rabboni {
         let selB = document.getElementById('r-device-b') ? document.getElementById('r-device-b').value : '';
         let devName = Object.keys(rabboniDevices).find(key => rabboniDevices[key] === this);
         
-        let hudText = `Pitch: ${this.pitch.toFixed(1)}&deg; | Roll: ${this.roll.toFixed(1)}&deg; | Yaw: ${this.yaw.toFixed(1)}&deg; | AccZ: ${this.az.toFixed(2)}`;
+        let hudText = `前後傾斜: ${this.pitch.toFixed(1)}&deg; | 左右傾斜: ${this.roll.toFixed(1)}&deg; | 左右旋轉: ${this.yaw.toFixed(1)}&deg; | Z軸加速度: ${this.az.toFixed(2)}`;
         
         if (devName === selA) {
             let el = document.getElementById('debug-rabboni-a');
@@ -154,7 +154,11 @@ function getStickValue(axis) {
             if (axis === 'pitch') return (rabboni.pitch / 30.0) * config.sens;
             if (axis === 'roll') return (rabboni.roll / 30.0) * config.sens;
             if (axis === 'yaw') return (rabboni.yaw / 45.0) * config.sens; // Z-axis angle (integrated from gyro)
-            if (axis === 'thrust') return (rabboni.az) * config.sens; // Z-axis Accel
+            if (axis === 'thrust') {
+                if (config.mode === 'sync') return (rabboni.az) * config.sens; // Z-axis Accel
+                if (config.mode === 'sync-pitch') return (rabboni.pitch / 30.0) * config.sens;
+                if (config.mode === 'sync-roll') return (rabboni.roll / 30.0) * config.sens;
+            }
         } else {
             // Threshold / Fixed Mode from Rabboni tilt
             let rVal = 0;
