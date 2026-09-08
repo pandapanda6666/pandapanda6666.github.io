@@ -411,14 +411,21 @@ function highlightFullText(usedChunks) {
     return highlightedText;
 }
 
-async function fetchGeminiAPI(systemPrompt, userQuery, model, apiKey) {
+async function fetchGeminiAPI(systemPrompt, messages, model, apiKey) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    // Map standard roles to Gemini roles
+    const geminiContents = messages.map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+    }));
+
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ parts: [{ text: userQuery }] }],
+            contents: geminiContents,
             generationConfig: { temperature: 0.1 }
         })
     });
@@ -451,7 +458,13 @@ document.getElementById('btn-search').addEventListener('click', async () => {
     const chatBox = document.getElementById('chat-box');
     chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>檢索校規資料中...</p></div>';
     
-    let relevantItems = searchRelevantChunks(query, 10);
+    // Combine with last query to maintain search context
+    let searchQuery = query;
+    if (chatHistory.length > 0) {
+        searchQuery = chatHistory[chatHistory.length - 1].query + " " + query;
+    }
+    
+    let relevantItems = searchRelevantChunks(searchQuery, 10);
     
     let context = "";
     let usedChunks = [];
@@ -474,9 +487,10 @@ document.getElementById('btn-search').addEventListener('click', async () => {
 【極度重要規則】：
 1. 必須清楚引述具體的條文或相關規定內容。
 2. 絕對不可以自己發明、猜測或推論任何規定！
-3. 如果使用者問的事情在【校規資料】中【完全沒有提到】，你【只能】回答：「根據提供的校規資料，無法找到相關規定。」，絕對不准自行回答行不行或可不可以。
-4. ${toneInstruction}
-5. 請一律使用繁體中文回答。
+3. 如果使用者問的事情在【校規資料】中【完全沒有提到】，你【只能】回答：「關於此問題，校規中並未提及相關規定。」
+4. 請嚴格區分「物品」與「配戴部位」。例如，如果規定是關於「身上」配戴的飾品，就不代表「背包」上不能掛飾品！請勿將不同部位或物品的規定混為一談！
+5. ${toneInstruction}
+6. 請一律使用繁體中文回答。
 
 【校規資料開始】
 ${context}
@@ -484,18 +498,28 @@ ${context}
     
     chatBox.innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-grow mb-3"></div><p>AI正在思考並生成回覆...</p></div>';
     
+    // Build conversation history (last 3 turns to save context)
+    let aiMessages = [];
+    if (!isApi) {
+        // WebLLM needs system prompt in the messages array
+        aiMessages.push({ role: "system", content: systemPrompt });
+    }
+    
+    const recentHistory = chatHistory.slice(-3);
+    for (let h of recentHistory) {
+        aiMessages.push({ role: "user", content: h.query });
+        aiMessages.push({ role: "assistant", content: h.reply });
+    }
+    aiMessages.push({ role: "user", content: query });
+    
     try {
         let aiReplyText = "";
         
         if (isApi) {
-            aiReplyText = await fetchGeminiAPI(systemPrompt, query, selectedModelValue, apiKeyInput.value.trim());
+            aiReplyText = await fetchGeminiAPI(systemPrompt, aiMessages, selectedModelValue, apiKeyInput.value.trim());
         } else {
-            const messages = [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: query }
-            ];
             const reply = await engine.chat.completions.create({
-                messages: messages,
+                messages: aiMessages,
                 temperature: 0.1,
                 repetition_penalty: 1.05,
                 frequency_penalty: 0.2
