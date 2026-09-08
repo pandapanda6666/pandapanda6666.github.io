@@ -33,6 +33,22 @@ class Rabboni {
             this.yaw += this.gz * dt; // assuming gyr is in deg/s
             this.lastTime = now;
         }
+        
+        // Update HUD
+        let selA = document.getElementById('r-device-a') ? document.getElementById('r-device-a').value : '';
+        let selB = document.getElementById('r-device-b') ? document.getElementById('r-device-b').value : '';
+        let devName = Object.keys(rabboniDevices).find(key => rabboniDevices[key] === this);
+        
+        let hudText = `Pitch: ${this.pitch.toFixed(1)}&deg; | Roll: ${this.roll.toFixed(1)}&deg; | Yaw: ${this.yaw.toFixed(1)}&deg; | AccZ: ${this.az.toFixed(2)}`;
+        
+        if (devName === selA) {
+            let el = document.getElementById('debug-rabboni-a');
+            if (el) el.innerHTML = `Rabboni A: ${hudText}`;
+        }
+        if (devName === selB) {
+            let el = document.getElementById('debug-rabboni-b');
+            if (el) el.innerHTML = `Rabboni B: ${hudText}`;
+        }
     }
 }
 
@@ -134,10 +150,11 @@ function getStickValue(axis) {
     // Merge Rabboni logic if connected
     if (rabboni && rabboni.connected) {
         if (config.mode === 'sync') {
-            if (axis === 'pitch') return rabboni.pitch * config.sens;
-            if (axis === 'roll') return rabboni.roll * config.sens;
-            if (axis === 'yaw') return (rabboni.gz * 0.05) * config.sens; // Z-axis angular velocity
-            if (axis === 'thrust') return rabboni.az * config.sens; // Z-axis Accel
+            // Normalize angles (assume +-30 degrees is max stick throw)
+            if (axis === 'pitch') return (rabboni.pitch / 30.0) * config.sens;
+            if (axis === 'roll') return (rabboni.roll / 30.0) * config.sens;
+            if (axis === 'yaw') return (rabboni.yaw / 45.0) * config.sens; // Z-axis angle (integrated from gyro)
+            if (axis === 'thrust') return (rabboni.az) * config.sens; // Z-axis Accel
         } else {
             // Threshold / Fixed Mode from Rabboni tilt
             let rVal = 0;
