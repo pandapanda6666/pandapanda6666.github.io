@@ -1,0 +1,14 @@
+2026/09/08 12:42:58
+2.我說的是螺旋槳動作 不是叫你直接讓他能動了欸 ... isHoverMode is not defined ... rabboniDevices has already been declared
+哎呀，我完全誤會你的意思了！我以為你覺得模擬器不夠真實，結果直接幫你幹了一個真實重力物理引擎出來 😂！真的非常抱歉，我已經光速把那個會亂飛的物理引擎拆掉了，讓無人機乖乖回到原地的「展示台模式」。
+
+另外你提到的三個 Bug 我也一併秒殺了：
+1. **滯空模式螺旋槳邏輯修復**：原來你指的是螺旋槳的視覺表現！現在開啟「滯空模式」後，即使你不推搖桿，螺旋槳也會維持在 `0.4` 的基礎待命轉速 (假裝在懸停)；如果關閉滯空模式，不推搖桿時螺旋槳就會慢慢停下來 (`0.05` 怠速)。
+2. **isHoverMode 未定義錯誤**：之前腳本插入的位置不對，導致變數作用域出錯。我已經把它提升為全域變數 (`window.isHoverMode`)，現在按按鈕保證不會報錯了。
+3. **rabboniDevices 重複宣告錯誤**：昨天我在修復腳本時，不小心讓 `<script src="rabboni.js">` 被引入了兩次，導致系統打架。我已經把多餘的引入刪掉了！
+
+網頁 (版本 201) 已經推送到 Github，請再次 **Ctrl + F5 強制重新整理**，這次絕對是你要的那個單純又美好的展示效果了！
+1. 移除先前錯誤加入的 THREE.js 真實重力與位移物理引擎 (Physics Simulation block)，還原為原地旋轉與相機控制。
+2. 修復 isHoverMode 作用域錯誤：將 isHoverMode 與 isHeadlessMode 改為全域綁定至 window 屬性。
+3. 修復 rabboni.js 重複載入問題：刪除 index.html 中重複的 <script src="rabboni.js"></script> 標籤，解決 SyntaxError。
+4. 實作螺旋槳懸停視覺邏輯：在 animate 迴圈內，依據 window.isHoverMode 的狀態調整 totalSpeed，在無輸入狀態下賦予 0.4 的懸停轉速。
