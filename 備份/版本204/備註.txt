@@ -1,0 +1,14 @@
+2026/09/08 18:10:18
+為啥一開始不是在首頁而是選擇地圖 還有設定要儲存在本機 引擎音效按鈕怎麼上面文字帶了一段原始碼 ... physicsLastTime is not defined
+抓到這些蟲了！原來是我剛才升級架構時漏掉了一些細節：
+
+1. **首頁顯示異常**：之前寫 CSS 時不小心把「選地圖頁面」強制預設顯示了，導致它蓋在真正的首頁上面。現在已經修正，一打開絕對是乾淨的首頁！
+2. **物理引擎報錯 (`physicsLastTime`)**：這是我剛才拆分程式碼時，忘了把時間計算的變數宣告放回去，導致無人機不知道現在是幾點而報錯。已成功補上變數，現在物理引擎能正常運作了。
+3. **音效按鈕亂碼**：我在清理英文單字時，不小心把按鈕的「HTML 原始碼寫入」變成了「純文字寫入」，所以它就把 SVG 圖片的原始碼直接印在按鈕上了 😂。現在已經換回正確的寫入方式，圖示正常顯示囉！
+4. **本機儲存設定**：我已經在 `rabboni.js` 裡加入了 `localStorage` 機制，現在你綁定的搖桿 A/B、靈敏度、同步模式等，只要設定過一次就會**自動存在瀏覽器裡**，重整網頁也不會消失了！
+
+網頁 (版本 204) 已經更新並推送到 Github！快按下 **Ctrl + F5** 強制重新整理看看吧！
+1. 修正 CSS 與 SPA 切換邏輯：移除 #page-A 與 #page-C 的強制 display:flex，並在載入時觸發 navigateTo("page-A")。
+2. 修復物理引擎報錯：在 animate() 外部全域宣告 window.physicsLastTime 與 window.droneVelocity。
+3. 修復按鈕亂碼：將 audioBtn.textContent 修正為 audioBtn.innerHTML。
+4. 新增持久化儲存：在 rabboni.js 實作 saveRabboniSettings() 與 loadRabboniSettings()，利用 localStorage 儲存 controlConfig 與 rabboniSelection，並新增 syncSettingsToUI() 於載入時同步更新下拉選單介面。
