@@ -6,6 +6,7 @@ let fileTree = {};
 let schoolDataChunks = [];
 let fullSchoolText = "";
 let currentPdfUrl = "";
+let currentPdfPaths = [];
 
 let chatHistory = JSON.parse(localStorage.getItem('schoolChatHistory') || '[]');
 const historyBox = document.getElementById('history-box');
@@ -17,13 +18,15 @@ function renderHistory() {
         return;
     }
     let html = '';
-    [...chatHistory].reverse().forEach(item => {
+    [...chatHistory].reverse().forEach((item, revIdx) => {
+        const idx = chatHistory.length - 1 - revIdx;
         html += `
-        <div class="card mb-3 shadow-sm border-0 bg-light">
+        <div class="card mb-3 shadow-sm border-0 bg-light history-card" style="cursor: pointer;" onclick="window.restoreHistoryTurn(${idx})">
             <div class="card-body">
                 <div class="text-primary fw-bold mb-2"><i class="fas fa-question-circle"></i> ${item.query}</div>
                 <div class="bg-white p-3 rounded border mb-2 text-dark" style="font-size:0.95rem;">${item.reply.replace(/\n/g, '<br>')}</div>
                 <div class="text-muted text-end" style="font-size: 0.75rem;">${item.time}</div>
+                <div class="text-secondary small mt-1 text-center"><i class="fas fa-history"></i> 點擊復原此對話狀態</div>
             </div>
         </div>`;
     });
@@ -189,22 +192,22 @@ function updateDropdowns() {
         if (e && e.isTrusted) savedSelection = {};
         localStorage.setItem('selSchool', selSchool.value);
         if(selSchool.value) {
-            let pdfPaths = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
+            currentPdfPaths = fileTree[selType.value][selLevel.value][selCity.value][selDistrict.value][selSchool.value];
             
             // Check for all.pdf prioritization
-            const allPdf = pdfPaths.find(p => p.toLowerCase().endsWith('all.pdf'));
+            const allPdf = currentPdfPaths.find(p => p.toLowerCase().endsWith('all.pdf'));
             if(allPdf) {
-                pdfPaths = [allPdf]; // Only read all.pdf if it exists
+                currentPdfPaths = [allPdf]; // Only read all.pdf if it exists
             }
             
             // For viewing manually
-            currentPdfUrl = 'https://pandapanda6666.github.io/' + pdfPaths[0].split('/').map(encodeURIComponent).join('/');
+            currentPdfUrl = 'https://pandapanda6666.github.io/' + currentPdfPaths[0].split('/').map(encodeURIComponent).join('/');
             btnViewPdf.disabled = false;
             
             document.getElementById('chat-box').innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>正在下載並解析校規 PDF 檔案內容...</p></div>';
             
             fullSchoolText = "";
-            for(let path of pdfPaths) {
+            for(let path of currentPdfPaths) {
                 const url = 'https://pandapanda6666.github.io/' + path.split('/').map(encodeURIComponent).join('/');
                 fullSchoolText += await extractTextFromPDFUrl(url) + "\n\n";
             }
@@ -320,27 +323,59 @@ async function initModel(targetModelId) {
     }
 }
 
-document.getElementById('btn-delete-model').addEventListener('click', async () => {
-    if (confirm('確定要刪除已下載的模型快取嗎？')) {
-        try {
-            const cacheNames = await caches.keys();
-            let deleted = false;
-            for (const name of cacheNames) {
-                if (name.includes('webllm') || name.includes('tvm')) {
-                    await caches.delete(name);
-                    deleted = true;
-                }
+document.getElementById('btn-manage-models')?.addEventListener('click', async () => {
+    const listEl = document.getElementById('model-cache-list');
+    listEl.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary"></div><br>掃描快取中...</div>';
+    
+    try {
+        const cacheNames = await caches.keys();
+        let webllmCaches = [];
+        for (const name of cacheNames) {
+            if (name.includes('webllm') || name.includes('tvm')) {
+                webllmCaches.push(name);
             }
-            if(deleted) {
-                alert('模型已成功刪除。下次查詢將會重新下載。');
-                engine = null;
-            } else {
-                alert('沒有找到模型快取，可能是尚未下載。');
-            }
-        } catch(e) {
-            alert('刪除失敗: ' + e.message);
         }
+        
+        if(webllmCaches.length === 0) {
+            listEl.innerHTML = '<div class="alert alert-info">目前沒有發現任何 WebLLM 模型快取。</div>';
+            return;
+        }
+
+        let html = '';
+        webllmCaches.forEach(c => {
+            html += `
+            <label class="list-group-item d-flex justify-content-between align-items-center" style="cursor: pointer;">
+                <div>
+                    <input class="form-check-input me-1 cache-checkbox" type="checkbox" value="${c}">
+                    ${c}
+                </div>
+            </label>`;
+        });
+        listEl.innerHTML = html;
+        
+    } catch(e) {
+        listEl.innerHTML = `<div class="alert alert-danger">掃描失敗: ${e.message}</div>`;
     }
+});
+
+document.getElementById('btn-select-all-models')?.addEventListener('click', () => {
+    document.querySelectorAll('.cache-checkbox').forEach(cb => cb.checked = true);
+});
+document.getElementById('btn-deselect-all-models')?.addEventListener('click', () => {
+    document.querySelectorAll('.cache-checkbox').forEach(cb => cb.checked = false);
+});
+
+document.getElementById('btn-delete-selected-models')?.addEventListener('click', async () => {
+    const selected = Array.from(document.querySelectorAll('.cache-checkbox:checked')).map(cb => cb.value);
+    if(selected.length === 0) return alert('請先勾選要刪除的模型快取！');
+    if(!confirm(`確定要刪除這 ${selected.length} 個快取嗎？`)) return;
+    
+    for(const name of selected) {
+        await caches.delete(name);
+    }
+    alert('刪除完成！');
+    engine = null;
+    bootstrap.Modal.getInstance(document.getElementById('modelManageModal')).hide();
 });
 
 function searchRelevantChunks(query, topK = 10) {
@@ -552,7 +587,9 @@ ${context}
         chatHistory.push({
             query: query,
             reply: aiReplyText,
-            time: new Date().toLocaleString()
+            time: new Date().toLocaleString(),
+            usedChunks: usedChunks,
+            schoolPaths: currentPdfPaths
         });
         localStorage.setItem('schoolChatHistory', JSON.stringify(chatHistory));
         renderHistory();
@@ -590,3 +627,41 @@ window.navigateHighlight = function(direction) {
 renderHistory();
 // Load the file index dynamically
 loadGitHubTree();
+
+window.restoreHistoryTurn = function(index) {
+    const turn = chatHistory[index];
+    if(turn.schoolPaths && currentPdfPaths && turn.schoolPaths.join(',') !== currentPdfPaths.join(',')) {
+        alert("請先在上方將「選擇學校」切換至與此歷史紀錄相符的學校，系統才能載入對應的 PDF 來進行復原喔！");
+        return;
+    }
+    if(!fullSchoolText) {
+        alert("請先完成上方學校的選擇與載入，才能復原紀錄！");
+        return;
+    }
+    if(!confirm('是否要將畫面與對話狀態復原到這一個問題？\n(這將會清除此紀錄之後的對話)')) return;
+    
+    chatHistory = chatHistory.slice(0, index + 1);
+    localStorage.setItem('schoolChatHistory', JSON.stringify(chatHistory));
+    
+    const chatBox = document.getElementById('chat-box');
+    let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆 (歷史復原)：</strong><br><div class="p-3 bg-white rounded border mt-2 text-dark">${turn.reply.replace(/\n/g, '<br>')}</div></div>`;
+    
+    const highlightedFullDoc = highlightFullText(turn.usedChunks || []);
+    responseHtml += `<hr><h5 class="text-secondary"><i class="fas fa-highlighter"></i> 完整參考來源 (黃色高光為 AI 使用到的段落)：</h5>`;
+    responseHtml += `
+        <div class="mb-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="navigateHighlight(-1)"><i class="fas fa-chevron-up"></i> 上一處</button>
+            <button class="btn btn-sm btn-outline-primary" onclick="navigateHighlight(1)"><i class="fas fa-chevron-down"></i> 下一處</button>
+            <span id="highlight-counter" class="ms-2 text-muted small">0 / 0</span>
+        </div>
+        <div class="source-box" onclick="const content = this.querySelector('.source-content'); content.style.display = 'block';">
+            <i class="fas fa-book"></i> 點擊此處展開整份校規文件
+            <div class="source-content" id="full-doc-content" onclick="event.stopPropagation();">${highlightedFullDoc}</div>
+        </div>
+    `;
+    
+    chatBox.innerHTML = responseHtml;
+    window.currentHighlightIdx = -1;
+    chatBox.scrollIntoView({ behavior: 'smooth' });
+    renderHistory();
+};
