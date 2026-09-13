@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>探險者評論 Seeker Review Web</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f4f6f3; color: #333; }
+        header { display: flex; justify-content: space-between; align-items: center; background: #4a6c42; color: white; padding: 10px 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        h2 { margin: 0; display: flex; align-items: center; gap: 15px; }
+        .logo-container { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: white; padding: 2px; }
+        .logo-container img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+        .nav-links { display: flex; gap: 20px; align-items: center; }
+        .nav-links a { color: #e8f5e9; text-decoration: none; font-weight: bold; transition: color 0.2s; }
+        .nav-links a:hover { color: white; text-decoration: underline; }
+        
+        .user-profile-panel { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .user-info-sso { display: flex; align-items: center; gap: 8px; }
+        .container { max-width: 800px; margin: 40px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        
+        form label { font-weight: bold; color: #4a6c42; display: block; margin-top: 15px; }
+        form input[type="text"], form select, form textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-family: inherit; }
+        .radio-group { margin-top: 5px; display: flex; gap: 20px; }
+        
+        .btn-submit { background: #4a6c42; color: white; font-size: 16px; font-weight: bold; padding: 12px; border: none; border-radius: 25px; cursor: pointer; margin-top: 20px; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-submit:hover { background: #3a5c32; }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>
+            <div class="logo-container">
+                <img src="../../login-hub/icon.png" alt="Logo">
+            </div>
+            探險者同人創作網 <span style="font-size:14px;font-weight:normal;color:#a5d6a7;">Seeker Fanfic Web</span>
+        </h2>
+        <div class="nav-links">
+            <a href="../index.html">返回系列首頁</a>
+            <div id="auth-container">
+                <!-- SSO Auth Panel Injected Here -->
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <h3 style="color:#2c5e32; border-bottom:2px solid #e8f5e9; padding-bottom:10px;">發布評論文章</h3>
+        
+        <form id="review-form">
+            <label>評論作品 / 文章標題：</label>
+            <input type="text" id="rv-title" placeholder="請輸入你想評論的作品名稱或標題" required>
+            
+            <label>評分 (1~5星)：</label>
+            <select id="rv-rating">
+                <option value="5">⭐⭐⭐⭐⭐ 極度推薦</option>
+                <option value="4">⭐⭐⭐⭐ 值得一看</option>
+                <option value="3">⭐⭐⭐ 中規中矩</option>
+                <option value="2">⭐⭐ 有待加強</option>
+                <option value="1">⭐ 不推薦</option>
+                <option value="none">不評分 (純文章)</option>
+            </select>
+
+            <label>評論內容：</label>
+            <textarea id="rv-content" rows="15" placeholder="請在此撰寫您的評論或分析文章..." style="resize:vertical;" required></textarea>
+
+            <button type="button" class="btn-submit" onclick="submitReview()">發布評論</button>
+        </form>
+
+    </div>
+
+    <!-- SSO Script Integration -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+        function updateSeriesLabel() {
+            const isAdaptation = document.querySelector('input[name="ff-type"]:checked').value === 'adaptation';
+            document.getElementById('ff-series-label').innerText = isAdaptation ? '原作系列名：' : '自創系列名：';
+        }
+        function updateFormatSettings() {
+            const format = document.getElementById('ff-format').value;
+            document.getElementById('pdf-settings').style.display = format === 'pdf' ? 'block' : 'none';
+            document.getElementById('upload-section').style.display = (format === 'pdf' || format === 'word') ? 'block' : 'none';
+            document.getElementById('text-section').style.display = format === 'text' ? 'block' : 'none';
+        }
+        function submitReview() {
+            if(!window.authInfo || !window.authInfo.isAuth) return alert("請先登入後再發布！");
+            alert("評論發布成功！");
+            document.getElementById("review-form").reset();
+        }
+        function dummy() {
+            if(!window.authInfo || !window.authInfo.isAuth) return alert('請先登入後再發布！');
+            alert('同人小說發布成功！（前端展示功能，檔案已封裝）');
+            document.getElementById('fanfic-form').reset();
+            updateSeriesLabel();
+            updateFormatSettings();
+        }
+
+        // Mock SSO integration for display
+        window.authInfo = { isAuth: false };
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            if (token) {
+                try {
+                    window.authInfo = JSON.parse(atob(token));
+                    renderAuthPanel();
+                } catch(e) {}
+            } else {
+                renderAuthPanel();
+            }
+        });
+
+        function renderAuthPanel() {
+            const container = document.getElementById('auth-container');
+            if (window.authInfo.isAuth) {
+                container.innerHTML = 
+                    <div class="user-profile-panel">
+                        <div class="user-info-sso">
+                            <img src="" alt="Avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+                            <div style="display:flex;flex-direction:column;font-size:12px;line-height:1.2;">
+                                <span style="color:#a5d6a7;">已登入</span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>;
+            } else {
+                container.innerHTML = <a href="../../login-hub/index.html?redirect=" style="background:white;color:#4a6c42;padding:6px 15px;border-radius:15px;text-decoration:none;">登入中心</a>;
+            }
+        }
+    </script>
+</body>
+</html>
