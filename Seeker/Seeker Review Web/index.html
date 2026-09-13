@@ -1,130 +1,946 @@
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>探險者評論 Seeker Review Web</title>
+    <title>探險者百科 (Seekerpedia)</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background: #f4f6f3; color: #333; }
-        header { display: flex; justify-content: space-between; align-items: center; background: #4a6c42; color: white; padding: 10px 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-        h2 { margin: 0; display: flex; align-items: center; gap: 15px; }
-        .logo-container { width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: white; padding: 2px; }
-        .logo-container img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-        .nav-links { display: flex; gap: 20px; align-items: center; }
-        .nav-links a { color: #e8f5e9; text-decoration: none; font-weight: bold; transition: color 0.2s; }
-        .nav-links a:hover { color: white; text-decoration: underline; }
+        body { margin: 0; padding-top: 50px; padding-bottom: 50px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f4; color: #333; line-height: 1.6; }
         
-        .user-profile-panel { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .user-info-sso { display: flex; align-items: center; gap: 8px; }
-        .container { max-width: 800px; margin: 40px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        #notificationBar { position: fixed; top: 0; left: 0; width: 100%; background: #d32f2f; color: white; padding: 5px 0; z-index: 9999; display: none; overflow: hidden; white-space: nowrap; height: 30px; line-height: 30px; }
+        #notificationMsg { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
+        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
         
-        form label { font-weight: bold; color: #4a6c42; display: block; margin-top: 15px; }
-        form input[type="text"], form select, form textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-family: inherit; }
-        .radio-group { margin-top: 5px; display: flex; gap: 20px; }
+        .navbar { flex-wrap: nowrap; white-space: nowrap; position: fixed; top: 30px; left: 0; right: 0; background-color: #ffffff; color: #333; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 900; box-sizing: border-box; }
         
-        .btn-submit { background: #4a6c42; color: white; font-size: 16px; font-weight: bold; padding: 12px; border: none; border-radius: 25px; cursor: pointer; margin-top: 20px; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .btn-submit:hover { background: #3a5c32; }
+        .nav-left { flex-wrap: nowrap; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 15px; }
+        .logo { display: flex; align-items: center; gap: 10px; cursor: pointer; text-decoration: none; color: #333; }
+        .logo:hover { opacity: 0.9; }
+        
+        .bear { width: 80px; height: 49px; display: flex; align-items: center; }
+        .bear video { width: 100%; height: 100%; object-fit: contain; mix-blend-mode: multiply; }
+        
+        .logo-text { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+        .zh-text { font-size: 20px; font-weight: bold; letter-spacing: 2px; line-height: 1.2; }
+        .en-text { font-size: 11px; color: #666; letter-spacing: 0.5px; font-family: monospace; line-height: 1.1; }
+        
+        .nav-right { flex-wrap: nowrap; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 15px; }
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; color: #333; outline: none; }
+        .nav-right a { color: #333; text-decoration: none; font-weight: bold; font-size: 14px; }
+        
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(0,0,0,0.05); padding: 5px 15px; border-radius: 20px; transition: background 0.2s; }
+        .user-profile:hover { background: rgba(0,0,0,0.1); }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid #ccc; }
+        .user-info { display: flex; flex-direction: column; font-size: 12px; line-height: 1.2; }
+        .login-btn { background: #4a6c42; color: #fff; padding: 6px 16px; border-radius: 15px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; font-size: 14px; }
+        .p-coin-img { width: 14px; height: 14px; display: inline-block; vertical-align: middle; }
+        
+        .mode-selector { margin-top: 80px; display: flex; justify-content: center; padding: 15px; gap: 20px; }
+        .mode-selector button { padding: 10px 30px; font-size: 16px; font-weight: bold; cursor: pointer; border: 2px solid transparent; background: #e0e0e0; color: #555; border-radius: 25px; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .mode-selector button:hover { border-color: #4a6c42; }
+        .mode-selector button.active { background: #4a6c42; color: white; }
+        
+        .container { max-width: 1000px; margin: 20px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 500px; margin-bottom: 80px; box-sizing: border-box; position: relative; }
+        .hidden { display: none !important; }
+        
+        h2 { border-bottom: 2px solid #4a6c42; padding-bottom: 10px; color: #4a6c42; margin-top: 0; }
+        form label { display: block; margin-top: 15px; font-weight: bold; color: #444; }
+        form input, form textarea, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 15px; }
+        form button, .action-btn { margin-top: 20px; padding: 10px 20px; font-size: 16px; font-weight: bold; background: #4a6c42; color: white; border: none; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+        form button:hover, .action-btn:hover { background: #3a5c32; }
+        .action-btn.secondary { background: #777; }
+        .action-btn.secondary:hover { background: #555; }
+        
+        /* Browse Layout */
+        .browse-layout { flex-wrap: nowrap; display: flex; gap: 30px; margin-top: 20px; }
+        .sidebar { width: 250px; border-right: 1px solid #eee; padding-right: 20px; flex-shrink: 0; }
+        .sidebar h3 { margin-top: 0; }
+        .sidebar ul { list-style: none; padding: 0; }
+        .sidebar li { padding: 10px 15px; cursor: pointer; background: #f9f9f9; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid transparent; transition: all 0.2s; }
+        .sidebar li:hover { background: #eef2ed; border-left-color: #4a6c42; }
+        
+        .content { flex-grow: 1; overflow: hidden; }
+        .categories h3 { margin-top: 0; }
+        .categories ul { list-style: none; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; }
+        .categories li { padding: 8px 15px; cursor: pointer; background: #e9ecef; border-radius: 20px; font-size: 14px; transition: background 0.2s; }
+        .categories li:hover { background: #d3d9df; }
+        
+        /* Work Banner & Cover */
+        .work-header { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        .work-banner { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; display: none; background: #eee; }
+        .work-main-info { flex-wrap: nowrap; display: flex; gap: 20px; align-items: flex-start; }
+        .work-cover { width: 150px; height: 200px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; display: none; flex-shrink: 0; background: #eee; }
+        .work-text { flex-grow: 1; }
+        
+        .wiki-toolbar { display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .wiki-toolbar button { padding: 5px 12px; font-size: 13px; background: #f8f9fa; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; }
+        .wiki-toolbar button:hover { background: #e2e6ea; }
+
+        .wiki-content { font-size: 15px; line-height: 1.8; color: #222; }
+        .wiki-content h1, .wiki-content h2 { border-bottom: 1px solid #a2a9b1; padding-bottom: 5px; }
+        
+        
+        /* Modal Overlay for Wiki Editor */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background: #fff; width: 90%; max-width: 800px; border-radius: 8px; padding: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; position: relative; }
+        .close-btn { position: absolute; right: 20px; top: 20px; font-size: 24px; cursor: pointer; color: #999; }
+        .close-btn:hover { color: #333; }
+        
+        .file-input-wrapper { display: flex; gap: 10px; align-items: center; margin-top: 5px; }
+        .file-input-wrapper input[type=file] { flex-grow: 1; padding: 5px; }
+        
+        #wikiEditor { background: transparent; border: none; padding: 0; box-shadow: none; margin-top: 0; }
+
+        #wikiEditor { background: #fff; border: 1px solid #ccc; padding: 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-top: 20px; }
+        .wiki-hint { font-size: 12px; color: #666; margin-top: 5px; }
+
+        .report-btn { position: fixed; bottom: 60px; right: 20px; background: #e65100; color: white; padding: 12px 24px; border-radius: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer; font-weight: bold; z-index: 1000; border: none; transition: transform 0.2s; }
+        .report-btn:hover { transform: scale(1.05); }
+        .badge-title { background-color: #4a6c42; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.9em; margin-right: 5px; display: inline-block; margin-top: 10px; margin-bottom: 5px; }
+        .footer { position: fixed; bottom: 0; width: 100%; background: #333; color: white; text-align: center; padding: 10px 0; font-size: 12px; z-index: 900; }
+        .footer a { color: #aaa; text-decoration: none; }
+        .footer a:hover { color: #fff; }
     </style>
 </head>
 <body>
-    <header>
-        <h2>
-            <div class="logo-container">
-                <img src="../../login-hub/icon.png" alt="Logo">
-            </div>
-            探險者同人創作網 <span style="font-size:14px;font-weight:normal;color:#a5d6a7;">Seeker Fanfic Web</span>
-        </h2>
-        <div class="nav-links">
-            <a href="../index.html">返回系列首頁</a>
-            <div id="auth-container">
-                <!-- SSO Auth Panel Injected Here -->
+    <div id="notificationBar"><div id="notificationMsg"></div></div>
+
+    <nav class="navbar">
+        <div class="nav-left">
+            <div class="logo" title="回首頁" id="logoBtn">
+                <div class="bear">
+                    <video src="Logo.mp4" autoplay loop muted playsinline></video>
+                </div>
+                <div class="logo-text">
+                    <div class="zh-text" data-i18n="pedia_title">探險者百科</div>
+                    <div class="en-text">Seekerpedia</div>
+                </div>
             </div>
         </div>
-    </header>
+        <div class="nav-right" id="navRightPanel">
+            <!-- Rendered by JS -->
+        </div>
+    </nav>
 
-    <div class="container">
-        <h3 style="color:#2c5e32; border-bottom:2px solid #e8f5e9; padding-bottom:10px;">發布評論文章</h3>
-        
-        <form id="review-form">
-            <label>評論作品 / 文章標題：</label>
-            <input type="text" id="rv-title" placeholder="請輸入你想評論的作品名稱或標題" required>
-            
-            <label>評分 (1~5星)：</label>
-            <select id="rv-rating">
-                <option value="5">⭐⭐⭐⭐⭐ 極度推薦</option>
-                <option value="4">⭐⭐⭐⭐ 值得一看</option>
-                <option value="3">⭐⭐⭐ 中規中矩</option>
-                <option value="2">⭐⭐ 有待加強</option>
-                <option value="1">⭐ 不推薦</option>
-                <option value="none">不評分 (純文章)</option>
-            </select>
+    
 
-            <label>評論內容：</label>
-            <textarea id="rv-content" rows="15" placeholder="請在此撰寫您的評論或分析文章..." style="resize:vertical;" required></textarea>
-
-            <button type="button" class="btn-submit" onclick="submitReview()">發布評論</button>
-        </form>
-
+    <!-- Home Page -->
+    <div class="container" id="page-home">
+        <h2 data-i18n="welcome_title">歡迎來到探險者百科</h2>
+        <p data-i18n="welcome_desc">此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。<br><br>在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！</p>
+        <p data-i18n="welcome_hint">請於上方選擇您想進入的模式。</p>
     </div>
 
-    <!-- SSO Script Integration -->
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- About Page -->
+    <div class="container hidden" id="page-about">
+        <h2 data-i18n="about_title">關於本站</h2>
+        <p data-i18n="about_desc"><span class='badge-title'>網站目標</span><br>本站是專為動物系奇幻冒險小說以及各類喜愛的作品所打造的專屬百科。市面上雖有許多大型百科平台，但往往缺乏針對特定文學作品或動物奇幻世界觀的細緻分類。因此，這裡致力於提供一個乾淨、專注且高度自由的閱讀與編輯環境。<br><br><span class='badge-title'>網站設計</span><br>此網站原本要叫「胖達百科」「危機百科」或「科基百科」，但因為這些名字不符合網站理念「致力於小說的百科」。於是最後決定叫「探索者百科」。但這不是真正的原因。真正的原因是，在決定英文名稱時間時，有個方案剛好叫做「Seekerpedia」，這個方案有兩個優點:<br>1. 艾琳．杭特所撰寫的《熊行者》這套小說原文名稱剛好就是「Seekers」<br>2. 眾多翻譯中，只有「Seeker」剛好是「探索者」的意思</p>
+    </div>
+
+    <!-- Create Work Page -->
+    <div class="container hidden" id="page-create">
+        <h2 data-i18n="create_title">建立百科</h2>
+        <form id="createForm">
+            <label data-i18n="lbl_work_name">百科/作品名稱:</label>
+            <input type="text" id="workName" required placeholder="例如：哈利波特">
+            
+            <label data-i18n="lbl_work_intro">介紹 (將作為「關於此作品」條目內容):</label>
+            <textarea id="workIntro" rows="3" placeholder="簡述此作品..."></textarea>
+            
+            <label data-i18n="lbl_work_cat">分類:</label>
+            <input type="text" id="workCategory" placeholder="例如: 小說, 漫畫, 電影">
+            
+            <label data-i18n="lbl_work_cover">上傳封面圖片 (Cover):</label>
+            <input type="file" id="workCoverFile" accept="image/*">
+            
+            <label data-i18n="lbl_work_banner">上傳橫幅圖片 (Banner):</label>
+            <input type="file" id="workBannerFile" accept="image/*">
+            
+            <button type="submit" data-i18n="btn_create">建立作品百科</button>
+        </form>
+    </div>
+
+    <!-- Wiki Browse & Edit Mode -->
+    <div class="container hidden" id="page-browse">
+        <h2 data-i18n="browse_title">瀏覽百科</h2>
+        <div class="browse-layout">
+            <div class="sidebar">
+                <h3 data-i18n="browse_work_list">作品列表</h3>
+                <ul id="browseWorkList"></ul>
+            </div>
+            <div class="content">
+                <!-- Work Overview -->
+                <div id="browseWorkDetail" class="hidden">
+                    <div class="work-header">
+                        <img id="bBanner" class="work-banner" src="" alt="Banner">
+                        <div class="work-main-info">
+                            <img id="bCover" class="work-cover" src="" alt="Cover">
+                            <div class="work-text">
+                                <h2 id="bTitle" style="margin-top:0; border:none;"></h2>
+                                <p id="bIntro" style="font-size: 1.1em; color: #555;"></p>
+                                <div class="meta" id="bMeta" style="background: #eee; padding: 10px; border-radius: 5px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="wiki-toolbar">
+                        <button onclick="openWikiEditor(null)" data-i18n="btn_new_entry">建立新條目</button>
+                    </div>
+
+                    <div class="categories">
+                        <h3 data-i18n="browse_cat_title">目錄 / 分類</h3>
+                        <ul id="bCategoryList"></ul>
+                    </div>
+                </div>
+
+                <!-- Entry Detail -->
+                <div id="bEntryDetail" class="hidden" style="margin-top:20px;">
+                    <div class="wiki-toolbar">
+                        <button onclick="backToWork()" data-i18n="back_work">← 返回作品首頁</button>
+                        <button onclick="editCurrentEntry()" data-i18n="btn_edit_entry">編輯本條目</button>
+                    </div>
+                    <h1 id="bEntryTitle" style="color: #000; margin-top:0; border-bottom:1px solid #ccc; padding-bottom:5px;"></h1>
+                    <div id="bEntryContent" class="wiki-content"></div>
+                </div>
+
+                <!-- Wiki Editor Modal -->
+                <div id="wikiEditorOverlay" class="modal-overlay hidden">
+                <div class="modal-content">
+                    <span class="close-btn" onclick="cancelWikiEditor()">&times;</span>
+                    <div id="wikiEditor">
+                    <h2 id="editorTitle" data-i18n="edit_add_title" style="margin-top:0;">編輯 / 建立條目</h2>
+                    <input type="hidden" id="editEntryId">
+                    
+                    <label data-i18n="lbl_entry_cat">條目分類 (例如：人物、地點):</label>
+                    <input type="text" id="editEntryCat">
+                    
+                    <label data-i18n="lbl_entry_title">條目標題:</label>
+                    <input type="text" id="editEntryTitle">
+                    
+                    <label data-i18n="lbl_entry_content">內容:</label>
+                    <div class="wiki-hint" data-i18n="hint_wikitext">支援維基語法：使用 [[條目名稱]] 來建立內部連結。點擊紅字連結即可快速創建該條目。</div>
+                    <textarea id="editEntryContent" rows="10"></textarea>
+                    
+                    <button class="action-btn" onclick="saveWikiEntry()" data-i18n="btn_save">儲存變更</button>
+                    <button class="action-btn secondary" onclick="cancelWikiEditor()" data-i18n="btn_cancel">取消</button>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="report-btn" data-i18n="btn_report" onclick="window.location.href='../../login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)">回報問題</button>
+    <div class="footer">
+        <a href="../../" data-i18n="footer_copy">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+    </div>
+
     <script>
-        function updateSeriesLabel() {
-            const isAdaptation = document.querySelector('input[name="ff-type"]:checked').value === 'adaptation';
-            document.getElementById('ff-series-label').innerText = isAdaptation ? '原作系列名：' : '自創系列名：';
-        }
-        function updateFormatSettings() {
-            const format = document.getElementById('ff-format').value;
-            document.getElementById('pdf-settings').style.display = format === 'pdf' ? 'block' : 'none';
-            document.getElementById('upload-section').style.display = (format === 'pdf' || format === 'word') ? 'block' : 'none';
-            document.getElementById('text-section').style.display = format === 'text' ? 'block' : 'none';
-        }
-        function submitReview() {
-            if(!window.authInfo || !window.authInfo.isAuth) return alert("請先登入後再發布！");
-            alert("評論發布成功！");
-            document.getElementById("review-form").reset();
-        }
-        function dummy() {
-            if(!window.authInfo || !window.authInfo.isAuth) return alert('請先登入後再發布！');
-            alert('同人小說發布成功！（前端展示功能，檔案已封裝）');
-            document.getElementById('fanfic-form').reset();
-            updateSeriesLabel();
-            updateFormatSettings();
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            originalWarn.apply(console, args);
+        };
+        window.onerror = function(msg, url, line) { 
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+            if (typeof socket !== 'undefined' && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+        });
+
+        // i18n
+        const i18n = {
+            zh: {
+                pedia_title: "探險者百科",
+                about_site: "關於本站",
+                login_reg: "登入/註冊",
+                mode_browse: "瀏覽者模式",
+                mode_create: "創造者模式",
+                welcome_title: "歡迎來到探險者百科",
+                welcome_desc: "此為PandaPanda的AI日常開發的MediaWiki架構百科，致力於電影、小說、動畫的百科全書。<br><br>在這裡，您可以探索各種作品的設定與世界觀，或者親手建立屬於您的百科！",
+                welcome_hint: "請於上方選擇您想進入的模式。",
+                about_title: "關於本站",
+                about_desc: "<span class='badge-title'>網站目標</span><br>本站是專為動物系奇幻冒險小說以及各類喜愛的作品所打造的專屬百科。市面上雖有許多大型百科平台，但往往缺乏針對特定文學作品或動物奇幻世界觀的細緻分類。因此，這裡致力於提供一個乾淨、專注且高度自由的閱讀與編輯環境。<br><br><span class='badge-title'>網站設計</span><br>此網站原本要叫「胖達百科」「危機百科」或「科基百科」，但因為這些名字不符合網站理念「致力於小說的百科」。於是最後決定叫「探索者百科」。但這不是真正的原因。真正的原因是，在決定英文名稱時間時，有個方案剛好叫做「Seekerpedia」，這個方案有兩個優點:<br>1. 艾琳．杭特所撰寫的《熊行者》這套小說原文名稱剛好就是「Seekers」<br>2. 眾多翻譯中，只有「Seeker」剛好是「探索者」的意思",
+                create_title: "建立百科",
+                lbl_work_name: "百科/作品名稱:",
+                lbl_work_intro: "介紹 (將作為「關於此作品」條目內容):",
+                lbl_work_cat: "分類:",
+                lbl_work_cover: "封面圖片網址 (Cover URL):",
+                lbl_work_banner: "橫幅圖片網址 (Banner URL):",
+                btn_create: "建立作品百科",
+                edit_add_title: "編輯 / 建立條目",
+                lbl_entry_cat: "條目分類 (例如：人物、地點、魔法):",
+                lbl_entry_title: "條目標題:",
+                lbl_entry_content: "內容:",
+                hint_wikitext: "支援維基語法：使用 [[條目名稱]] 來建立內部連結。點擊紅字連結即可快速創建該條目。",
+                btn_save: "儲存變更",
+                btn_cancel: "取消",
+                browse_title: "瀏覽百科",
+                browse_work_list: "作品列表",
+                browse_cat_title: "目錄 / 分類",
+                btn_new_entry: "建立新條目",
+                btn_edit_entry: "編輯本條目",
+                btn_report: "回報問題",
+                footer_copy: "版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.",
+                alert_save_fail: "尚未連線，無法儲存",
+                alert_created: "百科已建立！",
+                no_entry: "目前無任何條目。",
+                no_work: "目前無百科作品",
+                no_entry_cat: "尚無條目",
+                back_work: "← 返回作品首頁",
+                cat_tag: "分類: ",
+                unclassified: "未分類",
+                unnamed: "未命名"
+            },
+            en: {
+                pedia_title: "Seekerpedia",
+                about_site: "About",
+                login_reg: "Login/Register",
+                mode_browse: "Browse Mode",
+                mode_create: "Creator Mode",
+                welcome_title: "Welcome to Seekerpedia",
+                welcome_desc: "This is a MediaWiki-architecture encyclopedia developed by PandaPanda\\'s AI daily life, dedicated to movies, novels, and animations.<br><br>Explore the settings and worldviews of various works, or build your own encyclopedia here!",
+                welcome_hint: "Please select a mode above.",
+                about_title: "About",
+                about_desc: "<span class='badge-title'>Website Goal</span><br>This site is a dedicated encyclopedia for animal fantasy adventure novels and various beloved works. While there are many large encyclopedia platforms on the market, they often lack detailed categorization for specific literary works or animal fantasy worldviews. Therefore, this site is committed to providing a clean, focused, and highly free reading and editing environment.<br><br><span class='badge-title'>Website Design</span><br>This website was originally going to be called 'Panda-pedia', 'Crisis-pedia', or 'Corgi-pedia', but these names did not fit the site philosophy of being 'an encyclopedia dedicated to novels'. So the final decision was 'Seekerpedia'. But that is not the real reason. The real reason is that when deciding on the English name, there was an option called 'Seekerpedia', which had two advantages:<br>1. The original name of the novel series 'Seekers' by Erin Hunter is exactly 'Seekers'.<br>2. Among many translations, 'Seeker' perfectly means 'Explorer/Seeker'.",
+                create_title: "Create Encyclopedia",
+                lbl_work_name: "Encyclopedia/Work Name:",
+                lbl_work_intro: "Introduction (Used for 'About this work' entry):",
+                lbl_work_cat: "Category:",
+                lbl_work_cover: "Cover Image URL:",
+                lbl_work_banner: "Banner Image URL:",
+                btn_create: "Create Work",
+                edit_add_title: "Edit / Create Entry",
+                lbl_entry_cat: "Entry Category (e.g. Characters, Magic):",
+                lbl_entry_title: "Entry Title:",
+                lbl_entry_content: "Content:",
+                hint_wikitext: "Supports Wiki syntax: Use [[Entry Name]] to create internal links. Click red links to quickly create them.",
+                btn_save: "Save Changes",
+                btn_cancel: "Cancel",
+                browse_title: "Browse Encyclopedia",
+                browse_work_list: "Work List",
+                browse_cat_title: "Categories",
+                btn_new_entry: "Create New Entry",
+                btn_edit_entry: "Edit Entry",
+                btn_report: "Report Issue",
+                footer_copy: "Copyright © 2026 PandaPanda's AI Daily Life All Rights Reserved.",
+                alert_save_fail: "Not connected, cannot save.",
+                alert_created: "Encyclopedia created!",
+                no_entry: "No entries currently.",
+                no_work: "No encyclopedia works currently.",
+                no_entry_cat: "No entries yet",
+                back_work: "← Back to Work",
+                cat_tag: "Category: ",
+                unclassified: "Unclassified",
+                unnamed: "Unnamed"
+            }
+        };
+
+        let currentLang = 'zh';
+
+        function updateLang() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if(i18n[currentLang][key]) {
+                    el.innerHTML = i18n[currentLang][key];
+                }
+            });
+            renderBrowseList();
         }
 
-        // Mock SSO integration for display
-        window.authInfo = { isAuth: false };
-        document.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            if (token) {
-                try {
-                    window.authInfo = JSON.parse(atob(token));
-                    renderAuthPanel();
-                } catch(e) {}
+        const appId = window.location.hostname + window.location.pathname;
+        let socket;
+        let db = { works: [] };
+        let currentUser = null;
+        let currentViewWorkId = null;
+        let currentViewEntryId = null;
+
+        async function initNetwork() {
+            let sUrl = '';
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('server')) {
+                sUrl = decodeURIComponent(params.get('server'));
             } else {
-                renderAuthPanel();
+                try {
+                    const res = await fetch('../../login-hub/server_url.txt');
+                    if(!res.ok) throw new Error('Fetch err');
+                    const text = await res.text();
+                    sUrl = atob(text.trim().split('').reverse().join(''));
+                } catch(e) {
+                    document.body.innerHTML += '<h2 style="text-align:center; margin-top:50px; color:#d32f2f;">伺服器連線失敗，請稍後再試</h2>';
+                    return;
+                }
+            }
+
+            socket = io(sUrl, { transports: ['websocket'] });
+
+            socket.on('connect', () => {
+                socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                checkLogin();
+                loadCloudData();
+            });
+
+            socket.on('loginResult', (data) => {
+                if (data.success) {
+                    currentUser = data;
+                    localStorage.setItem('panda_session_token', data.token);
+                    renderUserUI();
+                } else {
+                    localStorage.removeItem('panda_session_token');
+                    renderGuestUI();
+                }
+            });
+
+            socket.on('broadcastSchedule', (list) => {
+                window.broadcasts = list;
+                localStorage.setItem('broadcasts', JSON.stringify(list));
+            });
+        }
+
+        function checkLogin() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token') || localStorage.getItem('panda_session_token');
+            if (token) {
+                socket.emit('tokenLogin', { token: token });
+                if(params.get('token')) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } else {
+                renderGuestUI();
+            }
+        }
+
+        function renderUserUI() {
+            if (!currentUser) return renderGuestUI();
+            const r = document.getElementById('navRightPanel');
+            
+            const res = currentUser;
+            const avatarUrl = res.avatar;
+            const nick = res.nickname || res.username;
+            if (!avatarUrl) return console.error('頭像資料遺失');
+            const avatarHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            
+            r.innerHTML = `
+                <select id="langSelect">
+                    <option value="zh" ${currentLang==='zh'?'selected':''}>繁體中文</option>
+                    <option value="en" ${currentLang==='en'?'selected':''}>English</option>
+                </select>
+                <a href="#" id="aboutBtn" data-i18n="about_site">${i18n[currentLang].about_site}</a>
+                <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
+                    <div class="user-info-sso" style="display:flex;align-items:center;gap:8px;">
+                        <div class="avatar" style="width:36px;height:36px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">${avatarHTML}</div>
+                        <div class="details" style="display:flex;flex-direction:column;">
+                            <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
+                            <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
+                        </div>
+                    </div>
+                    <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                    <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
+                        <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">⚙️ 帳號設定</div>
+                        <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">🚪 登出</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('langSelect').onchange = (e) => { currentLang = e.target.value; updateLang(); };
+            
+            const toggle = document.getElementById('user-profile-toggle');
+            const dropdown = document.getElementById('user-dropdown');
+            
+            toggle.onclick = (e) => {
+                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                e.stopPropagation();
+            };
+            
+            document.addEventListener('click', () => {
+                if(dropdown) dropdown.style.display = 'none';
+            });
+            
+            document.getElementById('btn-settings').onclick = () => {
+                window.location.href = '../../login-hub/?action=editProfile&from=' + encodeURIComponent(window.location.href);
+            };
+            
+            document.getElementById('btn-logout').onclick = () => {
+                localStorage.removeItem('panda_session_token');
+                window.location.reload();
+            };
+        }
+
+        function renderGuestUI() {
+            const r = document.getElementById('navRightPanel');
+            r.innerHTML = `
+                <select id="langSelect">
+                    <option value="zh" ${currentLang==='zh'?'selected':''}>繁體中文</option>
+                    <option value="en" ${currentLang==='en'?'selected':''}>English</option>
+                </select>
+                <a href="#" id="aboutBtn" data-i18n="about_site">${i18n[currentLang].about_site}</a>
+                <button class="login-btn" data-i18n="login_reg" onclick="window.location.href='../../login-hub/?require=1&from=' + encodeURIComponent(window.location.href)">${i18n[currentLang].login_reg}</button>
+            `;
+            document.getElementById('langSelect').onchange = (e) => { currentLang = e.target.value; updateLang(); };
+        }
+
+        function loadCloudData() {
+            socket.emit('getAppData', { appId: appId }, (res) => {
+                if (res && res.data && res.data.works) {
+                    db = res.data;
+                }
+                renderBrowseList();
+                if(currentViewWorkId) { showWork(currentViewWorkId); handleUrlRouting(); }
+            });
+        }
+
+        function saveCloudData() {
+            if(!socket || !socket.connected) return;
+            socket.emit('saveAppData', { appId: appId, data: db });
+            socket.emit('logAppMessage', { appId: appId, message: '更新了百科內容', type: 'info' });
+        }
+
+        // Navigation
+        const pages = ['home', 'about', 'create', 'browse'];
+        function showPage(id) {
+            pages.forEach(p => document.getElementById(`page-${p}`).classList.add('hidden'));
+            document.getElementById(`page-${id}`).classList.remove('hidden');
+        }
+
+        document.getElementById('logoBtn').onclick = () => showPage('home');
+        
+        document.addEventListener('click', (e) => {
+            if(e.target.id === 'aboutBtn') {
+                e.preventDefault();
+                showPage('about');
             }
         });
 
-        function renderAuthPanel() {
-            const container = document.getElementById('auth-container');
-            if (window.authInfo.isAuth) {
-                container.innerHTML = 
-                    <div class="user-profile-panel">
-                        <div class="user-info-sso">
-                            <img src="" alt="Avatar" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
-                            <div style="display:flex;flex-direction:column;font-size:12px;line-height:1.2;">
-                                <span style="color:#a5d6a7;">已登入</span>
-                                <span></span>
-                            </div>
-                        </div>
-                    </div>;
+        document.getElementById('browseModeBtn').onclick = (e) => {
+            e.target.classList.add('active');
+            document.getElementById('createModeBtn').classList.remove('active');
+            showPage('browse');
+            if(socket && socket.connected) loadCloudData();
+        };
+        
+        document.getElementById('createModeBtn').onclick = (e) => {
+            if (!currentUser) {
+                alert(i18n[currentLang].alert_login_req || "請先登入才能使用創造者模式！");
+                window.location.href = '../../login-hub/?require=1';
+                return;
+            }
+
+            e.target.classList.add('active');
+            document.getElementById('browseModeBtn').classList.remove('active');
+            showPage('create');
+        };
+
+        // Create Work
+        document.getElementById('createForm').onsubmit = async (e) => {
+            e.preventDefault();
+            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            
+            const wName = document.getElementById('workName').value;
+            const wIntro = document.getElementById('workIntro').value;
+            const coverFile = document.getElementById('workCoverFile').files[0];
+            const bannerFile = document.getElementById('workBannerFile').files[0];
+            const wCover = await processImage(coverFile, 400);
+            const wBanner = await processImage(bannerFile, 1200);
+            
+            const newWork = {
+                id: generateId(8),
+                name: wName,
+                intro: wIntro,
+                category: document.getElementById('workCategory').value,
+                cover: wCover,
+                banner: wBanner,
+                entries: [{
+                    id: generateId(10),
+                    category: '預設',
+                    title: '關於此作品',
+                    content: wIntro
+                }]
+            };
+            db.works.push(newWork);
+            saveCloudData();
+            alert(i18n[currentLang].alert_created);
+            document.getElementById('createForm').reset();
+            
+            // Auto switch to browse mode to view new work
+            document.getElementById('browseModeBtn').click();
+            showWork(newWork.id);
+        };
+
+        // Browse Mode (Wiki View)
+        function renderBrowseList() {
+            const ul = document.getElementById('browseWorkList');
+            if(db.works.length === 0) {
+                ul.innerHTML = `<li style="background:transparent; padding:10px;">${i18n[currentLang].no_work}</li>`;
+                return;
+            }
+            ul.innerHTML = db.works.map(w => `<li onclick="showWork(${w.id})">${w.name}</li>`).join('');
+        }
+
+        function showWork(workId, pushUrl = true) {
+            if(pushUrl) updateUrlParams(workId, null);
+            const work = db.works.find(w => w.id == workId);
+            if(!work) return;
+            currentViewWorkId = workId;
+            currentViewEntryId = null;
+            
+            document.getElementById('browseWorkDetail').classList.remove('hidden');
+            
+            document.getElementById('wikiEditor').classList.add('hidden');
+            
+            document.getElementById('bTitle').innerText = work.name;
+            document.getElementById('bIntro').innerText = work.intro;
+            document.getElementById('bMeta').innerText = `${i18n[currentLang].cat_tag}${work.category || i18n[currentLang].unclassified}`;
+            
+            const banner = document.getElementById('bBanner');
+            if(work.banner) { banner.src = work.banner; banner.style.display = 'block'; } else { banner.style.display = 'none'; }
+            
+            const cover = document.getElementById('bCover');
+            if(work.cover) { cover.src = work.cover; cover.style.display = 'block'; } else { cover.style.display = 'none'; }
+            
+            const cats = {};
+            work.entries.forEach(e => {
+                if (!cats[e.category]) cats[e.category] = [];
+                cats[e.category].push(e);
+            });
+            
+            const catList = document.getElementById('bCategoryList');
+            catList.innerHTML = '';
+            
+            if(Object.keys(cats).length === 0) {
+                catList.innerHTML = `<li>${i18n[currentLang].no_entry_cat}</li>`;
+                return;
+            }
+            
+            Object.keys(cats).forEach(c => {
+                const li = document.createElement('li');
+                li.innerText = c;
+                li.onclick = () => renderBrowseEntries(workId, c);
+                catList.appendChild(li);
+            });
+        }
+
+        function renderBrowseEntries(workId, category) {
+            const work = db.works.find(w => w.id == workId);
+            const entries = work.entries.filter(e => e.category === category);
+            
+            const catList = document.getElementById('bCategoryList');
+            catList.innerHTML = entries.map(e => `<li onclick="showEntry(${e.id}, ${workId})">${e.title}</li>`).join('');
+            
+            const backLi = document.createElement('li');
+            backLi.innerText = i18n[currentLang].back_work;
+            backLi.style.background = '#4a6c42';
+            backLi.style.color = 'white';
+            backLi.onclick = () => showWork(workId);
+            catList.prepend(backLi);
+        }
+
+        function showEntry(entryId, workId, pushUrl = true) {
+            if(pushUrl) updateUrlParams(workId, entryId);
+            const work = db.works.find(w => w.id == workId);
+            const entry = work.entries.find(e => e.id == entryId);
+            if(!entry) return;
+            
+            currentViewWorkId = workId;
+            currentViewEntryId = entryId;
+            
+            
+            document.getElementById('wikiEditor').classList.add('hidden');
+            document.getElementById('bEntryDetail').classList.remove('hidden');
+            
+            document.getElementById('bEntryTitle').innerText = entry.title;
+            document.getElementById('bEntryContent').innerHTML = parseWikitext(entry.content, workId).replace(/\\n/g, '<br>');
+        }
+        
+        function backToWork() {
+            if(currentViewWorkId) { showWork(currentViewWorkId); handleUrlRouting(); }
+        }
+
+        // Wiki Syntax Parser
+        function parseWikitext(text, workId) {
+            if(!text) return "";
+            let parsed = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            // {{Infobox | key=value}}
+            parsed = parsed.replace(/\{\{Infobox([\s\S]*?)\}\}/g, (match, content) => {
+                const rows = content.split('|').slice(1).map(r => {
+                    const parts = r.split('=');
+                    if(parts.length >= 2) return `<tr><th style="background:#eaecf0; text-align:left; padding:5px; border:1px solid #a2a9b1; width:30%; font-weight:bold;">${parts[0].trim()}</th><td style="padding:5px; border:1px solid #a2a9b1;">${parts.slice(1).join('=').trim()}</td></tr>`;
+                    return '';
+                }).join('');
+                return `<table style="float:right; clear:right; margin: 0 0 1em 1em; width: 300px; background: #f8f9fa; border: 1px solid #a2a9b1; border-collapse: collapse; font-size: 90%;"><tbody>${rows}</tbody></table>`;
+            });
+
+            // Headings
+            parsed = parsed.replace(/^======(.*?)======/gm, '<h6>$1</h6>');
+            parsed = parsed.replace(/^=====(.*?)=====/gm, '<h5>$1</h5>');
+            parsed = parsed.replace(/^====(.*?)====/gm, '<h4>$1</h4>');
+            parsed = parsed.replace(/^===(.*?)===/gm, '<h3>$1</h3>');
+            parsed = parsed.replace(/^==(.*?)==/gm, '<h2>$1</h2>');
+
+            // Bold & Italic
+            parsed = parsed.replace(/'''(.*?)'''/g, '<b>$1</b>');
+            parsed = parsed.replace(/''(.*?)''/g, '<i>$1</i>');
+            
+            // External Links
+            parsed = parsed.replace(/\[(https?:\/\/[^\s\]]+)\s+([^\]]+)\]/g, '<a href="$1" target="_blank" style="color:#3366cc; text-decoration:none;">$2 <span style="font-size:0.8em">↗</span></a>');
+
+            // Internal Links
+            parsed = parsed.replace(/\[\[(.*?)\]\]/g, (match, title) => {
+                const work = db.works.find(w => w.id == workId);
+                const exists = work.entries.find(e => e.title === title);
+                if (exists) {
+                    return `<a href="#" style="color:#0645ad; text-decoration:none;" onclick="showEntry(${exists.id}, ${workId}); return false;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" title="${title}">${title}</a>`;
+                } else {
+                    return `<a href="#" style="color:#ba0000; text-decoration:none;" onclick="openWikiEditor(null, '${title.replace(/'/g, "\\'")}); return false;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'" title="${title} (尚未撰寫)">${title}</a>`;
+                }
+            });
+            
+            // Table of Contents
+            const headings = [];
+            let tocHtml = '';
+            parsed = parsed.replace(/<h([2-3])>(.*?)<\/h\1>/g, (match, level, title) => {
+                const id = 'h_' + Math.random().toString(36).substr(2, 9);
+                headings.push({ level: parseInt(level), title, id });
+                return `<h${level} id="${id}" style="border-bottom: ${level=='2'?'1px solid #a2a9b1':'none'}; padding-bottom: ${level=='2'?'3px':'0'}; font-family: 'Linux Libertine', 'Georgia', 'Times', serif; margin-top:1.2em;">${title}</h${level}>`;
+            });
+            
+            if (headings.length >= 3) {
+                tocHtml = '<div style="display:inline-block; border: 1px solid #a2a9b1; background-color: #f8f9fa; padding: 10px 20px 10px 10px; margin-bottom: 20px; font-size: 95%;"><div style="font-weight:bold; text-align:center; margin-bottom:5px;">目錄</div><ul style="list-style:none; padding-left:0; margin:0;">';
+                headings.forEach(h => {
+                    const pad = (h.level - 2) * 20;
+                    tocHtml += `<li style="margin-left:${pad}px;"><a href="#${h.id}" style="color:#0645ad; text-decoration:none;">${h.title}</a></li>`;
+                });
+                tocHtml += '</ul></div>';
+            }
+            
+            // Brs
+            parsed = parsed.replace(/\\n/g, '<br>');
+            parsed = parsed.replace(/<table([\s\S]*?)<\/table>/g, m => m.replace(/<br>/g, ''));
+            parsed = parsed.replace(/<div style="display:inline-block; border: 1px solid #a2a9b1([\s\S]*?)<\/div>/g, m => m.replace(/<br>/g, ''));
+
+            return tocHtml + parsed;
+        }
+
+        // Wiki Editor Logic
+        window.openWikiEditor = function(entryId = null, defaultTitle = '') {
+            
+            
+            document.getElementById('wikiEditorOverlay').classList.remove('hidden');
+            
+            if (entryId) {
+                const work = db.works.find(w => w.id == currentViewWorkId);
+                const entry = work.entries.find(e => e.id == entryId);
+                document.getElementById('editEntryId').value = entry.id;
+                document.getElementById('editEntryCat').value = entry.category;
+                document.getElementById('editEntryTitle').value = entry.title;
+                document.getElementById('editEntryContent').value = entry.content;
             } else {
-                container.innerHTML = <a href="../../login-hub/index.html?redirect=" style="background:white;color:#4a6c42;padding:6px 15px;border-radius:15px;text-decoration:none;">登入中心</a>;
+                document.getElementById('editEntryId').value = '';
+                document.getElementById('editEntryCat').value = '';
+                document.getElementById('editEntryTitle').value = defaultTitle;
+                document.getElementById('editEntryContent').value = '';
+            }
+        };
+
+        window.editCurrentEntry = function() {
+            if (currentViewEntryId) openWikiEditor(currentViewEntryId);
+        };
+
+        window.cancelWikiEditor = function() {
+            document.getElementById('wikiEditorOverlay').classList.add('hidden');
+        };
+
+        window.saveWikiEntry = function() {
+            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            const work = db.works.find(w => w.id == currentViewWorkId);
+            if (!work) return;
+            
+            const entryId = document.getElementById('editEntryId').value;
+            const cat = document.getElementById('editEntryCat').value || i18n[currentLang].unclassified;
+            const title = document.getElementById('editEntryTitle').value || i18n[currentLang].unnamed;
+            const content = document.getElementById('editEntryContent').value || '';
+            
+            if (entryId) {
+                const entry = work.entries.find(e => e.id == entryId);
+                entry.category = cat;
+                entry.title = title;
+                entry.content = content;
+            } else {
+                const newId = Date.now();
+                work.entries.push({ id: newId, category: cat, title: title, content: content });
+                currentViewEntryId = newId; // switch focus to new entry
+            }
+            
+            saveCloudData();
+            document.getElementById('wikiEditorOverlay').classList.add('hidden');
+            showEntry(currentViewEntryId || entryId, currentViewWorkId);
+        };
+
+        // Marquee Logic
+        fetch('../../login-hub/server_broadcast.json').then(res=>res.json()).then(list => { 
+            window.broadcasts = list; 
+            localStorage.setItem('broadcasts', JSON.stringify(list)); 
+        }).catch(() => { 
+            window.broadcasts = JSON.parse(localStorage.getItem('broadcasts')||'[]'); 
+        });
+
+        setInterval(() => {
+            const now = Date.now(); const bar = document.getElementById('notificationBar'); const msgText = document.getElementById('notificationMsg');
+            let activeMsg = null; const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            for (let b of list) {
+                const st = new Date(b.startTime).getTime();
+                if (b.mode === 1) {
+                    const intervalMs = b.intervalMin * 60000; const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    if (now >= st && now <= end) { const elapsed = now - st; if (elapsed % intervalMs < 60000) activeMsg = b.message; }
+                } else if (b.mode === 2) { const et = new Date(b.endTime).getTime(); if (now >= st && now <= et) activeMsg = b.message; }
+            }
+            if (activeMsg) { msgText.innerText = activeMsg; bar.style.display = 'block'; } else { bar.style.display = 'none'; }
+        }, 1000);
+
+        
+        function filterWorks() {
+            const query = document.getElementById('workSearchInput').value.toLowerCase();
+            const lis = document.getElementById('browseWorkList').getElementsByTagName('li');
+            for(let li of lis) {
+                if(li.innerText.toLowerCase().includes(query)) {
+                    li.style.display = '';
+                } else {
+                    li.style.display = 'none';
+                }
             }
         }
+
+        
+        function generateId(length) {
+            let result = '';
+            for(let i=0; i<length; i++) {
+                result += Math.floor(Math.random() * 10);
+            }
+            return result;
+        }
+
+        // Override original ID generation in saveWikiEntry and createForm
+        window.oldSaveWikiEntry = window.saveWikiEntry;
+        window.saveWikiEntry = function() {
+            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            const work = db.works.find(w => w.id == currentViewWorkId);
+            if (!work) return;
+            const entryId = document.getElementById('editEntryId').value;
+            const cat = document.getElementById('editEntryCat').value || i18n[currentLang].unclassified;
+            const title = document.getElementById('editEntryTitle').value || i18n[currentLang].unnamed;
+            const content = document.getElementById('editEntryContent').value || '';
+            
+            if (entryId) {
+                const entry = work.entries.find(e => e.id == entryId);
+                entry.category = cat;
+                entry.title = title;
+                entry.content = content;
+            } else {
+                const newId = generateId(10);
+                work.entries.push({ id: newId, category: cat, title: title, content: content });
+                currentViewEntryId = newId; 
+            }
+            saveCloudData();
+            document.getElementById('wikiEditorOverlay').classList.add('hidden');
+            showEntry(currentViewEntryId || entryId, currentViewWorkId);
+        };
+        
+        // Push State functions
+        function updateUrlParams(workId, entryId) {
+            const url = new URL(window.location);
+            if(workId) url.searchParams.set('work', workId);
+            else url.searchParams.delete('work');
+            
+            if(entryId) url.searchParams.set('entry', entryId);
+            else url.searchParams.delete('entry');
+            
+            window.history.pushState({ work: workId, entry: entryId }, '', url);
+        }
+        
+        window.onpopstate = function(event) {
+            handleUrlRouting();
+        };
+        
+        function handleUrlRouting() {
+            const params = new URLSearchParams(window.location.search);
+            const w = params.get('work');
+            const e = params.get('entry');
+            if(db && db.works && db.works.length > 0) {
+                if(w) {
+                    document.getElementById('browseModeBtn').click();
+                    if(e) showEntry(e, w, false);
+                    else showWork(w, false);
+                } else {
+                    // if in browse mode but no work, just show browse list
+                    if(!document.getElementById('page-browse').classList.contains('hidden')) {
+                        document.getElementById('browseWorkDetail').classList.add('hidden');
+                        document.getElementById('bEntryDetail').classList.add('hidden');
+                    }
+                }
+            }
+        }
+
+        // Init
+        window.onload = initNetwork;
     </script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const video = document.querySelector('.bear video');
+    if (video) {
+        // 設定 crossOrigin 避免 Canvas 污染 (雖然同網域不需要，但保險起見)
+        video.crossOrigin = "anonymous";
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        let link = document.querySelector("link[rel*='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.type = 'image/x-icon';
+            link.rel = 'shortcut icon';
+            document.head.appendChild(link);
+        }
+
+        setInterval(() => {
+            if (video.readyState >= 2 && !video.paused && !video.ended) {
+                ctx.clearRect(0, 0, 32, 32);
+                
+                // Calculate aspect ratio
+                const vRatio = video.videoWidth / video.videoHeight;
+                let drawWidth = 32;
+                let drawHeight = 32;
+                let offsetX = 0;
+                let offsetY = 0;
+                
+                if (vRatio > 1) { // Wider than square
+                    drawHeight = 32 / vRatio;
+                    offsetY = (32 - drawHeight) / 2;
+                } else { // Taller than square
+                    drawWidth = 32 * vRatio;
+                    offsetX = (32 - drawWidth) / 2;
+                }
+                
+                ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+                link.href = canvas.toDataURL('image/png');
+            }
+        }, 16); // ~60 fps (1000/60)
+    }
+});
+</script>
+
+
+<script>
+    function submitReview() {
+        if(!window.authInfo || !window.authInfo.isAuth) return alert('請先登入後再發布！');
+        alert('評論發布成功！');
+        document.getElementById('review-form').reset();
+    }
+</script>
 </body>
+
 </html>
