@@ -1175,7 +1175,33 @@
                     }
 
                     if (!useCache) {
-                        const response = await fetch(apiUrl);
+                        
+                        let response;
+                        try {
+                            let proxyUrl = null;
+                            if (window.authInfo && window.authInfo.server) {
+                                proxyUrl = `${window.authInfo.server.replace(/\/$/, '')}/api/github/contents`;
+                            } else {
+                                try {
+                                    const ssoRes = await fetch('./login-hub/server_url.txt');
+                                    if (ssoRes.ok) {
+                                        const text = await ssoRes.text();
+                                        const serverUrl = atob(text.trim().split('').reverse().join(''));
+                                        if (serverUrl) proxyUrl = `${serverUrl.replace(/\/$/, '')}/api/github/contents`;
+                                    }
+                                } catch(e) {}
+                            }
+                            if (proxyUrl) {
+                                response = await fetch(proxyUrl);
+                                if (!response.ok) throw new Error("Proxy failed");
+                            } else {
+                                throw new Error("No proxy");
+                            }
+                        } catch(proxyErr) {
+                            console.warn("Proxy Server unavailable, falling back to direct GitHub API");
+                            response = await fetch(apiUrl);
+                        }
+
                         if (!response.ok) {
                             if (response.status === 403 || response.status === 429) {
                                 // Rate limited: fallback to expired cache if available

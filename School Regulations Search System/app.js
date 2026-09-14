@@ -93,7 +93,24 @@ async function loadGitHubTree() {
         }
 
         if (!useCache) {
-            const res = await fetch(repoUrl);
+            
+            let res;
+            try {
+                const ssoRes = await fetch('../login-hub/server_url.txt');
+                if (ssoRes.ok) {
+                    const text = await ssoRes.text();
+                    const serverUrl = atob(text.trim().split('').reverse().join(''));
+                    if (serverUrl) {
+                        const proxyUrl = `${serverUrl.replace(/\/$/, '')}/api/github/tree`;
+                        res = await fetch(proxyUrl);
+                        if (!res.ok) throw new Error("Proxy failed");
+                    } else { throw new Error("No server url"); }
+                } else { throw new Error("No server_url.txt"); }
+            } catch (proxyErr) {
+                console.warn("Proxy Server unavailable, falling back to direct GitHub API");
+                res = await fetch(repoUrl);
+            }
+
             if (!res.ok) {
                 if ((res.status === 403 || res.status === 429) && cachedData) {
                     console.warn("GitHub API rate limit exceeded, using expired cache for school tree.");
