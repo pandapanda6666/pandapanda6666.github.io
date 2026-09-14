@@ -1157,14 +1157,42 @@
 
                 try {
                     const apiUrl = `https://api.github.com/repos/${repoInfo.user}/${repoInfo.repo}/contents/${repoInfo.subPath}`;
-                    const response = await fetch(apiUrl);
                     
-                    if (!response.ok) {
-                        if (response.status === 403) throw new Error("GitHub API 達到上限，請稍候");
-                        throw new Error("讀取目錄失敗");
+                    const cacheKey = `gh_cache_${repoInfo.user}_${repoInfo.repo}`;
+                    const cachedData = localStorage.getItem(cacheKey);
+                    let contents = null;
+                    let useCache = false;
+
+                    if (cachedData) {
+                        try {
+                            const parsed = JSON.parse(cachedData);
+                            // Cache for 10 minutes
+                            if (Date.now() - parsed.time < 600000) {
+                                contents = parsed.data;
+                                useCache = true;
+                            }
+                        } catch(e) {}
                     }
 
-                    const contents = await response.json();
+                    if (!useCache) {
+                        const response = await fetch(apiUrl);
+                        if (!response.ok) {
+                            if (response.status === 403 || response.status === 429) {
+                                // Rate limited: fallback to expired cache if available
+                                if (cachedData) {
+                                    contents = JSON.parse(cachedData).data;
+                                    console.warn("GitHub API rate limit exceeded, using expired cache.");
+                                } else {
+                                    throw new Error("GitHub API 限制，且無快取可用。請稍候再試。");
+                                }
+                            } else {
+                                throw new Error("讀取失敗");
+                            }
+                        } else {
+                            contents = await response.json();
+                            localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: contents }));
+                        }
+                    }
                     const directories = contents.filter(item => item.type === "dir" && !item.name.startsWith(".") && item.name !== "Seeker");
 
                     let hasContent = false;

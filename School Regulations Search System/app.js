@@ -75,8 +75,37 @@ const btnViewPdf = document.getElementById('btn-view-pdf');
 async function loadGitHubTree() {
     try {
         const repoUrl = 'https://api.github.com/repos/pandapanda6666/pandapanda6666.github.io/git/trees/main?recursive=1';
-        const res = await fetch(repoUrl);
-        const data = await res.json();
+        
+        const cacheKey = 'gh_cache_school_tree';
+        const cachedData = localStorage.getItem(cacheKey);
+        let data = null;
+        let useCache = false;
+
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                // Cache for 60 minutes for the school tree to avoid rate limit
+                if (Date.now() - parsed.time < 3600000) {
+                    data = parsed.data;
+                    useCache = true;
+                }
+            } catch(e) {}
+        }
+
+        if (!useCache) {
+            const res = await fetch(repoUrl);
+            if (!res.ok) {
+                if ((res.status === 403 || res.status === 429) && cachedData) {
+                    console.warn("GitHub API rate limit exceeded, using expired cache for school tree.");
+                    data = JSON.parse(cachedData).data;
+                } else {
+                    throw new Error("GitHub API failed");
+                }
+            } else {
+                data = await res.json();
+                localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: data }));
+            }
+        }
         
         fileTree = {};
         
