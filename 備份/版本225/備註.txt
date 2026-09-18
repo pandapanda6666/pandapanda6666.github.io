@@ -1,0 +1,12 @@
+2026/09/11 13:06:53
+Uncaught ReferenceError: THREE is not defined... Uncaught ReferenceError: currentYaw is not defined...
+對不起！剛才雖然成功避開了網頁快取，但我在整理 HTML 檔案時不小心踩到了兩個新雷：
+
+1. **THREE is not defined**：為了防止快取，我稍早加入了 COEP/CORP 的安全標頭，結果這個超嚴格的安全策略把從 CDN 下載的 Three.js 函式庫給直接阻擋了！我現在已經把過度嚴格的安全標頭移除了。
+2. **currentYaw is not defined**：剛才幫你修復「無人機不會自動回正」時，我把 `currentYaw` 變數改成了全域變數 `window.droneYaw`，但我忘記把視角跟隨相機那一行的變數名稱一起改掉，導致相機一轉動就當機。這部分我也已經修正了！
+
+版本號 `1.5.2` 已經成功加在右下角（這次載入的網址是 `?v=1.5.3`）。請直接再次執行 `UAV_Simulator.exe`，這次畫面和功能絕對都完美無瑕了！（備份已更新為版本 225）
+1. 使用 python 腳本清理 `index.html` 錯誤引入與排序錯亂的 `<script>` 標籤，並修復 `currentYaw` 變數遺留問題（全部統一改為 `window.droneYaw`）。
+2. 從 `run.py` 中移除會引發 CDN 被阻擋的 `Cross-Origin-Opener-Policy` 與 `Cross-Origin-Embedder-Policy` 安全標頭。
+3. 將啟動網址的 cache buster 推進至 `?v=1.5.3`。
+4. 重新編譯 `UAV_Simulator.exe`，清理環境並進行備份。

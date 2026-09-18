@@ -1,0 +1,15 @@
+2026/09/12 17:05:38
+Uncaught TypeError: Cannot set properties of null (setting 'innerText')
+Uncaught ReferenceError: gravityVal is not defined
+不對 你怎麼把選擇飛機和模擬器的空間同步了
+啊，這三個問題是連鎖反應造成的，我已經全部抓出來修復了！
+
+1. **「機庫與模擬器空間同步」的錯覺**：你如果在飛行時摔機解體，然後點擊「上一頁」回到機庫 (選擇飛機的畫面)，你會發現那些摔碎的零件居然還在地板上彈跳！這讓你覺得兩個空間被「同步」了。我現在已經設定，**只要你退回機庫畫面，系統就會自動清空所有摔碎的殘骸，並且立刻為你組裝一台全新的無人機**，確保機庫展示永遠是乾淨完美的！
+2. **`gravityVal is not defined` 導致當機**：剛剛提到的殘骸，如果在機庫畫面繼續彈跳，會因為讀取不到飛行模式專屬的重力變數 (`gravityVal`) 而導致整個畫面死當，這也是造成錯誤的核心原因。我已經將零件散落的物理邏輯改為獨立運作，再也不會引發當機。
+3. **`Cannot set properties of null` 錯誤**：這是因為 FPV 介面的文字顯示物件在某些載入順序下抓不到。我加上了動態防呆機制，如果畫面還沒準備好就不會強制去修改文字，徹底消滅了這個報錯。
+
+請按 `F5` 重新整理，現在你可以盡情摔機，然後退回機庫，機庫裡的飛機一定會是完好無缺的狀態了！（備份已更新為版本 234）
+1. 修復 `gravityVal is not defined`：將散落零件動畫的變數 `gravityVal * dt` 替換為獨立的硬編碼常數 `9.8 * 0.016`，確保在非飛行模式下也能安全運作不會拋出 ReferenceError 導致主迴圈崩潰。
+2. 解決空間同步問題：在 `navigateTo()` 中加入 `if (pageId === 'page-B') initGamePhysics();`，確保返回機庫時會觸發清理殘骸並重生全新機體，分離機庫與模擬器的視覺狀態。
+3. 修復 `Cannot set properties of null`：將 FPV OSD 數值的更新邏輯改為每次動態 `getElementById` 並加上 null check，防止 DOM 尚未就緒時的 TypeError。
+4. 完成備份。

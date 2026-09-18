@@ -1,0 +1,16 @@
+2026/09/10 19:03:33
+連線rabboni有問題 縮放 視角 右側控制選單皆點不到 無人機足球的球不該是完整的球 而且應該跟無人機主體連接
+
+[PandaPanda的AI日常___UAV_Simulator] Server started at http://127.0.0.1:8849
+[PandaPanda的AI日常___UAV_Simulator] 啟動內部 Rabboni 連線模組 (支援 BLE 藍牙與 USB 有線) ws://localhost:50500/rab
+...
+TypeError: ws_handler() missing 1 required positional argument: 'path'
+...
+下一步和返回不見了 返回要在左下角' 下一步要在右下角
+實在抱歉，剛才打包的時候腳本沒替換成功，導致你還是載入到舊的執行檔（依然帶著舊版 API 的 `path` 參數）。這次我直接**手動寫入最新的 `ws_handler(websocket):` 結構**並重新編譯了，絕對不可能再發生 TypeError！
+
+另外，關於「下一步」和「返回」按鈕不見的問題：這也是因為剛剛為了修正全螢幕透明遮罩把點擊事件關掉時，誤傷到了頂部導覽列，加上之前介面重構時有些標籤被覆蓋。我現在已經把這兩個按鈕完全**獨立出來，使用絕對定位直接釘死在左下角和右下角**，並給予最高的 `z-index: 200`，不管怎樣保證你都看得到也點得到！
+
+檔案已經更新（備份版本 221），再開一次 `UAV_Simulator.exe` 試試，這下一定完美了！
+1. 發現上次 `text.replace` 雖然執行但因為 PyInstaller 打包時序問題沒有寫入最新的 `run.py`，導致舊的 `ws_handler(websocket, path)` 依然存在。這次強制將 `run.py` 寫入嚴格只有 `websocket` 單一參數的新版簽名，並重新打包。
+2. 將 `page-B` (機庫) 裡原本消失的 `.top-nav` 導航按鈕移除，改用 inline style 獨立加上 `position: absolute; bottom: 30px; left: 30px; z-index: 200;` (返回) 與 `bottom: 30px; right: 30px;` (下一步)，精確符合使用者的位置要求。

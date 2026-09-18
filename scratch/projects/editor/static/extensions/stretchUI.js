@@ -83,12 +83,20 @@
         }
     }
     
-    const obs = new MutationObserver(() => {
-        if (!document.querySelector('.panda-stretch-ui')) {
-            uiInjected = false;
-            injectUI();
-        }
-    });
-    obs.observe(document.body, { childList: true, subtree: true });
+    const initObserver = () => {
+        const obs = new MutationObserver(() => {
+            if (!document.querySelector('.panda-stretch-ui')) {
+                uiInjected = false;
+                injectUI();
+            }
+        });
+        obs.observe(document.body, { childList: true, subtree: true });
+    };
+
+    if (document.body) {
+        initObserver();
+    } else {
+        document.addEventListener('DOMContentLoaded', initObserver);
+    }
 
 })();

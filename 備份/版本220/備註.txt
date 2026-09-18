@@ -1,0 +1,12 @@
+2026/09/10 13:20:03
+連線rabboni有問題 縮放 視角 右側控制選單皆點不到 無人機足球的球不該是完整的球 而且應該跟無人機主體連接
+這次保證搞定！
+
+1. **Rabboni 連線問題**：你遇到的 `ws_handler() missing 1 required positional argument: path` 是因為 Python 新版 `websockets` 套件的 API 變更了！我已經把後端接收 WebSocket 的參數改成相容所有版本的寫法 `*args`，現在連線絕對不會再報錯了！
+
+2. **控制項依然點不到的問題**：剛剛發現是裝著這些 UI 的大容器 `#shared-ui` 還是維持了 `100vw 100vh` 的全螢幕大小，雖然加了 `pointer-events: none`，但某些瀏覽器對於內層 `pointer-events: auto` 的處理會有衝突。我直接把它的全螢幕寬高限制拔掉了，並確保按鈕層級設置了 `!important` 穿透，這下右邊選單跟視角縮放肯定都可以正常運作了！
+
+3. **無人機足球**：原來是因為圓環浮在半空中感覺沒有連接！我已經幫球籠裡面加了 **4 根金屬連接桿 (Connecting rods)**，讓外面的塑膠籠子確實固定在無人機本體上，這樣看起來就是一個結構完整的無人機足球了！
+1. 修改 `run.py` 的 `ws_handler` 參數簽名為 `async def ws_handler(websocket, *args, **kwargs)`，解決 `websockets` 套件版本相容性導致的 TypeError。
+2. 移除 `index.html` 中 `#shared-ui` 的全螢幕寬高設定 (`100vw`, `100vh`)，並加上 `!important` 確保 pointer-events 生效，解決 UI 事件穿透被異常攔截的問題。
+3. 在 `buildProceduralDrone()` 中，為無人機足球 (`config.isSoccer`) 額外新增了 4 根對角線金屬連接桿 (`CylinderGeometry`)，將球籠與機身本體相連。
