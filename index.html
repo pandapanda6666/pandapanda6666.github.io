@@ -1488,32 +1488,29 @@ async function saveBanners() {
     } catch(e) { alert('伺服器錯誤！'); }
 }
 
-// Inject button when auth changes
-const oldRenderAuthUI = renderAuthUI;
-renderAuthUI = function() {
-    oldRenderAuthUI();
-    const existingBtn = document.getElementById('manage-banner-btn');
-    if (existingBtn) existingBtn.remove();
+
+// Safe polling to load banners and admin UI once authInfo is ready
+let bannerLoaded = false;
+setInterval(() => {
+    if (window.authInfo && window.authInfo.server && !bannerLoaded) {
+        bannerLoaded = true;
+        loadBanners();
+    }
     
-    if (window.authInfo && window.authInfo.isAuth && window.authInfo.isAdmin) {
+    // Inject admin button if admin
+    const ac = document.getElementById('auth-container');
+    if (window.authInfo && window.authInfo.isAuth && window.authInfo.isAdmin && ac && !document.getElementById('manage-banner-btn')) {
         const btn = document.createElement('button');
         btn.id = 'manage-banner-btn';
         btn.innerText = '設定公告橫幅';
         btn.style.cssText = 'background:#2c5e32; color:white; border:none; padding:6px 12px; border-radius:15px; cursor:pointer; font-weight:bold; margin-left:10px; font-size:12px;';
         btn.onclick = openBannerAdmin;
-        
-        // Find auth-container and append
-        const ac = document.getElementById('auth-container');
-        if (ac) ac.appendChild(btn);
+        ac.appendChild(btn);
+    } else if (window.authInfo && !window.authInfo.isAuth && document.getElementById('manage-banner-btn')) {
+        document.getElementById('manage-banner-btn').remove();
     }
-};
+}, 1000);
 
-// Initial load after SSO connection
-const oldConnectSSOSocket = connectSSOSocket;
-connectSSOSocket = function(serverUrl) {
-    oldConnectSSOSocket(serverUrl);
-    setTimeout(loadBanners, 1000); // Load banners after connection established
-};
 
 </script>
     <iframe src="./warning.html" style="display: none;" title="安全警告"></iframe>
