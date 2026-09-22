@@ -102,7 +102,7 @@ async function loadGitHubTree() {
                     const serverUrl = atob(text.trim().split('').reverse().join(''));
                     if (serverUrl) {
                         const proxyUrl = `${serverUrl.replace(/\/$/, '')}/api/github/tree`;
-                        res = await fetch(proxyUrl);
+                        res = await fetch(proxyUrl, { headers: { 'ngrok-skip-browser-warning': '69420' } });
                         if (!res.ok) throw new Error("Proxy failed");
                     } else { throw new Error("No server url"); }
                 } else { throw new Error("No server_url.txt"); }

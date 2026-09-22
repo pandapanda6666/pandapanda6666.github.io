@@ -839,20 +839,30 @@
                     ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
                     : `<svg viewBox="0 0 24 24" style="fill: #2c5e32; width: 24px; height: 24px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
 
-                authContainer.innerHTML = `
-        <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
-            <div class="user-info" style="display:flex;align-items:center;gap:8px;">
-                <div class="avatar" style="width:36px;height:36px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">${avatarHTML}</div>
-                <div class="details" style="display:flex;flex-direction:column;">
-                    <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
-                    <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
-                </div>
-            </div>
-            <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                const isAdmin = window.authInfo.isAdmin === true;
+                const crownSVG = isAdmin ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#b8860b;margin-left:4px;" title="管理員"><path d="M5 16h14l-2.1-9.1L14 9.5 12 4l-2 5.5-2.9-2.6L5 16zm-1 2h16v2H4v-2z"/></svg>` : '';
+                const bgStyle = isAdmin ? 'background:#fff9c4; border:2px solid #fbc02d;' : 'background:#e8f5e9; border:1px solid #c8e6c9;';
 
-            <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
-                <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;">⚙️ 帳號設定</div>
-                <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;">🚪 登出</div>
+                authContainer.innerHTML = `
+        <div style="display:flex; align-items:center; gap:15px;">
+            <div style="font-size:16px; font-weight:bold; color:#2c5e32;">歡迎！${nick}。</div>
+            <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
+                <div class="user-info" style="display:flex;align-items:center;gap:8px; padding:4px 12px; border-radius:20px; ${bgStyle}">
+                    <div class="avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:white;">${avatarHTML}</div>
+                    <div class="details" style="display:flex;flex-direction:column;">
+                        <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
+                        <div style="display:flex;align-items:center;">
+                            <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
+                            ${crownSVG}
+                        </div>
+                    </div>
+                </div>
+                <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+
+                <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
+                    <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;">⚙️ 帳號設定</div>
+                    <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;">🚪 登出</div>
+                </div>
             </div>
         </div>
         `;
@@ -1254,7 +1264,7 @@
                                 } catch(e) {}
                             }
                             if (proxyUrl) {
-                                response = await fetch(proxyUrl);
+                                response = await fetch(proxyUrl, { headers: { 'ngrok-skip-browser-warning': '69420' } });
                                 if (!response.ok) throw new Error("Proxy failed");
                             } else {
                                 throw new Error("No proxy");
@@ -1386,7 +1396,7 @@ let bannerInterval;
 async function loadBanners() {
     if(!window.authInfo || !window.authInfo.server) return;
     try {
-        const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners`);
+        const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
         if(res.ok) {
             const data = await res.json();
             bannersData = data.banners || [];
@@ -1477,7 +1487,8 @@ async function saveBanners() {
         const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ banners: newBanners })
+            body: JSON.stringify({ banners: newBanners }),
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' }
         });
         if(res.ok) {
             bannersData = newBanners;
