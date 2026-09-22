@@ -590,7 +590,49 @@
                 padding: 25px;
             }
         }
-    </style>
+    
+<style>
+/* Banner Carousel */
+.banner-carousel {
+    width: 100%; max-width: 1200px; margin: 80px auto 20px auto; 
+    position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    display: none; /* hidden by default if no banners */
+}
+.banner-slides { display: flex; transition: transform 0.5s ease-in-out; }
+.banner-slide { min-width: 100%; position: relative; cursor: pointer; }
+.banner-slide img { width: 100%; height: 250px; object-fit: cover; display: block; }
+.banner-title {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.6); color: white; padding: 12px;
+    text-align: center; font-size: 18px; font-weight: bold;
+}
+.banner-btn {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(0,0,0,0.5); color: white; border: none;
+    padding: 15px 20px; cursor: pointer; font-size: 20px; z-index: 10;
+    border-radius: 5px;
+}
+.banner-btn:hover { background: rgba(0,0,0,0.8); }
+.banner-prev { left: 10px; }
+.banner-next { right: 10px; }
+
+/* Banner Admin Modal */
+#bannerAdminModal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 10000; display: none;
+    align-items: center; justify-content: center;
+}
+#bannerAdminContent {
+    background: white; padding: 30px; border-radius: 10px; width: 600px; max-width: 90%;
+    max-height: 80%; overflow-y: auto;
+}
+.banner-admin-row {
+    display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 5px;
+}
+.banner-admin-row input { flex: 1; padding: 5px; }
+</style>
+
+</style>
 </head>
 <body>
     
@@ -646,6 +688,26 @@
                     <button id="login-btn" class="login-btn">登入 / 註冊</button>
                 </div>
             </nav>
+
+<div id="banner-section" class="banner-carousel">
+    <button class="banner-btn banner-prev" onclick="moveBanner(-1)">&#10094;</button>
+    <div class="banner-slides" id="banner-slides"></div>
+    <button class="banner-btn banner-next" onclick="moveBanner(1)">&#10095;</button>
+</div>
+
+<!-- Banner Admin Modal -->
+<div id="bannerAdminModal">
+    <div id="bannerAdminContent">
+        <h2 style="margin-top:0; color:#2c5e32; border-bottom:2px solid #e8f5e9; padding-bottom:10px;">管理首頁橫幅公告</h2>
+        <div id="bannerList"></div>
+        <button onclick="addBannerRow()" style="margin-top:10px; background:#4a6c42; color:white; padding:8px 12px; border:none; border-radius:5px; cursor:pointer;">+ 新增橫幅</button>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="closeBannerAdmin()" style="background:#888; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">取消</button>
+            <button onclick="saveBanners()" style="background:#2c5e32; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">儲存設定</button>
+        </div>
+    </div>
+</div>
+
         </header>
 
         <main>
@@ -1316,7 +1378,144 @@
                 window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href);
             });
         });
-    </script>
+    
+let currentBannerIdx = 0;
+let bannersData = [];
+let bannerInterval;
+
+async function loadBanners() {
+    if(!window.authInfo || !window.authInfo.server) return;
+    try {
+        const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners`);
+        if(res.ok) {
+            const data = await res.json();
+            bannersData = data.banners || [];
+            renderBanners();
+        }
+    } catch(e) { console.error('Failed to load banners', e); }
+}
+
+function renderBanners() {
+    const section = document.getElementById('banner-section');
+    const slides = document.getElementById('banner-slides');
+    if(bannersData.length === 0) {
+        section.style.display = 'none';
+        return;
+    }
+    section.style.display = 'block';
+    slides.innerHTML = bannersData.map(b => `
+        <div class="banner-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
+            <img src="${b.imageUrl}" alt="${b.title}">
+            ${b.title ? `<div class="banner-title">${b.title}</div>` : ''}
+        </div>
+    `).join('');
+    
+    currentBannerIdx = 0;
+    updateBannerPos();
+    
+    clearInterval(bannerInterval);
+    if(bannersData.length > 1) {
+        bannerInterval = setInterval(() => moveBanner(1), 5000);
+    }
+}
+
+function moveBanner(dir) {
+    currentBannerIdx = (currentBannerIdx + dir + bannersData.length) % bannersData.length;
+    updateBannerPos();
+    // reset timer
+    clearInterval(bannerInterval);
+    if(bannersData.length > 1) bannerInterval = setInterval(() => moveBanner(1), 5000);
+}
+
+function updateBannerPos() {
+    const slides = document.getElementById('banner-slides');
+    if(slides) slides.style.transform = `translateX(-${currentBannerIdx * 100}%)`;
+}
+
+// Admin Functions
+function openBannerAdmin() {
+    document.getElementById('bannerAdminModal').style.display = 'flex';
+    renderBannerAdminList();
+}
+function closeBannerAdmin() { document.getElementById('bannerAdminModal').style.display = 'none'; }
+function renderBannerAdminList() {
+    const list = document.getElementById('bannerList');
+    list.innerHTML = bannersData.map((b, i) => `
+        <div class="banner-admin-row" data-idx="${i}">
+            <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
+                <input type="text" class="b-img" placeholder="圖片網址 (Image URL)" value="${b.imageUrl || ''}">
+                <input type="text" class="b-link" placeholder="點擊連結 (Link URL - 選填)" value="${b.linkUrl || ''}">
+                <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)" value="${b.title || ''}">
+            </div>
+            <button onclick="this.parentElement.remove()" style="background:#d32f2f; color:white; border:none; padding:10px; cursor:pointer; border-radius:5px;">刪除</button>
+        </div>
+    `).join('');
+}
+function addBannerRow() {
+    const list = document.getElementById('bannerList');
+    const row = document.createElement('div');
+    row.className = 'banner-admin-row';
+    row.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
+            <input type="text" class="b-img" placeholder="圖片網址 (Image URL)">
+            <input type="text" class="b-link" placeholder="點擊連結 (Link URL - 選填)">
+            <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)">
+        </div>
+        <button onclick="this.parentElement.remove()" style="background:#d32f2f; color:white; border:none; padding:10px; cursor:pointer; border-radius:5px;">刪除</button>
+    `;
+    list.appendChild(row);
+}
+async function saveBanners() {
+    const rows = document.querySelectorAll('.banner-admin-row');
+    const newBanners = Array.from(rows).map(row => ({
+        imageUrl: row.querySelector('.b-img').value,
+        linkUrl: row.querySelector('.b-link').value,
+        title: row.querySelector('.b-title').value
+    })).filter(b => b.imageUrl.trim() !== ''); // Require image
+    
+    try {
+        const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ banners: newBanners })
+        });
+        if(res.ok) {
+            bannersData = newBanners;
+            renderBanners();
+            closeBannerAdmin();
+            alert('橫幅已更新！');
+        } else alert('儲存失敗！');
+    } catch(e) { alert('伺服器錯誤！'); }
+}
+
+// Inject button when auth changes
+const oldRenderAuthUI = renderAuthUI;
+renderAuthUI = function() {
+    oldRenderAuthUI();
+    const existingBtn = document.getElementById('manage-banner-btn');
+    if (existingBtn) existingBtn.remove();
+    
+    if (window.authInfo && window.authInfo.isAuth && window.authInfo.isAdmin) {
+        const btn = document.createElement('button');
+        btn.id = 'manage-banner-btn';
+        btn.innerText = '設定公告橫幅';
+        btn.style.cssText = 'background:#2c5e32; color:white; border:none; padding:6px 12px; border-radius:15px; cursor:pointer; font-weight:bold; margin-left:10px; font-size:12px;';
+        btn.onclick = openBannerAdmin;
+        
+        // Find auth-container and append
+        const ac = document.getElementById('auth-container');
+        if (ac) ac.appendChild(btn);
+    }
+};
+
+// Initial load after SSO connection
+const oldConnectSSOSocket = connectSSOSocket;
+connectSSOSocket = function(serverUrl) {
+    oldConnectSSOSocket(serverUrl);
+    setTimeout(loadBanners, 1000); // Load banners after connection established
+};
+
+</script>
     <iframe src="./warning.html" style="display: none;" title="安全警告"></iframe>
 
 <div id="visitorStats" style="position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:12px;font-size:12px;color:#166534;font-weight:bold;z-index:9999;box-shadow:0 4px 6px rgba(0,0,0,0.1);border:1px solid #bbf7d0;">🟢 在線人數: 0 | 👤 至今進入人數: 0 | 👁️ 至今進入次數: 0</div>
