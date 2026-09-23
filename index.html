@@ -1471,7 +1471,14 @@ function renderBannerAdminList() {
     list.innerHTML = bannersData.map((b, i) => `
         <div class="banner-admin-row" data-idx="${i}">
             <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
-                <input type="text" class="b-img" placeholder="圖片網址 (Image URL)" value="${b.imageUrl || ''}">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img class="b-img-preview" src="${b.imageUrl || ''}" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                    <div style="display:flex; flex-direction:column; gap:3px;">
+                        <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
+                        <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
+                    </div>
+                    <input type="hidden" class="b-img" value="${b.imageUrl || ''}">
+                </div>
                 <input type="text" class="b-link" placeholder="點擊連結 (Link URL - 選填)" value="${b.linkUrl || ''}">
                 <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)" value="${b.title || ''}">
             </div>
@@ -1485,7 +1492,14 @@ function addBannerRow() {
     row.className = 'banner-admin-row';
     row.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
-            <input type="text" class="b-img" placeholder="圖片網址 (Image URL)">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <img class="b-img-preview" src="" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                <div style="display:flex; flex-direction:column; gap:3px;">
+                    <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
+                    <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
+                </div>
+                <input type="hidden" class="b-img" value="">
+            </div>
             <input type="text" class="b-link" placeholder="點擊連結 (Link URL - 選填)">
             <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)">
         </div>
@@ -1496,10 +1510,11 @@ function addBannerRow() {
 async function saveBanners() {
     const rows = document.querySelectorAll('.banner-admin-row');
     const newBanners = Array.from(rows).map(row => ({
-        imageUrl: row.querySelector('.b-img').value,
+        imageUrl: row.querySelector('.b-img').value.startsWith('data:image/') ? '' : row.querySelector('.b-img').value,
+        imageBase64: row.querySelector('.b-img').value.startsWith('data:image/') ? row.querySelector('.b-img').value : null,
         linkUrl: row.querySelector('.b-link').value,
         title: row.querySelector('.b-title').value
-    })).filter(b => b.imageUrl.trim() !== ''); // Require image
+    })).filter(b => b.imageUrl.trim() !== \'\' || b.imageBase64); // Require image
     
     try {
         const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners/update`, {
