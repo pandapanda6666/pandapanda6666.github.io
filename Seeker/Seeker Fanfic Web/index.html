@@ -106,6 +106,23 @@
     </style>
 </head>
 <body>
+    <!-- Custom Alert Modal -->
+    <div id="customAlertModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999999; align-items:center; justify-content:center;">
+        <div style="background:white; padding:25px 30px; border-radius:12px; max-width:400px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+            <div id="customAlertText" style="font-size:16px; color:#333; margin-bottom:20px; font-weight:bold;"></div>
+            <button onclick="document.getElementById('customAlertModal').style.display='none'" style="background:#4a6c42; color:white; border:none; padding:10px 25px; border-radius:20px; cursor:pointer; font-weight:bold; font-size:14px; transition:0.2s;">確定</button>
+        </div>
+    </div>
+    
+    <script>
+        if (!window.customAlert) {
+            window.customAlert = function(msg) {
+                document.getElementById('customAlertText').innerText = msg;
+                document.getElementById('customAlertModal').style.display = 'flex';
+            };
+        }
+    </script>
+
     <div id="notificationBar"><div id="notificationMsg"></div></div>
 
     <nav class="navbar">
@@ -575,7 +592,7 @@
         
         document.getElementById('createModeBtn').onclick = (e) => {
             if (!currentUser) {
-                alert(i18n[currentLang].alert_login_req || "請先登入才能使用創造者模式！");
+                customAlert(i18n[currentLang].alert_login_req || "請先登入才能使用創造者模式！");
                 window.location.href = '../../login-hub/?require=1';
                 return;
             }
@@ -588,7 +605,7 @@
         // Create Work
         document.getElementById('createForm').onsubmit = async (e) => {
             e.preventDefault();
-            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            if(!socket || !socket.connected) { customAlert(i18n[currentLang].alert_save_fail); return; }
             
             const wName = document.getElementById('workName').value;
             const wIntro = document.getElementById('workIntro').value;
@@ -613,7 +630,7 @@
             };
             db.works.push(newWork);
             saveCloudData();
-            alert(i18n[currentLang].alert_created);
+            customAlert(i18n[currentLang].alert_created);
             document.getElementById('createForm').reset();
             
             // Auto switch to browse mode to view new work
@@ -806,7 +823,7 @@
         };
 
         window.saveWikiEntry = function() {
-            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            if(!socket || !socket.connected) { customAlert(i18n[currentLang].alert_save_fail); return; }
             const work = db.works.find(w => w.id == currentViewWorkId);
             if (!work) return;
             
@@ -877,7 +894,7 @@
         // Override original ID generation in saveWikiEntry and createForm
         window.oldSaveWikiEntry = window.saveWikiEntry;
         window.saveWikiEntry = function() {
-            if(!socket || !socket.connected) { alert(i18n[currentLang].alert_save_fail); return; }
+            if(!socket || !socket.connected) { customAlert(i18n[currentLang].alert_save_fail); return; }
             const work = db.works.find(w => w.id == currentViewWorkId);
             if (!work) return;
             const entryId = document.getElementById('editEntryId').value;
