@@ -839,13 +839,24 @@
                     ? `<img src="${avatarUrl}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
                     : `<svg viewBox="0 0 24 24" style="fill: #2c5e32; width: 24px; height: 24px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
 
-                const isAdmin = window.authInfo.isAdmin === true;
+                const isAdmin = window.authInfo.isAdmin === true || localStorage.getItem('sso_isAdmin') === 'true';
+                window.authInfo.isAdmin = isAdmin;
                 const crownSVG = isAdmin ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#b8860b;margin-left:4px;" title="管理員"><path d="M5 16h14l-2.1-9.1L14 9.5 12 4l-2 5.5-2.9-2.6L5 16zm-1 2h16v2H4v-2z"/></svg>` : '';
                 const bgStyle = isAdmin ? 'background:#fff9c4; border:2px solid #fbc02d;' : 'background:#e8f5e9; border:1px solid #c8e6c9;';
 
+                
+                if (window.authInfo.isAuth && !sessionStorage.getItem('welcomed_' + nick)) {
+                    sessionStorage.setItem('welcomed_' + nick, 'true');
+                    const toast = document.createElement('div');
+                    toast.innerHTML = `歡迎！${nick}。`;
+                    toast.style.cssText = 'position:fixed; top:20px; right:-300px; background:#4a6c42; color:white; padding:15px 20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:bold; z-index:999999; transition:0.5s;';
+                    document.body.appendChild(toast);
+                    setTimeout(() => { toast.style.right = '20px'; }, 100);
+                    setTimeout(() => { toast.style.right = '-300px'; setTimeout(() => toast.remove(), 500); }, 3000);
+                }
+
                 authContainer.innerHTML = `
         <div style="display:flex; align-items:center; gap:15px;">
-            <div style="font-size:16px; font-weight:bold; color:#2c5e32;">歡迎！${nick}。</div>
             <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
                 <div class="user-info" style="display:flex;align-items:center;gap:8px; padding:4px 12px; border-radius:20px; ${bgStyle}">
                     <div class="avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:white;">${avatarHTML}</div>
@@ -905,6 +916,17 @@
             });
         }
             } else {
+                
+                if (window.authInfo.isAuth && !sessionStorage.getItem('welcomed_' + nick)) {
+                    sessionStorage.setItem('welcomed_' + nick, 'true');
+                    const toast = document.createElement('div');
+                    toast.innerHTML = `歡迎！${nick}。`;
+                    toast.style.cssText = 'position:fixed; top:20px; right:-300px; background:#4a6c42; color:white; padding:15px 20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:bold; z-index:999999; transition:0.5s;';
+                    document.body.appendChild(toast);
+                    setTimeout(() => { toast.style.right = '20px'; }, 100);
+                    setTimeout(() => { toast.style.right = '-300px'; setTimeout(() => toast.remove(), 500); }, 3000);
+                }
+
                 authContainer.innerHTML = `
                     <button id="login-btn" class="login-btn">
                         登入 / 註冊
@@ -989,6 +1011,10 @@
                         if (data) {
                             window.authInfo.nickname = data.nickname || window.authInfo.user;
                             window.authInfo.avatar = data.avatar || data.avatarUrl || '';
+                            if (data.isAdmin !== undefined) {
+                                window.authInfo.isAdmin = data.isAdmin;
+                                localStorage.setItem('sso_isAdmin', data.isAdmin ? 'true' : 'false');
+                            }
                             if (window.authInfo.nickname) {
                                 localStorage.setItem('sso_nickname', window.authInfo.nickname);
                                 localStorage.setItem('panda_nickname', window.authInfo.nickname);
