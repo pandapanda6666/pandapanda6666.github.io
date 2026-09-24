@@ -1507,6 +1507,42 @@ function addBannerRow() {
     `;
     list.appendChild(row);
 }
+
+function handleBannerUpload(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const targetRatio = 3 / 1;
+            const imgRatio = img.width / img.height;
+            let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+            if (imgRatio > targetRatio) {
+                sWidth = img.height * targetRatio;
+                sx = (img.width - sWidth) / 2;
+            } else {
+                sHeight = img.width / targetRatio;
+                sy = (img.height - sHeight) / 2;
+            }
+            canvas.width = 1200;
+            canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 1200, 400);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            
+            const row = input.closest('.banner-admin-row');
+            if(row) {
+                row.querySelector('.b-img').value = dataUrl;
+                row.querySelector('.b-img-preview').src = dataUrl;
+            }
+        }
+        img.src = e.target.result;
+    }
+    reader.readAsDataURL(file);
+}
+
 async function saveBanners() {
     const rows = document.querySelectorAll('.banner-admin-row');
     const newBanners = Array.from(rows).map(row => ({
