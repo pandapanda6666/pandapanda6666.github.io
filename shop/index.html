@@ -72,7 +72,8 @@ function showToast(title, msg) {
             <div class="flex justify-between items-center h-16">
                 <!-- Logo & 品牌名 -->
                 <div class="flex items-center cursor-pointer" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
-                    <img src="./logo_full.png" alt="Panda Mall Logo" class="h-12 object-contain">
+                    <img src="https://lh3.googleusercontent.com/a/ACg8ocIACThLQv2z6bs3wAc0ecYIEd-4zdOb0IbkOZV-ZVyRKsblTmw=s288-c-no" alt="Panda Logo" class="h-10 w-10 rounded-full border-2 border-green-500 object-cover">
+                    <span class="ml-3 font-extrabold text-xl text-green-700 tracking-wide">Panda Mall</span>
                 </div>
                 
                 <!-- 真實搜尋框 -->
@@ -305,8 +306,40 @@ function selectSort(val, text) {
             dropdown.classList.toggle('hidden');
         }
 
+        // SSO Validation & URL Token Parsing
+        function parseSSOToken() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('user')) {
+                const user = urlParams.get('user');
+                const nickname = urlParams.get('nickname') || user;
+                const avatar = urlParams.get('avatar') || '';
+                const serverUrl = urlParams.get('server') || '';
+                
+                localStorage.setItem('sso_auth', 'true');
+                localStorage.setItem('sso_user', user);
+                localStorage.setItem('sso_nickname', nickname);
+                localStorage.setItem('sso_avatar', avatar);
+                localStorage.setItem('sso_server', serverUrl);
+                
+                // Keep compatibility with legacy
+                localStorage.setItem('panda_auto_user', user);
+                localStorage.setItem('panda_nickname', nickname);
+                
+                // Clean URL
+                if (window.history.replaceState) {
+                    const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                }
+            }
+        }
+
         function updateLoginUI() {
-            const savedU = localStorage.getItem('panda_auto_user');
+            parseSSOToken();
+            
+            const savedU = localStorage.getItem('sso_user') || localStorage.getItem('panda_auto_user');
+            const savedNick = localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || savedU;
+            const savedAvatar = localStorage.getItem('sso_avatar') || '';
+            
             isLoggedIn = !!savedU;
             
             if (!isLoggedIn) {
@@ -314,37 +347,58 @@ function selectSort(val, text) {
                 return;
             }
             
+            currentUser = { username: savedU, nickname: savedNick, avatar: savedAvatar, pCoin: 0 };
+            
             const displayName = document.getElementById('user-display-name');
             const loginBtn = document.getElementById('login-logout-btn');
             const userIconBtn = document.getElementById('user-menu-btn');
 
             if (isLoggedIn) {
-                displayName.textContent = savedU;
+                displayName.innerHTML = savedAvatar ? `<img src="${savedAvatar}" class="w-6 h-6 rounded-full inline-block mr-1 object-cover"> ${savedNick}` : savedNick;
                 displayName.classList.add('text-green-600');
                 loginBtn.textContent = "登出";
                 loginBtn.classList.replace('text-green-600', 'text-red-500');
                 userIconBtn.classList.add('text-green-600');
-            } else {
-                displayName.textContent = "訪客";
-                displayName.classList.remove('text-green-600');
-                loginBtn.textContent = "登入 / 註冊";
-                if (loginBtn.classList.contains('text-red-500')) {
-                    loginBtn.classList.replace('text-red-500', 'text-green-600');
+                
+                // Fetch user data from SSO Server
+                fetchUserInfoSSO();
+            }
+        }
+
+        async function fetchUserInfoSSO() {
+            const serverUrl = localStorage.getItem('sso_server');
+            const savedU = localStorage.getItem('sso_user') || localStorage.getItem('panda_auto_user');
+            if(!serverUrl || !savedU) return;
+            try {
+                const res = await fetch(serverUrl.replace(/\/$/, '') + '/api/users');
+                if(res.ok) {
+                    const data = await res.json();
+                    if(data.users && data.users[savedU]) {
+                        currentUser = data.users[savedU];
+                        document.getElementById('pcoin-display').classList.remove('hidden');
+                        document.getElementById('pcoin-display').classList.add('flex');
+                        document.getElementById('user-pcoin').textContent = currentUser.pCoin || 0;
+                    }
                 }
-                userIconBtn.classList.remove('text-green-600');
+            } catch(e) {
+                console.error('Fetch user info error', e);
             }
         }
 
         function mockLoginLogout() {
-            const savedU = localStorage.getItem('panda_auto_user');
+            const savedU = localStorage.getItem('sso_user') || localStorage.getItem('panda_auto_user');
             if (savedU) {
                 // Logout completely
+                localStorage.removeItem('sso_auth');
+                localStorage.removeItem('sso_user');
+                localStorage.removeItem('sso_nickname');
+                localStorage.removeItem('sso_avatar');
+                localStorage.removeItem('sso_server');
                 localStorage.removeItem('panda_auto_user');
                 localStorage.removeItem('panda_auto_pass');
-                // Optional: inform server or just reload
+                localStorage.removeItem('panda_nickname');
                 window.location.href = 'https://pandapanda6666.github.io/login-hub/';
             } else {
-                // Redirect to unified login hub with from query param
                 window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href);
             }
         }
@@ -525,7 +579,7 @@ function selectSort(val, text) {
                 const t = await res.text();
                 const serverUrl = atob(t.trim().split('').reverse().join(''));
                 
-                socket = io(serverUrl, { transports: ['websocket'] });
+                socket = io(serverUrl, { transports: ['polling', 'websocket'], extraHeaders: { 'ngrok-skip-browser-warning': '69420' } });
                 
                 socket.on('connect', () => {
                     const savedU = localStorage.getItem('panda_auto_user');
@@ -536,8 +590,8 @@ function selectSort(val, text) {
                     socket.emit('getProducts');
                 });
 
-                socket.on('loginResult', (res) => {
-                    if(res.success) {
+                socket.on('profileData', (res) => {
+                    if(res) {
                         isLoggedIn = true;
                         currentUser = res;
                         
@@ -545,30 +599,25 @@ function selectSort(val, text) {
                         if(res.avatar) {
                             document.getElementById('user-avatar').src = res.avatar;
                         } else {
-                            const localAvatar = localStorage.getItem('panda_avatar');
+                            const localAvatar = localStorage.getItem('sso_avatar') || localStorage.getItem('panda_avatar');
                             if (localAvatar) document.getElementById('user-avatar').src = localAvatar;
                         }
                         
-                        if(allProducts.length > 0) renderProducts(allProducts);
-                        
-                        document.getElementById('user-display-name').textContent = (res.nickname || res.username);
+                        const savedNick = localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || res.nickname || res.username || res.user || '訪客';
+                        document.getElementById('user-display-name').innerHTML = (res.avatar || localAvatar) ? `<img src="${res.avatar || localAvatar}" class="w-6 h-6 rounded-full inline-block mr-1 object-cover"> ${savedNick}` : savedNick;
                         document.getElementById('user-display-name').classList.add('text-green-600');
                         document.getElementById('login-logout-btn').textContent = "登出";
                         document.getElementById('login-logout-btn').classList.replace('text-green-600', 'text-red-500');
                         document.getElementById('pcoin-display').classList.remove('hidden');
                         document.getElementById('pcoin-display').classList.add('flex');
                         
-                        
+                        if(allProducts.length > 0) renderProducts(allProducts);
                     } else {
-                        localStorage.removeItem('panda_auto_pass');
                         isLoggedIn = false;
+                        currentUser = null;
                     }
                 });
-
                 
-                
-
-
                 socket.on('productsData', (data) => {
                     allProducts = data || [];
                     document.getElementById('loading-indicator').style.display = 'none';
