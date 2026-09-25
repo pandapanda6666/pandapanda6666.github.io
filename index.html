@@ -597,8 +597,15 @@
     position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     display: none; /* hidden by default if no banners */
 }
-.banner-slides { display: flex; transition: transform 0.5s ease-in-out; }
-.banner-slide { min-width: 100%; position: relative; cursor: pointer; }
+.banner-slides { position: relative; width: 100%; aspect-ratio: 3 / 1; }
+.banner-slide { 
+    position: absolute; top: 0; left: 100%; width: 100%; height: 100%; 
+    transition: left 0.5s ease-in-out; cursor: pointer; display: none;
+}
+.banner-slide.active { left: 0; display: block; }
+.banner-slide.prev { left: -100%; display: block; }
+.banner-slide.next { left: 100%; display: block; }
+.banner-slide.no-transition { transition: none; }
 .banner-slide img { width: 100%; aspect-ratio: 3 / 1; object-fit: cover; display: block; }
 .banner-title {
     position: absolute; bottom: 0; left: 0; right: 0;
@@ -1486,17 +1493,54 @@ function renderBanners() {
     }
 }
 
+let isAnimating = false;
 function moveBanner(dir) {
+    if(isAnimating || bannersData.length <= 1) return;
+    isAnimating = true;
+    
+    const slides = document.querySelectorAll('.banner-slide');
+    const currentSlide = slides[currentBannerIdx];
+    
     currentBannerIdx = (currentBannerIdx + dir + bannersData.length) % bannersData.length;
-    updateBannerPos();
+    const nextSlide = slides[currentBannerIdx];
+    
+    // Prepare next slide position without transition
+    nextSlide.classList.add('no-transition');
+    nextSlide.style.left = dir === 1 ? '100%' : '-100%';
+    nextSlide.style.display = 'block';
+    
+    // Force reflow
+    void nextSlide.offsetWidth;
+    
+    // Add transition back and slide
+    nextSlide.classList.remove('no-transition');
+    currentSlide.style.left = dir === 1 ? '-100%' : '100%';
+    nextSlide.style.left = '0';
+    
+    setTimeout(() => {
+        currentSlide.style.display = 'none';
+        isAnimating = false;
+    }, 500); // match CSS transition duration
+    
     // reset timer
     clearInterval(bannerInterval);
     if(bannersData.length > 1) bannerInterval = setInterval(() => moveBanner(1), 5000);
 }
 
 function updateBannerPos() {
-    const slides = document.getElementById('banner-slides');
-    if(slides) slides.style.transform = `translateX(-${currentBannerIdx * 100}%)`;
+    const slides = document.querySelectorAll('.banner-slide');
+    slides.forEach((s, i) => {
+        s.style.transition = 'none';
+        if(i === currentBannerIdx) {
+            s.style.display = 'block';
+            s.style.left = '0';
+        } else {
+            s.style.display = 'none';
+        }
+        // Force reflow
+        void s.offsetWidth;
+        s.style.transition = 'left 0.5s ease-in-out';
+    });
 }
 
 // Admin Functions
