@@ -581,17 +581,21 @@ function selectSort(val, text) {
                 
                 socket = io(serverUrl, { transports: ['polling', 'websocket'], extraHeaders: { 'ngrok-skip-browser-warning': '69420' } });
                 
-                socket.on('connect', () => {
-                    const savedU = localStorage.getItem('panda_auto_user');
-                    const savedP = localStorage.getItem('panda_auto_pass');
-                    if (savedU && savedP) {
-                        socket.emit('login', { username: savedU, password: savedP });
+                                socket.on('connect', () => {
+                    const savedToken = localStorage.getItem('panda_session_token');
+                    if (savedToken) {
+                        socket.emit('tokenLogin', { token: savedToken });
+                    } else {
+                        const savedU = localStorage.getItem('sso_user') || localStorage.getItem('panda_auto_user');
+                        if (savedU) {
+                            socket.emit('requestProfile', { username: savedU });
+                        }
                     }
                     socket.emit('getProducts');
                 });
 
-                socket.on('profileData', (res) => {
-                    if(res) {
+                function handleAuthData(res) {
+                    if(res && (res.success !== false)) {
                         isLoggedIn = true;
                         currentUser = res;
                         
@@ -616,8 +620,9 @@ function selectSort(val, text) {
                         isLoggedIn = false;
                         currentUser = null;
                     }
-                });
-                
+                }
+                socket.on('profileData', handleAuthData);
+                socket.on('loginResult', handleAuthData);
                 socket.on('productsData', (data) => {
                     allProducts = data || [];
                     document.getElementById('loading-indicator').style.display = 'none';
