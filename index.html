@@ -1555,7 +1555,7 @@ function renderBannerAdminList() {
         <div class="banner-admin-row" data-idx="${i}">
             <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img id="admin-preview-${i}" class="b-img-preview" src="${b.imageBase64 || (b.imageUrl ? getFullImageUrl(b.imageUrl) : '')}" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                    <img id="admin-preview-${i}" class="b-img-preview" src="" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
                     <div style="display:flex; flex-direction:column; gap:3px;">
                         <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
                         <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
@@ -1568,6 +1568,13 @@ function renderBannerAdminList() {
             <button onclick="this.parentElement.remove()" style="background:#d32f2f; color:white; border:none; padding:10px; cursor:pointer; border-radius:5px;">刪除</button>
         </div>
     `).join('');
+    
+    // Securely load preview images
+    bannersData.forEach((b, i) => {
+        if(b.imageBase64 || b.imageUrl) {
+            loadSecureImage(document.getElementById(`admin-preview-${i}`), b.imageBase64 || getFullImageUrl(b.imageUrl));
+        }
+    });
 }
 function addBannerRow() {
     const list = document.getElementById('bannerList');
