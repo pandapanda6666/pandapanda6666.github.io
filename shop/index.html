@@ -61,6 +61,7 @@ function showToast(title, msg) {
 
 </script>
 
+    <script src="../custom_ui.js"></script>
 </head>
 <body class="min-h-screen flex flex-col">
 
@@ -397,7 +398,7 @@ function selectSort(val, text) {
                 localStorage.removeItem('panda_auto_user');
                 localStorage.removeItem('panda_auto_pass');
                 localStorage.removeItem('panda_nickname');
-                window.location.href = 'https://pandapanda6666.github.io/login-hub/';
+                window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
             } else {
                 window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href);
             }
@@ -826,11 +827,11 @@ function closeCartModal() {
         }
 
         
-        function editReview(productId, reviewIndex) {
+        async function editReview(productId, reviewIndex) {
             const product = allProducts.find(p => String(p.id) === String(productId));
             if(!product) return;
             const r = product.reviews[reviewIndex];
-            const newComment = prompt('修改您的留言:', r.comment);
+            const newComment = await window.pandaPrompt('修改您的留言:', r.comment);
             if(newComment && newComment.trim() !== '' && newComment !== r.comment) {
                 socket.emit('editReview', { productId, reviewIndex, comment: newComment.trim() }, (res) => {
                     if(res.success) {
@@ -843,8 +844,8 @@ function closeCartModal() {
             }
         }
 
-        function deleteReview(productId, reviewIndex) {
-            if(confirm('確定要刪除此留言嗎？')) {
+        async function deleteReview(productId, reviewIndex) {
+            if(await window.pandaConfirm('確定要刪除此留言嗎？')) {
                 socket.emit('deleteReview', { productId, reviewIndex }, (res) => {
                     if(res.success) {
                         showToast('刪除成功', '留言已刪除');
