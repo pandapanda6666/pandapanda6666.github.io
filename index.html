@@ -689,6 +689,7 @@
                 </div>
             </nav>
 
+</header>
 <div id="banner-section" class="banner-carousel">
     <button class="banner-btn banner-prev" onclick="moveBanner(-1)">&#10094;</button>
     <div class="banner-slides" id="banner-slides"></div>
@@ -708,7 +709,7 @@
     </div>
 </div>
 
-        </header>
+        
 
         <main>
             <section id="about" class="page-section active">
@@ -1433,6 +1434,29 @@ function getFullImageUrl(url) {
     return url;
 }
 
+
+async function loadSecureImage(imgEl, url) {
+    if(url.startsWith('data:')) {
+        imgEl.src = url;
+        return;
+    }
+    if(window.authInfo && window.authInfo.server && url.startsWith(window.authInfo.server.replace(/\/$/, ''))) {
+        try {
+            const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+            if(res.ok) {
+                const blob = await res.blob();
+                imgEl.src = URL.createObjectURL(blob);
+            } else {
+                imgEl.src = url; // fallback
+            }
+        } catch(e) {
+            imgEl.src = url; // fallback
+        }
+    } else {
+        imgEl.src = url;
+    }
+}
+
 function renderBanners() {
     const section = document.getElementById('banner-section');
     const slides = document.getElementById('banner-slides');
@@ -1441,12 +1465,19 @@ function renderBanners() {
         return;
     }
     section.style.display = 'block';
-    slides.innerHTML = bannersData.map(b => `
+
+    slides.innerHTML = bannersData.map((b, i) => `
         <div class="banner-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
-            <img src="${getFullImageUrl(b.imageUrl || b.imageBase64)}" alt="${b.title}">
+            <img id="banner-img-${i}" src="" alt="${b.title}">
             ${b.title ? `<div class="banner-title">${b.title}</div>` : ''}
         </div>
     `).join('');
+    
+    // Load images securely
+    bannersData.forEach((b, i) => {
+        loadSecureImage(document.getElementById(`banner-img-${i}`), getFullImageUrl(b.imageUrl || b.imageBase64));
+    });
+
     
     currentBannerIdx = 0;
     updateBannerPos();
@@ -1482,7 +1513,7 @@ function renderBannerAdminList() {
         <div class="banner-admin-row" data-idx="${i}">
             <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img class="b-img-preview" src="${getFullImageUrl(b.imageUrl || b.imageBase64)}" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                    <img id="admin-preview-${i}" class="b-img-preview" src="" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
                     <div style="display:flex; flex-direction:column; gap:3px;">
                         <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
                         <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
