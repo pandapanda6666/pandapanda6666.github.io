@@ -1423,6 +1423,16 @@ async function loadBanners() {
     } catch(e) { console.error('Failed to load banners', e); }
 }
 
+
+function getFullImageUrl(url) {
+    if(!url) return '';
+    if(url.startsWith('http') || url.startsWith('data:')) return url;
+    if(window.authInfo && window.authInfo.server) {
+        return window.authInfo.server.replace(/\/$/, '') + (url.startsWith('/') ? '' : '/') + url;
+    }
+    return url;
+}
+
 function renderBanners() {
     const section = document.getElementById('banner-section');
     const slides = document.getElementById('banner-slides');
@@ -1433,7 +1443,7 @@ function renderBanners() {
     section.style.display = 'block';
     slides.innerHTML = bannersData.map(b => `
         <div class="banner-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
-            <img src="${b.imageUrl}" alt="${b.title}">
+            <img src="${getFullImageUrl(b.imageUrl || b.imageBase64)}" alt="${b.title}">
             ${b.title ? `<div class="banner-title">${b.title}</div>` : ''}
         </div>
     `).join('');
@@ -1472,7 +1482,7 @@ function renderBannerAdminList() {
         <div class="banner-admin-row" data-idx="${i}">
             <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img class="b-img-preview" src="${b.imageUrl || ''}" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                    <img class="b-img-preview" src="${getFullImageUrl(b.imageUrl || b.imageBase64)}" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
                     <div style="display:flex; flex-direction:column; gap:3px;">
                         <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
                         <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
