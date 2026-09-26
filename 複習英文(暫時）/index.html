@@ -765,15 +765,27 @@
                 let currentAudio = null;
         let speakTimeout = null;
 
+        
+        window.activeUtterances = [];
+        function safeCancelTTS() {
+            if ('speechSynthesis' in window && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
+                safeCancelTTS();
+            }
+            window.activeUtterances = [];
+        }
+
+        
         function forceStopAudio() {
+            safeCancelTTS();
             if (currentAudio) {
+
                 currentAudio.pause();
                 currentAudio.removeAttribute('src');
                 currentAudio.load();
                 currentAudio = null;
             }
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
+                safeCancelTTS();
             }
             if (speakTimeout) {
                 clearTimeout(speakTimeout);
@@ -813,7 +825,7 @@
 
         function fallbackTTS(text, onEndedCallback = null) {
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
+                safeCancelTTS();
                 speakTimeout = setTimeout(() => {
                     const msg = new SpeechSynthesisUtterance(text);
                     msg.lang = 'en-US';
@@ -1020,7 +1032,7 @@
 
         function quitAutoplay() {
             if (currentAudio) currentAudio.pause();
-            // window.speechSynthesis.cancel();
+            // safeCancelTTS();
             clearTimeout(autoplayTimer);
             initAutoplayView();
         }
@@ -1059,7 +1071,7 @@
             clearTimeout(autoplayTimer);
             if (manual) {
                 if (currentAudio) currentAudio.pause();
-                // window.speechSynthesis.cancel();
+                // safeCancelTTS();
             }
             autoplayIndex++;
             showAutoplayCard();
@@ -1069,7 +1081,7 @@
             clearTimeout(autoplayTimer);
             if (manual) {
                 if (currentAudio) currentAudio.pause();
-                // window.speechSynthesis.cancel();
+                // safeCancelTTS();
             }
             autoplayIndex--;
             showAutoplayCard();
@@ -1341,7 +1353,7 @@
             
             // 中斷語音
             if (currentAudio) currentAudio.pause();
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            safeCancelTTS();
             
             let elapsed = ((Date.now() - practiceStartTime) / 1000).toFixed(2);
             const currentWordStr = practiceWords[currentIndex].word;
@@ -1402,7 +1414,7 @@ function flipCard() {
             if (isSkip) {
                 // 如果是跳過，記一次錯誤
                 if (currentAudio) currentAudio.pause();
-                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                safeCancelTTS();
                 
                 let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
                 if(wIdx!==-1) practiceErrors[wIdx]++;
@@ -1718,7 +1730,7 @@ function flipCard() {
             
             isSpellLocked = true;
             if (currentAudio) currentAudio.pause();
-            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            safeCancelTTS();
             
             if (allCorrect) {
                 playSuccessSound();
