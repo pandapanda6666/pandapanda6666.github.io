@@ -360,6 +360,26 @@
             }
         }
 
+    
+        /* 放大選項按鈕 */
+        .mc-btn {
+            font-size: 1.2em; /* 原本是 1em */
+            padding: 15px 10px; /* 原本是 10px 5px */
+            min-height: 120px;
+        }
+        
+        /* 放大虛擬鍵盤 */
+        .vk-key {
+            padding: 15px 12px !important;
+            font-size: 1.5em !important;
+            margin: 4px !important;
+            min-width: 45px !important;
+        }
+        .wide-key {
+            min-width: 80px !important;
+            font-size: 1.2em !important;
+        }
+
     </style>
     <!-- 引入提取出的南一全部單字檔 -->
     <script src="nani_data.js"></script>
@@ -494,7 +514,7 @@
                     
                     <!-- 中間卡片 -->
                     <div style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <div class="card" id="flashcard" onclick="flipCard()" style="margin: 0 auto;">
+                        <div class="card" id="flashcard"  style="margin: 0 auto;">
                             <div class="card-inner">
                                 <div class="card-front">
                                     <div class="word" id="cardWord"></div>
@@ -513,9 +533,12 @@
                     <div id="rightOptions" class="option-column"></div>
                 </div>
                 
+                
                 <div class="controls">
+                    <button onclick="nextCard(true)" style="background-color: #9E9E9E; padding: 5px 15px; font-size: 0.9em; border-radius: 15px;">⏭️ 跳過</button>
                     <span id="cardProgress" style="font-size: 1.2em; font-weight: bold; color: #555;">1 / 1</span>
                 </div>
+
             </div>
         </div>
 
@@ -588,9 +611,8 @@
                     <button class="vk-key">A</button><button class="vk-key">S</button><button class="vk-key">D</button><button class="vk-key">F</button><button class="vk-key">G</button><button class="vk-key">H</button><button class="vk-key">J</button><button class="vk-key">K</button><button class="vk-key">L</button>
                 </div>
                 <div class="vk-row">
-                    <button class="vk-key wide-key" onclick="handleSpellAction('Backspace')">⌫</button>
-                    <button class="vk-key">Z</button><button class="vk-key">X</button><button class="vk-key">C</button><button class="vk-key">V</button><button class="vk-key">B</button><button class="vk-key">N</button><button class="vk-key">M</button>
-                    <button class="vk-key wide-key" onclick="handleSpellAction('Enter')">↵</button>
+                    <button class="vk-key wide-key" onclick="handleSpellAction('Enter')">Enter</button> <button class="vk-key">Z</button><button class="vk-key">X</button><button class="vk-key">C</button><button class="vk-key">V</button><button class="vk-key">B</button><button class="vk-key">N</button><button class="vk-key">M</button>
+                    <button class="vk-key wide-key" onclick="handleSpellAction('Backspace')">⌫ 刪除</button>
                 </div>
             </div>
             
@@ -675,6 +697,7 @@
         // 填空遊戲變數
         let currentSpellWord = null;
         let currentSpellingBoxes = [];
+            isSpellLocked = false;
         let spellScore = 0;
 
         // ------------------ Web Audio API (音效產生器) ------------------
@@ -1195,6 +1218,10 @@
         }
 
         // ------------------ 練習模式邏輯 ------------------
+        
+        let isPracticeLocked = false;
+        let isSpellLocked = false;
+
         let practiceStartTime = 0;
         let practiceTimerInterval = null;
 
@@ -1216,6 +1243,7 @@
         }
 
         function updateCardContent() {
+            isPracticeLocked = false;
             const item = practiceWords[currentIndex];
             document.getElementById('cardWord').textContent = item.word;
             document.getElementById('cardPos').textContent = item.pos !== 'other' ? item.pos : '';
@@ -1306,9 +1334,15 @@
             rightOpts.forEach(opt => rightContainer.appendChild(createBtn(opt)));
         }
 
+        
         function handlePracticeOptionClick(btn, isCorrect) {
-            // 防止重複點擊
+            if (isPracticeLocked) return;
             if (btn.classList.contains('wrong') || btn.classList.contains('correct')) return;
+            isPracticeLocked = true; // 鎖定
+            
+            // 中斷語音
+            if (window.currentAudio) window.currentAudio.pause();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
             let elapsed = ((Date.now() - practiceStartTime) / 1000).toFixed(2);
             const currentWordStr = practiceWords[currentIndex].word;
@@ -1319,56 +1353,85 @@
             if (isCorrect) {
                 stopPracticeTimer();
                 btn.classList.add('correct');
-                if(innerDiv) innerDiv.style.color = '#4CAF50'; // 文字變綠
+                if(innerDiv) innerDiv.style.color = '#4CAF50';
                 if(timeDiv) {
                     timeDiv.textContent = `(${elapsed}秒)`;
                     timeDiv.style.color = '#fff';
                 }
                 playSuccessSound();
                 
-                // 自動翻牌顯示答案
                 let card = document.getElementById('flashcard');
                 if (!card.classList.contains('flipped')) {
-                    flipCard();
+                    card.classList.add('flipped');
                 }
                 
-                // 1.5 秒後自動換下一張
                 setTimeout(() => {
                     nextCard();
                 }, 1500);
             } else {
                 btn.classList.add('wrong');
-                if(innerDiv) innerDiv.style.color = '#f44336'; // 文字變紅
+                if(innerDiv) innerDiv.style.color = '#f44336';
                 if(timeDiv) {
                     timeDiv.textContent = `(${elapsed}秒)`;
                     timeDiv.style.color = '#fff';
                 }
-                let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); if(wIdx!==-1) practiceErrors[wIdx]++; // 記錄錯誤
+                
+                let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
+                if(wIdx!==-1) practiceErrors[wIdx]++;
+                
                 playFailureSound();
+                
+                // 答錯也翻開卡片給他看答案，然後等1.5秒換下一題
+                let card = document.getElementById('flashcard');
+                if (!card.classList.contains('flipped')) {
+                    card.classList.add('flipped');
+                }
+                
+                setTimeout(() => {
+                    nextCard();
+                }, 1500);
             }
         }
-
-        function flipCard() {
-            document.getElementById('flashcard').classList.toggle('flipped');
+function flipCard() {
+            document.getElementById('flashcard').classList.add('flipped');
         }
 
-        function nextCard() {
+        
+        function nextCard(isSkip = false) {
             if (practiceWords.length === 0) return;
+            
+            if (isSkip) {
+                // 如果是跳過，記一次錯誤
+                if (window.currentAudio) window.currentAudio.pause();
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                
+                let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
+                if(wIdx!==-1) practiceErrors[wIdx]++;
+                
+                // 翻開並標示
+                document.getElementById('flashcard').classList.add('flipped');
+                playFailureSound();
+                
+                isPracticeLocked = true;
+                setTimeout(() => {
+                    if (currentIndex + 1 >= practiceWords.length) {
+                        endPracticeGame();
+                    } else {
+                        currentIndex++;
+                        showCard();
+                    }
+                }, 1500);
+                return;
+            }
+
             if (currentIndex + 1 >= practiceWords.length) {
-                // 測驗結束
                 endPracticeGame();
             } else {
                 currentIndex++;
                 showCard();
             }
         }
-
-        // ------------------ 填空遊戲 (挖洞直接打字版) ------------------
-        let spellErrors = {};
-        let spellDeck = [];
-        let spellCurrentIndex = 0;
-
-        function updateScore(points) {
+function updateScore(points) {
             spellScore += points;
             if (spellScore < 0) spellScore = 0; // 不扣到負分
             document.getElementById('spellScore').textContent = spellScore;
@@ -1516,6 +1579,7 @@
             const displayContainer = document.getElementById('spellWordDisplay');
             displayContainer.innerHTML = '';
             currentSpellingBoxes = [];
+            isSpellLocked = false;
             
             // 產生格子
             chars.forEach((c, i) => {
@@ -1558,6 +1622,7 @@
         }
 
         function handleSpellChar(char) {
+            if (isSpellLocked) return;
             if (currentSpellingBoxes.length === 0) return;
             const box = currentSpellingBoxes[activeSpellBoxIdx];
             
@@ -1578,6 +1643,7 @@
         }
         
         function handleSpellAction(action) {
+            if (isSpellLocked) return;
             if (currentSpellingBoxes.length === 0) return;
             const box = currentSpellingBoxes[activeSpellBoxIdx];
             
@@ -1623,15 +1689,17 @@
             }
         });
 
+        
         function checkSpellBoxes() {
-            if (currentSpellingBoxes.length === 0) return;
+            if (currentSpellingBoxes.length === 0 || isSpellLocked) return;
             
             let allFilled = true;
             let allCorrect = true;
             
             currentSpellingBoxes.forEach(box => {
-                if (!box.textContent) allFilled = false;
-                if (box.textContent.toLowerCase() !== box.dataset.char.toLowerCase()) {
+                if (!box.value && !box.textContent) allFilled = false;
+                let val = box.value || box.textContent;
+                if (val.toLowerCase() !== box.dataset.char.toLowerCase()) {
                     allCorrect = false;
                 }
             });
@@ -1642,6 +1710,10 @@
                 return;
             }
             
+            isSpellLocked = true;
+            if (window.currentAudio) window.currentAudio.pause();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            
             if (allCorrect) {
                 playSuccessSound();
                 updateScore(10); // 答對加 10 分
@@ -1649,34 +1721,39 @@
                 document.getElementById('spellFeedback').style.color = '#4CAF50';
                 currentSpellingBoxes.forEach(b => {
                     b.style.borderColor = '#4CAF50';
-                    b.style.backgroundColor = '#E8F5E9';
-                    b.disabled = true; // 鎖定輸入
+                    b.style.backgroundColor = '#1b5e20';
+                    b.readOnly = true; 
+                    if(b.tagName!=='INPUT') b.classList.remove('active');
                 });
                 speakText(currentSpellWord.word);
                 setTimeout(() => nextSpellWord(false), 1500);
             } else {
                 playFailureSound();
                 updateScore(-3); // 答錯扣 3 分
-                spellErrors[currentSpellWord.word]++; // 紀錄錯誤
-                document.getElementById('spellFeedback').innerHTML = `❌ 拼錯囉！扣 3 分。<br>正確答案是：<span style="color: #2196F3; font-size: 1.2em;">${currentSpellWord.word}</span>`;
+                
+                let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); 
+                if (wIdx!==-1) spellErrors[wIdx]++;
+                
+                document.getElementById('spellFeedback').innerHTML = `❌ 拼錯囉！扣 3 分。<br>正確答案是：<span style="color: #64b5f6; font-size: 1.2em;">${currentSpellWord.word}</span>`;
                 document.getElementById('spellFeedback').style.color = '#f44336';
                 
                 currentSpellingBoxes.forEach(b => {
-                    b.disabled = true; // 鎖定輸入
-                    if (b.value.toLowerCase() !== b.dataset.char.toLowerCase()) {
+                    b.readOnly = true; 
+                    if(b.tagName!=='INPUT') b.classList.remove('active');
+                    let val = b.value || b.textContent;
+                    if (val.toLowerCase() !== b.dataset.char.toLowerCase()) {
                         b.style.borderColor = '#f44336';
-                        b.style.backgroundColor = '#FFEBEE';
+                        b.style.backgroundColor = '#b71c1c';
                     } else {
-                        b.style.borderColor = '#4CAF50'; // 對的標示綠色
+                        b.style.borderColor = '#4CAF50';
                     }
                 });
                 
-                // 2 秒後自動換下一題
+                speakText(currentSpellWord.word);
                 setTimeout(() => nextSpellWord(false), 2000);
             }
         }
-
-        // ------------------ 鍵盤快捷鍵 ------------------
+// ------------------ 鍵盤快捷鍵 ------------------
         document.addEventListener('keydown', function(e) {
             // 閃卡練習快捷鍵
             if (!document.getElementById('view-practice').classList.contains('hidden')) {
