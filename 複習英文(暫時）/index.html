@@ -24,7 +24,7 @@
         }
         input, select, button { 
             margin: 5px; 
-            padding: 10px; 
+            padding: 8px 5px; 
             font-size: 16px; 
             border-radius: 5px; 
             border: 1px solid #555; 
@@ -318,7 +318,7 @@
         .modal-buttons button { padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; border: none; }
         .btn-confirm { background-color: #4CAF50; color: white; }
         .btn-cancel { background-color: #d32f2f; color: white; }
-        .btn-fullscreen { position: fixed; top: 10px; right: 10px; background-color: #333; color: white; padding: 10px; border-radius: 50%; z-index: 999; cursor: pointer; border: 1px solid #555; font-size: 20px; width: 45px; height: 45px; line-height: 25px;}
+        .btn-fullscreen { position: fixed; top: 10px; right: 10px; background-color: #333; color: white; padding: 8px 5px; border-radius: 50%; z-index: 999; cursor: pointer; border: 1px solid #555; font-size: 20px; width: 45px; height: 45px; line-height: 25px;}
 
     
         /* 練習模式 RWD 佈局 */
@@ -343,8 +343,12 @@
                 flex-direction: unset !important;
             }
             .card {
-                height: 180px !important;
+                height: 150px !important;
                 margin: 5px auto !important;
+            }
+            .mc-btn {
+                font-size: 1.1em;
+                min-height: 55px;
             }
             #practiceTimer {
                 font-size: 2.5em !important;
@@ -364,8 +368,8 @@
         /* 放大選項按鈕 */
         .mc-btn {
             font-size: 1.2em; /* 原本是 1em */
-            padding: 15px 10px; /* 原本是 10px 5px */
-            min-height: 120px;
+            padding: 8px 5px; /* 原本是 10px 5px */
+            min-height: 60px;
         }
         
         /* 放大虛擬鍵盤 */
@@ -403,7 +407,7 @@
     
     
     <!-- 設定區域 -->
-    <div style="background-color: #2c3e50; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center;">
+    <div style="background-color: #2c3e50; padding: 8px 5px; margin-bottom: 10px; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center;">
         <label style="color: #ecf0f1; font-weight: bold;">
             🔊 發音模式：
             <select id="speakMode" style="padding: 5px; border-radius: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d;">
@@ -428,7 +432,7 @@
     <div id="view-add" class="container">
         <div style="background-color: #311b3b; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
             <h3 style="margin-top: 0; color: #ce93d8;">📚 載入南一國一上單字庫</h3>
-            <select id="naniLessonSelect" style="padding: 10px; font-size: 1.1em; margin-bottom: 10px;">
+            <select id="naniLessonSelect" style="padding: 8px 5px; font-size: 1.1em; margin-bottom: 10px;">
                 <option value="L1">第一課 (Lesson 1)</option>
                 <option value="L2">第二課 (Lesson 2)</option>
                 <option value="L3">第三課 (Lesson 3)</option>
@@ -524,30 +528,31 @@
                 <p style="color: #aaa; font-size: 0.9em;">(點擊卡片可翻面，或直接點選兩側正確的中文意思)</p>
                 <div id="practiceTimer" style="font-size: 4.5em; font-weight: bold; color: #64b5f6; margin-bottom: 10px;">0.00 秒</div>
                 
+                
                 <div class="practice-main-layout">
-                    <!-- 左側選項 -->
-                    <div id="leftOptions" class="option-column"></div>
-                    
-                    <!-- 中間卡片 -->
-                    <div style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <div class="card" id="flashcard"  style="margin: 0 auto;">
+                    <!-- 上方圖卡 -->
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
+                        <div class="card" id="flashcard" style="margin-bottom: 10px;">
                             <div class="card-inner">
                                 <div class="card-front">
-                                    <div class="word" id="cardWord"></div>
-                                    <button class="speak-btn" onclick="event.stopPropagation(); speakText(practiceWords[currentIndex].word)" title="聽發音">🔊</button>
+                                    <div class="word" id="flashcard-word"></div>
+                                    <div class="pos" id="flashcard-pos"></div>
                                 </div>
                                 <div class="card-back">
-                                    <img id="cardImage" src="" alt="word image" style="max-height: 120px; border-radius: 8px; margin-bottom: 10px; display: none;">
-                                    <div class="pos" id="cardPos"></div>
-                                    <div class="translation" id="cardTranslation"></div>
+                                    <div class="translation" id="flashcard-trans"></div>
                                 </div>
                             </div>
                         </div>
+                        <div class="controls" style="margin-top: 5px; margin-bottom: 15px;">
+                            <button onclick="nextCard(true)" style="background-color: #9E9E9E; padding: 5px 15px; font-size: 0.9em; border-radius: 15px;">⏭️ 跳過這題</button>
+                            <span id="cardProgress" style="font-size: 1.2em; font-weight: bold; color: #555;">1 / 1</span>
+                        </div>
                     </div>
                     
-                    <!-- 右側選項 -->
-                    <div id="rightOptions" class="option-column"></div>
+                    <!-- 下方選項 (2x2 Grid) -->
+                    <div id="practiceOptions" class="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 800px; margin: 0 auto;"></div>
                 </div>
+
                 
                 
                 <div class="controls">
@@ -1271,71 +1276,37 @@
             generatePracticeOptions(item);
         }
 
+        
         function generatePracticeOptions(correctItem) {
-            const leftContainer = document.getElementById('leftOptions');
-            const rightContainer = document.getElementById('rightOptions');
-            leftContainer.innerHTML = '';
-            rightContainer.innerHTML = '';
+            const container = document.getElementById('practiceOptions');
+            container.innerHTML = '';
             
-            // 最多取 10 個選項 (左右各5個，包含正確答案)
-            let maxOptions = Math.min(10, words.length);
-            
+            let maxOptions = Math.min(4, words.length);
             let options = [correctItem];
             let pool = [...words].filter(w => w.word !== correctItem.word);
-            
-            // 打亂其他選項
             pool.sort(() => 0.5 - Math.random());
             
-            // 挑選錯誤選項
             for (let i = 0; i < maxOptions - 1; i++) {
                 if (pool[i]) options.push(pool[i]);
             }
-            
-            // 打亂所有選項 (正確+錯誤)
             options.sort(() => 0.5 - Math.random());
             
-            // 分配到左右兩邊
-            let half = Math.ceil(options.length / 2);
-            let leftOpts = options.slice(0, half);
-            let rightOpts = options.slice(half);
-            
-            function createBtn(opt) {
+            options.forEach(opt => {
                 let btn = document.createElement('button');
                 btn.className = 'mc-btn';
+                let innerDiv = document.createElement('div');
+                innerDiv.textContent = `${opt.translation} ${opt.pos !== 'other' ? '('+opt.pos+')' : ''}`;
+                btn.appendChild(innerDiv);
+                let timeDiv = document.createElement('div');
+                timeDiv.className = 'btn-time';
+                btn.appendChild(timeDiv);
                 
-                // 改為圖卡滿版、文字重疊樣式
-                btn.style.position = 'relative';
-                btn.style.padding = '0';
-                btn.style.overflow = 'hidden';
-                btn.style.height = '110px';
-                btn.style.display = 'flex';
-                btn.style.alignItems = 'center';
-                btn.style.justifyContent = 'center';
-                
-                let imgHTML = '';
-                if (opt.image) {
-                    imgHTML = `<img src="${opt.image}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 0; opacity: 0.85;">`;
-                }
-                
-                // 內部 HTML 組合 (背景圖 + 粗白字黑色陰影)
-                btn.innerHTML = `
-                    ${imgHTML}
-                    <div style="position: relative; z-index: 1; color: white; font-weight: 900; font-size: 1.5em; text-shadow: 2px 2px 6px black, 0 0 12px black;">
-                        ${opt.translation}
-                        <div style="font-size: 0.6em; margin-top: 3px;" class="btn-time"></div>
-                    </div>
-                `;
-                
-                let isCorrect = (opt.word === correctItem.word);
-                btn.onclick = function() {
-                    handlePracticeOptionClick(btn, isCorrect);
-                };
-                return btn;
-            }
-            
-            leftOpts.forEach(opt => leftContainer.appendChild(createBtn(opt)));
-            rightOpts.forEach(opt => rightContainer.appendChild(createBtn(opt)));
+                let isCorrect = (opt.word === correctItem.word && opt.translation === correctItem.translation);
+                btn.onclick = () => handlePracticeOptionClick(btn, isCorrect);
+                container.appendChild(btn);
+            });
         }
+
 
         
         function handlePracticeOptionClick(btn, isCorrect) {
