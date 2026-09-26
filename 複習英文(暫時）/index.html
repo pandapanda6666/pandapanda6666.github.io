@@ -1020,7 +1020,7 @@
         }
 
         function quitAutoplay() {
-            if (window.currentAudio) window.currentAudio.pause();
+            if (currentAudio) currentAudio.pause();
             // window.speechSynthesis.cancel();
             clearTimeout(autoplayTimer);
             initAutoplayView();
@@ -1059,7 +1059,7 @@
         function nextAutoplayCard(manual = false) {
             clearTimeout(autoplayTimer);
             if (manual) {
-                if (window.currentAudio) window.currentAudio.pause();
+                if (currentAudio) currentAudio.pause();
                 // window.speechSynthesis.cancel();
             }
             autoplayIndex++;
@@ -1069,7 +1069,7 @@
         function prevAutoplayCard(manual = false) {
             clearTimeout(autoplayTimer);
             if (manual) {
-                if (window.currentAudio) window.currentAudio.pause();
+                if (currentAudio) currentAudio.pause();
                 // window.speechSynthesis.cancel();
             }
             autoplayIndex--;
@@ -1341,7 +1341,7 @@
             isPracticeLocked = true; // 鎖定
             
             // 中斷語音
-            if (window.currentAudio) window.currentAudio.pause();
+            if (currentAudio) currentAudio.pause();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
             let elapsed = ((Date.now() - practiceStartTime) / 1000).toFixed(2);
@@ -1402,7 +1402,7 @@ function flipCard() {
             
             if (isSkip) {
                 // 如果是跳過，記一次錯誤
-                if (window.currentAudio) window.currentAudio.pause();
+                if (currentAudio) currentAudio.pause();
                 if ('speechSynthesis' in window) window.speechSynthesis.cancel();
                 
                 let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
@@ -1431,7 +1431,14 @@ function flipCard() {
                 showCard();
             }
         }
-function updateScore(points) {
+
+        // ------------------ 填空遊戲 (挖洞直接打字版) ------------------
+        let spellErrors = {};
+        let spellDeck = [];
+        let spellCurrentIndex = 0;
+
+        function updateScore(points) {
+
             spellScore += points;
             if (spellScore < 0) spellScore = 0; // 不扣到負分
             document.getElementById('spellScore').textContent = spellScore;
@@ -1711,7 +1718,7 @@ function updateScore(points) {
             }
             
             isSpellLocked = true;
-            if (window.currentAudio) window.currentAudio.pause();
+            if (currentAudio) currentAudio.pause();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
             if (allCorrect) {
