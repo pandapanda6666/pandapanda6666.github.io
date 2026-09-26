@@ -293,11 +293,44 @@
         }
         .autoplay-controls button:hover { background-color: #1565C0; }
 
+    
+        /* Custom Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-box {
+            background: #1e1e1e; padding: 25px; border-radius: 12px;
+            text-align: center; max-width: 400px; width: 90%;
+            border: 1px solid #555; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            color: #e0e0e0;
+        }
+        .modal-box h3 { margin-top: 0; color: #90caf9; }
+        .modal-buttons { margin-top: 20px; display: flex; justify-content: center; gap: 15px; }
+        .modal-buttons button { padding: 10px 20px; font-size: 16px; border-radius: 5px; cursor: pointer; border: none; }
+        .btn-confirm { background-color: #4CAF50; color: white; }
+        .btn-cancel { background-color: #d32f2f; color: white; }
+        .btn-fullscreen { position: fixed; top: 10px; right: 10px; background-color: #333; color: white; padding: 10px; border-radius: 50%; z-index: 999; cursor: pointer; border: 1px solid #555; font-size: 20px; width: 45px; height: 45px; line-height: 25px;}
+
     </style>
     <!-- 引入提取出的南一全部單字檔 -->
     <script src="nani_data.js"></script>
 </head>
 <body>
+    <!-- Custom Modal -->
+    <div id="customModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h3 id="modalTitle">提示</h3>
+            <p id="modalMessage" style="font-size: 1.1em;"></p>
+            <div class="modal-buttons">
+                <button id="modalBtnConfirm" class="btn-confirm">確定</button>
+                <button id="modalBtnCancel" class="btn-cancel hidden">取消</button>
+            </div>
+        </div>
+    </div>
+    <button class="btn-fullscreen" onclick="toggleFullScreen()" title="全螢幕切換">🔲</button>
+
     <h1>🌟 英文單字閃卡遊戲 🌟</h1>
     
     <div class="tabs">
@@ -323,7 +356,20 @@
             <button onclick="importNaniData()" style="background-color: #9C27B0; font-size: 1.1em; width: 80%; max-width: 300px;">📥 載入所選單字 (含真人發音)</button>
         </div>
 
+        
+        <div style="background-color: #1a237e; padding: 15px; border-radius: 8px; margin-bottom: 20px; margin-top: 20px;">
+            <h3 style="margin-top: 0; color: #90caf9;">✏️ 新增自訂單字</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;">
+                <input type="text" id="customWord" placeholder="英文單字" style="width: 120px;">
+                <input type="text" id="customPos" placeholder="詞性 (如 n., v.)" style="width: 80px;">
+                <input type="text" id="customTrans" placeholder="中文翻譯" style="width: 120px;">
+                <input type="text" id="customImg" placeholder="圖片URL (選填)" style="width: 120px;">
+                <button onclick="addCustomWord()" style="background-color: #2196F3;">➕ 新增</button>
+            </div>
+        </div>
+
         <div class="list-view">
+            <div style="margin-bottom: 10px;"><button onclick="deleteSelectedWords()" style="background-color: #d32f2f;">🗑️ 刪除所選單字</button>&nbsp;&nbsp;<label><input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll()"> 全選</label></div>
             <h3>單字列表 (共 <span id="wordCount">0</span> 個)</h3>
             <div id="wordList"></div>
         </div>
@@ -519,6 +565,48 @@
     <script>
         // ------------------ 全域變數與資料初始化 ------------------
         let words = JSON.parse(localStorage.getItem('english_flashcards_data')) || [];
+        
+        function showCustomAlert(msg, callback) {
+            document.getElementById('modalTitle').textContent = '提示';
+            document.getElementById('modalMessage').innerHTML = msg;
+            document.getElementById('modalBtnCancel').classList.add('hidden');
+            document.getElementById('customModal').classList.remove('hidden');
+            
+            let btnConfirm = document.getElementById('modalBtnConfirm');
+            btnConfirm.onclick = function() {
+                document.getElementById('customModal').classList.add('hidden');
+                if (callback) callback();
+            };
+        }
+
+        function showCustomConfirm(msg, onConfirm, onCancel) {
+            document.getElementById('modalTitle').textContent = '確認';
+            document.getElementById('modalMessage').innerHTML = msg;
+            document.getElementById('modalBtnCancel').classList.remove('hidden');
+            document.getElementById('customModal').classList.remove('hidden');
+            
+            document.getElementById('modalBtnConfirm').onclick = function() {
+                document.getElementById('customModal').classList.add('hidden');
+                if (onConfirm) onConfirm();
+            };
+            document.getElementById('modalBtnCancel').onclick = function() {
+                document.getElementById('customModal').classList.add('hidden');
+                if (onCancel) onCancel();
+            };
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(Error attempting to enable full-screen mode: );
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
         let currentIndex = 0;
         let practiceWords = [...words];
         
@@ -530,6 +618,14 @@
         // ------------------ Web Audio API (音效產生器) ------------------
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
+
+        
+        document.addEventListener('click', () => {
+            initAudioContext();
+            if ('speechSynthesis' in window && window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+            }
+        });
 
         function initAudioContext() {
             if (!audioCtx) {
@@ -593,7 +689,7 @@
                 currentAudio.currentTime = 0;
             }
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
+                // window.speechSynthesis.cancel();
             }
             
             // 優先檢查是否有南一的在地真人發音檔
@@ -649,7 +745,7 @@
         // ------------------ 載入南一單字功能 ------------------
         function importNaniData() {
             if (typeof naniData === 'undefined') {
-                alert('找不到南一教材檔案！請確認 nani_data.js 與音檔是否存在。');
+                showCustomAlert('找不到南一教材檔案！請確認 nani_data.js 與音檔是否存在。');
                 return;
             }
             
@@ -665,7 +761,7 @@
             }
             
             if (targetWords.length === 0) {
-                alert('選擇的課程沒有找到單字！');
+                showCustomAlert('選擇的課程沒有找到單字！');
                 return;
             }
 
@@ -711,12 +807,56 @@
             updatePracticeView();
         }
 
-        function deleteWord(index) {
-            if (confirm('確定要刪除這個單字嗎？')) {
-                words.splice(index, 1);
+        
+        function addCustomWord() {
+            const w = document.getElementById('customWord').value.trim();
+            const p = document.getElementById('customPos').value.trim();
+            const t = document.getElementById('customTrans').value.trim();
+            const img = document.getElementById('customImg').value.trim();
+            
+            if (!w || !t) {
+                showCustomAlert('英文單字與中文翻譯為必填喔！');
+                return;
+            }
+            words.push({ word: w, pos: p || 'other', translation: t, image: img || null, audio: null });
+            practiceWords = [...words];
+            saveWords();
+            
+            document.getElementById('customWord').value = '';
+            document.getElementById('customPos').value = '';
+            document.getElementById('customTrans').value = '';
+            document.getElementById('customImg').value = '';
+            showCustomAlert('單字新增成功！');
+        }
+
+        function toggleSelectAll() {
+            let isChecked = document.getElementById('selectAllCheckbox').checked;
+            let checkboxes = document.querySelectorAll('.word-checkbox');
+            checkboxes.forEach(cb => cb.checked = isChecked);
+        }
+
+        function deleteSelectedWords() {
+            let checkboxes = document.querySelectorAll('.word-checkbox:checked');
+            if (checkboxes.length === 0) {
+                showCustomAlert('請先勾選要刪除的單字！');
+                return;
+            }
+            showCustomConfirm(確定要刪除這  個單字嗎？, function() {
+                let indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index)).sort((a,b) => b - a);
+                indicesToDelete.forEach(idx => {
+                    words.splice(idx, 1);
+                });
                 practiceWords = [...words];
                 saveWords();
-            }
+                document.getElementById('selectAllCheckbox').checked = false;
+            });
+        }
+
+        function deleteWord(index) {
+            showCustomConfirm('確定要刪除這個單字嗎？', function() {
+                words.splice(index, 1); practiceWords = [...words]; saveWords();
+                practiceWords = [...words];
+                });
         }
 
         // ------------------ 頁籤切換邏輯 ------------------
@@ -780,7 +920,7 @@
 
         function quitAutoplay() {
             if (window.currentAudio) window.currentAudio.pause();
-            window.speechSynthesis.cancel();
+            // window.speechSynthesis.cancel();
             clearTimeout(autoplayTimer);
             initAutoplayView();
         }
@@ -819,7 +959,7 @@
             clearTimeout(autoplayTimer);
             if (manual) {
                 if (window.currentAudio) window.currentAudio.pause();
-                window.speechSynthesis.cancel();
+                // window.speechSynthesis.cancel();
             }
             autoplayIndex++;
             showAutoplayCard();
@@ -829,7 +969,7 @@
             clearTimeout(autoplayTimer);
             if (manual) {
                 if (window.currentAudio) window.currentAudio.pause();
-                window.speechSynthesis.cancel();
+                // window.speechSynthesis.cancel();
             }
             autoplayIndex--;
             showAutoplayCard();
@@ -873,7 +1013,7 @@
             
             // 重置紀錄
             practiceErrors = {};
-            practiceWords.forEach(w => practiceErrors[w.word] = 0);
+            practiceWords.forEach((w, idx) => practiceErrors[idx] = 0);
             
             // 打亂題庫
             for (let i = practiceWords.length - 1; i > 0; i--) {
@@ -901,14 +1041,16 @@
             document.getElementById('practiceTotalTime').textContent = totalSeconds;
             
             // 產生排行榜
+            
             let sortedErrors = Object.keys(practiceErrors)
-                .map(word => ({
-                    word: word,
-                    translation: words.find(w => w.word === word)?.translation || '',
-                    errors: practiceErrors[word]
+                .map(idx => ({
+                    word: practiceWords[idx].word,
+                    translation: practiceWords[idx].translation,
+                    errors: practiceErrors[idx]
                 }))
                 .filter(item => item.errors > 0)
                 .sort((a, b) => b.errors - a.errors);
+
                 
             const tbody = document.querySelector('#practiceStatsTable tbody');
             tbody.innerHTML = '';
@@ -929,9 +1071,7 @@
         }
 
         function quitPracticeGame() {
-            if (confirm('確定要提前結束測驗嗎？您的成績仍會被統計。')) {
-                endPracticeGame();
-            }
+            showCustomConfirm('確定要提前結束測驗嗎？您的成績仍會被統計。', function() { endPracticeGame(); });
         }
 
         function playVictorySound() {
@@ -1125,7 +1265,7 @@
                     timeDiv.textContent = `(${elapsed}秒)`;
                     timeDiv.style.color = '#fff';
                 }
-                practiceErrors[currentWordStr]++; // 記錄錯誤
+                let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); if(wIdx!==-1) practiceErrors[wIdx]++; // 記錄錯誤
                 playFailureSound();
             }
         }
@@ -1192,7 +1332,7 @@
             updateScore(0);
             
             spellErrors = {};
-            words.forEach(w => spellErrors[w.word] = 0);
+            spellDeck.forEach((w, idx) => spellErrors[idx] = 0);
             
             // 打亂題庫
             spellDeck = [...words];
@@ -1218,14 +1358,16 @@
             document.getElementById('spellFinalScore').textContent = spellScore;
             
             // 產生排行榜
+            
             let sortedErrors = Object.keys(spellErrors)
-                .map(word => ({
-                    word: word,
-                    translation: words.find(w => w.word === word)?.translation || '',
-                    errors: spellErrors[word]
+                .map(idx => ({
+                    word: spellDeck[idx].word,
+                    translation: spellDeck[idx].translation,
+                    errors: spellErrors[idx]
                 }))
                 .filter(item => item.errors > 0)
                 .sort((a, b) => b.errors - a.errors);
+
                 
             const tbody = document.querySelector('#spellStatsTable tbody');
             tbody.innerHTML = '';
@@ -1246,15 +1388,13 @@
         }
 
         function quitSpellGame() {
-            if (confirm('確定要提前結束測驗嗎？您的成績仍會被統計。')) {
-                endSpellGame();
-            }
+            showCustomConfirm('確定要提前結束測驗嗎？您的成績仍會被統計。', function() { endSpellGame(); });
         }
 
         function nextSpellWord(isSkip = false) {
             if (isSkip) {
                 updateScore(-2); // 跳過扣 2 分
-                if (currentSpellWord) spellErrors[currentSpellWord.word]++; // 記錄跳過為錯誤
+                let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); if (wIdx!==-1) spellErrors[wIdx]++; // 記錄跳過為錯誤
             }
             
             spellCurrentIndex++;
