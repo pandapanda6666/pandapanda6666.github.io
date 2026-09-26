@@ -1,3 +1,58 @@
+
+// --- Device Fingerprinting for Online Users ---
+function getSyncFingerprint() {
+    let fp = "";
+    try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.textBaseline = "top";
+        ctx.font = "14px 'Arial'";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(125,1,62,20);
+        ctx.fillStyle = "#069";
+        ctx.fillText("Hello, world!", 2, 15);
+        ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+        ctx.fillText("Hello, world!", 4, 17);
+        fp += canvas.toDataURL() + "|||";
+    } catch(e) {}
+    fp += navigator.userAgent + "|||";
+    fp += navigator.language + "|||";
+    fp += screen.colorDepth + "|||";
+    fp += screen.width + 'x' + screen.height + "|||";
+    fp += new Date().getTimezoneOffset() + "|||";
+    fp += navigator.hardwareConcurrency + "|||";
+    fp += navigator.deviceMemory;
+    
+    let hash = 0;
+    for (let i = 0; i < fp.length; i++) {
+        const char = fp.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16);
+}
+
+if (window.io) {
+    const originalIo = window.io;
+    window.io = function(...args) {
+        let url = args[0];
+        let opts = args[1] || {};
+        if (typeof url === 'object' && url !== null) {
+            opts = url;
+            url = undefined;
+        }
+        opts.query = opts.query || {};
+        opts.query.deviceId = getSyncFingerprint();
+        
+        if (url !== undefined) {
+            return originalIo.call(this, url, opts);
+        } else {
+            return originalIo.call(this, opts);
+        }
+    };
+}
+// ----------------------------------------------
 ﻿const customUIStyles = `
 <style>
 .panda-modal-overlay {
