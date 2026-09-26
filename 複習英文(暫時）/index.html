@@ -318,6 +318,7 @@
     <script src="nani_data.js"></script>
 </head>
 <body>
+
     <!-- Custom Modal -->
     <div id="customModal" class="modal-overlay hidden">
         <div class="modal-box">
@@ -598,7 +599,7 @@
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
-                    console.log(Error attempting to enable full-screen mode: );
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
                 });
             } else {
                 if (document.exitFullscreen) {
@@ -772,7 +773,7 @@
             
             // 切換到練習模式或重新整理畫面
             updateWordList();
-            alert(`🎉 成功載入 ${words.length} 個單字與真人發音！`);
+            showCustomAlert(`🎉 成功載入 ${words.length} 個單字與真人發音！`);
         }
 
         // ------------------ 新增單字與列表功能 ------------------
@@ -792,6 +793,7 @@
                 div.className = 'list-item';
                 div.innerHTML = `
                     <span style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" class="word-checkbox" data-index="${index}" style="transform: scale(1.5); margin-right: 15px;">
                         <button class="speak-btn-small" onclick="speakText('${escapedWord}')" title="發音">🔊</button>
                         <span>
                             <strong style="color: #2196F3; font-size: 1.1em;">${item.word}</strong> 
@@ -799,7 +801,7 @@
                             - ${item.translation}
                         </span>
                     </span>
-                    <button class="delete-btn" onclick="deleteWord(${index})">刪除</button>
+                    
                 `;
                 list.appendChild(div);
             });
@@ -841,7 +843,7 @@
                 showCustomAlert('請先勾選要刪除的單字！');
                 return;
             }
-            showCustomConfirm(確定要刪除這  個單字嗎？, function() {
+            showCustomConfirm(`確定要刪除這 ${checkboxes.length} 個單字嗎？`, function() {
                 let indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index)).sort((a,b) => b - a);
                 indicesToDelete.forEach(idx => {
                     words.splice(idx, 1);
