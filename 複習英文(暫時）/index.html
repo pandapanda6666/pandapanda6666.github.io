@@ -668,6 +668,14 @@
     </div>
 
     <script>
+
+        window.addEventListener('error', function(e) {
+            alert("JS Error: " + e.message + " at " + e.filename + ":" + e.lineno);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            alert("Promise Error: " + e.reason);
+        });
+
         // ------------------ 全域變數與資料初始化 ------------------
         let words = JSON.parse(localStorage.getItem('english_flashcards_data')) || [];
         
@@ -804,7 +812,7 @@
                 if (onEndedCallback) currentAudio.onended = onEndedCallback;
                 
                 currentAudio.play().catch(e => {
-                    console.log("本地音檔失敗，退回TTS", e);
+                console.log("fallback", e);
                     speakTimeout = setTimeout(() => fallbackTTS(text, onEndedCallback), 50);
                 });
                 return; 
@@ -815,7 +823,7 @@
             if (onEndedCallback) currentAudio.onended = onEndedCallback;
             
             currentAudio.play().catch(e => {
-                console.log("網路語音失敗，退回內建語音");
+                console.log("fallback", e);
                 speakTimeout = setTimeout(() => fallbackTTS(text, onEndedCallback), 50);
             });
         }
@@ -853,7 +861,7 @@
         // ------------------ 載入南一單字功能 ------------------
         function importNaniData() {
             if (typeof naniData === 'undefined') {
-                showCustomAlert('找不到南一教材檔案！請確認 nani_data.js 與音檔是否存在。');
+                showCustomAlert("Error");
                 return;
             }
             
