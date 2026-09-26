@@ -530,7 +530,21 @@
                 <div id="spellWordDisplay" style="display: flex; justify-content: center; flex-wrap: wrap; margin: 10px 0;">
                     <!-- 填空輸入框會透過 JS 動態產生 -->
                 </div>
-                <button class="speak-btn-small" style="width: 45px; height: 45px; font-size: 1.3em;" onclick="speakText(currentSpellWord.word)" title="聽發音">🔊</button>
+                                <button class="speak-btn-small" style="width: 45px; height: 45px; font-size: 1.3em;" onclick="speakText(currentSpellWord.word)" title="聽發音">🔊</button>
+            </div>
+            
+            <div id="virtualKeyboard" class="virtual-keyboard">
+                <div class="vk-row">
+                    <button class="vk-key">Q</button><button class="vk-key">W</button><button class="vk-key">E</button><button class="vk-key">R</button><button class="vk-key">T</button><button class="vk-key">Y</button><button class="vk-key">U</button><button class="vk-key">I</button><button class="vk-key">O</button><button class="vk-key">P</button>
+                </div>
+                <div class="vk-row">
+                    <button class="vk-key">A</button><button class="vk-key">S</button><button class="vk-key">D</button><button class="vk-key">F</button><button class="vk-key">G</button><button class="vk-key">H</button><button class="vk-key">J</button><button class="vk-key">K</button><button class="vk-key">L</button>
+                </div>
+                <div class="vk-row">
+                    <button class="vk-key wide-key" onclick="handleSpellAction('Backspace')">⌫</button>
+                    <button class="vk-key">Z</button><button class="vk-key">X</button><button class="vk-key">C</button><button class="vk-key">V</button><button class="vk-key">B</button><button class="vk-key">N</button><button class="vk-key">M</button>
+                    <button class="vk-key wide-key" onclick="handleSpellAction('Enter')">↵</button>
+                </div>
             </div>
             
             <div class="spell-feedback" id="spellFeedback"></div>
@@ -1460,6 +1474,9 @@
             if (document.getElementById('autoSpeakSpell').checked) {
                 speakText(currentSpellWord.word);
             }
+            if (currentSpellingBoxes.length > 0) {
+                setSpellActiveBox(0);
+            }
             
             // 自動 focus 第一個空格
             if (currentSpellingBoxes.length > 0) {
@@ -1467,39 +1484,9 @@
             }
         }
 
-        function handleSpellInput(e) {
-            const input = e.target;
-            
-            if (input.value.length === 1) {
-                // 自動適應原本文字的大小寫
-                let targetChar = input.dataset.char;
-                if (targetChar === targetChar.toUpperCase() && targetChar !== targetChar.toLowerCase()) {
-                    input.value = input.value.toUpperCase();
-                } else if (targetChar === targetChar.toLowerCase() && targetChar !== targetChar.toUpperCase()) {
-                    input.value = input.value.toLowerCase();
-                }
-                
-                let idx = currentSpellingBoxes.indexOf(input);
-                if (idx < currentSpellingBoxes.length - 1) {
-                    currentSpellingBoxes[idx + 1].focus(); // 自動跳下一格
-                } else {
-                    // 全部填完自動檢查
-                    checkSpellBoxes();
-                }
-            }
         }
 
-        function handleSpellKeydown(e) {
-            const input = e.target;
-            let idx = currentSpellingBoxes.indexOf(input);
-            
-            if (e.key === 'Backspace' && input.value === '') {
-                // 如果這格是空的又按倒退，跳到前一格
-                if (idx > 0) {
-                    currentSpellingBoxes[idx - 1].focus();
-                    currentSpellingBoxes[idx - 1].value = '';
-                }
-            } else if (e.key === 'ArrowLeft' && idx > 0) {
+        else if (e.key === 'ArrowLeft' && idx > 0) {
                 currentSpellingBoxes[idx - 1].focus();
             } else if (e.key === 'ArrowRight' && idx < currentSpellingBoxes.length - 1) {
                 currentSpellingBoxes[idx + 1].focus();
@@ -1508,6 +1495,82 @@
             }
         }
 
+                let activeSpellBoxIdx = 0;
+        
+        function setSpellActiveBox(idx) {
+            currentSpellingBoxes.forEach((box, i) => {
+                if(i === idx) box.classList.add('active');
+                else box.classList.remove('active');
+            });
+            activeSpellBoxIdx = idx;
+        }
+
+        function handleSpellChar(char) {
+            if (currentSpellingBoxes.length === 0) return;
+            const box = currentSpellingBoxes[activeSpellBoxIdx];
+            
+            let targetChar = box.dataset.char;
+            if (targetChar === targetChar.toUpperCase() && targetChar !== targetChar.toLowerCase()) {
+                box.textContent = char.toUpperCase();
+            } else if (targetChar === targetChar.toLowerCase() && targetChar !== targetChar.toUpperCase()) {
+                box.textContent = char.toLowerCase();
+            } else {
+                box.textContent = char;
+            }
+            
+            if (activeSpellBoxIdx < currentSpellingBoxes.length - 1) {
+                setSpellActiveBox(activeSpellBoxIdx + 1);
+            } else {
+                checkSpellBoxes();
+            }
+        }
+        
+        function handleSpellAction(action) {
+            if (currentSpellingBoxes.length === 0) return;
+            const box = currentSpellingBoxes[activeSpellBoxIdx];
+            
+            if (action === 'Backspace') {
+                if (box.textContent === '') {
+                    if (activeSpellBoxIdx > 0) {
+                        setSpellActiveBox(activeSpellBoxIdx - 1);
+                        currentSpellingBoxes[activeSpellBoxIdx].textContent = '';
+                    }
+                } else {
+                    box.textContent = '';
+                }
+            } else if (action === 'ArrowLeft' && activeSpellBoxIdx > 0) {
+                setSpellActiveBox(activeSpellBoxIdx - 1);
+            } else if (action === 'ArrowRight' && activeSpellBoxIdx < currentSpellingBoxes.length - 1) {
+                setSpellActiveBox(activeSpellBoxIdx + 1);
+            } else if (action === 'Enter') {
+                checkSpellBoxes();
+            }
+        }
+
+        // 綁定虛擬鍵盤按鈕 (確保立即執行)
+        setTimeout(() => {
+            document.querySelectorAll('.vk-key:not([onclick])').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    handleSpellChar(e.target.textContent);
+                });
+            });
+        }, 100);
+
+        // 綁定實體鍵盤全域監聽（只有在填空遊戲畫面才作用）
+        window.addEventListener('keydown', (e) => {
+            const gameScreen = document.getElementById('spellGameScreen');
+            if (gameScreen && !gameScreen.classList.contains('hidden')) {
+                // 如果按下的是英文字母，且沒有按 Ctrl / Alt 等組合鍵
+                if (/^[a-zA-Z]$/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                    handleSpellChar(e.key);
+                    e.preventDefault();
+                } else if (['Backspace', 'Enter', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                    handleSpellAction(e.key);
+                    e.preventDefault();
+                }
+            }
+        });
+
         function checkSpellBoxes() {
             if (currentSpellingBoxes.length === 0) return;
             
@@ -1515,8 +1578,8 @@
             let allCorrect = true;
             
             currentSpellingBoxes.forEach(box => {
-                if (!box.value) allFilled = false;
-                if (box.value.toLowerCase() !== box.dataset.char.toLowerCase()) {
+                if (!box.textContent) allFilled = false;
+                if (box.textContent.toLowerCase() !== box.dataset.char.toLowerCase()) {
                     allCorrect = false;
                 }
             });
