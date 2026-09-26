@@ -592,50 +592,50 @@
         }
 
 /* Banner Carousel */
-.banner-carousel {
+.hero-carousel {
     width: 100%; max-width: 1800px; width: 95%; margin: 80px auto 20px auto; 
     position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     display: none; /* hidden by default if no banners */
 }
-.banner-slides { position: relative; width: 100%; aspect-ratio: 3 / 1; }
-.banner-slide { 
+.hero-slides { position: relative; width: 100%; aspect-ratio: 3 / 1; }
+.hero-slide { 
     position: absolute; top: 0; left: 100%; width: 100%; height: 100%; 
     transition: left 0.5s ease-in-out; cursor: pointer; display: none;
 }
-.banner-slide.active { left: 0; display: block; }
-.banner-slide.prev { left: -100%; display: block; }
-.banner-slide.next { left: 100%; display: block; }
-.banner-slide.no-transition { transition: none; }
-.banner-slide img { width: 100%; aspect-ratio: 3 / 1; object-fit: cover; display: block; }
-.banner-title {
+.hero-slide.active { left: 0; display: block; }
+.hero-slide.prev { left: -100%; display: block; }
+.hero-slide.next { left: 100%; display: block; }
+.hero-slide.no-transition { transition: none; }
+.hero-slide img { width: 100%; aspect-ratio: 3 / 1; object-fit: cover; display: block; }
+.hero-title {
     position: absolute; bottom: 0; left: 0; right: 0;
     background: rgba(0,0,0,0.6); color: white; padding: 12px;
     text-align: center; font-size: 18px; font-weight: bold;
 }
-.banner-btn {
+.hero-btn {
     position: absolute; top: 50%; transform: translateY(-50%);
     background: rgba(0,0,0,0.5); color: white; border: none;
     padding: 15px 20px; cursor: pointer; font-size: 20px; z-index: 10;
     border-radius: 5px;
 }
-.banner-btn:hover { background: rgba(0,0,0,0.8); }
-.banner-prev { left: 10px; }
-.banner-next { right: 10px; }
+.hero-btn:hover { background: rgba(0,0,0,0.8); }
+.hero-prev { left: 10px; }
+.hero-next { right: 10px; }
 
 /* Banner Admin Modal */
-#bannerAdminModal {
+#heroAdminModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 10000; display: none;
     align-items: center; justify-content: center;
 }
-#bannerAdminContent {
+#heroAdminContent {
     background: white; padding: 30px; border-radius: 10px; width: 600px; max-width: 90%;
     max-height: 80%; overflow-y: auto;
 }
-.banner-admin-row {
+.hero-admin-row {
     display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 5px;
 }
-.banner-admin-row input { flex: 1; padding: 5px; }
+.hero-admin-row input { flex: 1; padding: 5px; }
 </style>
     <script src="custom_ui.js"></script>
 </head>
@@ -695,21 +695,21 @@
             </nav>
 
 </header>
-<div id="banner-section" class="banner-carousel">
-    <button class="banner-btn banner-prev" onclick="moveBanner(-1)">&#10094;</button>
-    <div class="banner-slides" id="banner-slides"></div>
-    <button class="banner-btn banner-next" onclick="moveBanner(1)">&#10095;</button>
+<div id="hero-section" class="hero-carousel">
+    <button class="hero-btn hero-prev" onclick="moveHero(-1)">&#10094;</button>
+    <div class="hero-slides" id="hero-slides"></div>
+    <button class="hero-btn hero-next" onclick="moveHero(1)">&#10095;</button>
 </div>
 
 <!-- Banner Admin Modal -->
-<div id="bannerAdminModal">
-    <div id="bannerAdminContent">
+<div id="heroAdminModal">
+    <div id="heroAdminContent">
         <h2 style="margin-top:0; color:#2c5e32; border-bottom:2px solid #e8f5e9; padding-bottom:10px;">管理首頁橫幅公告</h2>
-        <div id="bannerList"></div>
-        <button onclick="addBannerRow()" style="margin-top:10px; background:#4a6c42; color:white; padding:8px 12px; border:none; border-radius:5px; cursor:pointer;">+ 新增橫幅</button>
+        <div id="heroList"></div>
+        <button onclick="addHeroRow()" style="margin-top:10px; background:#4a6c42; color:white; padding:8px 12px; border:none; border-radius:5px; cursor:pointer;">+ 新增橫幅</button>
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-            <button onclick="closeBannerAdmin()" style="background:#888; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">取消</button>
-            <button onclick="saveBanners()" style="background:#2c5e32; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">儲存設定</button>
+            <button onclick="closeHeroAdmin()" style="background:#888; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">取消</button>
+            <button onclick="saveHeroData()" style="background:#2c5e32; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">儲存設定</button>
         </div>
     </div>
 </div>
@@ -996,7 +996,7 @@
 
                     window.socket.on('systemStats', (stats) => {
                         const el = document.getElementById('visitorStats');
-                        if (el) el.innerHTML = `🟢 在線人數: ${stats.onlineUsers} | 👤 至今進入人數: ${stats.totalUniqueIps} | 👁️ 至今進入次數: ${stats.totalVisits}`;
+                        if (el) el.innerHTML = `<span style="white-space:nowrap;">🟢 目前在線人數: ${stats.onlineUsers}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.5;" class="stat-divider"></span> <span style="white-space:nowrap;">👁️ 總曾進入人數: ${stats.totalUniqueIps}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.5;" class="stat-divider"></span> <span style="white-space:nowrap;">📈 總網站進入次數: ${stats.totalVisits}</span>`;
                     });
 
                     
@@ -1417,14 +1417,14 @@ let currentBannerIdx = 0;
 let bannersData = [];
 let bannerInterval;
 
-async function loadBanners() {
+async function loadHeroData() {
     if(!window.authInfo || !window.authInfo.server) return;
     try {
         const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
         if(res.ok) {
             const data = await res.json();
             bannersData = data.banners || [];
-            renderBanners();
+            renderHeroData();
         }
     } catch(e) { console.error('Failed to load banners', e); }
 }
@@ -1462,9 +1462,9 @@ async function loadSecureImage(imgEl, url) {
     }
 }
 
-function renderBanners() {
-    const section = document.getElementById('banner-section');
-    const slides = document.getElementById('banner-slides');
+function renderHeroData() {
+    const section = document.getElementById('hero-section');
+    const slides = document.getElementById('hero-slides');
     if(bannersData.length === 0) {
         section.style.display = 'none';
         return;
@@ -1472,15 +1472,15 @@ function renderBanners() {
     section.style.display = 'block';
 
     slides.innerHTML = bannersData.map((b, i) => `
-        <div class="banner-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
-            <img id="banner-img-${i}" src="" alt="${b.title}">
-            ${b.title ? `<div class="banner-title">${b.title}</div>` : ''}
+        <div class="hero-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
+            <img id="hero-img-${i}" src="" alt="${b.title}">
+            ${b.title ? `<div class="hero-title">${b.title}</div>` : ''}
         </div>
     `).join('');
     
     // Load images securely
     bannersData.forEach((b, i) => {
-        loadSecureImage(document.getElementById(`banner-img-${i}`), getFullImageUrl(b.imageUrl || b.imageBase64));
+        loadSecureImage(document.getElementById(`hero-img-${i}`), getFullImageUrl(b.imageUrl || b.imageBase64));
     });
 
     
@@ -1489,16 +1489,16 @@ function renderBanners() {
     
     clearInterval(bannerInterval);
     if(bannersData.length > 1) {
-        bannerInterval = setInterval(() => moveBanner(1), 5000);
+        bannerInterval = setInterval(() => moveHero(1), 5000);
     }
 }
 
 let isAnimating = false;
-function moveBanner(dir) {
+function moveHero(dir) {
     if(isAnimating || bannersData.length <= 1) return;
     isAnimating = true;
     
-    const slides = document.querySelectorAll('.banner-slide');
+    const slides = document.querySelectorAll('.hero-slide');
     const currentSlide = slides[currentBannerIdx];
     
     currentBannerIdx = (currentBannerIdx + dir + bannersData.length) % bannersData.length;
@@ -1524,11 +1524,11 @@ function moveBanner(dir) {
     
     // reset timer
     clearInterval(bannerInterval);
-    if(bannersData.length > 1) bannerInterval = setInterval(() => moveBanner(1), 5000);
+    if(bannersData.length > 1) bannerInterval = setInterval(() => moveHero(1), 5000);
 }
 
 function updateBannerPos() {
-    const slides = document.querySelectorAll('.banner-slide');
+    const slides = document.querySelectorAll('.hero-slide');
     slides.forEach((s, i) => {
         s.style.transition = 'none';
         if(i === currentBannerIdx) {
@@ -1544,15 +1544,15 @@ function updateBannerPos() {
 }
 
 // Admin Functions
-function openBannerAdmin() {
-    document.getElementById('bannerAdminModal').style.display = 'flex';
+function openHeroAdmin() {
+    document.getElementById('heroAdminModal').style.display = 'flex';
     renderBannerAdminList();
 }
-function closeBannerAdmin() { document.getElementById('bannerAdminModal').style.display = 'none'; }
+function closeHeroAdmin() { document.getElementById('heroAdminModal').style.display = 'none'; }
 function renderBannerAdminList() {
-    const list = document.getElementById('bannerList');
+    const list = document.getElementById('heroList');
     list.innerHTML = bannersData.map((b, i) => `
-        <div class="banner-admin-row" data-idx="${i}">
+        <div class="hero-admin-row" data-idx="${i}">
             <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
                 <div style="display:flex; align-items:center; gap:10px;">
                     <img id="admin-preview-${i}" class="b-img-preview" src="" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
@@ -1576,10 +1576,10 @@ function renderBannerAdminList() {
         }
     });
 }
-function addBannerRow() {
-    const list = document.getElementById('bannerList');
+function addHeroRow() {
+    const list = document.getElementById('heroList');
     const row = document.createElement('div');
-    row.className = 'banner-admin-row';
+    row.className = 'hero-admin-row';
     row.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -1622,7 +1622,7 @@ function handleBannerUpload(input) {
             ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 1200, 400);
             const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
             
-            const row = input.closest('.banner-admin-row');
+            const row = input.closest('.hero-admin-row');
             if(row) {
                 row.querySelector('.b-img').value = dataUrl;
                 row.querySelector('.b-img-preview').src = dataUrl;
@@ -1633,8 +1633,8 @@ function handleBannerUpload(input) {
     reader.readAsDataURL(file);
 }
 
-async function saveBanners() {
-    const rows = document.querySelectorAll('.banner-admin-row');
+async function saveHeroData() {
+    const rows = document.querySelectorAll('.hero-admin-row');
     const newBanners = Array.from(rows).map(row => ({
         imageUrl: row.querySelector('.b-img').value.startsWith('data:image/') ? '' : row.querySelector('.b-img').value,
         imageBase64: row.querySelector('.b-img').value.startsWith('data:image/') ? row.querySelector('.b-img').value : null,
@@ -1650,8 +1650,8 @@ async function saveBanners() {
             headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' }
         });
         if(res.ok) {
-            await loadBanners();
-            closeBannerAdmin();
+            await loadHeroData();
+            closeHeroAdmin();
             alert('橫幅已更新！');
         } else alert('儲存失敗！');
     } catch(e) { alert('伺服器錯誤！'); }
@@ -1663,20 +1663,20 @@ let bannerLoaded = false;
 setInterval(() => {
     if (window.authInfo && window.authInfo.server && !bannerLoaded) {
         bannerLoaded = true;
-        loadBanners();
+        loadHeroData();
     }
     
     // Inject admin button if admin
     const ac = document.getElementById('auth-container');
-    if (window.authInfo && window.authInfo.isAuth && window.authInfo.isAdmin && ac && !document.getElementById('manage-banner-btn')) {
+    if (window.authInfo && window.authInfo.isAuth && window.authInfo.isAdmin && ac && !document.getElementById('manage-hero-btn')) {
         const btn = document.createElement('button');
-        btn.id = 'manage-banner-btn';
+        btn.id = 'manage-hero-btn';
         btn.innerText = '設定公告橫幅';
         btn.style.cssText = 'background:#2c5e32; color:white; border:none; padding:6px 12px; border-radius:15px; cursor:pointer; font-weight:bold; margin-left:10px; font-size:12px;';
-        btn.onclick = openBannerAdmin;
+        btn.onclick = openHeroAdmin;
         ac.appendChild(btn);
-    } else if (window.authInfo && !window.authInfo.isAuth && document.getElementById('manage-banner-btn')) {
-        document.getElementById('manage-banner-btn').remove();
+    } else if (window.authInfo && !window.authInfo.isAuth && document.getElementById('manage-hero-btn')) {
+        document.getElementById('manage-hero-btn').remove();
     }
 }, 1000);
 
@@ -1684,6 +1684,6 @@ setInterval(() => {
 </script>
     <iframe src="./warning.html" style="display: none;" title="安全警告"></iframe>
 
-<div id="visitorStats" style="position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:12px;font-size:12px;color:#166534;font-weight:bold;z-index:9999;box-shadow:0 4px 6px rgba(0,0,0,0.1);border:1px solid #bbf7d0;">🟢 在線人數: 0 | 👤 至今進入人數: 0 | 👁️ 至今進入次數: 0</div>
+<div id="visitorStats" style="position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:12px;font-size:12px;color:#166534;font-weight:bold;z-index:9999;box-shadow:0 4px 6px rgba(0,0,0,0.1);border:1px solid #bbf7d0; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:5px; width:max-content; max-width:95%; text-align:center;"></div>
 </body>
 </html>
