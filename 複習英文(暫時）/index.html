@@ -534,6 +534,11 @@
                                     <div class="word" id="cardWord"></div>
                                     <button class="speak-btn" onclick="event.stopPropagation(); speakWordObj(practiceWords[currentIndex])" title="聽發音">🔊</button>
                                 </div>
+                                <div class="card-back">
+                                    <img id="cardImage" src="" alt="word image" style="max-height: 120px; border-radius: 8px; margin-bottom: 10px; display: none;">
+                                    <div class="pos" id="cardPos"></div>
+                                    <div class="translation" id="cardTranslation"></div>
+                                </div>
                             </div>
                         </div>
                         <div class="controls" style="margin-top: 5px; margin-bottom: 15px;">
@@ -826,8 +831,8 @@
             let mode = document.getElementById('speakMode') ? document.getElementById('speakMode').value : 'en';
             if (mode === 'full') {
                 let posMap = { 'n.': '名詞', 'v.': '動詞', 'adj.': '形容詞', 'adv.': '副詞', 'prep.': '介系詞', 'conj.': '連接詞', 'pron.': '代名詞' };
-                let p = posMap[wordObj.pos] ? posMap[wordObj.pos] : (wordObj.pos !== 'other' ? wordObj.pos : '');
-                let textZh = `${wordObj.translation} ${p}`;
+                let p = posMap[wordObj.pos] ? `${wordObj.pos}${posMap[wordObj.pos]}` : (wordObj.pos !== 'other' ? wordObj.pos : '');
+                let textZh = `${wordObj.translation}，${p}`;
                 speakWithLang(textZh, 'zh-TW', () => {
                     if (wordObj.audio) playAudioUrl(wordObj.audio, onEndedCallback);
                     else speakWithLang(wordObj.word, 'en', onEndedCallback);
@@ -1417,6 +1422,8 @@
                 let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
                 if(wIdx!==-1) practiceErrors[wIdx]++;
                 
+                let card = document.getElementById('flashcard');
+                if (!card.classList.contains('flipped')) card.classList.add('flipped');
                 
                 playFailureSound(); speakWordObj(practiceWords[currentIndex], () => { nextCard(); });
             }
@@ -1439,6 +1446,7 @@ function flipCard() {
                 
                 
                 isPracticeLocked = true;
+                let card = document.getElementById('flashcard'); if (!card.classList.contains('flipped')) card.classList.add('flipped');
                 playFailureSound(); speakWordObj(practiceWords[currentIndex], () => { if (currentIndex + 1 >= practiceWords.length) endPracticeGame(); else { currentIndex++; showCard(); } });
                 return;
             }
