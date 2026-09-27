@@ -364,8 +364,17 @@ async function initModel(targetModelId) {
         document.getElementById('loading-overlay').style.display = 'none';
     } catch (e) {
         console.error(e);
-        progressEl.innerText = "模型載入失敗: " + e.message;
-        pBar.classList.replace('progress-bar-animated', 'bg-danger');
+        if (e.message && e.message.includes("Cache.add")) {
+            progressEl.innerText = "網路連線中斷或快取失敗，正在嘗試自動清理快取...";
+            try { await caches.delete('webllm'); } catch(err){}
+            progressEl.innerHTML = "快取已清理，請重新整理網頁！<br><span style='font-size:12px;color:#ffb3b3;'>提示：如果您使用手機行動網路，可能是因為訊號不穩導致下載中斷。</span>";
+        } else {
+            progressEl.innerText = "模型載入失敗: " + (e.message || String(e));
+        }
+        pBar.classList.remove('progress-bar-animated', 'progress-bar-striped', 'bg-primary');
+        pBar.classList.add('bg-danger');
+        pBar.style.width = '100%';
+        pTime.innerHTML = `<button class="btn btn-sm btn-outline-light mt-2" onclick="location.reload()"><i class="fas fa-redo"></i> 重新載入網頁</button>`;
     }
 }
 
@@ -572,6 +581,7 @@ document.getElementById('btn-search').addEventListener('click', async () => {
 4. 請嚴格區分「物品」與「配戴部位」。例如，如果規定是關於「身上」配戴的飾品，就不代表「背包」上不能掛飾品！請勿將不同部位或物品的規定混為一談！
 5. ${toneInstruction}
 6. 請一律使用繁體中文回答。
+7. 你必須在回覆的最後一行，根據使用者的問題與校規的關聯，獨立輸出一行標籤，只能是以下四種之一：【不違反校規】、【跟校規無關】、【違反校規】、【符合校規】。
 
 【校規資料開始】
 ${context}
@@ -608,7 +618,18 @@ ${context}
             aiReplyText = reply.choices[0].message.content;
         }
         
-        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br><div class="p-3 bg-white rounded border mt-2 text-dark">${aiReplyText.replace(/\n/g, '<br>')}</div></div>`;
+        let tagHtml = "";
+        let cleanReplyText = aiReplyText;
+        const tagMatch = cleanReplyText.match(/【(不違反校規|跟校規無關|違反校規|符合校規)】/);
+        if (tagMatch) {
+            let tagColor = 'bg-secondary';
+            if (tagMatch[1] === '不違反校規' || tagMatch[1] === '符合校規') tagColor = 'bg-success';
+            if (tagMatch[1] === '違反校規') tagColor = 'bg-danger';
+            tagHtml = `<span class="badge ${tagColor} mt-2 mb-1 fs-6">${tagMatch[0]}</span><br>`;
+            cleanReplyText = cleanReplyText.replace(tagMatch[0], '').trim();
+        }
+        let responseHtml = `<div class="mb-3"><strong><i class="fas fa-robot text-primary"></i> AI 回覆：</strong><br>${tagHtml}<div class="p-3 bg-white rounded border mt-1 text-dark">${cleanReplyText.replace(/
+/g, '<br>')}</div></div>`;
         
         const highlightedFullDoc = highlightFullText(usedChunks);
         
@@ -710,4 +731,24 @@ window.restoreHistoryTurn = function(index) {
     window.currentHighlightIdx = -1;
     chatBox.scrollIntoView({ behavior: 'smooth' });
     renderHistory();
+};
+
+
+window.shareReply = function(idx, btn) {
+    const item = chatHistory[idx];
+    if (!item) return;
+    const textToShare = `【問題】：${item.query}\n【AI 回覆】：\n${item.reply}\n\n— 來自校規查詢系統`;
+    navigator.clipboard.writeText(textToShare).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> 已複製！';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+        btn.classList.add('text-white');
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.replace('btn-success', 'btn-outline-primary');
+            btn.classList.remove('text-white');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
 };
