@@ -126,21 +126,21 @@ async function loadGitHubTree() {
         
         fileTree = {};
         
-        const prefix = 'School Regulations Search System/校規/';
+        const baseFolder = 'School Regulations Search System/';
         for (let item of data.tree) {
-            if (item.type === 'blob' && item.path.startsWith(prefix) && item.path.toLowerCase().endsWith('.pdf')) {
+            if (item.type === 'blob' && item.path.startsWith(baseFolder) && item.path.toLowerCase().endsWith('.pdf')) {
                 // Ignore backup folders
-                if(item.path.includes('【備份】')) continue;
+                if(item.path.includes('備份') || item.path.includes('版本') || item.path.includes('iƥj')) continue;
                 
-                const relativePath = item.path.substring(prefix.length);
+                const relativePath = item.path.substring(baseFolder.length);
                 const parts = relativePath.split('/');
                 
-                if (parts.length >= 6) {
-                    const type_name = parts[0];
-                    const level = parts[1];
-                    const city = parts[2];
-                    const district = parts[3];
-                    const school = parts[4];
+                if (parts.length >= 7) {
+                    const type_name = parts[1];
+                    const level = parts[2];
+                    const city = parts[3];
+                    const district = parts[4];
+                    const school = parts[5];
                     
                     if (!fileTree[type_name]) fileTree[type_name] = {};
                     if (!fileTree[type_name][level]) fileTree[type_name][level] = {};
