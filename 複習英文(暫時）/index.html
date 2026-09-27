@@ -575,22 +575,6 @@
                 </div>
             </div>
         </div>
-                        <div class="controls" style="margin-top: 5px; margin-bottom: 15px;">
-                            <button onclick="nextCard(true)" style="background-color: #9E9E9E; padding: 5px 15px; font-size: 0.9em; border-radius: 15px;"><span class="material-symbols-outlined">skip_next</span> 跳過這題</button>
-                            <span id="cardProgress" style="font-size: 1.2em; font-weight: bold; color: #555;">1 / 1</span>
-                        </div>
-                    </div>
-                    
-                    <!-- 下方選項 (2x2 Grid) -->
-                    <div id="practiceOptions" class="options-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 800px; margin: 0 auto;"></div>
-                </div>
-
-                
-                
-                
-
-            </div>
-        </div>
 
         <!-- 結算畫面 -->
         <div id="practiceResultScreen" class="hidden">
@@ -1808,6 +1792,27 @@ function flipCard() {
                   playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             }
         }
+
+        function renderSpellHistory() {
+            const container = document.getElementById('spellHistoryContainer');
+            if (!container) return;
+            let hist = JSON.parse(localStorage.getItem('spellHistory') || '[]');
+            if (hist.length === 0) {
+                container.innerHTML = '<div style="color: #aaa; text-align: center;">暫無歷史紀錄</div>';
+                return;
+            }
+            // 反轉順序，讓最新的在最上面
+            hist = hist.reverse();
+            let html = '';
+            hist.forEach(h => {
+                html += `<div style="border-bottom: 1px solid #444; padding: 5px 0;">
+                    <span style="color: #90caf9;">${h.date}</span> - 
+                    得分: <strong style="color: ${h.score >= 60 ? '#4CAF50' : '#f44336'};">${h.score}</strong> 分
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
 // ------------------ 鍵盤快捷鍵 ------------------
         document.addEventListener('keydown', function(e) {
             // 閃卡練習快捷鍵
