@@ -750,7 +750,7 @@
         }
 
         // 播放成功音效 (高音叮叮)
-        function playSuccessSound(callback) {
+        function playSuccessSound() {
             initAudioContext();
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
@@ -763,15 +763,14 @@
             gainNode.connect(audioCtx.destination);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.3);
-            if (callback) setTimeout(callback, 300);
         }
 
-        function playFailureSound(callback) {
+        function playFailureSound() {
             initAudioContext();
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.3);
             gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
             gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
@@ -779,7 +778,6 @@
             gainNode.connect(audioCtx.destination);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.3);
-            if (callback) setTimeout(callback, 300);
         }
 
         function forceStopAudio() {
@@ -860,7 +858,7 @@
         function fallbackTTS(text, lang = 'en-US', onEndedCallback = null) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                speakTimeout = setTimeout(() => {
+                
                     const msg = new SpeechSynthesisUtterance(text);
                     msg.lang = lang;
                     let voices = window.speechSynthesis.getVoices();
@@ -879,7 +877,7 @@
                     window.speechSynthesis.speak(msg);
                     
                     setTimeout(cb, 10000);
-                }, 50);
+                
             } else {
                 if (onEndedCallback) onEndedCallback();
             }
@@ -1323,7 +1321,7 @@
             const container = document.getElementById('practiceOptions');
             container.innerHTML = '';
             
-            let maxOptions = Math.min(4, words.length);
+            let maxOptions = Math.min(8, words.length);
             let options = [correctItem];
             let pool = [...words].filter(w => w.word !== correctItem.word);
             pool.sort(() => 0.5 - Math.random());
@@ -1374,11 +1372,8 @@
                     timeDiv.textContent = `(${elapsed}秒)`;
                     timeDiv.style.color = '#fff';
                 }
-                let card = document.getElementById('flashcard');
-                if (!card.classList.contains('flipped')) card.classList.add('flipped');
-                playSuccessSound(() => {
-                    speakWordObj(practiceWords[currentIndex], () => { nextCard(); });
-                });
+                
+                playSuccessSound(); speakWordObj(practiceWords[currentIndex], () => { nextCard(); });
             } else {
                 btn.classList.add('wrong');
                 if(innerDiv) innerDiv.style.color = '#f44336';
@@ -1390,15 +1385,12 @@
                 let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
                 if(wIdx!==-1) practiceErrors[wIdx]++;
                 
-                let card = document.getElementById('flashcard');
-                if (!card.classList.contains('flipped')) card.classList.add('flipped');
-                playFailureSound(() => {
-                    speakWordObj(practiceWords[currentIndex], () => { nextCard(); });
-                });
+                
+                playFailureSound(); speakWordObj(practiceWords[currentIndex], () => { nextCard(); });
             }
         }
 function flipCard() {
-            document.getElementById('flashcard').classList.add('flipped');
+            
         }
 
         
@@ -1413,14 +1405,9 @@ function flipCard() {
                 let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
                 if(wIdx!==-1) practiceErrors[wIdx]++;
                 
-                document.getElementById('flashcard').classList.add('flipped');
+                
                 isPracticeLocked = true;
-                playFailureSound(() => {
-                    speakWordObj(practiceWords[currentIndex], () => {
-                        if (currentIndex + 1 >= practiceWords.length) endPracticeGame();
-                        else { currentIndex++; showCard(); }
-                    });
-                });
+                playFailureSound(); speakWordObj(practiceWords[currentIndex], () => { if (currentIndex + 1 >= practiceWords.length) endPracticeGame(); else { currentIndex++; showCard(); } });
                 return;
             }
 
@@ -1731,11 +1718,7 @@ function flipCard() {
                     b.readOnly = true; 
                     if(b.tagName!=='INPUT') b.classList.remove('active');
                 });
-                playSuccessSound(() => {
-                    speakWordObj(currentSpellWord, () => {
-                        nextSpellWord(false);
-                    });
-                });
+                playSuccessSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             } else {
                 updateScore(-3);
                 let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); 
@@ -1753,11 +1736,7 @@ function flipCard() {
                         b.style.borderColor = '#4CAF50';
                     }
                 });
-                playFailureSound(() => {
-                    speakWordObj(currentSpellWord, () => {
-                        nextSpellWord(false);
-                    });
-                });
+                playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             }
         }
 // ------------------ 鍵盤快捷鍵 ------------------
