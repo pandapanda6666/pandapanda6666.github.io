@@ -322,13 +322,7 @@
 
     
         /* 練習模式 RWD 佈局 */
-        .practice-main-layout {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            width: 100%;
-        }
+        
         @media (max-width: 768px) {
             .practice-main-layout {
                 flex-direction: column;
@@ -525,25 +519,34 @@
             </div>
             
             <div id="flashcardContainer">
-                <p style="color: #aaa; font-size: 0.9em;">(點擊卡片可翻面，或直接點選兩側正確的中文意思)</p>
+                <p style="color: #aaa; font-size: 0.9em;">(請選出正確的中文意思)</p>
                 <div id="practiceTimer" style="font-size: 4.5em; font-weight: bold; color: #64b5f6; margin-bottom: 10px;">0.00 秒</div>
                 
-                
-                <div class="practice-main-layout">
-                    <!-- 上方圖卡 -->
-                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%;">
-                        <div class="card" id="flashcard" style="margin-bottom: 10px;">
+                <div class="practice-main-layout" style="display: flex; justify-content: space-between; align-items: stretch; gap: 10px; width: 100%;">
+                    <!-- 左側選項 -->
+                    <div id="leftOptions" class="option-column"></div>
+                    
+                    <!-- 中間卡片 -->
+                    <div style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <div class="card" id="flashcard" style="margin: 0 auto; cursor: default;">
                             <div class="card-inner">
                                 <div class="card-front">
                                     <div class="word" id="cardWord"></div>
-                                    <img id="cardImage" src="" alt="word image" style="max-height: 120px; border-radius: 8px; margin-bottom: 10px; display: none;">
-                                    <div class="pos" id="cardPos"></div>
-                                </div>
-                                <div class="card-back">
-                                    <div class="translation" id="cardTranslation"></div>
+                                    <button class="speak-btn" onclick="event.stopPropagation(); speakWordObj(practiceWords[currentIndex])" title="聽發音">🔊</button>
                                 </div>
                             </div>
                         </div>
+                        <div class="controls" style="margin-top: 5px; margin-bottom: 15px;">
+                            <button onclick="nextCard(true)" style="background-color: #9E9E9E; padding: 5px 15px; font-size: 0.9em; border-radius: 15px;">⏭️ 跳過這題</button>
+                            <span id="cardProgress" style="font-size: 1.2em; font-weight: bold; color: #555;">1 / 1</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 右側選項 -->
+                    <div id="rightOptions" class="option-column"></div>
+                </div>
+            </div>
+        </div>
                         <div class="controls" style="margin-top: 5px; margin-bottom: 15px;">
                             <button onclick="nextCard(true)" style="background-color: #9E9E9E; padding: 5px 15px; font-size: 0.9em; border-radius: 15px;">⏭️ 跳過這題</button>
                             <span id="cardProgress" style="font-size: 1.2em; font-weight: bold; color: #555;">1 / 1</span>
@@ -1318,33 +1321,62 @@
 
         
         function generatePracticeOptions(correctItem) {
-            const container = document.getElementById('practiceOptions');
-            container.innerHTML = '';
+            const leftContainer = document.getElementById('leftOptions');
+            const rightContainer = document.getElementById('rightOptions');
+            leftContainer.innerHTML = '';
+            rightContainer.innerHTML = '';
             
-            let maxOptions = Math.min(8, words.length);
+            let maxOptions = Math.min(10, words.length);
+            
             let options = [correctItem];
             let pool = [...words].filter(w => w.word !== correctItem.word);
+            
             pool.sort(() => 0.5 - Math.random());
             
             for (let i = 0; i < maxOptions - 1; i++) {
                 if (pool[i]) options.push(pool[i]);
             }
+            
             options.sort(() => 0.5 - Math.random());
             
-            options.forEach(opt => {
+            let half = Math.ceil(options.length / 2);
+            let leftOpts = options.slice(0, half);
+            let rightOpts = options.slice(half);
+            
+            function createBtn(opt) {
                 let btn = document.createElement('button');
                 btn.className = 'mc-btn';
-                let innerDiv = document.createElement('div');
-                innerDiv.textContent = `${opt.translation} ${opt.pos !== 'other' ? '('+opt.pos+')' : ''}`;
-                btn.appendChild(innerDiv);
-                let timeDiv = document.createElement('div');
-                timeDiv.className = 'btn-time';
-                btn.appendChild(timeDiv);
+                
+                btn.style.position = 'relative';
+                btn.style.padding = '0';
+                btn.style.overflow = 'hidden';
+                btn.style.height = '140px'; // 變大
+                btn.style.display = 'flex';
+                btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
+                
+                let imgHTML = '';
+                if (opt.image) {
+                    imgHTML = `<img src="${opt.image}" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 0; opacity: 0.65;">`; // 加深遮罩
+                }
+                
+                btn.innerHTML = `
+                    ${imgHTML}
+                    <div style="position: relative; z-index: 1; color: white; font-weight: 900; font-size: 1.6em; text-shadow: 2px 2px 6px black, 0 0 12px black; text-align: center;">
+                        ${opt.translation} ${opt.pos !== 'other' ? '('+opt.pos+')' : ''}
+                        <div style="font-size: 0.6em; margin-top: 3px;" class="btn-time"></div>
+                    </div>
+                `;
                 
                 let isCorrect = (opt.word === correctItem.word && opt.translation === correctItem.translation);
-                btn.onclick = () => handlePracticeOptionClick(btn, isCorrect);
-                container.appendChild(btn);
-            });
+                btn.onclick = function() {
+                    handlePracticeOptionClick(btn, isCorrect);
+                };
+                return btn;
+            }
+            
+            leftOpts.forEach(opt => leftContainer.appendChild(createBtn(opt)));
+            rightOpts.forEach(opt => rightContainer.appendChild(createBtn(opt)));
         }
 
 
