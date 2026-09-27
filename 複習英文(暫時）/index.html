@@ -798,60 +798,94 @@
             }
         }
 
-        function speakText(text, onEndedCallback = null) {
+        function speakWithLang(text, lang, onEndedCallback = null) {
             if (!text) {
-                if(onEndedCallback) onEndedCallback();
+                if (onEndedCallback) onEndedCallback();
                 return;
             }
-            
             forceStopAudio();
-            
-            let wordObj = words.find(w => w.word === text);
-            if (wordObj && wordObj.audio) {
-                currentAudio = new Audio(wordObj.audio);
-                if (onEndedCallback) currentAudio.onended = onEndedCallback;
-                
-                currentAudio.play().catch(e => {
-                console.log("fallback", e);
-                    speakTimeout = setTimeout(() => fallbackTTS(text, onEndedCallback), 50);
-                });
-                return; 
-            }
-            
-            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(text)}`;
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(text)}`;
             currentAudio = new Audio(url);
-            if (onEndedCallback) currentAudio.onended = onEndedCallback;
             
+            let called = false;
+            let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
+            
+            currentAudio.onended = cb;
             currentAudio.play().catch(e => {
                 console.log("fallback", e);
-                speakTimeout = setTimeout(() => fallbackTTS(text, onEndedCallback), 50);
+                fallbackTTS(text, lang, cb);
             });
         }
 
-        function fallbackTTS(text, onEndedCallback = null) {
+        function speakWordObj(wordObj, onEndedCallback = null) {
+            if (!wordObj) {
+                if (onEndedCallback) onEndedCallback();
+                return;
+            }
+            let mode = document.getElementById('speakMode') ? document.getElementById('speakMode').value : 'en';
+            if (mode === 'full') {
+                let posMap = { 'n.': '名詞', 'v.': '動詞', 'adj.': '形容詞', 'adv.': '副詞', 'prep.': '介系詞', 'conj.': '連接詞', 'pron.': '代名詞' };
+                let p = posMap[wordObj.pos] ? posMap[wordObj.pos] : (wordObj.pos !== 'other' ? wordObj.pos : '');
+                let textZh = `${wordObj.translation} ${p}`;
+                speakWithLang(textZh, 'zh-TW', () => {
+                    if (wordObj.audio) playAudioUrl(wordObj.audio, onEndedCallback);
+                    else speakWithLang(wordObj.word, 'en', onEndedCallback);
+                });
+            } else {
+                if (wordObj.audio) playAudioUrl(wordObj.audio, onEndedCallback);
+                else speakWithLang(wordObj.word, 'en', onEndedCallback);
+            }
+        }
+        
+        function playAudioUrl(url, onEndedCallback) {
+            forceStopAudio();
+            currentAudio = new Audio(url);
+            let called = false;
+            let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
+            currentAudio.onended = cb;
+            currentAudio.play().catch(e => {
+                if (onEndedCallback) onEndedCallback();
+            });
+        }
+
+        function speakText(text, onEndedCallback = null) {
+            let wordObj = words.find(w => w.word === text);
+            if (wordObj) {
+                speakWordObj(wordObj, onEndedCallback);
+            } else {
+                speakWithLang(text, 'en', onEndedCallback);
+            }
+        }
+
+        function fallbackTTS(text, lang = 'en-US', onEndedCallback = null) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
                 speakTimeout = setTimeout(() => {
                     const msg = new SpeechSynthesisUtterance(text);
-                    msg.lang = 'en-US';
-                    
+                    msg.lang = lang;
                     let voices = window.speechSynthesis.getVoices();
-                    let goodVoice = voices.find(v => v.name.includes('Google US English')) || 
-                                    voices.find(v => v.lang === 'en-US');
-                    if (goodVoice) {
-                        msg.voice = goodVoice;
+                    if (lang === 'zh-TW') {
+                        let goodVoice = voices.find(v => v.lang.includes('zh'));
+                        if (goodVoice) msg.voice = goodVoice;
+                    } else {
+                        let goodVoice = voices.find(v => v.name.includes('Google US English')) || voices.find(v => v.lang === 'en-US');
+                        if (goodVoice) msg.voice = goodVoice;
                     }
                     
-                    if (onEndedCallback) {
-                        msg.onend = onEndedCallback;
-                        msg.onerror = onEndedCallback; 
-                    }
+                    let called = false;
+                    let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
+                    msg.onend = cb;
+                    msg.onerror = cb;
                     window.speechSynthesis.speak(msg);
+                    
+                    setTimeout(cb, 10000);
                 }, 50);
             } else {
-                if (onEndedCallback) setTimeout(onEndedCallback, 100);
+                if (onEndedCallback) onEndedCallback();
             }
         }
+
+        
 
         // 確保載入聲音清單
         if ('speechSynthesis' in window) {
