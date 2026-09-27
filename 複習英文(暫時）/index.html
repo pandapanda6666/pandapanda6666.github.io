@@ -597,7 +597,7 @@
             <h2 style="color: #ffb74d;"><span class="material-symbols-outlined">emoji_events</span> 測驗結束！</h2>
             <p style="font-size: 1.2em;">總共花費時間：<strong id="practiceTotalTime" style="color: #64b5f6;">0</strong> 秒</p>
             
-            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">warning</span> 弱點單字排行榜 (錯誤次數)</h3>
+            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">warning</span> 本次答題紀錄</h3>
             <table class="stats-table" id="practiceStatsTable">
                 <thead>
                     <tr>
@@ -678,19 +678,21 @@
             <h2 style="color: #ffb74d;"><span class="material-symbols-outlined">emoji_events</span> 測驗結束！</h2>
             <p style="font-size: 1.2em;">最終得分：<strong id="spellFinalScore" style="color: #f48fb1; font-size: 1.5em;">0</strong></p>
             
-            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">warning</span> 弱點單字排行榜 (錯誤次數)</h3>
+            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">warning</span> 本次答題紀錄</h3>
             <table class="stats-table" id="spellStatsTable">
                 <thead>
                     <tr>
-                        <th>單字</th>
-                        <th>中文</th>
-                        <th>錯誤/跳過次數</th>
+                        <th>題目</th>
+                        <th>我的答案</th>
+                        <th>正確答案</th><th>結果</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- 動態產生 -->
                 </tbody>
             </table>
+            <h3 style="margin-top: 40px; color: #ffb74d;"><span class="material-symbols-outlined">history</span> 歷史答題紀錄 (無法刪除)</h3>
+            <div id="spellHistoryContainer" style="max-height: 200px; overflow-y: auto; background: #222; padding: 10px; border-radius: 8px; text-align: left; font-size: 0.9em; margin-bottom: 20px;"></div>
             
             <button onclick="initSpellGameView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 10px 30px; margin-top: 30px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 重新測驗</button>
         </div>
@@ -1487,6 +1489,8 @@ function flipCard() {
         let spellErrors = {};
         let spellDeck = [];
         let spellCurrentIndex = 0;
+        let spellCurrentRecord = [];
+        const SPELL_DEDUCT = 3; // 固定扣分
 
         function updateScore(points) {
 
@@ -1536,9 +1540,9 @@ function flipCard() {
             document.getElementById('spellStartScreen').classList.add('hidden');
             document.getElementById('spellGameScreen').classList.remove('hidden');
             
-            spellScore = 0;
+            spellScore = 100;
             updateScore(0);
-            
+            spellCurrentRecord = [];
             spellErrors = {};
             spellDeck.forEach((w, idx) => spellErrors[idx] = 0);
             
@@ -1567,30 +1571,30 @@ function flipCard() {
             
             // 產生排行榜
             
-            let sortedErrors = Object.keys(spellErrors)
-                .map(idx => ({
-                    word: spellDeck[idx].word,
-                    translation: spellDeck[idx].translation,
-                    errors: spellErrors[idx]
-                }))
-                .filter(item => item.errors > 0)
-                .sort((a, b) => b.errors - a.errors);
-
-                
             const tbody = document.querySelector('#spellStatsTable tbody');
             tbody.innerHTML = '';
             
-            if (sortedErrors.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="color: #4CAF50; font-weight: bold;">神乎其技！完美過關！<span class="material-symbols-outlined">celebration</span></td></tr>';
+            if (spellCurrentRecord.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="color: #ccc;">無答題紀錄</td></tr>';
             } else {
-                sortedErrors.forEach(item => {
+                spellCurrentRecord.forEach(item => {
                     tbody.innerHTML += `<tr>
-                        <td><strong>${item.word}</strong></td>
-                        <td>${item.translation}</td>
-                        <td style="color: #f44336; font-weight: bold;">${item.errors}</td>
+                        <td>${item.q}</td>
+                        <td>${item.ans || '(未作答)'}</td>
+                        <td>${item.correct}</td>
+                        <td style="color: ${item.isRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                            ${item.isRight ? '<span class="material-symbols-outlined">check_circle</span>' : '<span class="material-symbols-outlined">cancel</span>'}
+                        </td>
                     </tr>`;
                 });
             }
+            
+            // 儲存歷史紀錄
+            let hist = JSON.parse(localStorage.getItem('spellHistory') || '[]');
+            hist.push({ date: new Date().toLocaleString(), score: spellScore, record: spellCurrentRecord });
+            localStorage.setItem('spellHistory', JSON.stringify(hist));
+            
+            renderSpellHistory();
             
             playVictorySound();
         }
@@ -1773,8 +1777,7 @@ function flipCard() {
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
             if (allCorrect) {
-                updateScore(10);
-                document.getElementById('spellFeedback').textContent = '<span class="material-symbols-outlined">celebration</span> 答對了！加 10 分！';
+                document.getElementById('spellFeedback').innerHTML = '<span class=\"material-symbols-outlined\">celebration</span> 答對了！';
                 document.getElementById('spellFeedback').style.color = '#4CAF50';
                 currentSpellingBoxes.forEach(b => {
                     b.style.borderColor = '#4CAF50';
@@ -1782,6 +1785,7 @@ function flipCard() {
                     b.readOnly = true; 
                     if(b.tagName!=='INPUT') b.classList.remove('active');
                 });
+                spellCurrentRecord.push({ q: currentSpellWord.translation, ans: currentSpellingBoxes.map(b => b.value || b.textContent).join(''), correct: currentSpellWord.word, isRight: true });
                 playSuccessSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             } else {
                 updateScore(-3);
@@ -1800,7 +1804,8 @@ function flipCard() {
                         b.style.borderColor = '#4CAF50';
                     }
                 });
-                playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
+                spellCurrentRecord.push({ q: currentSpellWord.translation, ans: currentSpellingBoxes.map(b => b.value || b.textContent).join(''), correct: currentSpellWord.word, isRight: false });
+                  playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             }
         }
 // ------------------ 鍵盤快捷鍵 ------------------
