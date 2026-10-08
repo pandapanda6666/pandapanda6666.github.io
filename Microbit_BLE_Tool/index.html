@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Micro:bit 藍芽 LED 測試工具 (網頁版)</title>
+    <style>
+        body { font-family: '微軟正黑體', sans-serif; background: #222; color: #eee; text-align: center; padding-top: 50px; }
+        .grid { display: inline-grid; grid-template-columns: repeat(5, 50px); gap: 5px; margin: 20px auto; }
+        .cell { width: 50px; height: 50px; background: #444; border: 2px solid #555; border-radius: 5px; cursor: pointer; transition: 0.1s; }
+        .cell.on { background: #ff3333; border-color: #ffaaaa; box-shadow: 0 0 10px red; }
+        button { padding: 10px 20px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #45a049; }
+        .hint { color: #888; font-size: 14px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Micro:bit 藍芽 LED 控制器</h1>
+    <p id="status" style="font-size: 1.2em; color: #aaa;">尚未連線 (請使用 Chrome 或 Edge 瀏覽器)</p>
+    <button id="connectBtn">連接 Micro:bit</button>
+
+    <br>
+    <div class="grid" id="ledGrid"></div>
+
+    <div class="hint">
+        <p>💡 <b>Micro:bit 準備事項：</b></p>
+        <p>請先到 MakeCode 寫入包含 <code>bluetooth.startLEDService()</code> 的程式，<br>並在專案設定將藍芽連線模式設為「<b>No Pairing Required</b>」。</p>
+    </div>
+
+    <script>
+        const SERVICE_UUID = "e95dd91d-251d-470a-a062-fa1922dfa9a8";
+        const CHAR_UUID = "e95d7b77-251d-470a-a062-fa1922dfa9a8";
+        let ledChar = null;
+        const matrix = Array.from({length: 5}, () => Array(5).fill(false));
+
+        const grid = document.getElementById("ledGrid");
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
+                let div = document.createElement("div");
+                div.className = "cell";
+                div.onclick = () => {
+                    matrix[r][c] = !matrix[r][c];
+                    div.classList.toggle("on", matrix[r][c]);
+                    sendMatrix();
+                };
+                grid.appendChild(div);
+            }
+        }
+
+        document.getElementById("connectBtn").onclick = async () => {
+            try {
+                document.getElementById("status").innerText = "請求藍芽裝置中... 請在彈出視窗選擇你的 Micro:bit";
+                document.getElementById("status").style.color = "#00aaff";
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: "BBC micro:bit" }],
+                    optionalServices: [SERVICE_UUID]
+                });
+                
+                device.addEventListener('gattserverdisconnected', () => {
+                    document.getElementById("status").innerText = "連線已斷開！";
+                    document.getElementById("status").style.color = "red";
+                    document.getElementById("connectBtn").style.display = "inline-block";
+                    ledChar = null;
+                });
+
+                document.getElementById("status").innerText = "連接中...";
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                ledChar = await service.getCharacteristic(CHAR_UUID);
+                
+                document.getElementById("status").innerText = "連線成功！可以點擊下方格子控制燈號了。";
+                document.getElementById("status").style.color = "#4CAF50";
+                document.getElementById("connectBtn").style.display = "none";
+                sendMatrix();
+            } catch (err) {
+                document.getElementById("status").innerText = "連線失敗: " + err;
+                document.getElementById("status").style.color = "red";
+            }
+        };
+
+        async function sendMatrix() {
+            if (!ledChar) return;
+            let data = new Uint8Array(5);
+            for (let r = 0; r < 5; r++) {
+                let val = 0;
+                for (let c = 0; c < 5; c++) {
+                    if (matrix[r][c]) val |= (1 << (4 - c));
+                }
+                data[r] = val;
+            }
+            try {
+                await ledChar.writeValue(data);
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    </script>
+</body>
+</html>
