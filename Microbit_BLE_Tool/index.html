@@ -8,8 +8,7 @@
         .grid { display: inline-grid; grid-template-columns: repeat(5, 50px); gap: 5px; margin: 20px auto; }
         .cell { width: 50px; height: 50px; background: #444; border: 2px solid #555; border-radius: 5px; cursor: pointer; transition: 0.1s; }
         .cell.on { background: #ff3333; border-color: #ffaaaa; box-shadow: 0 0 10px red; }
-        input[type="text"] { padding: 10px; font-size: 16px; border-radius: 5px; border: 1px solid #555; background: #333; color: white; margin-bottom: 10px; text-align: center; }
-        button { padding: 10px 20px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
+        button { padding: 10px 20px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
         button:hover { background: #45a049; }
         .hint { color: #888; font-size: 14px; margin-top: 20px; line-height: 1.6; }
     </style>
@@ -17,10 +16,6 @@
 <body>
     <h1>Micro:bit 藍芽 UART 傳送端</h1>
     <p id="status" style="font-size: 1.2em; color: #aaa;">尚未連線 (請使用 Chrome 或 Edge 瀏覽器)</p>
-    
-    <div>
-        <input type="text" id="pwdInput" placeholder="請輸入連線密碼 (若無免填)">
-    </div>
     <button id="connectBtn">連接 Micro:bit</button>
 
     <br>
@@ -28,15 +23,15 @@
 
     <div class="hint">
         <p>💡 <b>Micro:bit 準備事項：</b></p>
-        <p>1. 擴充：<code>https://github.com/pandapanda6666/pxt-microbit-ble</code></p>
+        <p>1. 請在 MakeCode 匯入擴充：<code>https://github.com/pandapanda6666/pxt-microbit-ble</code></p>
         <p>2. 拉出 <b>啟動藍芽 UART 矩陣接收器</b> 積木到「當啟動時」。</p>
-        <p>3. 若需加密，拉出 <b>設定藍芽通訊密碼</b> 積木並在此網頁填入相同密碼。</p>
-        <p>4. 專案設定將連線模式設為「<b>No Pairing Required</b>」。</p>
+        <p>3. 專案設定將藍芽連線模式設為「<b>No Pairing Required</b>」。</p>
     </div>
 
     <script>
+        // Nordic UART Service (NUS) UUIDs
         const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-        const CHAR_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; 
+        const CHAR_UUID_RX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // 寫入資料到 Micro:bit 的特性
 
         let txChar = null;
         const matrix = Array.from({length: 5}, () => Array(5).fill(false));
@@ -77,46 +72,50 @@
                 const service = await server.getPrimaryService(SERVICE_UUID);
                 txChar = await service.getCharacteristic(CHAR_UUID_RX);
                 
-                document.getElementById("status").innerText = "連線成功！正在解鎖...";
-
-                // 發送密碼進行解鎖 (如果有填)
-                let pwd = document.getElementById("pwdInput").value.trim();
-                let encoder = new TextEncoder();
-                if (pwd !== "") {
-                    let pwdData = encoder.encode("PWD:" + pwd + "\n");
-                    await txChar.writeValue(pwdData);
-                    // 等待 Micro:bit 處理驗證
-                    await new Promise(r => setTimeout(r, 200));
-                }
-
                 document.getElementById("status").innerText = "連線成功！點擊下方格子發送 UART 訊號。";
                 document.getElementById("status").style.color = "#4CAF50";
                 document.getElementById("connectBtn").style.display = "none";
                 sendMatrix();
             } catch (err) {
-                document.getElementById("status").innerText = "連線失敗: " + err;
-                document.getElementById("status").style.color = "red";
+                if (err.name === "NotFoundError") {
+                    document.getElementById("status").innerText = "已取消連線 (未選擇裝置)";
+                    document.getElementById("status").style.color = "#aaa";
+                } else {
+                    document.getElementById("status").innerText = "連線失敗: " + err;
+                    document.getElementById("status").style.color = "red";
+                }
             }
         };
 
         async function sendMatrix() {
             if (!txChar) return;
             
+            // 轉換為長度為 25 的字串 (0與1)
             let str = "";
             for (let r = 0; r < 5; r++) {
                 for (let c = 0; c < 5; c++) {
                     str += matrix[r][c] ? "1" : "0";
                 }
             }
-            str += "\n";
+            str += "\n"; // MakeCode 的 uartReadUntil(newLine) 需要換行符號
 
             let encoder = new TextEncoder();
             let data = encoder.encode(str);
 
             try {
+                // Micro:bit BLE UART 通常有 20 byte 限制，但由於剛好是 26 bytes (25 + \n)
+                // 現代的 Web Bluetooth API 會自動分包 (fragmentation)，
+                // 若舊版有問題可能需拆兩包，但現代瀏覽器大多能一次 writeValue 處理。
                 await txChar.writeValue(data);
             } catch (e) {
                 console.error("發送失敗:", e);
+                // 備用方案: 拆分發送 (如果發生 MTU 限制錯誤)
+                try {
+                    await txChar.writeValue(data.slice(0, 15));
+                    await txChar.writeValue(data.slice(15));
+                } catch(e2) {
+                    console.error("拆包發送也失敗:", e2);
+                }
             }
         }
     </script>
