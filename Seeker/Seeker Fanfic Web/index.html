@@ -103,8 +103,63 @@
         .footer { position: fixed; bottom: 0; width: 100%; background: #333; color: white; text-align: center; padding: 10px 0; font-size: 12px; z-index: 900; }
         .footer a { color: #aaa; text-decoration: none; }
         .footer a:hover { color: #fff; }
-    </style>
+    
+        .notif-inner {
+            max-width: 1800px;
+            width: 95%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 7px 10px;
+            box-sizing: border-box;
+        }
+        .notif-prefix {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.25);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .notif-marquee-wrapper {
+            flex: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        #notificationMsg.paused { animation-play-state: paused !important; }
+        .notif-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .notif-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.35);
+            padding: 4px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+        .notif-btn:hover { background: rgba(255,255,255,0.35); transform: translateY(-1px); }
+        
+</style>
     <script src="../../custom_ui.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <!-- Custom Alert Modal -->
@@ -124,7 +179,27 @@
         }
     </script>
 
-    <div id="notificationBar"><div id="notificationMsg"></div></div>
+    <div id="notificationBar">
+        <div class="notif-inner">
+            <div class="notif-prefix">
+                <i class="fas fa-bullhorn"></i>
+                <span id="notificationLabel">專屬公告</span>
+            </div>
+            <div class="notif-marquee-wrapper">
+                <div id="notificationMsg"></div>
+            </div>
+            <div class="notif-actions">
+                <button id="notif-pause-btn" class="notif-btn" onclick="toggleBroadcastPause()" title="暫停/繼續自動播放">
+                    <i class="fas fa-pause" id="notif-pause-icon"></i>
+                    <span id="notif-pause-text">暫停</span>
+                </button>
+                <button id="notif-share-btn" class="notif-btn" onclick="shareCurrentBroadcast()" title="分享此公告">
+                    <i class="fas fa-share-alt"></i>
+                    <span>分享</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <nav class="navbar">
         <div class="nav-left">
@@ -864,6 +939,48 @@
         };
 
         // Marquee Logic (Global + fanfic Site-Specific)
+        
+        window.isBroadcastPaused = false;
+        window.currentBroadcastIndex = 0;
+        const _subUrlParams = new URLSearchParams(window.location.search);
+        const _subParamNotice = _subUrlParams.get('notice') || _subUrlParams.get('broadcast') || _subUrlParams.get('announcement');
+        if (_subParamNotice !== null) { window.isBroadcastPaused = true; }
+
+        window.toggleBroadcastPause = function() {
+            window.isBroadcastPaused = !window.isBroadcastPaused;
+            updateSubBroadcastPauseUI();
+        };
+
+        window.updateSubBroadcastPauseUI = function() {
+            const icon = document.getElementById('notif-pause-icon');
+            const text = document.getElementById('notif-pause-text');
+            const msgEl = document.getElementById('notificationMsg');
+            if (!icon || !text) return;
+            if (window.isBroadcastPaused) {
+                icon.className = 'fas fa-play';
+                text.innerText = '播放';
+                if (msgEl) msgEl.classList.add('paused');
+            } else {
+                icon.className = 'fas fa-pause';
+                text.innerText = '暫停';
+                if (msgEl) msgEl.classList.remove('paused');
+            }
+        };
+
+        window.shareCurrentBroadcast = function() {
+            const list = window.broadcasts || [];
+            if (!list || list.length === 0) { alert('目前無公告可分享！'); return; }
+            const targetIdx = (window.currentBroadcastIndex >= 0 && window.currentBroadcastIndex < list.length) ? window.currentBroadcastIndex + 1 : 1;
+            const url = new URL(window.location.href);
+            url.searchParams.set('notice', targetIdx);
+            const shareUrl = url.toString();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('已複製公告分享連結！(第 ' + targetIdx + ' 則公告)\n' + shareUrl);
+                }).catch(() => { prompt('請複製此公告連結：', shareUrl); });
+            } else { prompt('請複製此公告連結：', shareUrl); }
+        };
+    
         window.siteKey = 'fanfic';
         async function loadMarqueeData() {
             let gList = [];
@@ -886,33 +1003,70 @@
         }
         loadMarqueeData();
 
-        setInterval(() => {
-            const now = Date.now();
+        function updateSubsiteBroadcastDisplay() {
             const bar = document.getElementById('notificationBar');
             const msgText = document.getElementById('notificationMsg');
-            let activeMsg = null;
+            const labelText = document.getElementById('notificationLabel');
+            if (!bar || !msgText) return;
+
             const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts_fanfic') || '[]');
-            for (let b of list) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramNotice = urlParams.get('notice') || urlParams.get('broadcast') || urlParams.get('announcement');
+
+            if (paramNotice !== null && list && list.length > 0) {
+                let idx = parseInt(paramNotice, 10) - 1;
+                if (isNaN(idx) || idx < 0) idx = 0;
+                if (idx >= list.length) idx = list.length - 1;
+                window.currentBroadcastIndex = idx;
+                window.isBroadcastPaused = true;
+                const targetB = list[idx];
+                if (targetB) {
+                    msgText.innerText = targetB.message || targetB.title || '';
+                    if (labelText) labelText.innerText = `專屬公告 #${idx + 1}`;
+                    bar.style.display = 'block';
+                    updateSubBroadcastPauseUI();
+                    return;
+                }
+            }
+
+            const now = Date.now();
+            let activeItems = [];
+            for (let i = 0; i < list.length; i++) {
+                const b = list[i];
                 const st = new Date(b.startTime).getTime();
                 if (b.mode === 1) {
-                    const intervalMs = b.intervalMin * 60000;
-                    const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    const intervalMs = (b.intervalMin || 10) * 60000;
+                    const end = st + (((b.repeatCount || 1) - 1) * intervalMs) + 60000;
                     if (now >= st && now <= end) {
                         const elapsed = now - st;
-                        if (elapsed % intervalMs < 60000) activeMsg = b.message;
+                        if (elapsed % intervalMs < 60000) activeItems.push({ item: b, index: i });
                     }
                 } else if (b.mode === 2) {
                     const et = new Date(b.endTime).getTime();
-                    if (now >= st && now <= et) activeMsg = b.message;
+                    if (now >= st && now <= et) activeItems.push({ item: b, index: i });
+                } else {
+                    activeItems.push({ item: b, index: i });
                 }
             }
-            if (activeMsg) {
-                msgText.innerText = activeMsg;
+
+            window.currentActiveBroadcasts = activeItems;
+
+            if (activeItems.length > 0) {
+                if (!window.isBroadcastPaused) {
+                    const rotIdx = Math.floor(now / 8000) % activeItems.length;
+                    const curr = activeItems[rotIdx];
+                    window.currentBroadcastIndex = curr.index;
+                    msgText.innerText = curr.item.message || '';
+                    if (labelText) labelText.innerText = `專屬公告 #${curr.index + 1}`;
+                }
                 bar.style.display = 'block';
             } else {
                 bar.style.display = 'none';
             }
-        }, 1000);
+            updateSubBroadcastPauseUI();
+        }
+
+        setInterval(updateSubsiteBroadcastDisplay, 1000);
 
         
         function filterWorks() {

@@ -7,6 +7,7 @@
     <title>PandaPanda 的 AI 日常</title>
     <link rel="icon" href="https://lh3.googleusercontent.com/a/ACg8ocK0Sd79qNlGdQiGKEoKfuQxqHiVCHuyH4Sw5qFkJfpy4K_J23I=s288-c-no">
     
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
@@ -46,22 +47,91 @@
             top: 0;
             left: 0;
             width: 100%;
-            background-color: #d9534f;
+            background: linear-gradient(135deg, #d9534f, #c9302c);
             color: white;
-            padding: 10px 0;
-            font-size: 1.1em;
+            font-size: 1rem;
             font-weight: bold;
             z-index: 20001;
             display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .notif-inner {
+            max-width: 1800px;
+            width: 95%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 7px 10px;
+            box-sizing: border-box;
+        }
+
+        .notif-prefix {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0,0,0,0.25);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .notif-marquee-wrapper {
+            flex: 1;
             overflow: hidden;
             white-space: nowrap;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            position: relative;
+            display: flex;
+            align-items: center;
         }
 
         #notificationMsg {
             display: inline-block;
             padding-left: 100%;
             animation: marquee 15s linear infinite;
+            will-change: transform;
+        }
+
+        #notificationMsg.paused {
+            animation-play-state: paused !important;
+        }
+
+        #notificationMsg.static-display {
+            animation: none !important;
+            padding-left: 0 !important;
+            white-space: normal;
+        }
+
+        .notif-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .notif-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.35);
+            padding: 4px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .notif-btn:hover {
+            background: rgba(255,255,255,0.35);
+            transform: translateY(-1px);
         }
 
         @keyframes marquee {
@@ -642,7 +712,27 @@
 </head>
 <body>
     
-    <div id="notificationBar"><div id="notificationMsg"></div></div>
+    <div id="notificationBar">
+        <div class="notif-inner">
+            <div class="notif-prefix">
+                <i class="fas fa-bullhorn"></i>
+                <span id="notificationLabel">系統公告</span>
+            </div>
+            <div class="notif-marquee-wrapper">
+                <div id="notificationMsg"></div>
+            </div>
+            <div class="notif-actions">
+                <button id="notif-pause-btn" class="notif-btn" onclick="toggleBroadcastPause()" title="暫停/繼續自動播放">
+                    <i class="fas fa-pause" id="notif-pause-icon"></i>
+                    <span id="notif-pause-text">暫停</span>
+                </button>
+                <button id="notif-share-btn" class="notif-btn" onclick="shareCurrentBroadcast()" title="分享此公告">
+                    <i class="fas fa-share-alt"></i>
+                    <span>分享</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <div id="system-broadcast"></div>
 
@@ -774,43 +864,142 @@
             console.log(message, stopStyles, messageStyles);
         })();
 
+        // --- 跑馬燈與公告系統 (含暫停自動播放、分享連結、URL參數定位) ---
+        window.isBroadcastPaused = false;
+        window.currentBroadcastIndex = 0;
+        window.currentActiveBroadcasts = [];
+
+        // 檢查網址是否有公告分享參數 (?notice= 或 ?broadcast= 或 ?announcement=)
+        const _urlParams = new URLSearchParams(window.location.search);
+        const _paramNotice = _urlParams.get('notice') || _urlParams.get('broadcast') || _urlParams.get('announcement');
+        if (_paramNotice !== null) {
+            window.isBroadcastPaused = true; // 只要帶參數的公告要會自動暫停
+        }
+
+        window.toggleBroadcastPause = function() {
+            window.isBroadcastPaused = !window.isBroadcastPaused;
+            updateBroadcastPauseUI();
+        };
+
+        window.updateBroadcastPauseUI = function() {
+            const icon = document.getElementById('notif-pause-icon');
+            const text = document.getElementById('notif-pause-text');
+            const msgEl = document.getElementById('notificationMsg');
+            if (!icon || !text) return;
+            if (window.isBroadcastPaused) {
+                icon.className = 'fas fa-play';
+                text.innerText = '播放';
+                if (msgEl) msgEl.classList.add('paused');
+            } else {
+                icon.className = 'fas fa-pause';
+                text.innerText = '暫停';
+                if (msgEl) msgEl.classList.remove('paused');
+            }
+        };
+
+        window.shareCurrentBroadcast = function() {
+            const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            if (!list || list.length === 0) {
+                alert('目前無公告可分享！');
+                return;
+            }
+            const targetIdx = (window.currentBroadcastIndex >= 0 && window.currentBroadcastIndex < list.length) 
+                ? window.currentBroadcastIndex + 1 
+                : 1;
+            const url = new URL(window.location.href);
+            url.searchParams.set('notice', targetIdx);
+            const shareUrl = url.toString();
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('已複製公告分享連結！(第 ' + targetIdx + ' 則公告)\n' + shareUrl);
+                }).catch(() => {
+                    prompt('請複製此公告連結：', shareUrl);
+                });
+            } else {
+                prompt('請複製此公告連結：', shareUrl);
+            }
+        };
+
         fetch('https://pandapanda6666.github.io/login-hub/server_broadcast.json')
             .then(res => res.json())
             .then(list => {
                 window.broadcasts = list;
                 localStorage.setItem('broadcasts', JSON.stringify(list));
+                updateBroadcastDisplay();
             })
             .catch(() => {
                 window.broadcasts = JSON.parse(localStorage.getItem('broadcasts') || '[]');
+                updateBroadcastDisplay();
             });
 
-        setInterval(() => {
-            const now = Date.now();
+        function updateBroadcastDisplay() {
             const bar = document.getElementById('notificationBar');
             const msgText = document.getElementById('notificationMsg');
-            let activeMsg = null;
+            const labelText = document.getElementById('notificationLabel');
+            if (!bar || !msgText) return;
+
             const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
-            for (let b of list) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramNotice = urlParams.get('notice') || urlParams.get('broadcast') || urlParams.get('announcement');
+
+            // 優先處理帶參數的公告定位 (例如 notice=1 代表第一則)
+            if (paramNotice !== null && list && list.length > 0) {
+                let idx = parseInt(paramNotice, 10) - 1;
+                if (isNaN(idx) || idx < 0) idx = 0;
+                if (idx >= list.length) idx = list.length - 1;
+                window.currentBroadcastIndex = idx;
+                window.isBroadcastPaused = true; // 自動暫停
+
+                const targetB = list[idx];
+                if (targetB) {
+                    msgText.innerText = targetB.message || targetB.title || '';
+                    if (labelText) labelText.innerText = `公告 #${idx + 1}`;
+                    bar.style.display = 'block';
+                    updateBroadcastPauseUI();
+                    return;
+                }
+            }
+
+            // 依時間判定正常廣播播放
+            const now = Date.now();
+            let activeItems = [];
+            for (let i = 0; i < list.length; i++) {
+                const b = list[i];
                 const st = new Date(b.startTime).getTime();
                 if (b.mode === 1) {
-                    const intervalMs = b.intervalMin * 60000;
-                    const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    const intervalMs = (b.intervalMin || 10) * 60000;
+                    const end = st + (((b.repeatCount || 1) - 1) * intervalMs) + 60000;
                     if (now >= st && now <= end) {
                         const elapsed = now - st;
-                        if (elapsed % intervalMs < 60000) activeMsg = b.message;
+                        if (elapsed % intervalMs < 60000) activeItems.push({ item: b, index: i });
                     }
                 } else if (b.mode === 2) {
                     const et = new Date(b.endTime).getTime();
-                    if (now >= st && now <= et) activeMsg = b.message;
+                    if (now >= st && now <= et) activeItems.push({ item: b, index: i });
+                } else {
+                    activeItems.push({ item: b, index: i });
                 }
             }
-            if (activeMsg) {
-                msgText.innerText = activeMsg;
+
+            window.currentActiveBroadcasts = activeItems;
+
+            if (activeItems.length > 0) {
+                if (!window.isBroadcastPaused) {
+                    const rotIdx = Math.floor(now / 8000) % activeItems.length;
+                    const curr = activeItems[rotIdx];
+                    window.currentBroadcastIndex = curr.index;
+                    msgText.innerText = curr.item.message || '';
+                    if (labelText) labelText.innerText = `公告 #${curr.index + 1}`;
+                }
                 bar.style.display = 'block';
             } else {
                 bar.style.display = 'none';
             }
-        }, 1000);
+            updateBroadcastPauseUI();
+        }
+
+        setInterval(updateBroadcastDisplay, 1000);
 
         let blockRedirectTimer = null;
 
@@ -1047,9 +1236,11 @@
                         showBroadcast(msg);
                     });
 
-                    window.socket.on('broadcastSchedule', (list) => {
+                    window.socket.on('broadcastSchedule', (data) => {
+                        const list = Array.isArray(data) ? data : (data && data.broadcasts ? data.broadcasts : []);
                         window.broadcasts = list;
                         localStorage.setItem('broadcasts', JSON.stringify(list));
+                        if (typeof updateBroadcastDisplay === 'function') updateBroadcastDisplay();
                     });
 
                     window.socket.on('connect_error', (err) => {
@@ -1579,8 +1770,7 @@ function moveHero(dir) {
     }, 500); // match CSS transition duration
     
     // reset timer
-    clearInterval(bannerInterval);
-    if(bannersData.length > 1) bannerInterval = setInterval(() => moveHero(1), 5000);
+    startHeroAutoPlay();
 }
 
 function updateBannerPos() {

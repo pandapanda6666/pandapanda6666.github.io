@@ -158,6 +158,7 @@
                                 請先從左側選取排程。
                             </div>
                         </div>
+                        <button onclick="handleBroadcastAction('share')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded shadow transition"><i class="fas fa-share-alt"></i> 產生並複製公告分享連結</button>
                         <button onclick="handleBroadcastAction('edit')" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded shadow transition"><i class="fas fa-pencil-alt"></i> 編輯選取排程</button>
                         <button onclick="handleBroadcastAction('delete')" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded shadow transition"><i class="fas fa-trash"></i> 刪除選取排程</button>
                     </div>
@@ -730,6 +731,24 @@ window.fetchData = function() {
             if(!val) return alert("請先從清單中選取一筆排程！");
             if(act === 'edit') editBroadcast(val);
             else if(act === 'delete') delBroadcast(val);
+            else if(act === 'share') shareBroadcastLink(val);
+        };
+
+        window.shareBroadcastLink = function(id) {
+            const list = globalData.broadcasts || [];
+            const idx = list.findIndex(x => x.id === id);
+            if(idx === -1) return alert('找不到該筆排程！');
+            const noticeNum = idx + 1;
+            const shareUrl = 'https://pandapanda6666.github.io/?notice=' + noticeNum;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('已複製公告分享連結！(第 ' + noticeNum + ' 則公告)\n' + shareUrl);
+                }).catch(() => {
+                    prompt('請複製此公告連結：', shareUrl);
+                });
+            } else {
+                prompt('請複製此公告連結：', shareUrl);
+            }
         };
 
         window.addBroadcast = function(mode) {
