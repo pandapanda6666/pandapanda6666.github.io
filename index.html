@@ -670,7 +670,7 @@
 
 /* Banner Carousel */
 .hero-carousel {
-    width: 100%; max-width: 1800px; width: 95%; margin: 80px auto 20px auto; 
+    width: 100%; max-width: 1800px; width: 95%; margin: 10px auto 20px auto; 
     position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     display: none; /* hidden by default if no banners */
 }
@@ -706,14 +706,10 @@
 .hero-prev { left: 10px; }
 .hero-next { right: 10px; }
 
-/* 頂部橫幅控制按鈕 (暫停/播放、分享) */
+/* 頂部橫幅控制按鈕 (暫停/播放、分享) - 放置於橫幅外側上方 */
 .hero-controls-group {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 25;
-    display: flex;
-    gap: 8px;
+    display: inline-flex;
+    gap: 10px;
     align-items: center;
 }
 .hero-control-btn {
@@ -836,13 +832,9 @@
             </nav>
 
 </header>
-<div id="hero-section" class="hero-carousel">
-    <!-- Progress bar (深綠色漸層進度條) -->
-    <div id="hero-progress-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: rgba(0,0,0,0.3); z-index: 20;">
-        <div id="hero-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0b3d18, #166534, #15803d); box-shadow: 0 0 6px rgba(22, 101, 52, 0.8); transition: width 0.05s linear;"></div>
-    </div>
-    
-    <!-- Hero Controls: 分享按鈕與暫停/繼續按鈕 -->
+
+<!-- Hero Section 外側控制列 (分享與暫停/繼續按鈕，避免遮擋橫幅圖片) -->
+<div id="hero-outer-controls" style="max-width: 1800px; width: 95%; margin: 15px auto 8px auto; display: none; justify-content: flex-end; align-items: center;">
     <div class="hero-controls-group">
         <button id="hero-share-btn" class="hero-control-btn" onclick="shareCurrentHeroBanner()" title="分享此橫幅">
             <i class="fas fa-share-alt"></i>
@@ -852,6 +844,13 @@
             <i class="fas fa-pause" id="hero-play-pause-icon"></i>
             <span id="hero-play-pause-text">暫停</span>
         </button>
+    </div>
+</div>
+
+<div id="hero-section" class="hero-carousel">
+    <!-- Progress bar (深綠色漸層進度條) -->
+    <div id="hero-progress-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: rgba(0,0,0,0.3); z-index: 20;">
+        <div id="hero-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0b3d18, #166534, #15803d); box-shadow: 0 0 6px rgba(22, 101, 52, 0.8); transition: width 0.05s linear;"></div>
     </div>
 
     <button class="hero-btn hero-prev" onclick="moveHero(-1)"><i class="fas fa-chevron-left"></i></button>
@@ -1731,12 +1730,15 @@ async function loadSecureImage(imgEl, url) {
 
 function renderHeroData() {
     const section = document.getElementById('hero-section');
+    const outerControls = document.getElementById('hero-outer-controls');
     const slides = document.getElementById('hero-slides');
     if(bannersData.length === 0) {
-        section.style.display = 'none';
+        if(section) section.style.display = 'none';
+        if(outerControls) outerControls.style.display = 'none';
         return;
     }
-    section.style.display = 'block';
+    if(section) section.style.display = 'block';
+    if(outerControls) outerControls.style.display = 'flex';
 
     slides.innerHTML = bannersData.map((b, i) => `
         <div class="hero-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
