@@ -261,7 +261,7 @@
             cameras.forEach(dev => {
                 const item = document.createElement('div');
                 item.className = "flex items-center justify-between bg-slate-800 border border-slate-600 rounded-lg p-2 text-sm hover:border-amber-500 transition-colors";
-                const lockIcon = dev.hasPassword ? '🔒' : '🔓';
+                const lockIcon = dev.hasPassword ? '<i class="fas fa-lock"></i>' : '<i class="fas fa-unlock"></i>';
                 item.innerHTML = `
                     <div class="flex flex-col overflow-hidden mr-2">
                         <div class="flex items-center gap-1">
@@ -311,7 +311,7 @@
                 if (res.ok) {
                     let rawText = (await res.text()).trim();
                     
-                    // 💡 解密防護機制：若為被反轉的 Base64 亂碼字串，自動進行解碼轉換
+                    // <i class="fas fa-lightbulb"></i> 解密防護機制：若為被反轉的 Base64 亂碼字串，自動進行解碼轉換
                     if (!rawText.startsWith('http')) {
                         try {
                             serverUrl = atob(rawText.split('').reverse().join(''));
@@ -815,7 +815,7 @@
                 btn.innerText = '■ 停止多裝置同步錄製';
                 btn.classList.replace('bg-red-600', 'bg-rose-700');
                 btn.classList.replace('hover:bg-red-500', 'hover:bg-rose-600');
-                showErrorToast(`📂 已發送批次錄影指令給 ${checkboxes.length} 台設備。`, 3000);
+                showErrorToast(`<i class="fas fa-folder-open"></i> 已發送批次錄影指令給 ${checkboxes.length} 台設備。`, 3000);
             } else {
                 checkboxes.forEach(cb => {
                     const senderId = cb.dataset.sender;
@@ -856,7 +856,7 @@
                     recBtn.className = "bg-rose-600 hover:bg-rose-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md animate-pulse";
                 }
                 if (statusEl) {
-                    statusEl.innerText = '🔴 遠端錄製中';
+                    statusEl.innerText = '<i class="fas fa-circle text-danger"></i> 遠端錄製中';
                     statusEl.className = 'text-xs ml-2 text-red-400 font-bold animate-pulse';
                 }
                 if (cb && !activeMultiRecordFolderId) {
@@ -864,7 +864,7 @@
                 }
             } else {
                 if (recBtn) {
-                    recBtn.innerText = '🎥 單獨錄影';
+                    recBtn.innerText = '<i class="fas fa-video"></i> 單獨錄影';
                     recBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md";
                 }
                 if (statusEl) {
@@ -894,7 +894,7 @@
                 const latency = Date.now() - data.time;
                 const pingEl = document.getElementById(`ping-${data.senderCamera}`);
                 if (pingEl) {
-                    pingEl.innerText = `⚡ ${latency} ms`;
+                    pingEl.innerText = `<i class="fas fa-bolt"></i> ${latency} ms`;
                     pingEl.classList.remove('hidden', 'text-slate-400', 'text-green-400', 'text-yellow-400', 'text-red-400');
                     if (latency < 100) pingEl.classList.add('text-green-400');
                     else if (latency < 300) pingEl.classList.add('text-yellow-400');
@@ -1104,7 +1104,7 @@
                         renderRecordedVideos();
                         syncCloudData();
                     }
-                    showErrorToast(`🎥 來自 ${finalVideo.name} 的影片已成功接收並存檔。`, 4000);
+                    showErrorToast(`<i class="fas fa-video"></i> 來自 ${finalVideo.name} 的影片已成功接收並存檔。`, 4000);
                     delete window.incomingVideos[data.id];
                 }
                 return;
@@ -1218,7 +1218,7 @@
             else if (data.action === 'viewer_count_update') {
                 const viewerCountEl = document.getElementById('viewer-count-' + senderId);
                 if (viewerCountEl) {
-                    viewerCountEl.innerText = `👁️ ${data.count} 人觀看`;
+                    viewerCountEl.innerText = `<i class="fas fa-eye"></i> ${data.count} 人觀看`;
                 }
             }
             else if (data.action === 'camera_record_state_change') {
@@ -1251,8 +1251,8 @@
                 <span class="h-2 w-2 bg-indigo-500 rounded-full animate-pulse"></span>
                 <span>頻道: ${pairCode} <span id="name-${senderId}" class="text-indigo-300 ml-1 font-bold"></span></span>
                 <span id="status-${senderId}" class="text-xs ml-2 text-yellow-400">連線中...</span>
-                <span id="viewer-count-${senderId}" class="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded ml-1 font-sans">👁️ 0 人觀看</span>
-                <span id="ping-${senderId}" class="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded ml-1 font-sans font-mono hidden">⚡ --- ms</span>
+                <span id="viewer-count-${senderId}" class="text-[10px] bg-slate-700 text-slate-200 px-1.5 py-0.5 rounded ml-1 font-sans"><i class="fas fa-eye"></i> 0 人觀看</span>
+                <span id="ping-${senderId}" class="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded ml-1 font-sans font-mono hidden"><i class="fas fa-bolt"></i> --- ms</span>
             `;
 
             const audioEl = document.createElement('audio');
@@ -1441,7 +1441,7 @@
             const remoteRecordBtn = document.createElement('button');
             remoteRecordBtn.id = `btn-rec-${senderId}`;
             remoteRecordBtn.className = "bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-3 rounded-lg text-xs transition shadow-md";
-            remoteRecordBtn.innerText = "🎥 單獨錄影";
+            remoteRecordBtn.innerText = "<i class="fas fa-video"></i> 單獨錄影";
             remoteRecordBtn.onclick = () => {
                 const feed = remoteFeeds[senderId];
                 if (!feed.isRecording) {
@@ -1734,7 +1734,7 @@
             isCameraRecording = false;
         }
 
-        // --- 🎥 雙軌儲存區：資料夾分流渲染系統 ---
+        // --- <i class="fas fa-video"></i> 雙軌儲存區：資料夾分流渲染系統 ---
         function renderRecordedVideos() {
             const multiGrid = document.getElementById('multiRecordFoldersGrid');
             const singleGrid = document.getElementById('singleRecordDevicesGrid');
@@ -1816,11 +1816,11 @@
                 <div class="bg-slate-800 border border-slate-600 p-3 rounded-lg flex flex-col justify-between hover:border-slate-400 transition-all">
                     <div class="flex items-start justify-between gap-2 mb-3">
                         <div class="flex items-center gap-2 overflow-hidden w-full">
-                            <span class="p-1.5 bg-slate-700 text-slate-300 rounded shrink-0">🎥</span>
+                            <span class="p-1.5 bg-slate-700 text-slate-300 rounded shrink-0"><i class="fas fa-video"></i></span>
                             <div class="min-w-0 flex-grow pr-2">
                                 <div class="flex items-center gap-2">
                                     <h4 class="font-bold text-white text-sm truncate" title="${videoName}">${videoName}</h4>
-                                    <button onclick="renameVideo('${video.id}')" class="text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded transition text-xs shrink-0" title="更改名稱">✏️</button>
+                                    <button onclick="renameVideo('${video.id}')" class="text-slate-400 hover:text-white bg-slate-700 hover:bg-slate-600 px-1.5 py-0.5 rounded transition text-xs shrink-0" title="更改名稱"><i class="fas fa-pencil-alt"></i></button>
                                 </div>
                                 <p class="text-[10px] text-slate-400">${dateText}</p>
                             </div>
@@ -1987,7 +1987,7 @@
                 document.getElementById('modalCameraSelect').closest('.flex-col').classList.add('hidden');
                 document.getElementById('modalPublicCb').closest('.border-t').classList.remove('hidden');
                 
-                document.querySelector('#settingsModal h3').innerText = `⚙️ 遠端設備設定 [${targetPin}]`;
+                document.querySelector('#settingsModal h3').innerText = `<i class="fas fa-cog"></i> 遠端設備設定 [${targetPin}]`;
                 
                 // 嘗試讀取快取或現有名稱
                 let cached = remoteSettingsCache[targetPin];
@@ -2033,7 +2033,7 @@
                 document.getElementById('modalDeviceName').closest('.flex-col').classList.remove('hidden');
                 document.getElementById('modalCameraSelect').closest('.flex-col').classList.remove('hidden');
                 document.getElementById('modalPublicCb').closest('.border-t').classList.remove('hidden');
-                document.querySelector('#settingsModal h3').innerText = `⚙️ 設備進階設定`;
+                document.querySelector('#settingsModal h3').innerText = `<i class="fas fa-cog"></i> 設備進階設定`;
                 
                 const savedPass = localStorage.getItem('panda_device_password') || '';
                 let requireSettingsPassword = localStorage.getItem('panda_require_settings_password') === 'true';

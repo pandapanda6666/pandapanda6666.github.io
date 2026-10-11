@@ -204,21 +204,19 @@
         }
 
         #system-monitor {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
             background-color: rgba(0, 0, 0, 0.85);
             color: #00ff00;
-            padding: 8px 12px;
+            padding: 8px 14px;
             border-radius: 6px;
             font-family: 'Courier New', monospace;
             font-size: 12px;
-            z-index: 20000;
-            pointer-events: none;
             border: 1px solid #444;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             line-height: 1.5;
             white-space: pre-wrap;
+            display: inline-block;
+            text-align: left;
+            margin: 0 auto;
         }
 
         header {
@@ -648,7 +646,6 @@
 
     <div id="system-broadcast"></div>
 
-    <div id="system-monitor"></div>
 
     <div id="loading-overlay" class="loading-overlay">
         <div class="loading-spinner"></div>
@@ -689,7 +686,7 @@
                 <a href="#" class="nav-link" data-page="tools">自製</a>
                 <a href="./Seeker/index.html" class="nav-link">探險者系列</a>
                 <a href="https://pandapanda6666.github.io/shop/" target="_blank" rel="noopener noreferrer">胖達商城</a>
-                <a href="https://m.youtube.com/@pandapanda%E7%9A%84AI%E6%97%A5%E5%B8%B8" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
+                <a href="https://www.youtube.com/@pandapandaAI" target="_blank" rel="noopener noreferrer">YouTube頻道</a>
                 <a href="https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW" target="_blank" rel="noopener noreferrer">Facebook</a>
                 
                 <div id="auth-container">
@@ -699,9 +696,19 @@
 
 </header>
 <div id="hero-section" class="hero-carousel">
-    <button class="hero-btn hero-prev" onclick="moveHero(-1)">&#10094;</button>
+    <!-- Progress bar -->
+    <div id="hero-progress-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.3); z-index: 10;">
+        <div id="hero-progress-bar" style="width: 0%; height: 100%; background: #4ade80; transition: width 0.1s linear;"></div>
+    </div>
+    
+    <!-- Play/Pause Button -->
+    <button id="hero-play-pause-btn" class="hero-btn" onclick="toggleHeroPlayPause()" style="position: absolute; top: 10px; right: 10px; z-index: 10; font-size: 1.2rem; padding: 5px 10px; border-radius: 5px; background: rgba(0,0,0,0.5);">
+        <i class="fas fa-pause"></i>
+    </button>
+
+    <button class="hero-btn hero-prev" onclick="moveHero(-1)"><i class="fas fa-chevron-left"></i></button>
     <div class="hero-slides" id="hero-slides"></div>
-    <button class="hero-btn hero-next" onclick="moveHero(1)">&#10095;</button>
+    <button class="hero-btn hero-next" onclick="moveHero(1)"><i class="fas fa-chevron-right"></i></button>
 </div>
 
 <!-- Banner Admin Modal -->
@@ -748,7 +755,15 @@
             </section>
         </main>
 
-        
+        <footer>
+            <div id="visitorStats" style="background:rgba(255,255,255,0.95);padding:8px 16px;border-radius:20px;font-size:12px;color:#166534;font-weight:bold;box-shadow:0 2px 6px rgba(0,0,0,0.08);border:1px solid #bbf7d0;display:inline-flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;margin-bottom:15px;max-width:95%;text-align:center;"></div>
+            <div style="margin-bottom: 15px;">
+                <div id="system-monitor"></div>
+            </div>
+            <div class="copyright-text" style="color: #666; font-size: 0.9em; margin-top: 10px;">
+                版權所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPanda的AI日常</a> All Rights Reserved.
+            </div>
+        </footer>
     </div>
     
     <script>
@@ -816,10 +831,10 @@
                     localStorage.removeItem('lockoutUntil');
                     localStorage.removeItem('ultimateWarningCount');
                     if (blockRedirectTimer) clearTimeout(blockRedirectTimer);
-                    alert('✅ 已啟用無敵模式！本瀏覽器已永久解除封鎖並獲得免疫。');
+                    alert('<i class="fas fa-check-circle text-success"></i> 已啟用無敵模式！本瀏覽器已永久解除封鎖並獲得免疫。');
                     window.location.href = window.location.pathname; 
                 } else if (pwd !== null) {
-                    alert('❌ 密碼錯誤！存取依舊被拒絕。');
+                    alert('<i class="fas fa-times"></i> 密碼錯誤！存取依舊被拒絕。');
                 }
             }
         }, true);
@@ -880,8 +895,8 @@
                 <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
 
                 <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
-                    <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;">⚙️ 帳號設定</div>
-                    <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;">🚪 登出</div>
+                    <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;"><i class="fas fa-cog"></i> 帳號設定</div>
+                    <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;"><i class="fas fa-door-open"></i> 登出</div>
                 </div>
             </div>
         </div>
@@ -999,7 +1014,7 @@
 
                     window.socket.on('systemStats', (stats) => {
                         const el = document.getElementById('visitorStats');
-                        if (el) el.innerHTML = `<span style="white-space:nowrap;">🟢 目前在線人數: ${stats.onlineUsers}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.5;" class="stat-divider"></span> <span style="white-space:nowrap;">👁️ 總曾進入人數: ${stats.totalUniqueIps}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.5;" class="stat-divider"></span> <span style="white-space:nowrap;">📈 總網站進入次數: ${stats.totalVisits}</span>`;
+                        if (el) el.innerHTML = `<span style="white-space:nowrap;"><i class="fas fa-circle text-success"></i> 目前在線人數: ${stats.onlineUsers}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.5;" class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-eye"></i> 總曾進入人數: ${stats.totalUniqueIps}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.5;" class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-chart-line"></i> 總網站進入次數: ${stats.totalVisits}</span>`;
                     });
 
                     
@@ -1490,13 +1505,51 @@ function renderHeroData() {
     currentBannerIdx = 0;
     updateBannerPos();
     
-    clearInterval(bannerInterval);
-    if(bannersData.length > 1) {
-        bannerInterval = setInterval(() => moveHero(1), 5000);
-    }
+    startHeroAutoPlay();
 }
 
 let isAnimating = false;
+let isHeroPaused = false;
+let bannerProgressTime = 0;
+const bannerIntervalMs = 5000;
+const progressUpdateMs = 50;
+
+function startHeroAutoPlay() {
+    clearInterval(bannerInterval);
+    if(bannersData.length <= 1) return;
+    
+    bannerProgressTime = 0;
+    document.getElementById('hero-progress-bar').style.width = '0%';
+    document.getElementById('hero-play-pause-btn').style.display = 'block';
+    
+    bannerInterval = setInterval(() => {
+        if(isHeroPaused) return;
+        bannerProgressTime += progressUpdateMs;
+        let percentage = (bannerProgressTime / bannerIntervalMs) * 100;
+        document.getElementById('hero-progress-bar').style.width = percentage + '%';
+        
+        if(bannerProgressTime >= bannerIntervalMs) {
+            moveHero(1);
+        }
+    }, progressUpdateMs);
+}
+
+function resetHeroAutoPlay() {
+    if(bannersData.length <= 1) return;
+    bannerProgressTime = 0;
+    document.getElementById('hero-progress-bar').style.width = '0%';
+}
+
+window.toggleHeroPlayPause = function() {
+    isHeroPaused = !isHeroPaused;
+    const btn = document.getElementById('hero-play-pause-btn');
+    if(isHeroPaused) {
+        btn.innerHTML = '<i class="fas fa-play"></i>';
+    } else {
+        btn.innerHTML = '<i class="fas fa-pause"></i>';
+    }
+};
+
 function moveHero(dir) {
     if(isAnimating || bannersData.length <= 1) return;
     isAnimating = true;
@@ -1687,6 +1740,6 @@ setInterval(() => {
 </script>
     <iframe src="./warning.html" style="display: none;" title="安全警告"></iframe>
 
-<div id="visitorStats" style="position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:12px;font-size:12px;color:#166534;font-weight:bold;z-index:9999;box-shadow:0 4px 6px rgba(0,0,0,0.1);border:1px solid #bbf7d0; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:5px; width:max-content; max-width:95%; text-align:center;"></div>
+
 </body>
 </html>

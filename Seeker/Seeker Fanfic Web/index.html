@@ -464,9 +464,23 @@
                 }
             });
 
-            socket.on('broadcastSchedule', (list) => {
-                window.broadcasts = list;
-                localStorage.setItem('broadcasts', JSON.stringify(list));
+            socket.on('broadcastSchedule', (data) => {
+                if (Array.isArray(data)) {
+                    window.broadcasts = data;
+                } else if (data && typeof data === 'object') {
+                    const gList = data.broadcasts || [];
+                    const sList = (data.siteBroadcasts && data.siteBroadcasts['fanfic']) ? data.siteBroadcasts['fanfic'] : [];
+                    window.broadcasts = [...gList, ...sList];
+                }
+                localStorage.setItem('broadcasts_fanfic', JSON.stringify(window.broadcasts || []));
+            });
+            socket.on('siteBroadcastUpdate', (data) => {
+                if (data && data.site === 'fanfic') {
+                    const sList = data.broadcasts || [];
+                    const gList = (window.broadcasts || []).filter(b => !b.site || b.site === 'all');
+                    window.broadcasts = [...gList, ...sList];
+                    localStorage.setItem('broadcasts_fanfic', JSON.stringify(window.broadcasts));
+                }
             });
         }
 
@@ -509,8 +523,8 @@
                     </div>
                     <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
                     <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
-                        <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">⚙️ 帳號設定</div>
-                        <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">🚪 登出</div>
+                        <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'"><i class="fas fa-cog"></i> 帳號設定</div>
+                        <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'"><i class="fas fa-door-open"></i> 登出</div>
                     </div>
                 </div>
             `;
@@ -849,25 +863,55 @@
             showEntry(currentViewEntryId || entryId, currentViewWorkId);
         };
 
-        // Marquee Logic
-        fetch('../../login-hub/server_broadcast.json').then(res=>res.json()).then(list => { 
-            window.broadcasts = list; 
-            localStorage.setItem('broadcasts', JSON.stringify(list)); 
-        }).catch(() => { 
-            window.broadcasts = JSON.parse(localStorage.getItem('broadcasts')||'[]'); 
-        });
+        // Marquee Logic (Global + fanfic Site-Specific)
+        window.siteKey = 'fanfic';
+        async function loadMarqueeData() {
+            let gList = [];
+            let sList = [];
+            try {
+                const r1 = await fetch('../../login-hub/server_broadcast.json');
+                if (r1.ok) gList = await r1.json();
+            } catch(e) {}
+            try {
+                const r2 = await fetch('server_broadcast.json');
+                if (r2.ok) sList = await r2.json();
+            } catch(e) {}
+            const merged = [...gList, ...sList];
+            if (merged.length > 0) {
+                window.broadcasts = merged;
+                localStorage.setItem('broadcasts_fanfic', JSON.stringify(merged));
+            } else {
+                window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_fanfic') || '[]');
+            }
+        }
+        loadMarqueeData();
 
         setInterval(() => {
-            const now = Date.now(); const bar = document.getElementById('notificationBar'); const msgText = document.getElementById('notificationMsg');
-            let activeMsg = null; const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts') || '[]');
+            const now = Date.now();
+            const bar = document.getElementById('notificationBar');
+            const msgText = document.getElementById('notificationMsg');
+            let activeMsg = null;
+            const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts_fanfic') || '[]');
             for (let b of list) {
                 const st = new Date(b.startTime).getTime();
                 if (b.mode === 1) {
-                    const intervalMs = b.intervalMin * 60000; const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
-                    if (now >= st && now <= end) { const elapsed = now - st; if (elapsed % intervalMs < 60000) activeMsg = b.message; }
-                } else if (b.mode === 2) { const et = new Date(b.endTime).getTime(); if (now >= st && now <= et) activeMsg = b.message; }
+                    const intervalMs = b.intervalMin * 60000;
+                    const end = st + ((b.repeatCount - 1) * intervalMs) + 60000;
+                    if (now >= st && now <= end) {
+                        const elapsed = now - st;
+                        if (elapsed % intervalMs < 60000) activeMsg = b.message;
+                    }
+                } else if (b.mode === 2) {
+                    const et = new Date(b.endTime).getTime();
+                    if (now >= st && now <= et) activeMsg = b.message;
+                }
             }
-            if (activeMsg) { msgText.innerText = activeMsg; bar.style.display = 'block'; } else { bar.style.display = 'none'; }
+            if (activeMsg) {
+                msgText.innerText = activeMsg;
+                bar.style.display = 'block';
+            } else {
+                bar.style.display = 'none';
+            }
         }, 1000);
 
         

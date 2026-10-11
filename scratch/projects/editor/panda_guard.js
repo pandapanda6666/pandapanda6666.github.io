@@ -107,7 +107,7 @@
                     appId: window.appId, 
                     data: { projectBase64: base64data } 
                 }, (response) => {
-                    alert("✅ 雲端儲存成功！");
+                    alert("<i class="fas fa-check-circle text-success"></i> 雲端儲存成功！");
                     window.isCloudSaving = false;
                 });
             };
@@ -287,11 +287,11 @@
                                 }, (res) => {
                                     if (res && res.status === 'ok') {
                                         console.log("PandaGuard: Cloud Save ACK received.");
-                                        saveNowBtn.innerHTML = '<span style="color:lightgreen;font-weight:bold;"> ✅ 已儲存</span>';
+                                        saveNowBtn.innerHTML = '<span style="color:lightgreen;font-weight:bold;"> <i class="fas fa-check-circle text-success"></i> 已儲存</span>';
                                         setTimeout(() => saveNowBtn.innerHTML = originalHTML, 2000);
                                     } else {
                                         console.error("PandaGuard Cloud Save Error:", res);
-                                        saveNowBtn.innerHTML = '<span style="color:#ffcccc;font-weight:bold;"> ❌ 儲存失敗</span>';
+                                        saveNowBtn.innerHTML = '<span style="color:#ffcccc;font-weight:bold;"> <i class="fas fa-times"></i> 儲存失敗</span>';
                                         setTimeout(() => saveNowBtn.innerHTML = originalHTML, 3000);
                                     }
                                 });
@@ -299,7 +299,7 @@
                             reader.readAsDataURL(finalBlob);
                         }).catch(e => {
                             console.error("PandaGuard Manual Save Error:", e);
-                            saveNowBtn.innerHTML = '<span style="color:#ffcccc;font-weight:bold;">❌ 儲存失敗</span>';
+                            saveNowBtn.innerHTML = '<span style="color:#ffcccc;font-weight:bold;"><i class="fas fa-times"></i> 儲存失敗</span>';
                             setTimeout(() => saveNowBtn.innerHTML = originalHTML, 3000);
                         });
                     } else {

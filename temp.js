@@ -548,7 +548,7 @@
                         <input type="number" step="0.001" class="w-full bg-slate-900 border border-slate-600 rounded px-1 text-xs text-slate-300" value="${sub.end.toFixed(3)}" data-idx="${i}" data-field="end">
                     </div>
                     <textarea class="flex-1 bg-slate-900 border border-slate-600 rounded px-2 py-1 text-sm text-white resize-none" rows="2" data-idx="${i}">${sub.text}</textarea>
-                    <button class="text-red-400 hover:text-red-300 p-1" data-idx="${i}" title="刪除">✖</button>
+                    <button class="text-red-400 hover:text-red-300 p-1" data-idx="${i}" title="刪除"><i class="fas fa-times"></i></button>
                 `;
                 aiSubtitlesList.appendChild(el);
             });

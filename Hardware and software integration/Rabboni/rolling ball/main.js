@@ -351,7 +351,7 @@ function processSensorData(acc) {
 function calibrate() {
     calibPitch = filteredPitch;
     calibRoll = filteredRoll;
-    calibrateBtn.textContent = "已校準 ✓";
+    calibrateBtn.textContent = "已校準 <i class="fas fa-check"></i>";
     calibrateBtn.style.background = "linear-gradient(135deg, #10b981, #059669)";
     setTimeout(() => {
         calibrateBtn.textContent = "校準 (平放後點擊)";
