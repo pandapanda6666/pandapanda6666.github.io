@@ -454,7 +454,7 @@
                 }
             }
 
-            socket = io(sUrl, { transports: ['websocket'] });
+            socket = io(sUrl, { transports: ['polling', 'websocket'], extraHeaders: { 'ngrok-skip-browser-warning': '69420' } });
 
             socket.on('connect', () => {
                 socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
@@ -467,10 +467,16 @@
                 if (data.success) {
                     currentUser = data;
                     localStorage.setItem('panda_session_token', data.token);
+                    localStorage.setItem('sso_auth', 'true');
+                    if (data.username) localStorage.setItem('sso_user', data.username);
+                    if (data.nickname) localStorage.setItem('sso_nickname', data.nickname);
+                    if (data.avatar) localStorage.setItem('sso_avatar', data.avatar);
                     renderUserUI();
                 } else {
-                    localStorage.removeItem('panda_session_token');
-                    renderGuestUI();
+                    if (localStorage.getItem('sso_auth') !== 'true') {
+                        localStorage.removeItem('panda_session_token');
+                        renderGuestUI();
+                    }
                 }
             });
 
@@ -483,6 +489,7 @@
                     window.broadcasts = [...gList, ...sList];
                 }
                 localStorage.setItem('broadcasts_seekerpedia', JSON.stringify(window.broadcasts || []));
+                if (typeof updateSubsiteBroadcastDisplay === 'function') updateSubsiteBroadcastDisplay();
             });
             socket.on('siteBroadcastUpdate', (data) => {
                 if (data && data.site === 'seekerpedia') {
@@ -490,6 +497,7 @@
                     const gList = (window.broadcasts || []).filter(b => !b.site || b.site === 'all');
                     window.broadcasts = [...gList, ...sList];
                     localStorage.setItem('broadcasts_seekerpedia', JSON.stringify(window.broadcasts));
+                    if (typeof updateSubsiteBroadcastDisplay === 'function') updateSubsiteBroadcastDisplay();
                 }
             });
         }
@@ -502,6 +510,14 @@
                 if(params.get('token')) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
+            } else if (localStorage.getItem('sso_auth') === 'true') {
+                currentUser = {
+                    success: true,
+                    username: localStorage.getItem('sso_user') || '使用者',
+                    nickname: localStorage.getItem('sso_nickname') || localStorage.getItem('sso_user') || '使用者',
+                    avatar: localStorage.getItem('sso_avatar') || ''
+                };
+                renderUserUI();
             } else {
                 renderGuestUI();
             }
@@ -513,9 +529,10 @@
             
             const res = currentUser;
             const avatarUrl = res.avatar;
-            const nick = res.nickname || res.username;
-            if (!avatarUrl) return console.error('頭像資料遺失');
-            const avatarHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            const nick = res.nickname || res.username || '使用者';
+            const avatarHTML = (avatarUrl && avatarUrl.trim()) 
+                ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
+                : `<svg viewBox="0 0 24 24" style="fill: #2c5e32; width: 24px; height: 24px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
             
             r.innerHTML = `
                 <select id="langSelect">
@@ -933,7 +950,7 @@
                 window.broadcasts = merged;
                 localStorage.setItem('broadcasts_seekerpedia', JSON.stringify(merged));
             } else {
-                window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_seekerpedia') || '[]');
+                window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_seekerpedia') || localStorage.getItem('broadcasts') || '[]');
             }
         }
         loadMarqueeData();

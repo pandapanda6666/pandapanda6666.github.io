@@ -2029,15 +2029,20 @@ avatar: window.currentRegAvatarBase64 || ''
 
 
         window.returnToApp = function() {
-            if (!currentUserData || !redirectUrl) return;
+            const token = (currentUserData && currentUserData.token) || localStorage.getItem('panda_session_token');
+            const targetUrl = redirectUrl || '../index.html';
             if (socket && socket.connected) socket.emit('clientAction', { action: '操作', details: `點擊 進入系統 返回本站` });
-            let base = redirectUrl;
+            let base = targetUrl;
             if (!base.startsWith('http://') && !base.startsWith('https://') && !base.startsWith('file://') && !base.startsWith('/')) {
-                base = `https://${redirectUrl}`;
+                base = `https://${targetUrl}`;
             }
-            const target = new URL(base, window.location.href);
-            if (currentUserData.token) target.searchParams.set('token', currentUserData.token);
-            window.location.href = target.href;
+            try {
+                const target = new URL(base, window.location.href);
+                if (token) target.searchParams.set('token', token);
+                window.location.href = target.href;
+            } catch(e) {
+                window.location.href = base;
+            }
         };
 
 

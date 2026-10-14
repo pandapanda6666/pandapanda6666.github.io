@@ -807,20 +807,57 @@
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 
-/* Banner Admin Modal */
-#heroAdminModal {
+/* Banner Admin Modal & Share Modal */
+#heroAdminModal, #heroShareModal {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 10000; display: none;
-    align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6); z-index: 10000; display: none;
+    align-items: center; justify-content: center; backdrop-filter: blur(3px);
 }
 #heroAdminContent {
-    background: white; padding: 30px; border-radius: 10px; width: 600px; max-width: 90%;
-    max-height: 80%; overflow-y: auto;
+    background: white; padding: 25px; border-radius: 12px; width: 780px; max-width: 95%;
+    max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 .hero-admin-row {
-    display: flex; gap: 10px; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 5px;
+    display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; background: #ffffff;
+    padding: 14px; border-radius: 8px; border: 1px solid #dcdcdc; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    transition: all 0.2s ease;
 }
-.hero-admin-row input { flex: 1; padding: 5px; }
+.hero-admin-row.disabled-row {
+    background: #f3f4f6; border-color: #e5e7eb; opacity: 0.7;
+}
+.hero-admin-row input[type="text"], .hero-admin-row select, .hero-admin-row input[type="datetime-local"] {
+    padding: 6px 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 13px; font-family: inherit;
+}
+.quick-time-btn {
+    background: #e8f5e9; color: #1b4332; border: 1px solid #c8e6c9; border-radius: 4px;
+    padding: 3px 7px; font-size: 11px; cursor: pointer; font-weight: bold; transition: all 0.15s;
+}
+.quick-time-btn:hover {
+    background: #c8e6c9;
+}
+
+/* Hero Share Modal */
+#heroShareContent {
+    background: #ffffff; padding: 24px 28px; border-radius: 14px; width: 440px; max-width: 92%;
+    box-shadow: 0 12px 36px rgba(0,0,0,0.35); text-align: center; border-top: 5px solid #2c5e32;
+}
+.share-opt-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+    padding: 12px 16px; margin: 10px 0; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 0.95rem; font-weight: bold; transition: all 0.2s ease;
+}
+.share-opt-pause {
+    background: #e8f5e9; color: #1b4332; border: 1px solid #a5d6a7;
+}
+.share-opt-pause:hover {
+    background: #c8e6c9; transform: translateY(-1px);
+}
+.share-opt-play {
+    background: #2c5e32; color: #ffffff;
+}
+.share-opt-play:hover {
+    background: #1e4620; transform: translateY(-1px);
+}
 </style>
     <script src="custom_ui.js"></script>
 </head>
@@ -925,15 +962,38 @@
     <button class="hero-btn hero-next" onclick="moveHero(1)"><i class="fas fa-chevron-right"></i></button>
 </div>
 
+<!-- Hero Share Modal (自訂分享暫停或播放) -->
+<div id="heroShareModal">
+    <div id="heroShareContent">
+        <h3 style="margin-top:0; color:#1b4332; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-share-alt"></i> 分享橫幅公告
+        </h3>
+        <p id="heroShareTargetInfo" style="font-size:14px; color:#555; margin:8px 0 14px 0; font-weight:bold;">固定編號：#1</p>
+        <div style="background:#f8faf8; padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid #e2ece3; text-align:left;">
+            <p style="font-size:12px; color:#666; margin:0 0 10px 0;">請選擇要分享的播放模式：</p>
+            <button class="share-opt-btn share-opt-pause" onclick="copyHeroShareLink(false)">
+                <i class="fas fa-pause-circle" style="font-size:1.1rem;"></i> 複製「暫停播放」連結 (停留在此張)
+            </button>
+            <button class="share-opt-btn share-opt-play" onclick="copyHeroShareLink(true)">
+                <i class="fas fa-play-circle" style="font-size:1.1rem;"></i> 複製「自動播放」連結 (繼續輪播)
+            </button>
+        </div>
+        <button onclick="closeHeroShareModal()" style="background:#888; color:white; border:none; padding:7px 22px; border-radius:6px; cursor:pointer; font-weight:bold;">關閉</button>
+    </div>
+</div>
+
 <!-- Banner Admin Modal -->
 <div id="heroAdminModal">
     <div id="heroAdminContent">
-        <h2 style="margin-top:0; color:#2c5e32; border-bottom:2px solid #e8f5e9; padding-bottom:10px;">管理首頁橫幅公告</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e8f5e9; padding-bottom:10px; margin-bottom:12px;">
+            <h2 style="margin:0; color:#2c5e32; font-size:1.35rem;"><i class="fas fa-images"></i> 管理首頁橫幅公告</h2>
+            <span style="font-size:12px; color:#666;">支援自訂排序、固定編號、排程開關</span>
+        </div>
         <div id="heroList"></div>
-        <button onclick="addHeroRow()" style="margin-top:10px; background:#4a6c42; color:white; padding:8px 12px; border:none; border-radius:5px; cursor:pointer;">+ 新增橫幅</button>
-        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-            <button onclick="closeHeroAdmin()" style="background:#888; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">取消</button>
-            <button onclick="saveHeroData()" style="background:#2c5e32; color:white; padding:8px 15px; border:none; border-radius:5px; cursor:pointer;">儲存設定</button>
+        <button onclick="addHeroRow()" style="margin-top:10px; background:#4a6c42; color:white; padding:8px 14px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;"><i class="fas fa-plus"></i> 新增橫幅</button>
+        <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:12px;">
+            <button onclick="closeHeroAdmin()" style="background:#888; color:white; padding:8px 18px; border:none; border-radius:6px; cursor:pointer;">取消</button>
+            <button onclick="saveHeroData()" style="background:#2c5e32; color:white; padding:8px 18px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;"><i class="fas fa-save"></i> 儲存設定</button>
         </div>
     </div>
 </div>
@@ -1748,7 +1808,41 @@
     
 let currentBannerIdx = 0;
 let bannersData = [];
+let activeBanners = [];
 let bannerInterval;
+let isAnimating = false;
+let isHeroPaused = false;
+let bannerProgressTime = 0;
+const bannerIntervalMs = 5000;
+const progressUpdateMs = 50;
+
+function toDatetimeLocalStr(dateInput) {
+    if (!dateInput) return '';
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function isBannerActive(b, now = Date.now()) {
+    if (b.enabled === false) return false;
+    const mode = b.scheduleMode || 'none';
+    if (mode === 'none') return true;
+    const st = b.startTime ? new Date(b.startTime).getTime() : NaN;
+    const et = b.endTime ? new Date(b.endTime).getTime() : NaN;
+    if (mode === 'range') {
+        if (!isNaN(st) && now < st) return false;
+        if (!isNaN(et) && now > et) return false;
+        return true;
+    } else if (mode === 'openAfter') {
+        if (!isNaN(st) && now < st) return false;
+        return true;
+    } else if (mode === 'closeAfter') {
+        if (!isNaN(et) && now > et) return false;
+        return true;
+    }
+    return true;
+}
 
 async function loadHeroData() {
     if(!window.authInfo || !window.authInfo.server) return;
@@ -1756,12 +1850,21 @@ async function loadHeroData() {
         const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
         if(res.ok) {
             const data = await res.json();
-            bannersData = data.banners || [];
-            renderHeroData();
+            bannersData = (data.banners || []).map((b, idx) => ({
+                id: b.id || String(idx + 1),
+                enabled: b.enabled !== false,
+                scheduleMode: b.scheduleMode || 'none',
+                startTime: b.startTime || '',
+                endTime: b.endTime || '',
+                linkUrl: b.linkUrl || '',
+                title: b.title || '',
+                imageUrl: b.imageUrl || '',
+                imageBase64: b.imageBase64 || null
+            }));
+            renderHeroData(true);
         }
     } catch(e) { console.error('Failed to load banners', e); }
 }
-
 
 function getFullImageUrl(url) {
     if(!url) return '';
@@ -1772,8 +1875,8 @@ function getFullImageUrl(url) {
     return url;
 }
 
-
 async function loadSecureImage(imgEl, url) {
+    if(!imgEl || !url) return;
     if(url.startsWith('data:')) {
         imgEl.src = url;
         return;
@@ -1785,70 +1888,95 @@ async function loadSecureImage(imgEl, url) {
                 const blob = await res.blob();
                 imgEl.src = URL.createObjectURL(blob);
             } else {
-                imgEl.src = url; // fallback
+                imgEl.src = url;
             }
         } catch(e) {
-            imgEl.src = url; // fallback
+            imgEl.src = url;
         }
     } else {
         imgEl.src = url;
     }
 }
 
-function renderHeroData() {
+function renderHeroData(initial = false) {
     const section = document.getElementById('hero-section');
     const outerControls = document.getElementById('hero-outer-controls');
     const slides = document.getElementById('hero-slides');
-    if(bannersData.length === 0) {
+    
+    // 過濾目前排程與啟用生效的橫幅
+    activeBanners = bannersData.filter(b => isBannerActive(b));
+    
+    if (activeBanners.length === 0) {
         if(section) section.style.display = 'none';
         if(outerControls) outerControls.style.display = 'none';
+        clearInterval(bannerInterval);
         return;
     }
+    
     if(section) section.style.display = 'block';
     if(outerControls) outerControls.style.display = 'flex';
 
-    slides.innerHTML = bannersData.map((b, i) => `
+    slides.innerHTML = activeBanners.map((b, i) => `
         <div class="hero-slide" onclick="if('${b.linkUrl}') window.open('${b.linkUrl}', '_blank')">
-            <img id="hero-img-${i}" src="" alt="${b.title}">
+            <img id="hero-img-${i}" src="" alt="${b.title || ''}">
             ${b.title ? `<div class="hero-title">${b.title}</div>` : ''}
         </div>
     `).join('');
     
-    // Load images securely
-    bannersData.forEach((b, i) => {
+    activeBanners.forEach((b, i) => {
         loadSecureImage(document.getElementById(`hero-img-${i}`), getFullImageUrl(b.imageUrl || b.imageBase64));
     });
 
-    
-    // 檢查網址是否有橫幅參數 (?banner=1)
-    const bannerUrlParams = new URLSearchParams(window.location.search);
-    const paramBanner = bannerUrlParams.get('banner');
-    if (paramBanner !== null) {
-        let bIdx = parseInt(paramBanner, 10) - 1;
-        if (!isNaN(bIdx) && bIdx >= 0 && bIdx < bannersData.length) {
-            currentBannerIdx = bIdx;
+    if (initial) {
+        // 檢查網址是否有橫幅參數 (?banner=ID 或序號) 及播放設定 (?autoplay=1 或 ?autoplay=0)
+        const bannerUrlParams = new URLSearchParams(window.location.search);
+        const paramBanner = bannerUrlParams.get('banner');
+        const paramAutoplay = bannerUrlParams.get('autoplay') || bannerUrlParams.get('play');
+        
+        if (paramBanner !== null) {
+            // 優先比對固定編號 ID
+            let foundIdx = activeBanners.findIndex(b => String(b.id) === String(paramBanner));
+            if (foundIdx === -1) {
+                // 相容序號比對 (1-based)
+                let numIdx = parseInt(paramBanner, 10) - 1;
+                if (!isNaN(numIdx) && numIdx >= 0 && numIdx < activeBanners.length) {
+                    foundIdx = numIdx;
+                }
+            }
+            currentBannerIdx = (foundIdx !== -1) ? foundIdx : 0;
+            
+            // 自訂暫停或自動播放
+            if (paramAutoplay === '1' || paramAutoplay === 'true') {
+                isHeroPaused = false; // 自訂繼續播放
+            } else {
+                isHeroPaused = true;  // 預設或指定 autoplay=0 時暫停
+            }
         } else {
             currentBannerIdx = 0;
         }
-        isHeroPaused = true; // 帶參數時自動暫停
     } else {
-        currentBannerIdx = 0;
+        if (currentBannerIdx >= activeBanners.length) currentBannerIdx = 0;
     }
+
     updateBannerPos();
     updateHeroPlayPauseUI();
-    
     startHeroAutoPlay();
 }
 
-let isAnimating = false;
-let isHeroPaused = false;
-let bannerProgressTime = 0;
-const bannerIntervalMs = 5000;
-const progressUpdateMs = 50;
+// 排程定期巡檢：檢查是否有橫幅時間到期或開始
+setInterval(() => {
+    if (!bannersData || bannersData.length === 0) return;
+    const currentActiveIds = activeBanners.map(b => b.id).join(',');
+    const newActive = bannersData.filter(b => isBannerActive(b));
+    const newActiveIds = newActive.map(b => b.id).join(',');
+    if (currentActiveIds !== newActiveIds) {
+        renderHeroData(false);
+    }
+}, 3000);
 
 function startHeroAutoPlay() {
     clearInterval(bannerInterval);
-    if(bannersData.length <= 1) return;
+    if(activeBanners.length <= 1) return;
     
     bannerProgressTime = 0;
     const pBar = document.getElementById('hero-progress-bar');
@@ -1871,7 +1999,7 @@ function startHeroAutoPlay() {
 }
 
 function resetHeroAutoPlay() {
-    if(bannersData.length <= 1) return;
+    if(activeBanners.length <= 1) return;
     bannerProgressTime = 0;
     const pBar = document.getElementById('hero-progress-bar');
     if (pBar) pBar.style.width = '0%';
@@ -1896,46 +2024,68 @@ window.toggleHeroPlayPause = function() {
     updateHeroPlayPauseUI();
 };
 
+// 分享自訂暫停或播放模態框控制
 window.shareCurrentHeroBanner = function() {
-    if (!bannersData || bannersData.length === 0) {
+    if (!activeBanners || activeBanners.length === 0) {
         alert('目前無橫幅可分享！');
         return;
     }
-    const targetIdx = currentBannerIdx + 1;
+    const curr = activeBanners[currentBannerIdx];
+    if (!curr) return;
+    
+    window._pendingShareBannerId = curr.id || String(currentBannerIdx + 1);
+    const infoEl = document.getElementById('heroShareTargetInfo');
+    if (infoEl) {
+        infoEl.innerText = `固定編號：#${window._pendingShareBannerId}${curr.title ? ` (${curr.title})` : ''}`;
+    }
+    
+    const modal = document.getElementById('heroShareModal');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.closeHeroShareModal = function() {
+    const modal = document.getElementById('heroShareModal');
+    if (modal) modal.style.display = 'none';
+};
+
+window.copyHeroShareLink = function(autoPlay) {
+    const bannerId = window._pendingShareBannerId || '1';
     const url = new URL(window.location.href);
-    url.searchParams.set('banner', targetIdx);
+    url.searchParams.set('banner', bannerId);
+    url.searchParams.set('autoplay', autoPlay ? '1' : '0');
     const shareUrl = url.toString();
 
+    const modeText = autoPlay ? '【自動播放】' : '【暫停播放】';
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(shareUrl).then(() => {
-            alert('已複製橫幅分享連結！(第 ' + targetIdx + ' 個橫幅)\n' + shareUrl);
+            alert(`已複製橫幅分享連結！${modeText}\n固定編號 #${bannerId}\n${shareUrl}`);
+            closeHeroShareModal();
         }).catch(() => {
-            prompt('請複製此橫幅連結：', shareUrl);
+            prompt(`請複製此橫幅連結 ${modeText}：`, shareUrl);
+            closeHeroShareModal();
         });
     } else {
-        prompt('請複製此橫幅連結：', shareUrl);
+        prompt(`請複製此橫幅連結 ${modeText}：`, shareUrl);
+        closeHeroShareModal();
     }
 };
 
 function moveHero(dir) {
-    if(isAnimating || bannersData.length <= 1) return;
+    if(isAnimating || activeBanners.length <= 1) return;
     isAnimating = true;
     
     const slides = document.querySelectorAll('.hero-slide');
     const currentSlide = slides[currentBannerIdx];
     
-    currentBannerIdx = (currentBannerIdx + dir + bannersData.length) % bannersData.length;
+    currentBannerIdx = (currentBannerIdx + dir + activeBanners.length) % activeBanners.length;
     const nextSlide = slides[currentBannerIdx];
     
-    // Prepare next slide position without transition
     nextSlide.classList.add('no-transition');
     nextSlide.style.left = dir === 1 ? '100%' : '-100%';
     nextSlide.style.display = 'block';
     
-    // Force reflow
     void nextSlide.offsetWidth;
     
-    // Add transition back and slide
     nextSlide.classList.remove('no-transition');
     currentSlide.style.left = dir === 1 ? '-100%' : '100%';
     nextSlide.style.left = '0';
@@ -1943,9 +2093,8 @@ function moveHero(dir) {
     setTimeout(() => {
         currentSlide.style.display = 'none';
         isAnimating = false;
-    }, 500); // match CSS transition duration
+    }, 500);
     
-    // reset timer
     startHeroAutoPlay();
 }
 
@@ -1959,63 +2108,225 @@ function updateBannerPos() {
         } else {
             s.style.display = 'none';
         }
-        // Force reflow
         void s.offsetWidth;
         s.style.transition = 'left 0.5s ease-in-out';
     });
 }
 
-// Admin Functions
+// Admin Functions: 固定編號、開關、排程、自訂排序
 function openHeroAdmin() {
     document.getElementById('heroAdminModal').style.display = 'flex';
     renderBannerAdminList();
 }
 function closeHeroAdmin() { document.getElementById('heroAdminModal').style.display = 'none'; }
+
+function moveHeroRow(btn, dir) {
+    const row = btn.closest('.hero-admin-row');
+    if (!row) return;
+    if (dir === -1 && row.previousElementSibling) {
+        row.parentNode.insertBefore(row, row.previousElementSibling);
+    } else if (dir === 1 && row.nextElementSibling) {
+        row.parentNode.insertBefore(row.nextElementSibling, row);
+    }
+}
+
+function toggleHeroRowEnabled(cb) {
+    const row = cb.closest('.hero-admin-row');
+    const labelSpan = cb.parentElement.querySelector('span');
+    if (cb.checked) {
+        row.classList.remove('disabled-row');
+        if (labelSpan) labelSpan.innerHTML = '🟢 啟用中';
+    } else {
+        row.classList.add('disabled-row');
+        if (labelSpan) labelSpan.innerHTML = '⚪ 已隱藏';
+    }
+}
+
+function toggleSchedInputs(sel) {
+    const row = sel.closest('.hero-admin-row');
+    const mode = sel.value;
+    const startBox = row.querySelector('.sched-start-box');
+    const endBox = row.querySelector('.sched-end-box');
+    const quickBox = row.querySelector('.sched-quick-box');
+    
+    if (mode === 'none') {
+        startBox.style.display = 'none';
+        endBox.style.display = 'none';
+        quickBox.style.display = 'none';
+    } else if (mode === 'range') {
+        startBox.style.display = 'flex';
+        endBox.style.display = 'flex';
+        quickBox.style.display = 'flex';
+    } else if (mode === 'openAfter') {
+        startBox.style.display = 'flex';
+        endBox.style.display = 'none';
+        quickBox.style.display = 'flex';
+    } else if (mode === 'closeAfter') {
+        startBox.style.display = 'none';
+        endBox.style.display = 'flex';
+        quickBox.style.display = 'flex';
+    }
+}
+
+function applyQuickTime(btn, minutes, targetField) {
+    const row = btn.closest('.hero-admin-row');
+    const targetInput = targetField === 'start' ? row.querySelector('.b-start-time') : row.querySelector('.b-end-time');
+    if (!targetInput) return;
+    const futureTime = new Date(Date.now() + minutes * 60000);
+    targetInput.value = toDatetimeLocalStr(futureTime);
+}
+
 function renderBannerAdminList() {
     const list = document.getElementById('heroList');
-    list.innerHTML = bannersData.map((b, i) => `
-        <div class="hero-admin-row" data-idx="${i}">
-            <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
+    list.innerHTML = bannersData.map((b, i) => {
+        const isEn = b.enabled !== false;
+        const sMode = b.scheduleMode || 'none';
+        return `
+        <div class="hero-admin-row ${isEn ? '' : 'disabled-row'}" data-idx="${i}">
+            <!-- 頂部列：固定編號、開關、排序、刪除 -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px;">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img id="admin-preview-${i}" class="b-img-preview" src="" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
-                    <div style="display:flex; flex-direction:column; gap:3px;">
-                        <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
-                        <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
-                    </div>
+                    <label style="font-size:13px; font-weight:bold; color:#1b4332; display:flex; align-items:center; gap:4px;">
+                        固定編號：
+                        <input type="text" class="b-id" value="${b.id || (i + 1)}" placeholder="例如 101" style="width:85px; font-weight:bold; text-align:center;">
+                    </label>
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold;">
+                        <input type="checkbox" class="b-enabled" ${isEn ? 'checked' : ''} onchange="toggleHeroRowEnabled(this)">
+                        <span>${isEn ? '🟢 啟用中' : '⚪ 已隱藏'}</span>
+                    </label>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <button type="button" onclick="moveHeroRow(this, -1)" class="quick-time-btn" title="向上調整排序"><i class="fas fa-arrow-up"></i> 上移</button>
+                    <button type="button" onclick="moveHeroRow(this, 1)" class="quick-time-btn" title="向下調整排序"><i class="fas fa-arrow-down"></i> 下移</button>
+                    <button type="button" onclick="this.closest('.hero-admin-row').remove()" style="background:#d32f2f; color:white; border:none; padding:4px 10px; cursor:pointer; border-radius:4px; font-size:12px; font-weight:bold;"><i class="fas fa-trash-alt"></i> 刪除</button>
+                </div>
+            </div>
+
+            <!-- 中間列：圖片預覽與上傳、標題與連結 -->
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                    <img id="admin-preview-${i}" class="b-img-preview" src="" style="width:130px; height:43px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                    <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)" style="font-size:11px; max-width:140px;">
                     <input type="hidden" class="b-img" value="${b.imageBase64 || b.imageUrl || ''}">
                 </div>
-                <input type="text" class="b-link" placeholder="點擊連結 (Link URL - 選填)" value="${b.linkUrl || ''}">
-                <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)" value="${b.title || ''}">
+                <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:240px;">
+                    <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)" value="${b.title || ''}">
+                    <input type="text" class="b-link" placeholder="點擊跳轉連結 (Link URL - 選填)" value="${b.linkUrl || ''}">
+                </div>
             </div>
-            <button onclick="this.parentElement.remove()" style="background:#d32f2f; color:white; border:none; padding:10px; cursor:pointer; border-radius:5px;">刪除</button>
+
+            <!-- 底部列：排程設定 (指定期間/多久後開/多久後關) -->
+            <div style="background:#f9fafb; padding:8px 10px; border-radius:6px; border:1px solid #eef0f2; font-size:12px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-weight:bold; color:#374151;"><i class="fas fa-clock"></i> 排程設定：</span>
+                    <select class="b-sched-mode" onchange="toggleSchedInputs(this)">
+                        <option value="none" ${sMode==='none'?'selected':''}>常駐播放 (無排程)</option>
+                        <option value="range" ${sMode==='range'?'selected':''}>指定期間 (何時開 ~ 何時關)</option>
+                        <option value="openAfter" ${sMode==='openAfter'?'selected':''}>指定時間後開啟 (何時開 / 多久後開)</option>
+                        <option value="closeAfter" ${sMode==='closeAfter'?'selected':''}>指定時間後關閉 (何時關 / 多久後關)</option>
+                    </select>
+                </div>
+                
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                    <div class="sched-start-box" style="display:${(sMode==='range'||sMode==='openAfter')?'flex':'none'}; align-items:center; gap:5px;">
+                        <span>開始時間：</span>
+                        <input type="datetime-local" class="b-start-time" value="${toDatetimeLocalStr(b.startTime)}">
+                    </div>
+                    <div class="sched-end-box" style="display:${(sMode==='range'||sMode==='closeAfter')?'flex':'none'}; align-items:center; gap:5px;">
+                        <span>結束時間：</span>
+                        <input type="datetime-local" class="b-end-time" value="${toDatetimeLocalStr(b.endTime)}">
+                    </div>
+                </div>
+
+                <div class="sched-quick-box" style="display:${sMode!=='none'?'flex':'none'}; align-items:center; gap:5px; flex-wrap:wrap;">
+                    <span style="color:#666;">快捷設定：</span>
+                    <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 10, '${sMode==='closeAfter'?'end':'start'}')">+10分鐘</button>
+                    <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 30, '${sMode==='closeAfter'?'end':'start'}')">+30分鐘</button>
+                    <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 60, '${sMode==='closeAfter'?'end':'start'}')">+1小時</button>
+                    <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 1440, '${sMode==='closeAfter'?'end':'start'}')">+1天</button>
+                    <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 10080, '${sMode==='closeAfter'?'end':'start'}')">+7天</button>
+                </div>
+            </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     
-    // Securely load preview images
     bannersData.forEach((b, i) => {
         if(b.imageBase64 || b.imageUrl) {
             loadSecureImage(document.getElementById(`admin-preview-${i}`), b.imageBase64 || getFullImageUrl(b.imageUrl));
         }
     });
 }
+
 function addHeroRow() {
     const list = document.getElementById('heroList');
+    const existingIds = Array.from(document.querySelectorAll('.hero-admin-row .b-id')).map(el => parseInt(el.value, 10)).filter(n => !isNaN(n));
+    const nextId = existingIds.length > 0 ? (Math.max(...existingIds) + 1) : (list.children.length + 1);
+    
     const row = document.createElement('div');
     row.className = 'hero-admin-row';
     row.innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:5px; flex:1;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px;">
             <div style="display:flex; align-items:center; gap:10px;">
-                <img class="b-img-preview" src="" style="width:120px; height:40px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
-                <div style="display:flex; flex-direction:column; gap:3px;">
-                    <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)">
-                    <span style="font-size:11px; color:#666;">*尺寸會自動裁切至 1200x400 (3:1比例)</span>
-                </div>
+                <label style="font-size:13px; font-weight:bold; color:#1b4332; display:flex; align-items:center; gap:4px;">
+                    固定編號：
+                    <input type="text" class="b-id" value="${nextId}" placeholder="例如 101" style="width:85px; font-weight:bold; text-align:center;">
+                </label>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:5px; font-size:13px; font-weight:bold;">
+                    <input type="checkbox" class="b-enabled" checked onchange="toggleHeroRowEnabled(this)">
+                    <span>🟢 啟用中</span>
+                </label>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" onclick="moveHeroRow(this, -1)" class="quick-time-btn" title="向上調整排序"><i class="fas fa-arrow-up"></i> 上移</button>
+                <button type="button" onclick="moveHeroRow(this, 1)" class="quick-time-btn" title="向下調整排序"><i class="fas fa-arrow-down"></i> 下移</button>
+                <button type="button" onclick="this.closest('.hero-admin-row').remove()" style="background:#d32f2f; color:white; border:none; padding:4px 10px; cursor:pointer; border-radius:4px; font-size:12px; font-weight:bold;"><i class="fas fa-trash-alt"></i> 刪除</button>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
+                <img class="b-img-preview" src="" style="width:130px; height:43px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
+                <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)" style="font-size:11px; max-width:140px;">
                 <input type="hidden" class="b-img" value="">
             </div>
-            <input type="text" class="b-link" placeholder="點擊連結 (Link URL - 選填)">
-            <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)">
+            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:240px;">
+                <input type="text" class="b-title" placeholder="橫幅標題 (Title - 選填)">
+                <input type="text" class="b-link" placeholder="點擊跳轉連結 (Link URL - 選填)">
+            </div>
         </div>
-        <button onclick="this.parentElement.remove()" style="background:#d32f2f; color:white; border:none; padding:10px; cursor:pointer; border-radius:5px;">刪除</button>
+
+        <div style="background:#f9fafb; padding:8px 10px; border-radius:6px; border:1px solid #eef0f2; font-size:12px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-weight:bold; color:#374151;"><i class="fas fa-clock"></i> 排程設定：</span>
+                <select class="b-sched-mode" onchange="toggleSchedInputs(this)">
+                    <option value="none" selected>常駐播放 (無排程)</option>
+                    <option value="range">指定期間 (何時開 ~ 何時關)</option>
+                    <option value="openAfter">指定時間後開啟 (何時開 / 多久後開)</option>
+                    <option value="closeAfter">指定時間後關閉 (何時關 / 多久後關)</option>
+                </select>
+            </div>
+            
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                <div class="sched-start-box" style="display:none; align-items:center; gap:5px;">
+                    <span>開始時間：</span>
+                    <input type="datetime-local" class="b-start-time">
+                </div>
+                <div class="sched-end-box" style="display:none; align-items:center; gap:5px;">
+                    <span>結束時間：</span>
+                    <input type="datetime-local" class="b-end-time">
+                </div>
+            </div>
+
+            <div class="sched-quick-box" style="display:none; align-items:center; gap:5px; flex-wrap:wrap;">
+                <span style="color:#666;">快捷設定：</span>
+                <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 10, 'start')">+10分鐘</button>
+                <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 30, 'start')">+30分鐘</button>
+                <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 60, 'start')">+1小時</button>
+                <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 1440, 'start')">+1天</button>
+                <button type="button" class="quick-time-btn" onclick="applyQuickTime(this, 10080, 'start')">+7天</button>
+            </div>
+        </div>
     `;
     list.appendChild(row);
 }
@@ -2057,26 +2368,43 @@ function handleBannerUpload(input) {
 
 async function saveHeroData() {
     const rows = document.querySelectorAll('.hero-admin-row');
-    const newBanners = Array.from(rows).map(row => ({
-        imageUrl: row.querySelector('.b-img').value.startsWith('data:image/') ? '' : row.querySelector('.b-img').value,
-        imageBase64: row.querySelector('.b-img').value.startsWith('data:image/') ? row.querySelector('.b-img').value : null,
-        linkUrl: row.querySelector('.b-link').value,
-        title: row.querySelector('.b-title').value
-    })).filter(b => b.imageUrl.trim() !== '' || b.imageBase64); // Require image
+    const newBanners = Array.from(rows).map((row, idx) => {
+        const idInput = row.querySelector('.b-id');
+        const enabledCb = row.querySelector('.b-enabled');
+        const schedSel = row.querySelector('.b-sched-mode');
+        const startInput = row.querySelector('.b-start-time');
+        const endInput = row.querySelector('.b-end-time');
+        const imgVal = row.querySelector('.b-img').value;
+        
+        return {
+            id: (idInput && idInput.value.trim()) ? idInput.value.trim() : String(idx + 1),
+            enabled: enabledCb ? enabledCb.checked : true,
+            scheduleMode: schedSel ? schedSel.value : 'none',
+            startTime: startInput ? startInput.value : '',
+            endTime: endInput ? endInput.value : '',
+            imageUrl: imgVal.startsWith('data:image/') ? '' : imgVal,
+            imageBase64: imgVal.startsWith('data:image/') ? imgVal : null,
+            linkUrl: row.querySelector('.b-link').value.trim(),
+            title: row.querySelector('.b-title').value.trim()
+        };
+    }).filter(b => b.imageUrl.trim() !== '' || b.imageBase64);
     
     try {
         const res = await fetch(`${window.authInfo.server.replace(/\/$/, '')}/api/banners/update`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ banners: newBanners }),
-            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' }
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+            body: JSON.stringify({ banners: newBanners })
         });
         if(res.ok) {
             await loadHeroData();
             closeHeroAdmin();
-            alert('橫幅已更新！');
-        } else alert('儲存失敗！');
-    } catch(e) { alert('伺服器錯誤！'); }
+            alert('首頁橫幅設定已成功更新！');
+        } else {
+            alert('儲存失敗！');
+        }
+    } catch(e) {
+        alert('伺服器連線錯誤！');
+    }
 }
 
 

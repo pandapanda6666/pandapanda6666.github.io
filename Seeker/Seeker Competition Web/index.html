@@ -43,6 +43,62 @@
         .mode-selector button:hover { border-color: #4a6c42; }
         .mode-selector button.active { background: #4a6c42; color: white; }
         
+        /* 兩個功能按鈕反白與即將推出提示 */
+        .mode-btn-disabled {
+            background: #ffffff !important;
+            color: #888888 !important;
+            border: 2px dashed #b0bec5 !important;
+            opacity: 0.65 !important;
+            cursor: not-allowed !important;
+            box-shadow: none !important;
+            position: relative;
+            transition: all 0.25s ease !important;
+        }
+        .mode-btn-disabled:hover {
+            background: #f8fafc !important;
+            color: #555555 !important;
+            border-color: #78909c !important;
+        }
+        .tooltip-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .tooltip-wrapper .tooltip-bubble {
+            visibility: hidden;
+            background-color: rgba(30, 41, 59, 0.95);
+            color: #ffffff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            white-space: nowrap;
+        }
+        .tooltip-wrapper .tooltip-bubble::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: rgba(30, 41, 59, 0.95) transparent transparent transparent;
+        }
+        .tooltip-wrapper:hover .tooltip-bubble {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(-3px);
+        }
+        
         .container { max-width: 1600px; width: 95%; margin: 20px auto; padding: 30px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 500px; margin-bottom: 80px; box-sizing: border-box; position: relative; }
         .hidden { display: none !important; }
         
@@ -213,8 +269,14 @@
     </nav>
 
     <div class="mode-selector">
-        <button id="browseModeBtn" class="active" data-i18n="mode_browse">瀏覽者模式</button>
-        <button id="createModeBtn" data-i18n="mode_create">我要參賽</button>
+        <div class="tooltip-wrapper">
+            <button id="browseModeBtn" class="mode-btn-disabled" data-i18n="mode_browse" title="即將推出...">瀏覽者模式</button>
+            <div class="tooltip-bubble">即將推出...</div>
+        </div>
+        <div class="tooltip-wrapper">
+            <button id="createModeBtn" class="mode-btn-disabled" data-i18n="mode_create" title="即將推出...">我要參賽</button>
+            <div class="tooltip-bubble">即將推出...</div>
+        </div>
     </div>
 
     <!-- Home Page -->
@@ -423,6 +485,7 @@
                     window.broadcasts = [...gList, ...sList];
                 }
                 localStorage.setItem('broadcasts_competition', JSON.stringify(window.broadcasts || []));
+                if (typeof updateSubsiteBroadcastDisplay === 'function') updateSubsiteBroadcastDisplay();
             });
             socket.on('siteBroadcastUpdate', (data) => {
                 if (data && data.site === 'competition') {
@@ -430,6 +493,7 @@
                     const gList = (window.broadcasts || []).filter(b => !b.site || b.site === 'all');
                     window.broadcasts = [...gList, ...sList];
                     localStorage.setItem('broadcasts_competition', JSON.stringify(window.broadcasts));
+                    if (typeof updateSubsiteBroadcastDisplay === 'function') updateSubsiteBroadcastDisplay();
                 }
             });
         }
@@ -442,6 +506,14 @@
                 if(params.get('token')) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
+            } else if (localStorage.getItem('sso_auth') === 'true') {
+                currentUser = {
+                    success: true,
+                    username: localStorage.getItem('sso_user') || '使用者',
+                    nickname: localStorage.getItem('sso_nickname') || localStorage.getItem('sso_user') || '使用者',
+                    avatar: localStorage.getItem('sso_avatar') || ''
+                };
+                renderUserUI();
             } else {
                 renderGuestUI();
             }
@@ -453,9 +525,10 @@
             
             const res = currentUser;
             const avatarUrl = res.avatar;
-            const nick = res.nickname || res.username;
-            if (!avatarUrl) return console.error('頭像資料遺失');
-            const avatarHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            const nick = res.nickname || res.username || '使用者';
+            const avatarHTML = (avatarUrl && avatarUrl.trim()) 
+                ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
+                : `<svg viewBox="0 0 24 24" style="fill: #2c5e32; width: 24px; height: 24px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`;
             
             r.innerHTML = `
                 <select id="langSelect">
@@ -548,24 +621,21 @@
             }
         });
 
-        document.getElementById('browseModeBtn').onclick = (e) => {
-            e.target.classList.add('active');
-            document.getElementById('createModeBtn').classList.remove('active');
-            showPage('browse');
-            if(socket && socket.connected) loadCloudData();
-        };
+        const bModeBtn = document.getElementById('browseModeBtn');
+        if (bModeBtn) {
+            bModeBtn.onclick = (e) => {
+                e.preventDefault();
+                alert('即將推出，敬請期待！');
+            };
+        }
         
-        document.getElementById('createModeBtn').onclick = (e) => {
-            if (!currentUser) {
-                alert(i18n[currentLang].alert_login_req || "請先登入才能使用創造者模式！");
-                window.location.href = '../../login-hub/?require=1';
-                return;
-            }
-
-            e.target.classList.add('active');
-            document.getElementById('browseModeBtn').classList.remove('active');
-            showPage('create');
-        };
+        const cModeBtn = document.getElementById('createModeBtn');
+        if (cModeBtn) {
+            cModeBtn.onclick = (e) => {
+                e.preventDefault();
+                alert('即將推出，敬請期待！');
+            };
+        }
 
         // Create Work
         document.getElementById('createForm').onsubmit = async (e) => {
@@ -874,7 +944,7 @@
                 window.broadcasts = merged;
                 localStorage.setItem('broadcasts_competition', JSON.stringify(merged));
             } else {
-                window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_competition') || '[]');
+                window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_competition') || localStorage.getItem('broadcasts') || '[]');
             }
         }
         loadMarqueeData();
