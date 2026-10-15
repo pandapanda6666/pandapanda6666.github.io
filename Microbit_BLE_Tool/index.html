@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Micro:bit 藍芽 UART LED 控制端</title>
+    <style>
+        body { font-family: '微軟正黑體', sans-serif; background: #222; color: #eee; text-align: center; padding-top: 50px; }
+        .grid { display: inline-grid; grid-template-columns: repeat(5, 50px); gap: 5px; margin: 20px auto; }
+        .cell { width: 50px; height: 50px; background: #444; border: 2px solid #555; border-radius: 5px; cursor: pointer; transition: 0.1s; }
+        .cell.on { background: #ff3333; border-color: #ffaaaa; box-shadow: 0 0 10px red; }
+        button { padding: 10px 20px; font-size: 16px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #45a049; }
+        button:disabled { background: #888; cursor: not-allowed; }
+        .hint { color: #888; font-size: 14px; margin-top: 20px; line-height: 1.6; }
+        .controls { margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        input[type="text"] { padding: 8px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; width: 120px; background: #333; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Micro:bit 藍芽 UART LED 控制端</h1>
+    <p id="status" style="font-size: 1.2em; color: #aaa;">尚未連接 (請使用 Chrome 或 Edge 瀏覽器)</p>
+    
+    <div class="controls">
+        <label>密碼 (若無則免填):</label>
+        <input type="text" id="pwdInput" placeholder="輸入密碼">
+        <button id="connectBtn">連接 Micro:bit</button>
+        <button id="resendPwdBtn" style="display:none; background:#ff9800;">手動發送密碼</button>
+    </div>
+
+    <div class="grid" id="ledGrid"></div>
+
+    <div class="hint">
+        <p>※ <b>Micro:bit 燒錄提示：</b></p>
+        <p>1. 請在 MakeCode 匯入擴充：<code>https://github.com/pandapanda6666/pxt-microbit-ble</code></p>
+        <p>2. 確保積木有放 <b>啟動藍芽 UART 矩陣接收器</b> 於「當啟動時」。</p>
+        <p>3. 請確保「(設定圖示)/專案設定/不須配對：任何人可透過藍芽進行連線」要開啟。</p>
+    </div>
+
+    <script>
+        const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const CHAR_UUID_TX = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // Micro:bit 發送給電腦端
+        const CHAR_UUID_RX = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // 電腦端寫入給 Micro:bit
+
+        let rxChar = null;
+        let txChar = null;
+        let isBusy = false;
+        const matrix = Array.from({length: 5}, () => Array(5).fill(false));
+
+        const grid = document.getElementById("ledGrid");
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 5; c++) {
+                let div = document.createElement("div");
+                div.className = "cell";
+                div.onclick = () => {
+                    matrix[r][c] = !matrix[r][c];
+                    div.classList.toggle("on", matrix[r][c]);
+                    sendMatrix();
+                };
+                grid.appendChild(div);
+            }
+        }
+
+        async function sendPassword(pwd) {
+            if (!rxChar) return;
+            let encoder = new TextEncoder();
+            let pwdData = encoder.encode("PWD:" + pwd + "\n");
+            await rxChar.writeValueWithoutResponse(pwdData);
+        }
+
+        document.getElementById("resendPwdBtn").onclick = async () => {
+            if (!rxChar) return;
+            let pwd = document.getElementById("pwdInput").value.trim();
+            if (pwd !== "") {
+                document.getElementById("status").innerText = "發送密碼認證中...";
+                try {
+                    await sendPassword(pwd);
+                    document.getElementById("status").innerText = "密碼已手動發送！等待 Micro:bit 驗證回應...";
+                    document.getElementById("status").style.color = "#00aaff";
+                } catch (e) {
+                    document.getElementById("status").innerText = "發送失敗: " + e.message;
+                    document.getElementById("status").style.color = "red";
+                }
+            } else {
+                document.getElementById("status").innerText = "請先輸入密碼再點擊送出！";
+                document.getElementById("status").style.color = "red";
+            }
+        };
+
+        document.getElementById("connectBtn").onclick = async () => {
+            try {
+                document.getElementById("status").innerText = "請求藍芽裝置中... 請在彈出視窗選擇裝置";
+                document.getElementById("status").style.color = "#00aaff";
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [SERVICE_UUID]
+                });
+                
+                device.addEventListener('gattserverdisconnected', () => {
+                    document.getElementById("status").innerText = "連線已斷開！";
+                    document.getElementById("status").style.color = "red";
+                    document.getElementById("connectBtn").disabled = false;
+                    document.getElementById("connectBtn").style.display = "inline-block";
+                    document.getElementById("resendPwdBtn").style.display = "none";
+                    rxChar = null;
+                    txChar = null;
+                });
+
+                document.getElementById("status").innerText = "連接中... (請稍候)";
+                document.getElementById("connectBtn").disabled = true;
+                
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                
+                // 取得 RX 特徵值 (電腦寫入給 Micro:bit)
+                rxChar = await service.getCharacteristic(CHAR_UUID_RX);
+                
+                // 嘗試監聽 TX 特徵值 (Micro:bit 回傳狀態給電腦)
+                try {
+                    txChar = await service.getCharacteristic(CHAR_UUID_TX);
+                    await txChar.startNotifications();
+                    txChar.addEventListener('characteristicvaluechanged', (event) => {
+                        let decoder = new TextDecoder();
+                        let msg = decoder.decode(event.target.value).trim();
+                        if (msg === "AUTH:OK") {
+                            document.getElementById("status").innerText = "密碼驗證成功！可直接點擊格子控制燈號。";
+                            document.getElementById("status").style.color = "#4CAF50";
+                        } else if (msg === "AUTH:FAIL") {
+                            document.getElementById("status").innerText = "密碼驗證失敗！請重新確認密碼。";
+                            document.getElementById("status").style.color = "red";
+                        }
+                    });
+                } catch (txErr) {
+                    console.log("TX 特徵值監聽略過:", txErr);
+                }
+                
+                // 等待 Micro:bit 藍芽 UART 服務就緒
+                await new Promise(r => setTimeout(r, 600));
+                
+                let pwd = document.getElementById("pwdInput").value.trim();
+                if (pwd !== "") {
+                    document.getElementById("status").innerText = "連線成功，正在自動驗證密碼...";
+                    await sendPassword(pwd);
+                } else {
+                    document.getElementById("status").innerText = "連線成功！點擊下方格子發送訊號。";
+                    document.getElementById("status").style.color = "#4CAF50";
+                }
+                
+                document.getElementById("connectBtn").style.display = "none";
+                document.getElementById("resendPwdBtn").style.display = "inline-block";
+                
+                sendMatrix();
+            } catch (err) {
+                document.getElementById("connectBtn").disabled = false;
+                if (err.name === "NotFoundError") {
+                    document.getElementById("status").innerText = "已取消連線 (未選擇裝置)";
+                    document.getElementById("status").style.color = "#aaa";
+                } else {
+                    document.getElementById("status").innerText = "連線失敗: " + err;
+                    document.getElementById("status").style.color = "red";
+                }
+            }
+        };
+
+        async function sendMatrix() {
+            if (!rxChar || isBusy) return;
+            isBusy = true;
+            
+            let nums = [];
+            for (let r = 0; r < 5; r++) {
+                let val = 0;
+                for (let c = 0; c < 5; c++) {
+                    if (matrix[r][c]) val |= (1 << c);
+                }
+                nums.push(val);
+            }
+            let str = nums.join(",") + "\n";
+
+            let encoder = new TextEncoder();
+            let data = encoder.encode(str);
+
+            try {
+                await rxChar.writeValueWithoutResponse(data);
+            } catch (e) {
+                console.error("發送失敗:", e);
+                document.getElementById("status").innerText = "發送失敗: " + e.message;
+                document.getElementById("status").style.color = "red";
+            }
+            isBusy = false;
+        }
+    </script>
+</body>
+</html>
