@@ -978,6 +978,16 @@
                 <i class="fas fa-play-circle" style="font-size:1.1rem;"></i> 複製「自動播放」連結 (繼續輪播)
             </button>
         </div>
+        <!-- 管理員專屬：未開啟公告加密通行分享 -->
+        <div id="heroShareAdminKeySection" style="display:none; background:#edf7ed; padding:12px; border-radius:8px; margin-bottom:15px; border:1px solid #c8e6c9; text-align:left;">
+            <p style="font-size:12px; color:#1b4332; font-weight:bold; margin:0 0 4px 0;">
+                <i class="fas fa-user-shield"></i> 管理員專屬：未開啟公告加密分享
+            </p>
+            <p style="font-size:11px; color:#555; margin:0 0 8px 0;">
+                複製下方帶有加密通行密碼的連結，對方前往一次即可永久存取此未開啟公告（自動消除密碼參數，避免二次轉發）：
+            </p>
+            <div id="heroShareAdminKeyList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
         <button onclick="closeHeroShareModal()" style="background:#888; color:white; border:none; padding:7px 22px; border-radius:6px; cursor:pointer; font-weight:bold;">關閉</button>
     </div>
 </div>
@@ -1873,51 +1883,149 @@ function toDatetimeLocalStr(dateInput) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function isBannerActive(b, now = Date.now()) {
-    if (b.enabled === false) return false;
-    const mode = b.scheduleMode || 'none';
-    if (mode === 'none') return true;
-    const st = b.startTime ? new Date(b.startTime).getTime() : NaN;
-    const et = b.endTime ? new Date(b.endTime).getTime() : NaN;
-    if (mode === 'range') {
-        if (!isNaN(st) && now < st) return false;
-        if (!isNaN(et) && now > et) return false;
-        return true;
-    } else if (mode === 'openAfter') {
-        if (!isNaN(st) && now < st) return false;
-        return true;
-    } else if (mode === 'closeAfter') {
-        if (!isNaN(et) && now > et) return false;
-        return true;
-    } else if (mode === 'recurring') {
-        // 固定週期/時間：未設年=每年、未設月=每月、未設日=每日、未設星期=不限、未設時間=全天
-        const d = new Date(now);
-        const curYear = d.getFullYear();
-        const curMonth = d.getMonth() + 1; // 1-12
-        const curDate = d.getDate(); // 1-31
-        const curDay = d.getDay(); // 0-6 (0 is Sunday)
-        const curMinTotal = d.getHours() * 60 + d.getMinutes();
-
-        // 年 (留空=每年)
-        if (b.schedYear && parseInt(b.schedYear, 10) !== curYear) return false;
-        // 月 (留空=每月)
-        if (b.schedMonth && parseInt(b.schedMonth, 10) !== curMonth) return false;
-        // 日 (留空=每日)
-        if (b.schedDay && parseInt(b.schedDay, 10) !== curDate) return false;
-        // 星期 (留空=不限)
-        if (b.schedWeekday !== undefined && b.schedWeekday !== '' && parseInt(b.schedWeekday, 10) !== curDay) return false;
-        // 當日時間起訖 (留空=全天)
-        if (b.schedStartTime) {
-            const [sh, sm] = b.schedStartTime.split(':').map(Number);
-            if (!isNaN(sh) && !isNaN(sm) && curMinTotal < sh * 60 + sm) return false;
+function encryptBannerKey(pass, bannerId) {
+    if (!pass) return '';
+    try {
+        const salt = 'PandaBannerKey_' + (bannerId || 'default');
+        const str = `${bannerId}|${pass}|${Date.now()}`;
+        let xored = '';
+        for (let i = 0; i < str.length; i++) {
+            xored += String.fromCharCode(str.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
         }
-        if (b.schedEndTime) {
-            const [eh, em] = b.schedEndTime.split(':').map(Number);
-            if (!isNaN(eh) && !isNaN(em) && curMinTotal > eh * 60 + em) return false;
-        }
-        return true;
+        return btoa(encodeURIComponent(xored)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch(e) {
+        return btoa(encodeURIComponent(pass)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
-    return true;
+}
+
+function decryptBannerKey(cipher, bannerId) {
+    if (!cipher) return '';
+    try {
+        const salt = 'PandaBannerKey_' + (bannerId || 'default');
+        let b64 = cipher.replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const decoded = decodeURIComponent(atob(b64));
+        let xored = '';
+        for (let i = 0; i < decoded.length; i++) {
+            xored += String.fromCharCode(decoded.charCodeAt(i) ^ salt.charCodeAt(i % salt.length));
+        }
+        const parts = xored.split('|');
+        if (parts.length >= 2 && String(parts[0]) === String(bannerId)) {
+            return parts[1];
+        }
+        return parts.length >= 2 ? parts[1] : decoded;
+    } catch(e) {
+        return cipher;
+    }
+}
+
+function generateRandomKeyString(len = 8) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let res = '';
+    for (let i = 0; i < len; i++) {
+        res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return res;
+}
+
+// 檢查網址是否攜帶未開啟公告的專屬通行加密密碼，若有則儲存並立即消除參數以防二次轉傳
+(function checkUrlBannerAccessKey() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramKey = urlParams.get('k') || urlParams.get('key') || urlParams.get('pwd') || urlParams.get('pass') || urlParams.get('token');
+        const paramBanner = urlParams.get('b') || urlParams.get('banner');
+        
+        if (paramKey && paramBanner) {
+            const decryptedPass = decryptBannerKey(paramKey, paramBanner);
+            if (decryptedPass) {
+                let unlocked = {};
+                try {
+                    unlocked = JSON.parse(localStorage.getItem('unlocked_hero_banners') || '{}');
+                } catch(e) { unlocked = {}; }
+                unlocked[String(paramBanner)] = decryptedPass;
+                localStorage.setItem('unlocked_hero_banners', JSON.stringify(unlocked));
+            }
+            
+            // 自動消除密碼參數 (避免二次分享)
+            urlParams.delete('k');
+            urlParams.delete('key');
+            urlParams.delete('pwd');
+            urlParams.delete('pass');
+            urlParams.delete('token');
+            const newSearch = urlParams.toString();
+            const cleanUrl = window.location.pathname + (newSearch ? ('?' + newSearch) : '') + window.location.hash;
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState({}, '', cleanUrl);
+            }
+        }
+    } catch(e) {
+        console.warn('解析專屬橫幅通行密鑰錯誤:', e);
+    }
+})();
+
+function isBannerActive(b, now = Date.now()) {
+    const isNormallyActive = (function() {
+        if (b.enabled === false) return false;
+        const mode = b.scheduleMode || 'none';
+        if (mode === 'none') return true;
+        const st = b.startTime ? new Date(b.startTime).getTime() : NaN;
+        const et = b.endTime ? new Date(b.endTime).getTime() : NaN;
+        if (mode === 'range') {
+            if (!isNaN(st) && now < st) return false;
+            if (!isNaN(et) && now > et) return false;
+            return true;
+        } else if (mode === 'openAfter') {
+            if (!isNaN(st) && now < st) return false;
+            return true;
+        } else if (mode === 'closeAfter') {
+            if (!isNaN(et) && now > et) return false;
+            return true;
+        } else if (mode === 'recurring') {
+            const d = new Date(now);
+            const curYear = d.getFullYear();
+            const curMonth = d.getMonth() + 1; // 1-12
+            const curDate = d.getDate(); // 1-31
+            const curDay = d.getDay(); // 0-6 (0 is Sunday)
+            const curMinTotal = d.getHours() * 60 + d.getMinutes();
+
+            // 年 (留空=每年)
+            if (b.schedYear && parseInt(b.schedYear, 10) !== curYear) return false;
+            // 月 (留空=每月)
+            if (b.schedMonth && parseInt(b.schedMonth, 10) !== curMonth) return false;
+            // 日 (留空=每日)
+            if (b.schedDay && parseInt(b.schedDay, 10) !== curDate) return false;
+            // 星期 (留空=不限)
+            if (b.schedWeekday !== undefined && b.schedWeekday !== '' && parseInt(b.schedWeekday, 10) !== curDay) return false;
+            // 當日時間起訖 (留空=全天)
+            if (b.schedStartTime) {
+                const [sh, sm] = b.schedStartTime.split(':').map(Number);
+                if (!isNaN(sh) && !isNaN(sm) && curMinTotal < sh * 60 + sm) return false;
+            }
+            if (b.schedEndTime) {
+                const [eh, em] = b.schedEndTime.split(':').map(Number);
+                if (!isNaN(eh) && !isNaN(em) && curMinTotal > eh * 60 + em) return false;
+            }
+            return true;
+        }
+        return true;
+    })();
+
+    if (isNormallyActive) return true;
+
+    // 若未開啟或不在排程內，檢查使用者是否持有被管理員開放的通行密鑰
+    try {
+        const unlocked = JSON.parse(localStorage.getItem('unlocked_hero_banners') || '{}');
+        const userPass = unlocked[String(b.id)];
+        if (userPass && Array.isArray(b.accessKeys) && b.accessKeys.length > 0) {
+            // 管理員清單中必須存在該密碼，且該密碼目前處於「啟用中」狀態
+            const matchedKey = b.accessKeys.find(k => String(k.pass).trim() === String(userPass).trim() && k.enabled !== false);
+            if (matchedKey) {
+                return true; // 授權通過！
+            }
+        }
+    } catch(e) {}
+
+    return false;
 }
 
 async function loadHeroData() {
@@ -1957,7 +2065,8 @@ async function loadHeroData() {
                 linkUrl: b.linkUrl || '',
                 title: b.title || '',
                 imageUrl: b.imageUrl || '',
-                imageBase64: b.imageBase64 || null
+                imageBase64: b.imageBase64 || null,
+                accessKeys: Array.isArray(b.accessKeys) ? b.accessKeys : []
             }));
             localStorage.setItem('cached_banners', JSON.stringify(bannersData));
             renderHeroData(true);
@@ -2139,6 +2248,33 @@ window.shareCurrentHeroBanner = function() {
     if (infoEl) {
         infoEl.innerText = `固定編號：#${window._pendingShareBannerId}${curr.title ? ` (${curr.title})` : ''}`;
     }
+
+    // 若為管理員，動態提供未開啟/加密密碼分享選項
+    const adminKeySec = document.getElementById('heroShareAdminKeySection');
+    const adminKeyList = document.getElementById('heroShareAdminKeyList');
+    if (adminKeySec && adminKeyList) {
+        if (window.authInfo && window.authInfo.isAdmin) {
+            adminKeySec.style.display = 'block';
+            const keys = (curr.accessKeys || []).filter(k => k.enabled !== false);
+            if (keys.length > 0) {
+                adminKeyList.innerHTML = keys.map(k => {
+                    const enc = encryptBannerKey(k.pass, curr.id);
+                    return `
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff; padding:6px 10px; border-radius:5px; border:1px solid #d0ebd2;">
+                            <span style="font-family:monospace; font-weight:bold; color:#1b4332; font-size:12px;">🔑 密碼：${k.pass}</span>
+                            <button type="button" class="quick-time-btn" onclick="copyDirectAdminKey('${enc}', '${k.pass}', '${curr.id}')" style="background:#2e7d32; color:white; font-size:11px; padding:3px 8px;">
+                                複製加密連結
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                adminKeyList.innerHTML = `<span style="color:#777; font-size:11px;">此橫幅目前未設定啟用中的通行密碼，可至「設定公告橫幅」面板中新增密碼。</span>`;
+            }
+        } else {
+            adminKeySec.style.display = 'none';
+        }
+    }
     
     const modal = document.getElementById('heroShareModal');
     if (modal) modal.style.display = 'flex';
@@ -2148,6 +2284,104 @@ window.closeHeroShareModal = function() {
     const modal = document.getElementById('heroShareModal');
     if (modal) modal.style.display = 'none';
 };
+
+window.copyDirectAdminKey = function(enc, pass, bannerId) {
+    const cleanBase = window.location.origin + window.location.pathname;
+    const shareUrl = `${cleanBase}?b=${encodeURIComponent(bannerId)}&k=${encodeURIComponent(enc)}&p=0`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            alert(`已複製未開啟公告加密分享連結！\n固定編號 #${bannerId}\n通行密碼：${pass}\n連結：${shareUrl}\n\n對方進入後可直接存取此未開啟公告，網址將自動消除密碼參數（避免二次轉傳）。只要此密碼未被關閉或刪除，對方即可持續存取。`);
+            closeHeroShareModal();
+        }).catch(() => {
+            prompt(`請複製此專屬加密分享連結 (密碼: ${pass})：`, shareUrl);
+            closeHeroShareModal();
+        });
+    } else {
+        prompt(`請複製此專屬加密分享連結 (密碼: ${pass})：`, shareUrl);
+        closeHeroShareModal();
+    }
+};
+
+function toggleKeyRowEnabled(cb) {
+    const statusText = cb.parentElement.querySelector('.key-status-text');
+    if (cb.checked) {
+        if (statusText) statusText.innerText = '🟢 啟用';
+    } else {
+        if (statusText) statusText.innerText = '⚪ 已關閉';
+    }
+}
+
+function addNewKeyRow(btn) {
+    const section = btn.closest('.banner-keys-section');
+    const input = section.querySelector('.new-key-pass-input');
+    const pass = input ? input.value.trim() : '';
+    if (!pass) {
+        alert('請先輸入或生成通行密碼！');
+        if (input) input.focus();
+        return;
+    }
+    const list = section.querySelector('.banner-keys-list');
+    const row = btn.closest('.hero-admin-row');
+    const bannerIdInput = row ? row.querySelector('.b-id') : null;
+    const bannerId = bannerIdInput ? bannerIdInput.value.trim() : '1';
+    
+    const keyId = 'k_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+    const keyRow = document.createElement('div');
+    keyRow.className = 'key-row';
+    keyRow.setAttribute('data-key-id', keyId);
+    keyRow.style.cssText = 'display:flex; align-items:center; gap:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #d0ebd2; margin-bottom:4px; flex-wrap:wrap;';
+    keyRow.innerHTML = `
+        <label style="display:flex; align-items:center; gap:4px; font-weight:bold; color:#374151;">
+            密碼：
+            <input type="text" class="key-pass-input" value="${pass}" placeholder="密碼 (可自由更改)" style="width:130px; font-weight:bold; font-family:monospace; color:#1b4332;">
+        </label>
+        <label style="cursor:pointer; display:flex; align-items:center; gap:4px; font-size:12px; font-weight:bold;">
+            <input type="checkbox" class="key-enabled-cb" checked onchange="toggleKeyRowEnabled(this)">
+            <span class="key-status-text">🟢 啟用</span>
+        </label>
+        <button type="button" class="quick-time-btn" onclick="copyEncryptedKeyLink(this, '${bannerId}')" style="background:#2e7d32; color:white;" title="複製帶有加密密碼的分享連結">
+            <i class="fas fa-link"></i> 複製加密連結
+        </button>
+        <button type="button" onclick="this.closest('.key-row').remove()" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
+            <i class="fas fa-trash"></i> 刪除
+        </button>
+    `;
+    list.appendChild(keyRow);
+    if (input) input.value = '';
+}
+
+function generateRandomPass(btn) {
+    const section = btn.closest('.banner-keys-section');
+    const input = section.querySelector('.new-key-pass-input');
+    if (input) {
+        input.value = generateRandomKeyString(8);
+    }
+}
+
+function copyEncryptedKeyLink(btn, bannerId) {
+    const row = btn.closest('.hero-admin-row');
+    const actualBannerId = row ? (row.querySelector('.b-id') ? row.querySelector('.b-id').value.trim() : bannerId) : bannerId;
+    const keyRow = btn.closest('.key-row');
+    const passInput = keyRow.querySelector('.key-pass-input');
+    const pass = passInput ? passInput.value.trim() : '';
+    if (!pass) {
+        alert('密碼不能為空！');
+        return;
+    }
+    const enc = encryptBannerKey(pass, actualBannerId);
+    const cleanBase = window.location.origin + window.location.pathname;
+    const shareUrl = `${cleanBase}?b=${encodeURIComponent(actualBannerId)}&k=${encodeURIComponent(enc)}&p=0`;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            alert(`已複製未開啟公告的專屬加密分享連結！\n固定編號 #${actualBannerId}\n通行密碼：${pass}\n連結：${shareUrl}\n\n對方進入後可直接存取此未開啟公告，網址將自動消除密碼參數（避免二次轉傳）。只要您未在此關閉或刪除該密碼，對方皆可持續瀏覽。`);
+        }).catch(() => {
+            prompt(`請複製此專屬加密分享連結 (密碼: ${pass})：`, shareUrl);
+        });
+    } else {
+        prompt(`請複製此專屬加密分享連結 (密碼: ${pass})：`, shareUrl);
+    }
+}
 
 window.copyHeroShareLink = function(autoPlay) {
     const bannerId = window._pendingShareBannerId || '1';
@@ -2391,6 +2625,45 @@ function renderBannerAdminList() {
                     </div>
                 </div>
             </div>
+
+            <!-- 通行密碼授權管理 (可分享未開啟的公告) -->
+            <div class="banner-keys-section" style="background:#f4fbf5; padding:8px 10px; border-radius:6px; border:1px solid #b7e4c7; font-size:12px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                    <span style="font-weight:bold; color:#1b4332;">
+                        <i class="fas fa-key"></i> 通行密碼授權管理 (可分享未開啟的公告，前往一次後自動記憶)：
+                    </span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <input type="text" class="new-key-pass-input" placeholder="自訂密碼或點隨機" style="width:130px; font-weight:bold; font-family:monospace; padding:3px 6px;">
+                        <button type="button" class="quick-time-btn" onclick="generateRandomPass(this)" title="隨機生成 8 位英數密碼">🎲 隨機密碼</button>
+                        <button type="button" class="quick-time-btn" onclick="addNewKeyRow(this)" style="background:#1b4332; color:white;">➕ 新增密碼</button>
+                    </div>
+                </div>
+                
+                <div class="banner-keys-list" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;">
+                    ${(b.accessKeys || []).map(k => {
+                        const enc = encryptBannerKey(k.pass, b.id || (i + 1));
+                        const kEn = k.enabled !== false;
+                        return `
+                        <div class="key-row" data-key-id="${k.id || ('k_' + Math.random().toString(36).substr(2, 6))}" style="display:flex; align-items:center; gap:8px; background:#fff; padding:6px 10px; border-radius:6px; border:1px solid #d0ebd2; flex-wrap:wrap;">
+                            <label style="display:flex; align-items:center; gap:4px; font-weight:bold; color:#374151;">
+                                密碼：
+                                <input type="text" class="key-pass-input" value="${k.pass || ''}" placeholder="密碼 (可自由更改)" style="width:130px; font-weight:bold; font-family:monospace; color:#1b4332;">
+                            </label>
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:4px; font-size:12px; font-weight:bold;">
+                                <input type="checkbox" class="key-enabled-cb" ${kEn ? 'checked' : ''} onchange="toggleKeyRowEnabled(this)">
+                                <span class="key-status-text">${kEn ? '🟢 啟用' : '⚪ 已關閉'}</span>
+                            </label>
+                            <button type="button" class="quick-time-btn" onclick="copyEncryptedKeyLink(this, '${b.id || (i + 1)}')" style="background:#2e7d32; color:white;" title="複製帶有加密密碼的分享連結">
+                                <i class="fas fa-link"></i> 複製加密連結
+                            </button>
+                            <button type="button" onclick="this.closest('.key-row').remove()" style="background:#fee2e2; color:#dc2626; border:1px solid #fca5a5; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold;">
+                                <i class="fas fa-trash"></i> 刪除
+                            </button>
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
         </div>
         `;
     }).join('');
@@ -2506,6 +2779,21 @@ function addHeroRow() {
                 </div>
             </div>
         </div>
+
+        <!-- 通行密碼授權管理 (可分享未開啟的公告) -->
+        <div class="banner-keys-section" style="background:#f4fbf5; padding:8px 10px; border-radius:6px; border:1px solid #b7e4c7; font-size:12px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                <span style="font-weight:bold; color:#1b4332;">
+                    <i class="fas fa-key"></i> 通行密碼授權管理 (可分享未開啟的公告，前往一次後自動記憶)：
+                </span>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="text" class="new-key-pass-input" placeholder="自訂密碼或點隨機" style="width:130px; font-weight:bold; font-family:monospace; padding:3px 6px;">
+                    <button type="button" class="quick-time-btn" onclick="generateRandomPass(this)" title="隨機生成 8 位英數密碼">🎲 隨機密碼</button>
+                    <button type="button" class="quick-time-btn" onclick="addNewKeyRow(this)" style="background:#1b4332; color:white;">➕ 新增密碼</button>
+                </div>
+            </div>
+            <div class="banner-keys-list" style="display:flex; flex-direction:column; gap:4px; margin-top:4px;"></div>
+        </div>
     `;
     list.appendChild(row);
 }
@@ -2562,6 +2850,18 @@ async function saveHeroData() {
         const schedStartTime = row.querySelector('.b-sched-start-time') ? row.querySelector('.b-sched-start-time').value : '';
         const schedEndTime = row.querySelector('.b-sched-end-time') ? row.querySelector('.b-sched-end-time').value : '';
         
+        const keyRows = row.querySelectorAll('.key-row');
+        const accessKeys = Array.from(keyRows).map(kr => {
+            const kId = kr.getAttribute('data-key-id') || ('k_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4));
+            const passInput = kr.querySelector('.key-pass-input');
+            const kEnabledCb = kr.querySelector('.key-enabled-cb');
+            return {
+                id: kId,
+                pass: passInput ? passInput.value.trim() : '',
+                enabled: kEnabledCb ? kEnabledCb.checked : true
+            };
+        }).filter(k => k.pass.length > 0);
+
         return {
             id: (idInput && idInput.value.trim()) ? idInput.value.trim() : String(idx + 1),
             enabled: enabledCb ? enabledCb.checked : true,
@@ -2574,6 +2874,7 @@ async function saveHeroData() {
             schedWeekday,
             schedStartTime,
             schedEndTime,
+            accessKeys,
             imageUrl: imgVal.startsWith('data:image/') ? '' : imgVal,
             imageBase64: imgVal.startsWith('data:image/') ? imgVal : null,
             linkUrl: row.querySelector('.b-link').value.trim(),
