@@ -814,12 +814,21 @@
                 sUrl = decodeURIComponent(params.get('server'));
             } else {
                 try {
-                    const res = await fetch('../../login-hub/server_url.txt');
+                    const res = await fetch(`../../login-hub/server_url.txt?t=${Date.now()}`);
                     if(res.ok) {
                         const text = await res.text();
                         sUrl = atob(text.trim().split('').reverse().join(''));
                     }
                 } catch(e) {}
+                if (!sUrl) {
+                    try {
+                        const res2 = await fetch(`server_url.txt?t=${Date.now()}`);
+                        if (res2.ok) {
+                            const t2 = await res2.text();
+                            sUrl = atob(t2.trim().split('').reverse().join(''));
+                        }
+                    } catch(e) {}
+                }
             }
 
             if (!sUrl) {

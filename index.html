@@ -1484,36 +1484,37 @@
                 if (typeof fetchOnlineBroadcasts === 'function') fetchOnlineBroadcasts(sUrl);
             }
 
-            let serverUrl = window.authInfo.server || localStorage.getItem('sso_server');
-            if (!serverUrl) {
-                fetch('login-hub/server_url.txt')
-                    .then(res => res.text())
-                    .then(text => {
-                        serverUrl = atob(text.trim().split('').reverse().join(''));
-                        if (serverUrl) {
-                            onServerFound(serverUrl);
-                        } else {
-                            fetch('server_url.txt')
-                                .then(r => r.text())
-                                .then(t2 => {
-                                    const s2 = atob(t2.trim().split('').reverse().join(''));
-                                    if (s2) onServerFound(s2);
-                                })
-                                .catch(() => {});
+            async function resolveServerUrl() {
+                let sUrl = '';
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('server')) {
+                    sUrl = decodeURIComponent(params.get('server'));
+                } else {
+                    try {
+                        const res = await fetch(`login-hub/server_url.txt?t=${Date.now()}`);
+                        if (res.ok) {
+                            const text = await res.text();
+                            sUrl = atob(text.trim().split('').reverse().join(''));
                         }
-                    })
-                    .catch(() => {
-                        fetch('server_url.txt')
-                            .then(r => r.text())
-                            .then(t2 => {
-                                const s2 = atob(t2.trim().split('').reverse().join(''));
-                                if (s2) onServerFound(s2);
-                            })
-                            .catch(() => {});
-                    });
-            } else {
-                onServerFound(serverUrl);
+                    } catch(e) {}
+                    if (!sUrl) {
+                        try {
+                            const res2 = await fetch(`server_url.txt?t=${Date.now()}`);
+                            if (res2.ok) {
+                                const t2 = await res2.text();
+                                sUrl = atob(t2.trim().split('').reverse().join(''));
+                            }
+                        } catch(e) {}
+                    }
+                }
+                if (!sUrl) {
+                    sUrl = window.authInfo.server || localStorage.getItem('sso_server');
+                }
+                if (sUrl) {
+                    onServerFound(sUrl);
+                }
             }
+            resolveServerUrl();
         })();
 
         function permanentBlock(reason, details = '') {
