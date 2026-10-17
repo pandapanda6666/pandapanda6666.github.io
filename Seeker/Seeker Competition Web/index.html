@@ -244,6 +244,68 @@
             background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%) !important;
             border-color: #880e4f !important; color: white !important;
         }
+
+        /* 牛皮紙手寫在線人數膠囊 */
+        .seeker-online-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eeddbf;
+            border: 1px solid #c9b48c;
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: 13px;
+            font-weight: bold;
+            color: #4a2c11;
+            box-shadow: inset 0 0 8px rgba(180, 140, 70, 0.12);
+            font-family: inherit;
+        }
+
+        /* 題目票選卡片樣式 */
+        .topic-vote-card {
+            background: #fdfaf3;
+            border: 1.5px solid #d5c4a1;
+            border-radius: 10px;
+            padding: 18px;
+            box-shadow: 0 4px 12px rgba(80, 50, 20, 0.08);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.25s ease;
+        }
+        .topic-vote-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(80, 50, 20, 0.12);
+            border-color: #8c5828;
+        }
+        .topic-vote-card.voted {
+            border: 2px solid #2e7d32;
+            background: #f7faf4;
+        }
+
+        /* AI 評審榜單榮譽卡片 */
+        .leaderboard-card {
+            background: #fdf9f0;
+            border: 2px solid #d5c29a;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 14px rgba(70, 45, 20, 0.1);
+            position: relative;
+            transition: all 0.25s ease;
+        }
+        .leaderboard-card.rank-1 { border-color: #d4af37; background: linear-gradient(135deg, #fffdf8 0%, #fef7e6 100%); }
+        .leaderboard-card.rank-2 { border-color: #b0bec5; background: linear-gradient(135deg, #fffdf8 0%, #f5f7fa 100%); }
+        .leaderboard-card.rank-3 { border-color: #bcaaa4; background: linear-gradient(135deg, #fffdf8 0%, #fbf5f2 100%); }
+
+        /* 歷屆比賽分區大卡片 */
+        .archive-edition-block {
+            background: #fcf8ed;
+            border: 2px solid #c9b48c;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            padding: 24px;
+            box-shadow: 0 4px 16px rgba(80, 50, 20, 0.08);
+        }
         
         /* 兩階段指示標籤 */
         .step-progress-bar {
@@ -837,8 +899,11 @@
                     <div class="en-text">Seeker Wen-Wen Cup</div>
                 </div>
             </div>
-        </div>
         <div class="nav-right" id="navRightPanel">
+            <div class="seeker-online-pill" id="seekerNavOnlinePill">
+                <i class="fas fa-circle" style="color:#2e7d32; font-size:8px;"></i>
+                <span>在線：<b id="seekerOnlineCount">1</b> 人</span>
+            </div>
             <select id="langSelect">
                 <option value="zh" selected>繁體中文</option>
                 <option value="en">English</option>
@@ -850,10 +915,13 @@
 
     <!-- 模式選擇按鈕組 -->
     <div class="mode-selector">
-        <button id="homeModeBtn" class="mode-btn active" onclick="showPage('home')"><i class="fas fa-home"></i> 比賽首頁</button>
-        <button id="browseModeBtn" class="mode-btn" onclick="showPage('browse')"><i class="fas fa-book-reader"></i> 作品展示</button>
-        <button id="createModeBtn" class="mode-btn" onclick="showPage('create')"><i class="fas fa-feather-alt"></i> 我要參賽 / 我的作品</button>
-        <button id="adminSchedBtn" class="mode-btn admin-btn" style="display:none;" onclick="openAdminScheduleModal()"><i class="fas fa-cog"></i> 設定比賽時程與狀態</button>
+        <button id="homeModeBtn" class="mode-btn active" onclick="showPage('home')"><i class="fas fa-home"></i> 首頁</button>
+        <button id="rulesModeBtn" class="mode-btn" onclick="showPage('about')"><i class="fas fa-scroll"></i> 比賽章程</button>
+        <button id="worksModeBtn" class="mode-btn" onclick="showPage('works')"><i class="fas fa-feather-alt"></i> 作品</button>
+        <button id="browseModeBtn" class="mode-btn" onclick="showPage('browse')"><i class="fas fa-award"></i> 作品展示</button>
+        <button id="archiveModeBtn" class="mode-btn" onclick="showPage('archive')"><i class="fas fa-archive"></i> 歷屆作品</button>
+        <button id="createModeBtn" class="mode-btn" onclick="showPage('create')"><i class="fas fa-edit"></i> 我要參賽</button>
+        <button id="adminSchedBtn" class="mode-btn admin-btn" style="display:none;" onclick="openAdminScheduleModal()"><i class="fas fa-cog"></i> 大會管理</button>
     </div>
 
     <!-- 頁面 1: 首頁 -->
@@ -876,6 +944,28 @@
             文文盃是專為動物系奇幻冒險小說創作者們打造的最高榮譽殿堂！<br>
             在這裡，你可以繳交嘔心瀝血的參賽大作，與同好切磋文筆，並在截止後細細品味所有參賽者的優秀篇章。
         </p>
+
+        <!-- 主題票選特區 (當比賽處於 voting 階段時呈現) -->
+        <div id="homeTopicVotingSection" class="hidden" style="background:#fcf8ee; border:2px solid #bfa57c; border-radius:12px; padding:24px; margin:22px 0; box-shadow:inset 0 0 35px rgba(180, 140, 70, 0.12);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px; border-bottom:1.5px dashed #c9b48c; padding-bottom:12px;">
+                <div style="display:inline-flex; align-items:center; gap:8px; background:#5d4037; color:#fff8eb; padding:5px 16px; border-radius:20px; font-size:14px; font-weight:bold;">
+                    <i class="fas fa-vote-yea"></i> 大會主題使用者票選進行中
+                </div>
+                <div id="votingCountdownBadge" style="font-size:14px; color:#c62828; font-weight:bold; background:#ffebee; padding:4px 14px; border-radius:15px; border:1px solid #ef9a9a;">
+                    <i class="fas fa-clock"></i> 距票選截止還剩：計算中...
+                </div>
+            </div>
+            <p style="font-size:15px; color:#5a3818; margin:0 0 16px 0;">
+                本屆比賽主題由 AI 智能構思 3 組候選題目，並經大會 AI 二次深度安全與合規審核通過。請各位探索者投下神聖的一票，截止後最高票之題目將正式確立為本屆賽事指定主題！
+            </p>
+            <div id="topicOptionsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:18px;">
+                <!-- 動態注入 3 個候選題目卡片 -->
+            </div>
+            <div id="aiAuditReportBadge" style="margin-top:16px; background:#edf7ed; border:1px solid #c8e6c9; border-radius:8px; padding:10px 14px; font-size:13px; color:#1b5e20; display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-shield-alt" style="font-size:16px;"></i>
+                <span id="aiAuditReportText">大會 AI 二次審核通過認證：候選題目無不妥內容，規則明確，判定安全合規通過！</span>
+            </div>
+        </div>
 
         <!-- 本屆徵文主題 / 比賽題目專區 -->
         <div id="homeTopicSection" style="background:#f7eed6; border:2px solid #bfa57c; border-radius:10px; padding:22px 26px; margin:22px 0; box-shadow:inset 0 0 30px rgba(180, 140, 70, 0.12); position:relative;">
@@ -921,6 +1011,54 @@
             全站採用經典泛黃紙與暖棕手寫字體設計，重現羊皮古卷與手稿筆墨的沉浸式閱讀體驗。
         </p>
         <button class="action-btn secondary" onclick="showPage('home')"><i class="fas fa-arrow-left"></i> 返回首頁</button>
+    </div>
+
+    <!-- 頁面: 「作品」分頁 (比賽進行時展示) -->
+    <div class="container hidden" id="page-works">
+        <div class="contest-status-bar" id="worksContestStatusBar">
+            <div>
+                <span style="font-size:17px; font-weight:bold; color:#3e2210;" id="worksContestTitle"><i class="fas fa-trophy"></i> 進行中比賽作品</span>
+                <div style="font-size:13px; color:#7d5836;" id="worksContestRange"><i class="fas fa-calendar-alt"></i> 徵件進行中</div>
+            </div>
+            <div id="worksContestBadge"><span class="status-badge status-open"><i class="fas fa-check-circle"></i> 徵件進行中</span></div>
+        </div>
+
+        <div id="currentWorksMainView">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:15px;">
+                <div>
+                    <h2 style="margin:0;"><i class="fas fa-feather-alt"></i> 參賽作品一覽 (比賽進行中)</h2>
+                    <p style="color:#7d5836; font-size:14px; margin:4px 0 0 0;" id="currentWorksStatsSummary">
+                        載入本屆作品中...
+                    </p>
+                </div>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="position:relative;">
+                        <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#8d6e63; font-size:13px;"></i>
+                        <input type="text" id="currentWorksSearchInput" placeholder="搜尋作品標題、作者..." oninput="filterCurrentWorks()" style="width:240px; margin:0; padding:8px 12px 8px 32px; font-size:14px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分類標籤膠囊 -->
+            <div class="filters-container" id="currentWorksFiltersContainer">
+                <button type="button" class="filter-chip active" data-filter="all" onclick="setCurrentWorksFilter('all')">
+                    <i class="fas fa-layer-group"></i> 全部作品 <span class="chip-count" id="currentChipCountAll">0</span>
+                </button>
+                <button type="button" class="filter-chip" data-filter="text" onclick="setCurrentWorksFilter('text')">
+                    <i class="fas fa-feather-alt"></i> 純文字小說 <span class="chip-count" id="currentChipCountText">0</span>
+                </button>
+                <button type="button" class="filter-chip" data-filter="pdf" onclick="setCurrentWorksFilter('pdf')">
+                    <i class="fas fa-file-pdf"></i> PDF 作品 <span class="chip-count" id="currentChipCountPdf">0</span>
+                </button>
+                <button type="button" class="filter-chip" data-filter="word" onclick="setCurrentWorksFilter('word')">
+                    <i class="fas fa-file-word"></i> Word 作品 <span class="chip-count" id="currentChipCountWord">0</span>
+                </button>
+            </div>
+
+            <div class="works-grid" id="currentWorksGrid">
+                <!-- 動態呈現進行中作品卡片清單 -->
+            </div>
+        </div>
     </div>
 
     <!-- 頁面 3: 我要參賽 / 我的作品 (交件功能) -->
@@ -1196,6 +1334,25 @@
             <div id="browseContestBadge"><span class="status-badge status-open"><i class="fas fa-check-circle"></i> 徵件進行中</span></div>
         </div>
 
+        <!-- AI 評審榮譽總榜單 (當本屆比賽結束且 AI 完成評判時呈現) -->
+        <div id="aiJudgeLeaderboardSection" class="hidden" style="background:#fcf8ee; border:2px solid #d4c29a; border-radius:12px; padding:24px; margin-bottom:25px; box-shadow:inset 0 0 35px rgba(180, 140, 70, 0.15);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:2px dashed #bfa57c; padding-bottom:12px; margin-bottom:18px;">
+                <div>
+                    <div style="display:inline-flex; align-items:center; gap:8px; background:#4e342e; color:#ffe082; padding:4px 16px; border-radius:20px; font-size:13px; font-weight:bold;">
+                        <i class="fas fa-trophy"></i> 大會 AI 評審榮譽榜單
+                    </div>
+                    <h2 style="margin:8px 0 0 0; color:#3e2210; border-bottom:none;"><i class="fas fa-award"></i> 本屆賽事 AI 深度評審總評與得獎名次</h2>
+                </div>
+                <div id="aiJudgeMetaBadge" style="font-size:13px; color:#5d4037; background:#ebdcb9; padding:4px 12px; border-radius:15px; border:1px solid #c9b792;">
+                    <i class="fas fa-robot"></i> 伺服器 AI 文學思考評判核心
+                </div>
+            </div>
+            
+            <div id="aiJudgeCardsContainer" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+                <!-- 動態呈現金獎、銀獎、銅獎、佳作與專屬分數評語 -->
+            </div>
+        </div>
+
         <!-- 作品列表檢視 -->
         <div id="browseListView">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:15px;">
@@ -1255,87 +1412,152 @@
         </div>
     </div>
 
-    <!-- 管理員專用：比賽時程與關閉設定 Modal -->
-    <div id="adminScheduleModal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeAdminScheduleModal()" title="關閉"><i class="fas fa-times"></i></span>
-            <h2 style="margin-top:0; color:#3e2723;"><i class="fas fa-cog"></i> 管理員設定：文文盃比賽時程與狀態</h2>
-            <p style="font-size:14px; color:#7d5836;">
-                請設定比賽交件的開始與截止時間，或手動強制關閉/開放比賽。開始時間前禁止交件，截止時間前作者可隨時修改作品，截止後所有作品將自動全面公開。
-            </p>
+    <!-- 頁面 5: 歷屆作品 (依比賽屆數分區歸檔) -->
+    <div class="container hidden" id="page-archive">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; border-bottom:2px solid #bfa57c; padding-bottom:10px;">
+            <div>
+                <h2 style="margin:0; border:none; padding:0;"><i class="fas fa-archive"></i> 歷屆探險者文文盃寫作比賽典藏</h2>
+                <p style="color:#7d5836; font-size:14px; margin:4px 0 0 0;">
+                    當新一屆比賽開始後，過往已結束之賽事與作品將自動歸檔於此，按比賽屆數分區永久珍藏。
+                </p>
+            </div>
+        </div>
 
-            <!-- 手動開關狀態與快捷操作面板 -->
-            <div style="background:#f5ecd5; border:1.5px solid #c9b48c; border-radius:8px; padding:15px; margin-bottom:15px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div id="archiveEditionsList">
+            <!-- 動態依屆數分區呈現歷屆比賽卡片與作品清單 -->
+        </div>
+    </div>
+
+    <!-- 管理員專用：比賽時程與賽事控制台 Modal -->
+    <div id="adminScheduleModal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 850px; width: 95%;">
+            <span class="close-btn" onclick="closeAdminScheduleModal()" title="關閉"><i class="fas fa-times"></i></span>
+            <div style="display:flex; align-items:center; gap:10px; border-bottom:2px dashed #bfa57c; padding-bottom:12px; margin-bottom:16px;">
+                <h2 style="margin:0; color:#3e2723;"><i class="fas fa-tools"></i> 文文盃大會管理控制台</h2>
+                <span style="font-size:13px; color:#5d4037; background:#ebdcb9; padding:3px 10px; border-radius:12px;">管理員專屬</span>
+            </div>
+
+            <!-- 區塊 1: 當前進行中/已建立賽事操作面板 -->
+            <div style="background:#fcf8ee; border:1.5px solid #c9b48c; border-radius:10px; padding:18px; margin-bottom:20px; box-shadow:0 2px 8px rgba(80,50,20,0.06);">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-bottom:1px dashed #d5c4a1; padding-bottom:10px; margin-bottom:12px;">
                     <div>
-                        <div style="font-size:12px; color:#8d6e63; font-weight:bold;">當前比賽狀態</div>
-                        <div id="adminCurrentStatusBadge" style="margin-top:4px;">
-                            <!-- 動態填入狀態 -->
+                        <div style="font-size:12px; color:#8d6e63; font-weight:bold;">當前賽事資訊</div>
+                        <div style="font-size:18px; font-weight:bold; color:#3e2210; margin-top:2px;" id="adminCurrentContestTitle">
+                            載入中...
                         </div>
                     </div>
-                    <div>
-                        <button type="button" id="adminToggleCloseBtn" class="action-btn" style="margin:0; padding:8px 16px; font-size:14px;" onclick="toggleManualContestClose()">
-                            <!-- 動態填入切換按鈕 -->
-                        </button>
+                    <div id="adminCurrentStatusBadge">
+                        <!-- 動態填入狀態徽章 -->
                     </div>
+                </div>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <!-- 手動截止/開放按鈕 -->
+                    <button type="button" id="adminToggleCloseBtn" class="action-btn" style="margin:0; padding:8px 16px; font-size:14px;" onclick="toggleManualContestClose()">
+                        <i class="fas fa-power-off"></i> 切換截止/開放
+                    </button>
+                    <!-- 賽後 AI 評審按鈕 -->
+                    <button type="button" id="adminAiJudgeBtn" class="action-btn" style="margin:0; padding:8px 16px; font-size:14px; background:#4e342e; color:#ffe082;" onclick="adminStartAiJudge()">
+                        <i class="fas fa-gavel"></i> 啟動 AI 智能文學評審與排行
+                    </button>
+                    <!-- 刪除測試比賽按鈕 (測試比賽可隨時刪除，刪除後所屬作品與比賽完全消失) -->
+                    <button type="button" id="adminDeleteTestContestBtn" class="action-btn danger" style="margin:0; padding:8px 16px; font-size:14px; display:none;" onclick="adminDeleteCurrentContest()">
+                        <i class="fas fa-trash-alt"></i> 刪除此測試比賽 (完全清空)
+                    </button>
+                </div>
+                <div id="adminDeleteHint" style="font-size:12px; color:#c62828; margin-top:8px; display:none;">
+                    <i class="fas fa-exclamation-triangle"></i> 提醒：此為測試用比賽，點擊刪除後，該比賽及其旗下所有參賽作品將自動完全永久消失！
                 </div>
             </div>
 
-            <form onsubmit="saveAdminSchedule(event)" style="display:flex; flex-direction:column; gap:14px; margin-top:15px;">
-                <div>
-                    <label>比賽名稱：</label>
-                    <input type="text" id="schedTitle" required placeholder="例如：第一屆探險者文文盃寫作比賽">
-                </div>
+            <!-- 區塊 2: 發起新一屆比賽 (固定第*屆自動累加，上一屆自動歸檔為歷屆作品) -->
+            <div style="background:#f9f2e2; border:1.5px solid #d5c4a1; border-radius:10px; padding:20px;">
+                <h3 style="margin:0 0 12px 0; color:#3e2210;"><i class="fas fa-plus-circle"></i> 發起新一屆探險者文文盃寫作比賽</h3>
+                <p style="font-size:13px; color:#7d5836; margin:0 0 14px 0;">
+                    發起新比賽時，目前進行中或剛結束的舊比賽將自動歸檔封存至「歷屆作品」分頁，新比賽固定為第*屆自動增加。
+                </p>
 
-                <div style="background:#f6edd6; border:1px solid #d4c29a; border-radius:6px; padding:12px;">
-                    <label style="margin-top:0;"><i class="fas fa-scroll"></i> 本屆徵文主題 / 比賽題目：<span style="color:#c62828;">*</span></label>
-                    <input type="text" id="schedTopic" required placeholder="例如：迷霧森林的古老守護者、破曉之翼、地底文明的低語...">
-                    <div style="font-size:12px; color:#8d6e63; margin-top:3px;">
-                        本題目將公開展示於首頁、參賽頁面撰寫指引及閱讀器中，引導所有參賽者創作。
+                <div style="display:flex; flex-direction:column; gap:14px;">
+                    <div>
+                        <label>新比賽名稱（系統固定自動遞增）：</label>
+                        <input type="text" id="newContestTitleInput" readonly style="background:rgba(0,0,0,0.04) !important; font-weight:bold; color:#5d4037;">
                     </div>
 
-                    <label style="margin-top:10px;"><i class="fas fa-align-left"></i> 題目指引與寫作要求說明 (選填)：</label>
-                    <textarea id="schedTopicDesc" rows="3" placeholder="請填寫本屆題目的創作背景設定、體裁建議、世界觀或核心精神..."></textarea>
-                    <div style="font-size:12px; color:#8d6e63; margin-top:3px;">
-                        提供給參賽者明確的題目背景或規範指引。
+                    <div style="background:#fffaf0; border:1px solid #ebd8b5; padding:10px 14px; border-radius:6px;">
+                        <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; color:#bf360c; font-weight:bold;">
+                            <input type="checkbox" id="newContestIsTest" style="width:18px; height:18px;">
+                            <span>建立為「測試用比賽」（標籤顯示 [測試比賽]，全站皆可見，隨時可一鍵刪除且作品自動清空）</span>
+                        </label>
+                    </div>
+
+                    <!-- 主題設定模式 -->
+                    <div style="background:#fcf8ee; border:1.5px solid #c9b48c; border-radius:8px; padding:16px;">
+                        <label style="margin-top:0; color:#3e2210; font-size:15px; font-weight:bold;">
+                            <i class="fas fa-poll"></i> 主題決定方式：
+                        </label>
+                        <div style="display:flex; gap:15px; margin:8px 0 12px 0; flex-wrap:wrap;">
+                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                <input type="radio" name="topicMode" id="topicModeVoting" value="voting" checked onchange="toggleTopicModeUI()">
+                                <b>使用者票選題目 (由 AI 構思 3 組題目 + 同個 AI 二度安全審核)</b>
+                            </label>
+                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                <input type="radio" name="topicMode" id="topicModeManual" value="manual" onchange="toggleTopicModeUI()">
+                                <b>管理員直接指定單一題目</b>
+                            </label>
+                        </div>
+
+                        <!-- 票選模式區塊 -->
+                        <div id="topicModeVotingBox">
+                            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                                <div>
+                                    <label style="margin-top:0; font-size:14px;">票選截止時間 (Voting Deadline)：</label>
+                                    <input type="datetime-local" id="newContestVotingEndTime" style="width:260px;">
+                                </div>
+                                <button type="button" class="mode-btn" style="margin:0; padding:6px 14px; font-size:13px; background:#4e342e; color:#ffe082;" onclick="adminTriggerAiTopics()">
+                                    <i class="fas fa-magic"></i> AI 智能生成 3 組題目與二度審核
+                                </button>
+                            </div>
+
+                            <div id="adminAiGeneratedTopicsPreview" style="margin-top:10px;">
+                                <div style="font-size:13px; color:#8d6e63; font-style:italic;">點擊上方按鈕，AI 將自動生成 3 組題目並由同一 AI 進行深度合規二次審核...</div>
+                            </div>
+                        </div>
+
+                        <!-- 手動指定題目區塊 -->
+                        <div id="topicModeManualBox" class="hidden">
+                            <label style="margin-top:0;">指定比賽題目：</label>
+                            <input type="text" id="newContestManualTopic" placeholder="例如：迷霧森林的古老守護者">
+                            <label style="margin-top:8px;">題目寫作指引與要求說明 (選填)：</label>
+                            <textarea id="newContestManualTopicDesc" rows="2" placeholder="填寫主題背景設定、體裁建議與精神..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 比賽交件開始與截止時間 -->
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px;">
+                        <div>
+                            <label>交件開始時間 (Start Time)：</label>
+                            <input type="datetime-local" id="newContestStartTime">
+                        </div>
+                        <div>
+                            <label>交件截止時間 (End Time)：</label>
+                            <input type="datetime-local" id="newContestEndTime">
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#f4ead2; padding:10px; border-radius:6px;">
+                        <span style="font-weight:bold; font-size:13px; color:#5a3818;">時程快捷填入：</span>
+                        <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyAdminQuickTime('now')">開始設為現在</button>
+                        <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyAdminQuickTime(7)">+7天截止</button>
+                        <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyAdminQuickTime(14)">+14天截止</button>
+                        <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyAdminQuickTime(30)">+30天截止</button>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px; border-top:1px dashed #d5c4a1; padding-top:12px;">
+                        <button type="button" class="action-btn secondary" style="margin:0;" onclick="closeAdminScheduleModal()">關閉面板</button>
+                        <button type="button" class="action-btn" style="margin:0;" onclick="adminSubmitNewContest()"><i class="fas fa-paper-plane"></i> 正式發起並發布本屆比賽</button>
                     </div>
                 </div>
-
-                <div>
-                    <label>交件開始時間 (Start Time)：</label>
-                    <input type="datetime-local" id="schedStartTime" required>
-                    <div style="font-size:12px; color:#8d6e63; margin-top:3px;">此時間之前，一般使用者無法新增或交件。</div>
-                </div>
-
-                <div>
-                    <label>交件截止時間 (End Time / Deadline)：</label>
-                    <input type="datetime-local" id="schedEndTime" required>
-                    <div style="font-size:12px; color:#8d6e63; margin-top:3px;">此時間之後，禁止再修改作品，且所有「不公開」作品將全數自動對所有人公開展示。</div>
-                </div>
-
-                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; background:#f4ead2; padding:10px; border-radius:6px;">
-                    <span style="font-weight:bold; font-size:13px; color:#5a3818;">截止快捷設定：</span>
-                    <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyQuickSchedule('now')">開始設為現在</button>
-                    <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyQuickSchedule(7)">+7天截止</button>
-                    <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyQuickSchedule(14)">+14天截止</button>
-                    <button type="button" class="mode-btn" style="padding:4px 10px; font-size:12px;" onclick="applyQuickSchedule(30)">+30天截止</button>
-                </div>
-
-                <div style="background:#fff3e0; border:1px solid #ffe082; padding:12px; border-radius:6px;">
-                    <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; color:#bf360c; font-weight:bold; font-size:15px;">
-                        <input type="checkbox" id="schedIsClosed" style="width:18px; height:18px;">
-                        <span>手動強制關閉 / 截止比賽 (勾選後立即終止徵件並公開所有作品)</span>
-                    </label>
-                    <div style="font-size:12px; color:#8d6e63; margin-top:4px; margin-left:26px;">
-                        勾選此項可無視時程提早結束比賽。截止後將自動鎖定所有參賽稿件，並全面公開暫不公開之作品。
-                    </div>
-                </div>
-
-                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
-                    <button type="button" class="action-btn secondary" style="margin:0;" onclick="closeAdminScheduleModal()">取消</button>
-                    <button type="submit" class="action-btn" style="margin:0;"><i class="fas fa-save"></i> 儲存題目與時程</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
     <!-- 參賽作品即時預覽 Modal (設定文章與填寫文章兩階段皆可叫出，與閱讀器 100% 相同) -->
@@ -1517,7 +1739,13 @@
 
     <!-- 頁尾 -->
     <div class="footer">
-        <a href="../../">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+        <div style="display:flex; justify-content:center; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:4px;">
+            <span style="font-size:12px; color:#bcaaa4; display:inline-flex; align-items:center; gap:6px;">
+                <i class="fas fa-circle" style="color:#81c784; font-size:7px;"></i> 全站在線：<b id="footerOnlineCount" style="color:#fff8eb;">1</b> 人
+            </span>
+            <span style="color:#8d6e63;">|</span>
+            <a href="../../" style="color:#d7ccc8; text-decoration:none;">版權所有 &copy; 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+        </div>
     </div>
 
     <!-- 主程式邏輯 Script -->
@@ -1538,8 +1766,11 @@
         let currentLang = 'zh';
         window.serverUrl = '';
 
-        // 比賽資料結構
+        // 比賽資料結構 (向下相容與多屆生命週期)
         let db = {
+            currentContestId: null,
+            nextEdition: 1,
+            contests: [],
             settings: {
                 title: "第一屆探險者文文盃寫作比賽",
                 topic: "迷霧森林的古老守護者",
@@ -1559,29 +1790,80 @@
                     db = { ...db, ...parsed };
                     if (!db.settings) db.settings = {};
                     if (!Array.isArray(db.works)) db.works = [];
+                    if (!Array.isArray(db.contests)) db.contests = [];
                 }
             }
         } catch(e) {}
 
+        // 競賽輔助檢索函數
+        function getAllContests() {
+            return (db.contests || []);
+        }
+
+        function getCurrentContest() {
+            if (!db || !Array.isArray(db.contests) || db.contests.length === 0) return null;
+            if (db.currentContestId) {
+                const found = db.contests.find(c => c.id === db.currentContestId);
+                if (found) return found;
+            }
+            const nonArchived = db.contests.slice().reverse().find(c => c.status !== 'archived');
+            if (nonArchived) return nonArchived;
+            return db.contests[db.contests.length - 1];
+        }
+
+        function getEndedContest() {
+            if (!db || !Array.isArray(db.contests)) return null;
+            const cur = getCurrentContest();
+            if (cur && cur.status === 'ended') return cur;
+            return db.contests.slice().reverse().find(c => c.status === 'ended') || cur;
+        }
+
+        function getArchivedContests() {
+            if (!db || !Array.isArray(db.contests)) return [];
+            return db.contests.filter(c => c.status === 'archived').sort((a, b) => (b.edition || 0) - (a.edition || 0));
+        }
+
+        function getAllWorks() {
+            let all = [];
+            if (Array.isArray(db.works)) all = all.concat(db.works);
+            if (Array.isArray(db.contests)) {
+                db.contests.forEach(c => {
+                    if (Array.isArray(c.works)) {
+                        c.works.forEach(w => {
+                            if (!all.some(existing => String(existing.id) === String(w.id))) {
+                                all.push(w);
+                            }
+                        });
+                    }
+                });
+            }
+            return all;
+        }
+
         // --- 時程判定核心邏輯 ---
         function getContestTimes() {
             const now = Date.now();
-            const sStr = db.settings ? db.settings.startTime : '';
-            const eStr = db.settings ? db.settings.endTime : '';
+            const cur = getCurrentContest();
+            const sStr = cur ? (cur.startTime || '') : (db.settings ? db.settings.startTime : '');
+            const eStr = cur ? (cur.endTime || '') : (db.settings ? db.settings.endTime : '');
             const sTime = sStr ? new Date(sStr).getTime() : NaN;
             const eTime = eStr ? new Date(eStr).getTime() : NaN;
             return { now, sTime, eTime, sStr, eStr };
         }
 
-        // 是否已開始 (若未設開始時間則預設為已開始)
+        // 是否已開始
         function isContestStarted() {
+            const cur = getCurrentContest();
+            if (cur && cur.status === 'voting') return false; // 票選中尚未開放交件
             const { now, sTime } = getContestTimes();
             if (isNaN(sTime)) return true;
             return now >= sTime;
         }
 
-        // 是否已截止 (若手動關閉或到達截止時間)
+        // 是否已截止
         function isContestEnded() {
+            const cur = getCurrentContest();
+            if (cur && (cur.status === 'ended' || cur.status === 'archived')) return true;
             if (db.settings && Boolean(db.settings.isClosed)) return true;
             const { now, eTime } = getContestTimes();
             if (isNaN(eTime)) return false;
@@ -1591,7 +1873,8 @@
         // 計算倒數或狀態字串
         function formatContestStatus() {
             const { now, sTime, eTime, sStr, eStr } = getContestTimes();
-            const title = (db.settings && db.settings.title) ? db.settings.title : "第一屆探險者文文盃寫作比賽";
+            const cur = getCurrentContest();
+            const title = cur ? cur.title : ((db.settings && db.settings.title) ? db.settings.title : "第一屆探險者文文盃寫作比賽");
             
             const formatDT = (dStr) => {
                 if (!dStr) return '未設定';
@@ -1602,6 +1885,17 @@
             };
 
             const rangeText = `<i class="fas fa-calendar-alt"></i> 交件期間：${formatDT(sStr)} ～ ${formatDT(eStr)}`;
+
+            if (cur && cur.status === 'voting') {
+                return {
+                    title,
+                    rangeText: `<i class="fas fa-clock"></i> 題目票選截止：${formatDT(cur.votingEndTime)}`,
+                    badgeClass: 'status-pending',
+                    badgeText: `<i class="fas fa-vote-yea"></i> 題目票選進行中 (即將開放投稿)`,
+                    isStarted: false,
+                    isEnded: false
+                };
+            }
 
             if (db.settings && Boolean(db.settings.isClosed)) {
                 return {
@@ -1678,6 +1972,14 @@
             if (hr) hr.innerHTML = st.rangeText;
             if (hb) hb.innerHTML = `<span class="status-badge ${st.badgeClass}">${st.badgeText}</span>`;
 
+            // Works
+            const wt = document.getElementById('worksContestTitle');
+            const wr = document.getElementById('worksContestRange');
+            const wb = document.getElementById('worksContestBadge');
+            if (wt) wt.innerHTML = `<i class="fas fa-trophy"></i> ${escapeHtml(st.title)}`;
+            if (wr) wr.innerHTML = st.rangeText;
+            if (wb) wb.innerHTML = `<span class="status-badge ${st.badgeClass}">${st.badgeText}</span>`;
+
             // Create
             const ct = document.getElementById('createContestTitle');
             const cr = document.getElementById('createContestRange');
@@ -1701,17 +2003,29 @@
                 else admBtn.style.display = 'none';
             }
 
-            // 更新題目顯示
+            // 更新題目顯示與票選專區
             renderTopicDisplay();
+            renderTopicVotingSection();
         }
 
         window.renderTopicDisplay = function() {
-            const topic = (db.settings && db.settings.topic && db.settings.topic.trim()) 
-                ? db.settings.topic.trim() 
-                : '迷霧森林的古老守護者';
-            const desc = (db.settings && db.settings.topicDesc && db.settings.topicDesc.trim()) 
-                ? db.settings.topicDesc.trim() 
-                : '在神祕而未知的原始山林深處，沉睡著受大自然祝福的守護者。請以此為題，描寫一段關於相遇、考驗與契約的奇幻冒險。';
+            const cur = getCurrentContest();
+            let topic = '迷霧森林的古老守護者';
+            let desc = '在神祕而未知的原始山林深處，沉睡著受大自然祝福的守護者。請以此為題，描寫一段關於相遇、考驗與契約的奇幻冒險。';
+
+            if (cur) {
+                if (cur.selectedTopic && cur.selectedTopic.title) {
+                    topic = cur.selectedTopic.title;
+                    desc = cur.selectedTopic.desc || '';
+                    if (cur.selectedTopic.rules) desc += '\n\n【題目指引與規範】\n' + cur.selectedTopic.rules;
+                } else if (cur.topic) {
+                    topic = cur.topic;
+                    desc = cur.topicDesc || '';
+                }
+            } else if (db.settings) {
+                if (db.settings.topic) topic = db.settings.topic;
+                if (db.settings.topicDesc) desc = db.settings.topicDesc;
+            }
 
             // 首頁題目展示
             const homeT = document.getElementById('homeTopicTitle');
@@ -1737,6 +2051,99 @@
             } else {
                 descBox.style.display = 'none';
                 if (btnText) btnText.innerText = '查看題目指引';
+            }
+        };
+
+        // --- 題目票選核心邏輯 ---
+        window.renderTopicVotingSection = function() {
+            const votingSec = document.getElementById('homeTopicVotingSection');
+            const topicSec = document.getElementById('homeTopicSection');
+            if (!votingSec) return;
+
+            const cur = getCurrentContest();
+            if (!cur || cur.status !== 'voting' || !cur.topicOptions || cur.topicOptions.length === 0) {
+                votingSec.classList.add('hidden');
+                if (topicSec) topicSec.style.display = 'block';
+                return;
+            }
+
+            votingSec.classList.remove('hidden');
+            if (topicSec) topicSec.style.display = 'none';
+
+            // 倒數計時
+            const badge = document.getElementById('votingCountdownBadge');
+            if (badge && cur.votingEndTime) {
+                const diffMs = new Date(cur.votingEndTime).getTime() - Date.now();
+                if (diffMs > 0) {
+                    const d = Math.floor(diffMs / 86400000);
+                    const h = Math.floor((diffMs % 86400000) / 3600000);
+                    const m = Math.floor((diffMs % 3600000) / 60000);
+                    badge.innerHTML = `<i class="fas fa-clock"></i> 距票選截止還剩：${d}天 ${h}時 ${m}分`;
+                } else {
+                    badge.innerHTML = `<i class="fas fa-check-circle"></i> 票選時間已截止，即將結算題目！`;
+                }
+            }
+
+            // AI 審核報告文字
+            const auditText = document.getElementById('aiAuditReportText');
+            if (auditText && cur.aiAudit && cur.aiAudit.summary) {
+                auditText.innerText = cur.aiAudit.summary;
+            }
+
+            // 3 組題目卡片
+            const container = document.getElementById('topicOptionsContainer');
+            if (container) {
+                const myVote = (currentUser && cur.topicOptions) 
+                    ? cur.topicOptions.find(o => (o.voters || []).includes(currentUser.username))
+                    : null;
+
+                container.innerHTML = cur.topicOptions.map((opt, idx) => {
+                    const isVoted = myVote && myVote.id === opt.id;
+                    const voteCount = opt.votes || 0;
+                    return `
+                        <div class="topic-vote-card ${isVoted ? 'voted' : ''}" style="background:#fffcf5; border:1.5px solid ${isVoted ? '#2e7d32' : '#d5c4a1'}; border-radius:10px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                            <div>
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:12px; font-weight:bold; background:#ebdcb9; color:#4e342e; padding:2px 8px; border-radius:10px;">候選題目 0${idx+1}</span>
+                                    <span style="font-size:13px; font-weight:bold; color:#b26a00;"><i class="fas fa-vote-yea"></i> ${voteCount} 票</span>
+                                </div>
+                                <h4 style="margin:0 0 8px 0; font-size:19px; color:#3e2210; font-family:'Klee One', serif;">${escapeHtml(opt.title)}</h4>
+                                <p style="font-size:14px; color:#5a3818; line-height:1.7; margin:0 0 10px 0;">${escapeHtml(opt.desc)}</p>
+                                ${opt.rules ? `<div style="font-size:12.5px; color:#7d5836; background:rgba(0,0,0,0.03); padding:6px 10px; border-radius:6px; margin-bottom:12px;"><b>限制要求：</b>${escapeHtml(opt.rules)}</div>` : ''}
+                            </div>
+                            <button type="button" class="action-btn ${isVoted ? '' : 'secondary'}" style="margin:0; width:100%; justify-content:center; padding:7px 12px; font-size:14px; ${isVoted ? 'background:#2e7d32; color:white;' : ''}" onclick="voteContestTopic('${cur.id}', '${opt.id}')">
+                                ${isVoted ? '<i class="fas fa-check-circle"></i> 您已投此題目' : '<i class="fas fa-vote-yea"></i> 投給這個主題'}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+        };
+
+        window.voteContestTopic = async function(contestId, topicId) {
+            if (!currentUser) {
+                alert('請先登入帳號後再參與題目票選！');
+                window.location.href = '../../login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
+                return;
+            }
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/vote-topic`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ contestId, topicId, username: currentUser.username })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.db) Object.assign(db, data.db);
+                    await saveCloudData();
+                    renderTopicVotingSection();
+                    alert('投票成功！感謝您為本屆文文盃主題投下神聖的一票。');
+                } else {
+                    alert('投票失敗：' + (data.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線失敗：' + e.message);
             }
         };
 
@@ -1787,6 +2194,17 @@
                     loadCloudData();
                 });
 
+                // 即時監聽在線人數廣播
+                socket.on('systemStats', (stats) => {
+                    if (stats && stats.onlineUsers !== undefined) {
+                        const count = stats.onlineUsers || 1;
+                        const navEl = document.getElementById('seekerOnlineCount');
+                        if (navEl) navEl.innerText = count;
+                        const footerEl = document.getElementById('footerOnlineCount');
+                        if (footerEl) footerEl.innerText = count;
+                    }
+                });
+
                 socket.on('loginResult', (data) => {
                     if (data && data.success) {
                         currentUser = {
@@ -1802,8 +2220,7 @@
                             localStorage.setItem('sso_admin', 'true');
                         }
                         renderUserUI();
-                        renderCreatePage();
-                        renderBrowseList();
+                        renderAllPages();
                     } else {
                         localStorage.removeItem('panda_session_token');
                         const ssoAuth = localStorage.getItem('sso_auth') === 'true';
@@ -1817,13 +2234,11 @@
                                 isAdmin: localStorage.getItem('sso_isAdmin') === 'true' || localStorage.getItem('sso_admin') === 'true'
                             };
                             renderUserUI();
-                            renderCreatePage();
-                            renderBrowseList();
+                            renderAllPages();
                         } else {
                             currentUser = null;
                             renderGuestUI();
-                            renderCreatePage();
-                            renderBrowseList();
+                            renderAllPages();
                         }
                     }
                 });
@@ -1831,11 +2246,9 @@
                 // 雙向即時更新通知
                 socket.on('appData', (payload) => {
                     if (payload && payload.data) {
-                        db = payload.data;
+                        Object.assign(db, payload.data);
                         localStorage.setItem('cached_competition_db', JSON.stringify(db));
-                        renderBrowseList();
-                        renderCreatePage();
-                        updateAllStatusBars();
+                        renderAllPages();
                     }
                 });
             } catch(e) {
@@ -1854,12 +2267,12 @@
                     if (res.ok) {
                         const data = await res.json();
                         if (data && typeof data === 'object') {
-                            if (data.works) db.works = data.works;
-                            if (data.settings) db.settings = { ...db.settings, ...data.settings };
+                            Object.assign(db, data);
+                            if (!db.contests) db.contests = [];
+                            if (!db.settings) db.settings = {};
+                            if (!db.works) db.works = [];
                             localStorage.setItem('cached_competition_db', JSON.stringify(db));
-                            renderBrowseList();
-                            renderCreatePage();
-                            updateAllStatusBars();
+                            renderAllPages();
                             handleUrlRouting();
                         }
                     }
@@ -1871,19 +2284,19 @@
                 socket.emit('getAppData', { appId: appId }, (res) => {
                     if (res) {
                         const remoteDb = res.data || res;
-                        if (remoteDb.works) db.works = remoteDb.works;
-                        if (remoteDb.settings) db.settings = { ...db.settings, ...remoteDb.settings };
-                        localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                        if (remoteDb && typeof remoteDb === 'object') {
+                            Object.assign(db, remoteDb);
+                            if (!db.contests) db.contests = [];
+                            if (!db.settings) db.settings = {};
+                            if (!db.works) db.works = [];
+                            localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                        }
                     }
-                    renderBrowseList();
-                    renderCreatePage();
-                    updateAllStatusBars();
+                    renderAllPages();
                     handleUrlRouting();
                 });
             } else {
-                renderBrowseList();
-                renderCreatePage();
-                updateAllStatusBars();
+                renderAllPages();
                 handleUrlRouting();
             }
         }
@@ -1910,6 +2323,15 @@
             }
         }
 
+        function renderAllPages() {
+            updateAllStatusBars();
+            renderTopicVotingSection();
+            renderCurrentWorksList();
+            renderBrowseList();
+            renderArchivePage();
+            renderCreatePage();
+        }
+
         // --- 登入驗證與 UI ---
         function checkLogin() {
             const params = new URLSearchParams(window.location.search);
@@ -1927,12 +2349,10 @@
                     isAdmin: ssoAdmin
                 };
                 renderUserUI();
-                renderCreatePage();
-                renderBrowseList();
+                renderAllPages();
             } else {
                 renderGuestUI();
-                renderCreatePage();
-                renderBrowseList();
+                renderAllPages();
             }
 
             if (token && socket && socket.connected) {
@@ -1953,6 +2373,10 @@
                 : `<i class="fas fa-user-edit" style="color:#5d4037; font-size:18px;"></i>`;
             
             r.innerHTML = `
+                <div class="seeker-online-pill" id="seekerNavOnlinePill">
+                    <i class="fas fa-circle" style="color:#2e7d32; font-size:8px;"></i>
+                    <span>在線：<b id="seekerOnlineCount">1</b> 人</span>
+                </div>
                 <select id="langSelect" onchange="currentLang=this.value;">
                     <option value="zh" selected>繁體中文</option>
                     <option value="en">English</option>
@@ -1998,6 +2422,10 @@
         function renderGuestUI() {
             const r = document.getElementById('navRightPanel');
             r.innerHTML = `
+                <div class="seeker-online-pill" id="seekerNavOnlinePill">
+                    <i class="fas fa-circle" style="color:#2e7d32; font-size:8px;"></i>
+                    <span>在線：<b id="seekerOnlineCount">1</b> 人</span>
+                </div>
                 <select id="langSelect" onchange="currentLang=this.value;">
                     <option value="zh" selected>繁體中文</option>
                     <option value="en">English</option>
@@ -2021,7 +2449,7 @@
         };
 
         // --- 頁面切換控制 ---
-        const pageIds = ['home', 'about', 'create', 'browse'];
+        const pageIds = ['home', 'about', 'works', 'browse', 'archive', 'create'];
         window.showPage = function(id, pushHistory = true) {
             if (!pageIds.includes(id)) id = 'home';
             pageIds.forEach(p => {
@@ -2033,12 +2461,27 @@
 
             // 模式按鈕狀態
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            if (id === 'home') document.getElementById('homeModeBtn')?.classList.add('active');
+            if (id === 'home') {
+                document.getElementById('homeModeBtn')?.classList.add('active');
+                renderTopicVotingSection();
+            }
+            if (id === 'about') {
+                document.getElementById('rulesModeBtn')?.classList.add('active');
+            }
+            if (id === 'works') {
+                document.getElementById('worksModeBtn')?.classList.add('active');
+                renderCurrentWorksList();
+            }
             if (id === 'browse') {
                 document.getElementById('browseModeBtn')?.classList.add('active');
                 document.getElementById('browseReadView')?.classList.add('hidden');
                 document.getElementById('browseListView')?.classList.remove('hidden');
+                renderAiJudgeLeaderboard();
                 renderBrowseList();
+            }
+            if (id === 'archive') {
+                document.getElementById('archiveModeBtn')?.classList.add('active');
+                renderArchivePage();
             }
             if (id === 'create') {
                 document.getElementById('createModeBtn')?.classList.add('active');
@@ -2049,7 +2492,7 @@
             if (pushHistory) {
                 const url = new URL(window.location);
                 url.searchParams.set('page', id);
-                if (id !== 'browse') {
+                if (id !== 'browse' && id !== 'works' && id !== 'archive') {
                     url.searchParams.delete('work');
                 }
                 url.searchParams.delete('mode');
@@ -2084,7 +2527,10 @@
             }
 
             // 2. 檢查使用者是否已有繳交作品 (一人只能交一件)
-            const myWork = (db.works || []).find(w => w.author === currentUser.username);
+            const curContest = typeof getCurrentContest === 'function' ? getCurrentContest() : null;
+            const myWork = (curContest && curContest.works) 
+                ? curContest.works.find(w => w.author === currentUser.username) 
+                : (db.works || []).find(w => w.author === currentUser.username);
 
             if (myWork) {
                 // 已有作品：呈現我的參賽作品卡片
@@ -2687,7 +3133,10 @@
 
             // 單人限交一件作品防呆
             if (!isEditing) {
-                const existing = (db.works || []).find(w => w.author === currentUser.username);
+                const curContest = typeof getCurrentContest === 'function' ? getCurrentContest() : null;
+                const existing = (curContest && curContest.works) 
+                    ? curContest.works.find(w => w.author === currentUser.username) 
+                    : (db.works || []).find(w => w.author === currentUser.username);
                 if (existing) {
                     alert('您已交件過參賽作品！文文盃規定每位創作者限交 1 件作品。若需修改請直接編輯原有作品。');
                     renderCreatePage();
@@ -2764,7 +3213,11 @@
                     work.cover = coverData;
                     work.banner = bannerData;
                     work.isPublic = isPub;
-                    work.updatedAt = nowStr;
+                    const curContest = getCurrentContest();
+                    if (curContest && curContest.works) {
+                        const cIdx = curContest.works.findIndex(w => w.id === editId);
+                        if (cIdx !== -1) curContest.works[cIdx] = work;
+                    }
                 }
                 alert('作品修改已成功儲存！');
             } else {
@@ -2793,36 +3246,223 @@
                     updatedAt: ''
                 };
                 db.works.push(newWork);
+                const curContest = getCurrentContest();
+                if (curContest) {
+                    if (!curContest.works) curContest.works = [];
+                    curContest.works.push(newWork);
+                }
                 alert('參賽作品已成功交件！在比賽截止日前，您隨時可以回來修改作品內容與章節。');
             }
 
             await saveCloudData();
-            renderCreatePage();
-            renderBrowseList();
+            renderAllPages();
         };
 
-        // --- 頁面 4: 「作品展示」公開/不公開 與 閱讀器 ---
+        // --- 通用作品卡片 HTML 渲染器 ---
+        function renderWorkCardHTML(w, isEnded) {
+            const isPrivate = w.isPublic === false && !isEnded;
+            const privBadge = isPrivate 
+                ? `<span class="badge-private" title="僅管理員與作者本人在截止前可見"><i class="fas fa-lock"></i> 暫不公開</span>`
+                : '';
+
+            const formatLabel = { text: '純文字小說', pdf: 'PDF 作品', word: 'Word 作品' }[w.format] || '純文字小說';
+            const avatarImg = w.authorAvatar 
+                ? `<img src="${w.authorAvatar}" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1px solid #c9b48c;">`
+                : `<i class="fas fa-user-circle" style="font-size:16px; color:#8c5828;"></i>`;
+
+            const chapCount = (w.chapters && w.chapters.length) ? w.chapters.length : 1;
+            const chapBadge = `<span class="badge-format" style="background:#ebdcc0;"><i class="fas fa-bookmark"></i> ${chapCount} 章</span>`;
+
+            let reviewRatingHtml = '';
+            if (w.reviews && w.reviews.length > 0) {
+                let totalRating = 0;
+                w.reviews.forEach(r => totalRating += (r.rating || 5));
+                let avg = (totalRating / w.reviews.length).toFixed(1);
+                reviewRatingHtml = `<span style="color:#b26a00; font-weight:bold; font-size:12.5px;"><i class="fas fa-star"></i> ${avg} (${w.reviews.length})</span>`;
+            } else {
+                reviewRatingHtml = `<span style="color:#a1887f; font-size:12px;"><i class="far fa-star"></i> 尚無評價</span>`;
+            }
+
+            let descText = '';
+            if (w.episode) {
+                descText = `【${w.episode}】 `;
+            }
+            if (w.content) {
+                const clean = w.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+                descText += clean ? clean.slice(0, 50) + '...' : '點擊展開牛皮紙手寫卷軸，進入沈浸閱覽全文。';
+            } else {
+                descText += '點擊展開牛皮紙手寫卷軸，進入沈浸閱覽全文。';
+            }
+
+            const visHtml = w.cover 
+                ? `<div class="card-vis">
+                        <img src="${w.cover}" class="card-vis-img" alt="封面">
+                        <div class="card-run-overlay">
+                            <span><i class="fas fa-book-reader"></i> 進入沈浸閱覽</span>
+                        </div>
+                   </div>`
+                : `<div class="card-vis">
+                        <div class="card-vis-placeholder">
+                            <i class="fas fa-feather-alt"></i>
+                            <span style="font-size:13px; font-weight:bold; color:#7d5836;">文文盃原創作品</span>
+                        </div>
+                        <div class="card-run-overlay">
+                            <span><i class="fas fa-book-reader"></i> 進入沈浸閱覽</span>
+                        </div>
+                   </div>`;
+
+            return `
+                <div class="work-card" onclick="openImmersiveReader('${w.id}')" title="點擊展開《${escapeHtml(w.title)}》沈浸式牛皮紙閱讀器">
+                    ${visHtml}
+                    <div class="card-body">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                            <h3 class="card-title">${escapeHtml(w.title)}</h3>
+                            ${privBadge}
+                        </div>
+                        <p class="card-desc">${escapeHtml(descText)}</p>
+                        <div class="card-badges-row">
+                            <span class="badge-format">${formatLabel}</span>
+                            ${chapBadge}
+                            ${reviewRatingHtml}
+                        </div>
+                        <div class="card-meta">
+                            <div class="card-author">
+                                ${avatarImg}
+                                <span style="font-weight:bold;">${escapeHtml(w.authorName || w.author)}</span>
+                            </div>
+                            <span style="color:#8d6e63;">${w.submittedAt ? w.submittedAt.split(' ')[0] : ''}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // 頁面: 「作品」(進行中賽事投稿展示)
+        // ==========================================
+        window.currentWorksFilter = 'all';
+        window.setCurrentWorksFilter = function(filter) {
+            window.currentWorksFilter = filter;
+            const container = document.getElementById('currentWorksFiltersContainer');
+            if (container) {
+                container.querySelectorAll('.filter-chip').forEach(btn => {
+                    if (btn.getAttribute('data-filter') === filter) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                });
+            }
+            renderCurrentWorksList();
+        };
+
+        window.filterCurrentWorks = function() {
+            renderCurrentWorksList();
+        };
+
+        function renderCurrentWorksList() {
+            const grid = document.getElementById('currentWorksGrid');
+            const summary = document.getElementById('currentWorksStatsSummary');
+            if (!grid) return;
+
+            const cur = getCurrentContest();
+            const isEnded = isContestEnded();
+            
+            if (isEnded) {
+                if (summary) summary.innerHTML = `<span style="color:#c62828;"><i class="fas fa-info-circle"></i> 當前比賽徵件已結束！本屆所有作品與 AI 評審得獎名單已移至<b>「作品展示」</b>分頁！</span>`;
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:50px 20px; background:#f7f0dc; border:1.5px dashed #d5c49f; border-radius:12px;">
+                        <i class="fas fa-award" style="font-size:42px; color:#b26a00; margin-bottom:12px;"></i>
+                        <p style="font-size:18px; color:#5a3818; margin:0 0 14px 0; font-weight:bold;">本屆文文盃寫作比賽已結束！</p>
+                        <p style="font-size:15px; color:#7d5836; margin:0 0 18px 0;">所有參賽大作已全面自動公開，且大會 AI 評審榜單已出爐，敬請前往「作品展示」分頁細細品讀。</p>
+                        <button type="button" class="action-btn" onclick="showPage('browse')"><i class="fas fa-award"></i> 前往「作品展示」觀賞榜單與作品</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const works = (cur && cur.works && cur.works.length > 0) ? cur.works : (db.works || []);
+            const visible = works.filter(w => {
+                if (w.isPublic !== false) return true;
+                if (currentUser && (currentUser.isAdmin || currentUser.username === w.author)) return true;
+                return false;
+            });
+
+            const countAll = visible.length;
+            const countText = visible.filter(w => (w.format || 'text') === 'text').length;
+            const countPdf = visible.filter(w => w.format === 'pdf').length;
+            const countWord = visible.filter(w => w.format === 'word').length;
+
+            const elAll = document.getElementById('currentChipCountAll');
+            const elText = document.getElementById('currentChipCountText');
+            const elPdf = document.getElementById('currentChipCountPdf');
+            const elWord = document.getElementById('currentChipCountWord');
+            if (elAll) elAll.innerText = countAll;
+            if (elText) elText.innerText = countText;
+            if (elPdf) elPdf.innerText = countPdf;
+            if (elWord) elWord.innerText = countWord;
+
+            if (summary) {
+                summary.innerHTML = `
+                    進行中賽事：<b>${escapeHtml(cur ? cur.title : '本屆比賽')}</b>，目前已收錄 <b>${visible.length}</b> 件作品。
+                    <i class="fas fa-clock"></i> 徵件進行中，未截止前暫不公開作品僅評審管理員與作者本人可提前閱讀。
+                `;
+            }
+
+            if (visible.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:60px 20px; background:#f7f0dc; border:1.5px dashed #d5c49f; border-radius:12px;">
+                        <i class="fas fa-feather" style="font-size:42px; color:#a1887f; margin-bottom:12px;"></i>
+                        <p style="font-size:18px; color:#5a3818; margin:0 0 10px 0; font-weight:bold;">本屆比賽進行中，目前尚無作品交件！</p>
+                        <p style="font-size:15px; color:#7d5836; margin:0 0 16px 0;">歡迎成為本屆第一位揮毫繳交的探險小說創作者！</p>
+                        <button type="button" class="action-btn" onclick="showPage('create')"><i class="fas fa-edit"></i> 立即前往參賽交件</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const query = (document.getElementById('currentWorksSearchInput')?.value || '').toLowerCase().trim();
+            const curFilter = window.currentWorksFilter || 'all';
+
+            const filtered = visible.filter(w => {
+                const wFormat = w.format || 'text';
+                if (curFilter !== 'all' && wFormat !== curFilter) return false;
+                if (query) {
+                    const matchTitle = (w.title || '').toLowerCase().includes(query);
+                    const matchAuthor = (w.authorName || w.author || '').toLowerCase().includes(query);
+                    const matchEpisode = (w.episode || '').toLowerCase().includes(query);
+                    if (!matchTitle && !matchAuthor && !matchEpisode) return false;
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:50px 20px; background:#f7f0dc; border:1px dashed #d5c49f; border-radius:12px; color:#7d5836;">
+                        <i class="fas fa-search" style="font-size:32px; color:#a1887f; margin-bottom:10px;"></i>
+                        <p style="margin:0; font-size:16px;">查無符合此分類或搜尋條件的進行中參賽作品。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(w => renderWorkCardHTML(w, isEnded)).join('');
+        }
+
+        // ==========================================
+        // 頁面: 「作品展示」(比賽結束後展示 + AI 評審總榜單)
+        // ==========================================
         function getVisibleWorks() {
             const isEnded = isContestEnded();
-            return (db.works || []).filter(w => {
-                // 1. 截止後會自動公開：全部作品皆公開給所有人
+            const contest = getEndedContest() || getCurrentContest();
+            const works = (contest && contest.works && contest.works.length > 0) ? contest.works : (db.works || []);
+
+            return works.filter(w => {
                 if (isEnded) return true;
-
-                // 2. 截止前：作者設定為公開者，所有人皆可見
                 if (w.isPublic !== false) return true;
-
-                // 3. 截止前若為「不公開」：僅管理員或作者本人可提前看見
-                if (currentUser && (currentUser.isAdmin || currentUser.username === w.author)) {
-                    return true;
-                }
-
+                if (currentUser && (currentUser.isAdmin || currentUser.username === w.author)) return true;
                 return false;
             });
         }
 
-        // 靈感勇現風格分類篩選狀態
         window.currentBrowseFilter = 'all';
-
         window.setBrowseFilter = function(filter) {
             window.currentBrowseFilter = filter;
             const container = document.getElementById('browseFiltersContainer');
@@ -2835,15 +3475,78 @@
             renderBrowseList();
         };
 
+        function renderAiJudgeLeaderboard() {
+            const sec = document.getElementById('aiJudgeLeaderboardSection');
+            const container = document.getElementById('aiJudgeCardsContainer');
+            if (!sec || !container) return;
+
+            const contest = getEndedContest();
+            if (!contest || !contest.evaluation || !contest.evaluation.results || contest.evaluation.results.length === 0) {
+                sec.classList.add('hidden');
+                return;
+            }
+
+            sec.classList.remove('hidden');
+            const results = contest.evaluation.results;
+
+            container.innerHTML = results.map(r => {
+                let badgeColor = '#b26a00';
+                let trophyIcon = 'fa-medal';
+                if (r.rank === 1) { badgeColor = '#f57f17'; trophyIcon = 'fa-trophy'; }
+                else if (r.rank === 2) { badgeColor = '#78909c'; trophyIcon = 'fa-medal'; }
+                else if (r.rank === 3) { badgeColor = '#8d6e63'; trophyIcon = 'fa-award'; }
+
+                return `
+                    <div style="background:#fffcf5; border:1.5px solid #d5c4a1; border-radius:10px; padding:20px; box-shadow:0 3px 12px rgba(90,55,25,0.08); display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <span style="background:${badgeColor}; color:white; font-size:13px; font-weight:bold; padding:4px 12px; border-radius:15px; display:inline-flex; align-items:center; gap:6px;">
+                                    <i class="fas ${trophyIcon}"></i> ${escapeHtml(r.award)} (第 ${r.rank} 名)
+                                </span>
+                                <span style="font-size:18px; font-weight:bold; color:#c62828;">
+                                    ${r.totalScore} <span style="font-size:13px; color:#8d6e63;">分</span>
+                                </span>
+                            </div>
+
+                            <h3 style="margin:0 0 6px 0; font-size:20px; color:#3e2210; font-family:'Klee One', serif;">
+                                ${escapeHtml(r.title)}
+                            </h3>
+                            <div style="font-size:13px; color:#7d5836; margin-bottom:12px;">
+                                <i class="fas fa-feather-alt"></i> 創作者：<b>${escapeHtml(r.author)}</b>
+                            </div>
+
+                            <div style="background:rgba(0,0,0,0.03); border-radius:8px; padding:10px 12px; margin-bottom:14px; font-size:12.5px; color:#4a2c11; display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                                <div>主題契合：<b>${r.breakdown ? r.breakdown.relevance : 20}/25</b></div>
+                                <div>情節結構：<b>${r.breakdown ? r.breakdown.structure : 20}/25</b></div>
+                                <div>文筆意境：<b>${r.breakdown ? r.breakdown.prose : 20}/25</b></div>
+                                <div>角色情感：<b>${r.breakdown ? r.breakdown.emotion : 20}/25</b></div>
+                            </div>
+
+                            <div style="font-size:14px; color:#5a3818; line-height:1.7; background:#faf3e0; border-left:3.5px solid ${badgeColor}; padding:10px 12px; border-radius:4px; margin-bottom:16px;">
+                                <b><i class="fas fa-quote-left" style="opacity:0.6;"></i> 大會 AI 評審評語：</b><br>
+                                ${escapeHtml(r.comment)}
+                            </div>
+                        </div>
+
+                        <button type="button" class="action-btn" style="margin:0; width:100%; justify-content:center; padding:8px;" onclick="openImmersiveReader('${r.workId}')">
+                            <i class="fas fa-book-reader"></i> 沈浸閱覽獲獎作品
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function renderBrowseList() {
             const grid = document.getElementById('browseWorksGrid');
             const summary = document.getElementById('browseStatsSummary');
             if (!grid) return;
 
+            renderAiJudgeLeaderboard();
+
             const visible = getVisibleWorks();
             const isEnded = isContestEnded();
+            const endedContest = getEndedContest();
 
-            // 更新分類膠囊數量計數
             const countAll = visible.length;
             const countText = visible.filter(w => (w.format || 'text') === 'text').length;
             const countPdf = visible.filter(w => w.format === 'pdf').length;
@@ -2859,17 +3562,25 @@
             if (elWord) elWord.innerText = countWord;
 
             if (summary) {
-                summary.innerHTML = `
-                    目前共展示 <b>${visible.length}</b> 件參賽作品。
-                    ${isEnded ? '<i class="fas fa-check-circle" style="color:#2e7d32;"></i> <b>比賽已截止，所有作品均已全面自動公開！</b>' : '<i class="fas fa-lock"></i> <b>未截止前不公開作品僅評審管理員與作者本人可提前閱讀。</b>'}
-                `;
+                if (isEnded) {
+                    summary.innerHTML = `
+                        展示賽事：<b>${escapeHtml(endedContest ? endedContest.title : '本屆比賽')}</b>，共展示 <b>${visible.length}</b> 件作品。
+                        <i class="fas fa-check-circle" style="color:#2e7d32;"></i> <b>比賽已截止，所有作品均已全面自動公開！</b>
+                    `;
+                } else {
+                    summary.innerHTML = `
+                        目前賽事徵件進行中，共收錄 <b>${visible.length}</b> 件作品。
+                        <i class="fas fa-lock"></i> <b>未截止前不公開作品僅評審管理員與作者本人可提前閱讀，截止後將移至此分頁全面展示。</b>
+                    `;
+                }
             }
 
             if (visible.length === 0) {
                 grid.innerHTML = `
                     <div style="grid-column:1/-1; text-align:center; padding:60px 20px; background:#f7f0dc; border:1.5px dashed #d5c49f; border-radius:12px;">
-                        <i class="fas fa-feather" style="font-size:42px; color:#a1887f; margin-bottom:12px;"></i>
-                        <p style="font-size:18px; color:#5a3818; margin:0; font-weight:bold;">目前尚無參賽作品，歡迎成為第一個沾墨繳交的創作者！</p>
+                        <i class="fas fa-award" style="font-size:42px; color:#a1887f; margin-bottom:12px;"></i>
+                        <p style="font-size:18px; color:#5a3818; margin:0; font-weight:bold;">目前尚無已截止展示之參賽作品。</p>
+                        <p style="font-size:14px; color:#7d5836; margin:8px 0 0 0;">當比賽截止後，所有大作將在此全面展開！</p>
                     </div>
                 `;
                 return;
@@ -2879,11 +3590,8 @@
             const curFilter = window.currentBrowseFilter || 'all';
 
             const filtered = visible.filter(w => {
-                // 分類篩選
                 const wFormat = w.format || 'text';
                 if (curFilter !== 'all' && wFormat !== curFilter) return false;
-
-                // 搜尋關鍵字
                 if (query) {
                     const matchTitle = (w.title || '').toLowerCase().includes(query);
                     const matchAuthor = (w.authorName || w.author || '').toLowerCase().includes(query);
@@ -2903,83 +3611,72 @@
                 return;
             }
 
-            grid.innerHTML = filtered.map(w => {
-                const isPrivate = w.isPublic === false && !isEnded;
-                const privBadge = isPrivate 
-                    ? `<span class="badge-private" title="僅管理員與作者本人在截止前可見"><i class="fas fa-lock"></i> 暫不公開</span>`
-                    : '';
+            grid.innerHTML = filtered.map(w => renderWorkCardHTML(w, isEnded)).join('');
+        }
 
-                const formatLabel = { text: '純文字小說', pdf: 'PDF 作品', word: 'Word 作品' }[w.format] || '純文字小說';
-                const avatarImg = w.authorAvatar 
-                    ? `<img src="${w.authorAvatar}" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1px solid #c9b48c;">`
-                    : `<i class="fas fa-user-circle" style="font-size:16px; color:#8c5828;"></i>`;
+        // ==========================================
+        // 頁面: 「歷屆作品」(依比賽屆數分區典藏)
+        // ==========================================
+        function renderArchivePage() {
+            const container = document.getElementById('archiveEditionsList');
+            if (!container) return;
 
-                // 章節數標籤
-                const chapCount = (w.chapters && w.chapters.length) ? w.chapters.length : 1;
-                const chapBadge = `<span class="badge-format" style="background:#ebdcc0;"><i class="fas fa-bookmark"></i> ${chapCount} 章</span>`;
+            const archives = getArchivedContests();
+            if (archives.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:70px 20px; background:#f7f0dc; border:1.5px dashed #d5c49f; border-radius:12px;">
+                        <i class="fas fa-archive" style="font-size:46px; color:#a1887f; margin-bottom:12px;"></i>
+                        <h3 style="font-size:22px; color:#5a3818; margin:0 0 8px 0;">目前尚無歷屆歸檔賽事</h3>
+                        <p style="font-size:15px; color:#7d5836; margin:0;">
+                            當新一屆探險者文文盃發起開始後，過往結束之比賽與參賽作品將自動歸檔於此，按比賽屆數分區永久珍藏！
+                        </p>
+                    </div>
+                `;
+                return;
+            }
 
-                // 胖達商城式 讀者評分與留言數徽章
-                let reviewRatingHtml = '';
-                if (w.reviews && w.reviews.length > 0) {
-                    let totalRating = 0;
-                    w.reviews.forEach(r => totalRating += (r.rating || 5));
-                    let avg = (totalRating / w.reviews.length).toFixed(1);
-                    reviewRatingHtml = `<span style="color:#b26a00; font-weight:bold; font-size:12.5px;"><i class="fas fa-star"></i> ${avg} (${w.reviews.length})</span>`;
-                } else {
-                    reviewRatingHtml = `<span style="color:#a1887f; font-size:12px;"><i class="far fa-star"></i> 尚無評價</span>`;
+            container.innerHTML = archives.map(c => {
+                const works = c.works || [];
+                const isTestBadge = c.isTest ? `<span style="font-size:12px; background:#ffcdd2; color:#b71c1c; padding:2px 8px; border-radius:10px; font-weight:bold; margin-left:8px;">測試比賽</span>` : '';
+                const topicStr = c.selectedTopic ? c.selectedTopic.title : (c.topic || '自由主題');
+
+                let winnersHtml = '';
+                if (c.evaluation && c.evaluation.results && c.evaluation.results.length > 0) {
+                    const top3 = c.evaluation.results.slice(0, 3);
+                    winnersHtml = `
+                        <div style="display:flex; gap:12px; flex-wrap:wrap; margin:12px 0; background:rgba(255,255,255,0.4); padding:10px 14px; border-radius:8px; border:1px solid #ebdcc1;">
+                            <span style="font-weight:bold; font-size:13px; color:#4a2c11;"><i class="fas fa-trophy" style="color:#f57f17;"></i> 榮譽榜：</span>
+                            ${top3.map(w => `<span style="font-size:13px; color:#5a3818;"><b>${escapeHtml(w.award)}</b>: 《${escapeHtml(w.title)}》(${escapeHtml(w.author)}) [${w.totalScore}分]</span>`).join('<span style="opacity:0.4;">|</span>')}
+                        </div>
+                    `;
                 }
-
-                // 摘要提要
-                let descText = '';
-                if (w.episode) {
-                    descText = `【${w.episode}】 `;
-                }
-                if (w.content) {
-                    const clean = w.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-                    descText += clean ? clean.slice(0, 50) + '...' : '點擊展開牛皮紙手寫卷軸，進入沈浸閱覽全文。';
-                } else {
-                    descText += '點擊展開牛皮紙手寫卷軸，進入沈浸閱覽全文。';
-                }
-
-                // 封面區塊 (16:9 + 靈感勇現 hover overlay 按鈕)
-                const visHtml = w.cover 
-                    ? `<div class="card-vis">
-                            <img src="${w.cover}" class="card-vis-img" alt="封面">
-                            <div class="card-run-overlay">
-                                <span><i class="fas fa-book-reader"></i> 進入沈浸閱覽</span>
-                            </div>
-                       </div>`
-                    : `<div class="card-vis">
-                            <div class="card-vis-placeholder">
-                                <i class="fas fa-feather-alt"></i>
-                                <span style="font-size:13px; font-weight:bold; color:#7d5836;">文文盃原創作品</span>
-                            </div>
-                            <div class="card-run-overlay">
-                                <span><i class="fas fa-book-reader"></i> 進入沈浸閱覽</span>
-                            </div>
-                       </div>`;
 
                 return `
-                    <div class="work-card" onclick="openImmersiveReader('${w.id}')" title="點擊展開《${escapeHtml(w.title)}》沈浸式牛皮紙閱讀器">
-                        ${visHtml}
-                        <div class="card-body">
-                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                                <h3 class="card-title">${escapeHtml(w.title)}</h3>
-                                ${privBadge}
-                            </div>
-                            <p class="card-desc">${escapeHtml(descText)}</p>
-                            <div class="card-badges-row">
-                                <span class="badge-format">${formatLabel}</span>
-                                ${chapBadge}
-                                ${reviewRatingHtml}
-                            </div>
-                            <div class="card-meta">
-                                <div class="card-author">
-                                    ${avatarImg}
-                                    <span style="font-weight:bold;">${escapeHtml(w.authorName || w.author)}</span>
+                    <div style="background:#fcf8ee; border:2px solid #d4c29a; border-radius:12px; padding:22px; margin-bottom:24px; box-shadow:0 3px 10px rgba(90,55,25,0.06);">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; border-bottom:1.5px dashed #c9b48c; padding-bottom:12px;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <h3 style="margin:0; font-size:22px; color:#3e2210; font-family:'Klee One', serif;">
+                                        <i class="fas fa-scroll" style="color:#b26a00;"></i> ${escapeHtml(c.title)}
+                                    </h3>
+                                    ${isTestBadge}
                                 </div>
-                                <span style="color:#8d6e63;">${w.submittedAt ? w.submittedAt.split(' ')[0] : ''}</span>
+                                <div style="font-size:14px; color:#7d5836; margin-top:4px;">
+                                    <b>大會主題：</b>${escapeHtml(topicStr)} · <b>收錄作品：</b>${works.length} 件
+                                </div>
                             </div>
+                            <span style="font-size:13px; background:#ebdcb9; color:#4e342e; padding:4px 12px; border-radius:15px; font-weight:bold;">
+                                第 ${c.edition || 1} 屆典藏
+                            </span>
+                        </div>
+
+                        ${winnersHtml}
+
+                        <div class="works-grid" style="margin-top:16px;">
+                            ${works.length > 0 
+                                ? works.map(w => renderWorkCardHTML(w, true)).join('')
+                                : `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#8d6e63;">此屆未有交件作品存檔</div>`
+                            }
                         </div>
                     </div>
                 `;
@@ -2992,7 +3689,7 @@
 
         // --- 單篇作品閱讀檢視 ---
         window.openReaderView = function(workId, pushHistory = true) {
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = (typeof getAllWorks === 'function' ? getAllWorks() : (db.works || [])).find(w => String(w.id) === String(workId)) || (db.works || []).find(w => String(w.id) === String(workId));
             if (!work) return;
 
             const isEnded = isContestEnded();
@@ -3168,7 +3865,7 @@
         };
 
         window.openImmersiveReader = function(workId, chapterIdx = 0, pushHistory = true) {
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = (typeof getAllWorks === 'function' ? getAllWorks() : (db.works || [])).find(w => String(w.id) === String(workId)) || (db.works || []).find(w => String(w.id) === String(workId));
             if (!work) return;
 
             const isEnded = isContestEnded();
@@ -3283,7 +3980,7 @@
         };
 
         window.renderImmersiveChapterContent = function() {
-            const work = (db.works || []).find(w => String(w.id) === String(window.immersiveState.workId));
+            const work = (typeof getAllWorks === 'function' ? getAllWorks() : (db.works || [])).find(w => String(w.id) === String(window.immersiveState.workId)) || (db.works || []).find(w => String(w.id) === String(window.immersiveState.workId));
             if (!work) return;
 
             const chapters = window.immersiveState.chapters;
@@ -3455,7 +4152,7 @@
         };
 
         window.renderWorkReviews = function(workId) {
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = (typeof getAllWorks === 'function' ? getAllWorks() : (db.works || [])).find(w => String(w.id) === String(workId)) || (db.works || []).find(w => String(w.id) === String(workId));
             if (!work) return;
 
             const isEnded = isContestEnded();
@@ -3661,7 +4358,7 @@
                 return;
             }
             const workId = window.immersiveState.workId;
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = getAllWorks().find(w => String(w.id) === String(workId));
             if (!work) return;
 
             const commentInput = document.getElementById('workCommentInput');
@@ -3706,7 +4403,7 @@
 
         window.likeWorkReview = async function(workId, reviewIdx) {
             if (!currentUser) { alert('請先登入！'); return; }
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = getAllWorks().find(w => String(w.id) === String(workId));
             if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
 
             const r = work.reviews[reviewIdx];
@@ -3729,7 +4426,7 @@
 
         window.dislikeWorkReview = async function(workId, reviewIdx) {
             if (!currentUser) { alert('請先登入！'); return; }
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = getAllWorks().find(w => String(w.id) === String(workId));
             if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
 
             const r = work.reviews[reviewIdx];
@@ -3752,7 +4449,7 @@
 
         window.submitReviewReply = async function(workId, reviewIdx) {
             if (!currentUser) { alert('請先登入！'); return; }
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = getAllWorks().find(w => String(w.id) === String(workId));
             if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
 
             const input = document.getElementById(`replyInput_${reviewIdx}`);
@@ -3784,7 +4481,7 @@
         };
 
         window.editWorkReview = async function(workId, reviewIdx) {
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = getAllWorks().find(w => String(w.id) === String(workId));
             if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
             const r = work.reviews[reviewIdx];
 
@@ -3799,7 +4496,7 @@
 
         window.deleteWorkReview = async function(workId, reviewIdx) {
             if (!confirm('確定要刪除這則心得留言嗎？')) return;
-            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            const work = getAllWorks().find(w => String(w.id) === String(workId));
             if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
 
             work.reviews.splice(reviewIdx, 1);
@@ -3808,140 +4505,343 @@
             renderBrowseList();
         };
 
-        // --- 管理員時程與題目設定 Modal ---
+        // ==========================================
+        // 管理員大會控制台 (時程設定、測試比賽管理、題目生成與評審)
+        // ==========================================
+        window.tempAiGeneratedTopics = null;
+        window.tempAiAudit = null;
+
         window.openAdminScheduleModal = function() {
             if (!currentUser || !currentUser.isAdmin) {
-                alert('權限不足，只有管理員能設定比賽時程與題目！');
+                alert('權限不足，只有管理員能開啟文文盃大會管理控制台！');
                 return;
             }
 
             document.getElementById('adminScheduleModal').classList.remove('hidden');
-            document.getElementById('schedTitle').value = (db.settings && db.settings.title) ? db.settings.title : '第一屆探險者文文盃寫作比賽';
-            
-            const topicInput = document.getElementById('schedTopic');
-            if (topicInput) topicInput.value = (db.settings && db.settings.topic) ? db.settings.topic : '迷霧森林的古老守護者';
-            const descInput = document.getElementById('schedTopicDesc');
-            if (descInput) descInput.value = (db.settings && db.settings.topicDesc) ? db.settings.topicDesc : '';
 
-            document.getElementById('schedStartTime').value = (db.settings && db.settings.startTime) ? db.settings.startTime : '';
-            document.getElementById('schedEndTime').value = (db.settings && db.settings.endTime) ? db.settings.endTime : '';
-            
-            const isClosed = Boolean(db.settings && db.settings.isClosed);
-            const closedBox = document.getElementById('schedIsClosed');
-            if (closedBox) closedBox.checked = isClosed;
-
-            const statusBadge = document.getElementById('adminCurrentStatusBadge');
+            const cur = getCurrentContest();
+            const curTitleEl = document.getElementById('adminCurrentContestTitle');
+            const curStatusEl = document.getElementById('adminCurrentStatusBadge');
+            const deleteTestBtn = document.getElementById('adminDeleteTestContestBtn');
+            const deleteHint = document.getElementById('adminDeleteHint');
             const toggleBtn = document.getElementById('adminToggleCloseBtn');
+            const nextEditionInput = document.getElementById('newContestTitleInput');
 
-            if (isClosed) {
-                if (statusBadge) statusBadge.innerHTML = `<span class="status-badge status-closed"><i class="fas fa-ban"></i> 已手動關閉 / 徵件結束</span>`;
+            if (cur) {
+                if (curTitleEl) curTitleEl.innerText = cur.title;
+                if (curStatusEl) {
+                    let stText = '進行中';
+                    let stClass = 'status-open';
+                    if (cur.status === 'voting') { stText = '題目票選中'; stClass = 'status-pending'; }
+                    else if (cur.status === 'ended') { stText = '已截止'; stClass = 'status-closed'; }
+                    else if (cur.status === 'archived') { stText = '已歸檔'; stClass = 'status-closed'; }
+                    curStatusEl.innerHTML = `<span class="status-badge ${stClass}">${stText}</span>`;
+                }
+
+                if (cur.isTest) {
+                    if (deleteTestBtn) deleteTestBtn.style.display = 'inline-flex';
+                    if (deleteHint) deleteHint.style.display = 'block';
+                } else {
+                    if (deleteTestBtn) deleteTestBtn.style.display = 'none';
+                    if (deleteHint) deleteHint.style.display = 'none';
+                }
+
                 if (toggleBtn) {
-                    toggleBtn.className = 'action-btn';
-                    toggleBtn.style.background = '#2e7d32';
-                    toggleBtn.innerHTML = `<i class="fas fa-play"></i> 重新開放比賽`;
+                    if (cur.status === 'ended') {
+                        toggleBtn.className = 'action-btn';
+                        toggleBtn.style.background = '#2e7d32';
+                        toggleBtn.innerHTML = `<i class="fas fa-play"></i> 重新開放比賽`;
+                    } else {
+                        toggleBtn.className = 'action-btn danger';
+                        toggleBtn.style.background = '#c62828';
+                        toggleBtn.innerHTML = `<i class="fas fa-power-off"></i> 立即手動截止比賽`;
+                    }
                 }
             } else {
-                const endedByTime = isContestEnded();
-                if (endedByTime) {
-                    if (statusBadge) statusBadge.innerHTML = `<span class="status-badge status-closed"><i class="fas fa-check-circle"></i> 已依截止時間結束</span>`;
-                } else if (!isContestStarted()) {
-                    if (statusBadge) statusBadge.innerHTML = `<span class="status-badge status-pending"><i class="fas fa-hourglass-half"></i> 依時程尚未開始</span>`;
-                } else {
-                    if (statusBadge) statusBadge.innerHTML = `<span class="status-badge status-open"><i class="fas fa-check-circle"></i> 徵件進行中</span>`;
-                }
-                if (toggleBtn) {
-                    toggleBtn.className = 'action-btn danger';
-                    toggleBtn.style.background = '#c62828';
-                    toggleBtn.innerHTML = `<i class="fas fa-power-off"></i> 立即手動截止比賽`;
-                }
+                if (curTitleEl) curTitleEl.innerText = '目前無進行中之賽事';
+                if (curStatusEl) curStatusEl.innerHTML = `<span class="status-badge status-closed">無比賽</span>`;
+                if (deleteTestBtn) deleteTestBtn.style.display = 'none';
+                if (deleteHint) deleteHint.style.display = 'none';
             }
+
+            const nextEd = db.nextEdition || ((cur ? (cur.edition || 0) : 0) + 1);
+            if (nextEditionInput) {
+                nextEditionInput.value = `第${nextEd}屆探險者文文盃寫作比賽`;
+            }
+
+            const pad = n => String(n).padStart(2, '0');
+            const toLocalStr = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            const now = new Date();
+            const startInput = document.getElementById('newContestStartTime');
+            const endInput = document.getElementById('newContestEndTime');
+            const votingEndInput = document.getElementById('newContestVotingEndTime');
+            if (startInput && !startInput.value) startInput.value = toLocalStr(now);
+            if (endInput && !endInput.value) endInput.value = toLocalStr(new Date(now.getTime() + 14 * 86400000));
+            if (votingEndInput && !votingEndInput.value) votingEndInput.value = toLocalStr(new Date(now.getTime() + 3 * 86400000));
         };
 
         window.closeAdminScheduleModal = function() {
             document.getElementById('adminScheduleModal').classList.add('hidden');
         };
 
-        window.toggleManualContestClose = async function() {
-            if (!currentUser || !currentUser.isAdmin) {
-                alert('權限不足，只有管理員能切換比賽關閉狀態！');
-                return;
-            }
-            if (!db.settings) db.settings = {};
-            const currentlyClosed = Boolean(db.settings.isClosed);
-
-            if (!currentlyClosed) {
-                if (!confirm('確定要立即手動關閉/截止文文盃比賽嗎？\n\n關閉後將立即停止接收新投稿，創作者亦無法再編輯作品，且所有暫不公開的作品將立即對全站公開！')) {
-                    return;
-                }
-                db.settings.isClosed = true;
+        window.toggleTopicModeUI = function() {
+            const isVoting = document.getElementById('topicModeVoting').checked;
+            const vBox = document.getElementById('topicModeVotingBox');
+            const mBox = document.getElementById('topicModeManualBox');
+            if (isVoting) {
+                if (vBox) vBox.classList.remove('hidden');
+                if (mBox) mBox.classList.add('hidden');
             } else {
-                if (!confirm('確定要重新開放文文盃比賽嗎？\n\n重新開放後將解除手動關閉狀態。請確保開始與截止時間仍處於有效區間。')) {
-                    return;
-                }
-                db.settings.isClosed = false;
+                if (vBox) vBox.classList.add('hidden');
+                if (mBox) mBox.classList.remove('hidden');
             }
-
-            await saveCloudData();
-            openAdminScheduleModal();
-            updateAllStatusBars();
-            renderCreatePage();
-            renderBrowseList();
-            alert(db.settings.isClosed ? '比賽已成功手動截止！作品已自動全面公開。' : '比賽已重新開放徵件！');
         };
 
-        window.applyQuickSchedule = function(val) {
+        window.applyAdminQuickTime = function(val) {
             const pad = n => String(n).padStart(2, '0');
             const toLocalStr = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-            
             if (val === 'now') {
-                document.getElementById('schedStartTime').value = toLocalStr(new Date());
+                const sEl = document.getElementById('newContestStartTime');
+                if (sEl) sEl.value = toLocalStr(new Date());
             } else if (typeof val === 'number') {
-                const now = new Date();
-                const future = new Date(now.getTime() + val * 86400000);
-                document.getElementById('schedEndTime').value = toLocalStr(future);
+                const stVal = document.getElementById('newContestStartTime')?.value;
+                const base = stVal ? new Date(stVal) : new Date();
+                const future = new Date(base.getTime() + val * 86400000);
+                const eEl = document.getElementById('newContestEndTime');
+                if (eEl) eEl.value = toLocalStr(future);
             }
         };
 
-        window.saveAdminSchedule = async function(e) {
-            e.preventDefault();
+        window.toggleManualContestClose = async function() {
             if (!currentUser || !currentUser.isAdmin) {
-                alert('只有管理員能設定比賽題目與時程！');
+                alert('權限不足！只有管理員能切換比賽截止狀態。');
                 return;
             }
+            const cur = getCurrentContest();
+            if (!cur) return;
 
-            const title = document.getElementById('schedTitle').value.trim();
-            const topic = document.getElementById('schedTopic') ? document.getElementById('schedTopic').value.trim() : '';
-            const topicDesc = document.getElementById('schedTopicDesc') ? document.getElementById('schedTopicDesc').value.trim() : '';
-
-            if (!topic) {
-                alert('請輸入本屆徵文主題 / 比賽題目！');
-                document.getElementById('schedTopic')?.focus();
-                return;
+            if (cur.status !== 'ended') {
+                if (!confirm('確定要立即手動截止比賽嗎？\n\n截止後將停止接收新投稿，且所有作品將自動全面對全站公開！')) return;
+                cur.status = 'ended';
+            } else {
+                if (!confirm('確定要重新開放比賽徵件嗎？')) return;
+                cur.status = 'active';
             }
 
-            const startTime = document.getElementById('schedStartTime').value;
-            const endTime = document.getElementById('schedEndTime').value;
-            const isClosed = document.getElementById('schedIsClosed') ? document.getElementById('schedIsClosed').checked : false;
-
-            if (startTime && endTime && new Date(startTime).getTime() >= new Date(endTime).getTime()) {
-                alert('開始時間必須早於截止時間！');
-                return;
-            }
-
-            if (!db.settings) db.settings = {};
-            db.settings.title = title || '第一屆探險者文文盃寫作比賽';
-            db.settings.topic = topic;
-            db.settings.topicDesc = topicDesc;
-            db.settings.startTime = startTime;
-            db.settings.endTime = endTime;
-            db.settings.isClosed = isClosed;
-
+            if (db.settings) db.settings.isClosed = (cur.status === 'ended');
             await saveCloudData();
-            closeAdminScheduleModal();
-            updateAllStatusBars();
-            renderCreatePage();
-            renderBrowseList();
-            alert('比賽題目、時程與狀態已成功儲存並同步至全站！');
+            openAdminScheduleModal();
+            renderAllPages();
+            alert(cur.status === 'ended' ? '比賽已手動截止！作品已自動全面公開。' : '比賽已重新開放徵件！');
+        };
+
+        window.adminTriggerAiTopics = async function() {
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            const previewBox = document.getElementById('adminAiGeneratedTopicsPreview');
+            if (previewBox) {
+                previewBox.innerHTML = `<div style="padding:15px; text-align:center; color:#8d6e63;"><i class="fas fa-spinner fa-spin"></i> 伺服器 AI 正在深思構思 3 組高水準題目並進行二次深度合規審核中...</div>`;
+            }
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/ai-generate-topics`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                if (data.success && data.topics) {
+                    window.tempAiGeneratedTopics = data.topics;
+                    window.tempAiAudit = data.audit;
+
+                    if (previewBox) {
+                        let html = `
+                            <div style="background:#e8f5e9; border:1px solid #c8e6c9; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:13px; color:#1b5e20;">
+                                <b><i class="fas fa-shield-alt"></i> 同一 AI 二次深度安全審核：</b>${escapeHtml(data.audit.summary)}
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+                        `;
+                        data.topics.forEach((t, i) => {
+                            html += `
+                                <div style="background:white; border:1px solid #d5c4a1; border-radius:8px; padding:12px;">
+                                    <div style="font-weight:bold; color:#4a2c11; font-size:15px; margin-bottom:4px;">題目 0${i+1}：${escapeHtml(t.title)}</div>
+                                    <div style="font-size:13px; color:#5a3818; margin-bottom:6px; line-height:1.6;">${escapeHtml(t.desc)}</div>
+                                    <div style="font-size:12px; color:#8d6e63;"><b>規則：</b>${escapeHtml(t.rules)}</div>
+                                </div>
+                            `;
+                        });
+                        html += `</div>`;
+                        previewBox.innerHTML = html;
+                    }
+                } else {
+                    if (previewBox) previewBox.innerHTML = `<div style="color:#c62828;">生成失敗：${data.error || '未知錯誤'}</div>`;
+                }
+            } catch(e) {
+                if (previewBox) previewBox.innerHTML = `<div style="color:#c62828;">請求出錯：${e.message}</div>`;
+            }
+        };
+
+        window.adminSubmitNewContest = async function() {
+            if (!currentUser || !currentUser.isAdmin) {
+                alert('只有管理員能發起比賽！');
+                return;
+            }
+
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            const isTest = document.getElementById('newContestIsTest').checked;
+            const isVotingMode = document.getElementById('topicModeVoting').checked;
+            const startTime = document.getElementById('newContestStartTime').value;
+            const endTime = document.getElementById('newContestEndTime').value;
+            const votingEndTime = document.getElementById('newContestVotingEndTime').value;
+
+            let payload = {
+                isTest: isTest,
+                hasVoting: isVotingMode,
+                startTime: startTime,
+                endTime: endTime,
+                votingEndTime: votingEndTime,
+                topicOptions: [],
+                aiAudit: null,
+                selectedTopic: null
+            };
+
+            if (isVotingMode) {
+                if (!window.tempAiGeneratedTopics || window.tempAiGeneratedTopics.length < 3) {
+                    alert('請先點擊「AI 智能生成 3 組題目與二度審核」生成候選題目！');
+                    return;
+                }
+                if (!votingEndTime) {
+                    alert('請設定題目票選截止時間！');
+                    document.getElementById('newContestVotingEndTime')?.focus();
+                    return;
+                }
+                payload.topicOptions = window.tempAiGeneratedTopics;
+                payload.aiAudit = window.tempAiAudit;
+            } else {
+                const manualTopic = document.getElementById('newContestManualTopic').value.trim();
+                const manualDesc = document.getElementById('newContestManualTopicDesc').value.trim();
+                if (!manualTopic) {
+                    alert('請輸入手動指定之比賽題目！');
+                    document.getElementById('newContestManualTopic')?.focus();
+                    return;
+                }
+                payload.selectedTopic = {
+                    title: manualTopic,
+                    desc: manualDesc || '',
+                    rules: '繁體中文小說創作'
+                };
+            }
+
+            if (!confirm(`確定要正式發布${isTest ? '【測試用比賽】' : '【正式比賽】'}嗎？\n\n發布後舊比賽將自動歸檔為「歷屆作品」！`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/create-contest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.db) Object.assign(db, data.db);
+                    await saveCloudData();
+                    closeAdminScheduleModal();
+                    renderAllPages();
+                    alert('新一屆文文盃比賽已成功發起並同步至全站！');
+                } else {
+                    alert('發起失敗：' + (data.error || '未知原因'));
+                }
+            } catch(e) {
+                alert('網路請求失敗：' + e.message);
+            }
+        };
+
+        window.adminDeleteCurrentContest = async function() {
+            if (!currentUser || !currentUser.isAdmin) {
+                alert('權限不足！');
+                return;
+            }
+            const cur = getCurrentContest();
+            if (!cur) {
+                alert('目前無可刪除的比賽！');
+                return;
+            }
+            if (!cur.isTest) {
+                alert('只有標記為「測試用比賽」才能由管理員直接刪除！');
+                return;
+            }
+
+            if (!confirm(`確定要完全刪除「${cur.title}」嗎？\n\n此為測試比賽，刪除後該比賽與旗下所有參賽作品將自動永久消失！此動作無法復原！`)) {
+                return;
+            }
+
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/delete-contest`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ contestId: cur.id })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.db) Object.assign(db, data.db);
+                    await saveCloudData();
+                    closeAdminScheduleModal();
+                    renderAllPages();
+                    alert('測試比賽及所屬作品已完全清空刪除！');
+                } else {
+                    alert('刪除失敗：' + (data.error || '未知原因'));
+                }
+            } catch(e) {
+                alert('請求失敗：' + e.message);
+            }
+        };
+
+        window.adminStartAiJudge = async function() {
+            if (!currentUser || !currentUser.isAdmin) {
+                alert('只有管理員能啟動 AI 評審！');
+                return;
+            }
+            const cur = getCurrentContest();
+            if (!cur) {
+                alert('目前無有效比賽可評審！');
+                return;
+            }
+
+            const works = cur.works || db.works || [];
+            if (works.length === 0) {
+                alert('目前本屆賽事尚無任何參賽作品，無法進行 AI 評審！');
+                return;
+            }
+
+            if (!confirm(`確定要啟動伺服器端中文 AI 文學評判運算引擎對「${cur.title}」的 ${works.length} 件參賽作品進行深度評審嗎？\n\nAI 將取得題目說明與每件作品全文，排出金銀銅名次、打出分數並撰寫深度繁體中文評語。`)) {
+                return;
+            }
+
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            const btn = document.getElementById('adminAiJudgeBtn');
+            if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> AI 文學評判運算中...`;
+
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/ai-judge`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ contestId: cur.id })
+                });
+                const data = await res.json();
+                if (data.success && data.evaluation) {
+                    cur.evaluation = data.evaluation;
+                    if (cur.status !== 'archived') cur.status = 'ended';
+                    await saveCloudData();
+                    renderAllPages();
+                    alert('AI 文學評審運算完成！已自動產出名次排行榜、專屬評分與繁中評語。');
+                } else {
+                    alert('評審失敗：' + (data.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線失敗：' + e.message);
+            } finally {
+                if (btn) btn.innerHTML = `<i class="fas fa-gavel"></i> 啟動 AI 智能文學評審與排行`;
+            }
         };
 
         // --- 跑馬燈廣播機制 ---
