@@ -483,6 +483,19 @@
             文文盃是專為動物系奇幻冒險小說創作者們打造的最高榮譽殿堂！<br>
             在這裡，你可以繳交嘔心瀝血的參賽大作，與同好切磋文筆，並在截止後細細品味所有參賽者的優秀篇章。
         </p>
+
+        <!-- 本屆徵文主題 / 比賽題目專區 -->
+        <div id="homeTopicSection" style="background:#f7eed6; border:2px solid #bfa57c; border-radius:10px; padding:22px 26px; margin:22px 0; box-shadow:inset 0 0 30px rgba(180, 140, 70, 0.12); position:relative;">
+            <div style="display:inline-flex; align-items:center; gap:6px; background:#5d4037; color:#fff8eb; padding:4px 14px; border-radius:15px; font-size:13px; font-weight:bold; margin-bottom:12px;">
+                <i class="fas fa-scroll"></i> 本屆大會徵文題目
+            </div>
+            <h3 id="homeTopicTitle" style="font-size:28px; color:#3e2210; margin:0 0 10px 0; font-family:'Klee One', 'Noto Sans TC', sans-serif; letter-spacing:1px;">
+                <!-- 動態注入題目 -->
+            </h3>
+            <div id="homeTopicDesc" style="font-size:16px; color:#5a3818; line-height:1.9;">
+                <!-- 動態注入題目寫作要求與指引 -->
+            </div>
+        </div>
         
         <div style="background:#f6eed8; padding:20px; border-radius:8px; border:1px dashed #bfa57c; margin:20px 0;">
             <h3 style="color:#5a3818; margin-top:0;"><i class="fas fa-scroll"></i> 參賽須知與規則</h3>
@@ -526,6 +539,22 @@
                 <div style="font-size:13px; color:#7d5836;" id="createContestRange"><i class="fas fa-calendar-alt"></i> 交件期間：載入中...</div>
             </div>
             <div id="createContestBadge"><span class="status-badge status-open"><i class="fas fa-check-circle"></i> 徵件進行中</span></div>
+        </div>
+
+        <!-- 參賽題目常駐提醒條 -->
+        <div id="createTopicBanner" style="background:#f6edd6; border:1.5px dashed #c9b48c; border-radius:8px; padding:12px 18px; margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div>
+                    <span style="font-size:12px; color:#8d6e63; font-weight:bold;"><i class="fas fa-bookmark"></i> 本屆參賽題目：</span>
+                    <span id="createTopicTitle" style="font-size:18px; font-weight:bold; color:#3e2210; margin-left:6px;"></span>
+                </div>
+                <button type="button" class="action-btn secondary" style="margin:0; padding:4px 12px; font-size:12px;" onclick="toggleTopicDescHint()">
+                    <i class="fas fa-info-circle"></i> <span id="topicDescBtnText">查看題目指引</span>
+                </button>
+            </div>
+            <div id="createTopicDesc" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed #d5c49f; font-size:14px; color:#5a3818; line-height:1.7;">
+                <!-- 動態注入題目指引 -->
+            </div>
         </div>
 
         <!-- 區塊 A: 未登入提示 -->
@@ -907,6 +936,20 @@
                     <input type="text" id="schedTitle" required placeholder="例如：第一屆探險者文文盃寫作比賽">
                 </div>
 
+                <div style="background:#f6edd6; border:1px solid #d4c29a; border-radius:6px; padding:12px;">
+                    <label style="margin-top:0;"><i class="fas fa-scroll"></i> 本屆徵文主題 / 比賽題目：<span style="color:#c62828;">*</span></label>
+                    <input type="text" id="schedTopic" required placeholder="例如：迷霧森林的古老守護者、破曉之翼、地底文明的低語...">
+                    <div style="font-size:12px; color:#8d6e63; margin-top:3px;">
+                        本題目將公開展示於首頁、參賽頁面撰寫指引及閱讀器中，引導所有參賽者創作。
+                    </div>
+
+                    <label style="margin-top:10px;"><i class="fas fa-align-left"></i> 題目指引與寫作要求說明 (選填)：</label>
+                    <textarea id="schedTopicDesc" rows="3" placeholder="請填寫本屆題目的創作背景設定、體裁建議、世界觀或核心精神..."></textarea>
+                    <div style="font-size:12px; color:#8d6e63; margin-top:3px;">
+                        提供給參賽者明確的題目背景或規範指引。
+                    </div>
+                </div>
+
                 <div>
                     <label>交件開始時間 (Start Time)：</label>
                     <input type="datetime-local" id="schedStartTime" required>
@@ -939,9 +982,11 @@
 
                 <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
                     <button type="button" class="action-btn secondary" style="margin:0;" onclick="closeAdminScheduleModal()">取消</button>
-                    <button type="submit" class="action-btn" style="margin:0;"><i class="fas fa-save"></i> 儲存時程與狀態</button>
+                    <button type="submit" class="action-btn" style="margin:0;"><i class="fas fa-save"></i> 儲存題目與時程</button>
                 </div>
             </form>
+        </div>
+    </div>
     <!-- 參賽作品即時預覽 Modal (設定文章與填寫文章兩階段皆可叫出，與閱讀器 100% 相同) -->
     <div id="workPreviewModal" class="modal-overlay hidden">
         <div class="modal-content" style="max-width: 900px; width: 95%;">
@@ -1001,6 +1046,8 @@
         let db = {
             settings: {
                 title: "第一屆探險者文文盃寫作比賽",
+                topic: "迷霧森林的古老守護者",
+                topicDesc: "在神祕而未知的原始山林深處，沉睡著受大自然祝福的守護者。請以此為題，描寫一段關於相遇、考驗與契約的奇幻冒險。",
                 startTime: "",
                 endTime: ""
             },
@@ -1157,7 +1204,45 @@
                 if (currentUser && currentUser.isAdmin) admBtn.style.display = 'inline-flex';
                 else admBtn.style.display = 'none';
             }
+
+            // 更新題目顯示
+            renderTopicDisplay();
         }
+
+        window.renderTopicDisplay = function() {
+            const topic = (db.settings && db.settings.topic && db.settings.topic.trim()) 
+                ? db.settings.topic.trim() 
+                : '迷霧森林的古老守護者';
+            const desc = (db.settings && db.settings.topicDesc && db.settings.topicDesc.trim()) 
+                ? db.settings.topicDesc.trim() 
+                : '在神祕而未知的原始山林深處，沉睡著受大自然祝福的守護者。請以此為題，描寫一段關於相遇、考驗與契約的奇幻冒險。';
+
+            // 首頁題目展示
+            const homeT = document.getElementById('homeTopicTitle');
+            const homeD = document.getElementById('homeTopicDesc');
+            if (homeT) homeT.innerHTML = `<i class="fas fa-feather-alt" style="color:#b26a00; font-size:22px; margin-right:8px;"></i>${escapeHtml(topic)}`;
+            if (homeD) homeD.innerHTML = `<div style="font-weight:bold; color:#3e2210; margin-bottom:4px;"><i class="fas fa-compass"></i> 題目指引與創作要求：</div>${escapeHtml(desc).replace(/\n/g, '<br>')}`;
+
+            // 參賽頁面常駐題目提示
+            const createT = document.getElementById('createTopicTitle');
+            const createD = document.getElementById('createTopicDesc');
+            if (createT) createT.innerText = topic;
+            if (createD) createD.innerHTML = `<b>【題目指引】</b>${escapeHtml(desc).replace(/\n/g, '<br>')}`;
+        };
+
+        window.toggleTopicDescHint = function() {
+            const descBox = document.getElementById('createTopicDesc');
+            const btnText = document.getElementById('topicDescBtnText');
+            if (!descBox) return;
+            const isHidden = (descBox.style.display === 'none' || !descBox.style.display);
+            if (isHidden) {
+                descBox.style.display = 'block';
+                if (btnText) btnText.innerText = '收合題目指引';
+            } else {
+                descBox.style.display = 'none';
+                if (btnText) btnText.innerText = '查看題目指引';
+            }
+        };
 
         // --- 網路連線與資料同歩 ---
         async function initNetwork() {
@@ -2462,15 +2547,21 @@
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // --- 管理員時程設定 Modal ---
+        // --- 管理員時程與題目設定 Modal ---
         window.openAdminScheduleModal = function() {
             if (!currentUser || !currentUser.isAdmin) {
-                alert('權限不足，只有管理員能設定比賽時程！');
+                alert('權限不足，只有管理員能設定比賽時程與題目！');
                 return;
             }
 
             document.getElementById('adminScheduleModal').classList.remove('hidden');
             document.getElementById('schedTitle').value = (db.settings && db.settings.title) ? db.settings.title : '第一屆探險者文文盃寫作比賽';
+            
+            const topicInput = document.getElementById('schedTopic');
+            if (topicInput) topicInput.value = (db.settings && db.settings.topic) ? db.settings.topic : '迷霧森林的古老守護者';
+            const descInput = document.getElementById('schedTopicDesc');
+            if (descInput) descInput.value = (db.settings && db.settings.topicDesc) ? db.settings.topicDesc : '';
+
             document.getElementById('schedStartTime').value = (db.settings && db.settings.startTime) ? db.settings.startTime : '';
             document.getElementById('schedEndTime').value = (db.settings && db.settings.endTime) ? db.settings.endTime : '';
             
@@ -2553,11 +2644,20 @@
         window.saveAdminSchedule = async function(e) {
             e.preventDefault();
             if (!currentUser || !currentUser.isAdmin) {
-                alert('只有管理員能設定比賽時程！');
+                alert('只有管理員能設定比賽題目與時程！');
                 return;
             }
 
             const title = document.getElementById('schedTitle').value.trim();
+            const topic = document.getElementById('schedTopic') ? document.getElementById('schedTopic').value.trim() : '';
+            const topicDesc = document.getElementById('schedTopicDesc') ? document.getElementById('schedTopicDesc').value.trim() : '';
+
+            if (!topic) {
+                alert('請輸入本屆徵文主題 / 比賽題目！');
+                document.getElementById('schedTopic')?.focus();
+                return;
+            }
+
             const startTime = document.getElementById('schedStartTime').value;
             const endTime = document.getElementById('schedEndTime').value;
             const isClosed = document.getElementById('schedIsClosed') ? document.getElementById('schedIsClosed').checked : false;
@@ -2569,6 +2669,8 @@
 
             if (!db.settings) db.settings = {};
             db.settings.title = title || '第一屆探險者文文盃寫作比賽';
+            db.settings.topic = topic;
+            db.settings.topicDesc = topicDesc;
             db.settings.startTime = startTime;
             db.settings.endTime = endTime;
             db.settings.isClosed = isClosed;
@@ -2578,7 +2680,7 @@
             updateAllStatusBars();
             renderCreatePage();
             renderBrowseList();
-            alert('比賽時程與狀態已成功更新並同步！');
+            alert('比賽題目、時程與狀態已成功儲存並同步至全站！');
         };
 
         // --- 跑馬燈廣播機制 ---
