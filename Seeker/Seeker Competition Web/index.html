@@ -364,6 +364,275 @@
             font-family: 'Klee One', 'Noto Serif TC', 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
         }
 
+        /* ==================== 章節設定導航管理列 ==================== */
+        .chapters-manager-bar {
+            background: #ede0c8;
+            border: 1.5px solid #cbb692;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            box-shadow: inset 0 0 15px rgba(130, 85, 35, 0.06);
+        }
+        .chapter-tab-item {
+            padding: 6px 14px;
+            border-radius: 6px;
+            background: #e6d5bb;
+            border: 1.5px solid #bfa57c;
+            color: #4a2c11;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: inherit;
+        }
+        .chapter-tab-item:hover {
+            background: #d8c3a3;
+            border-color: #8c5828;
+        }
+        .chapter-tab-item.active {
+            background: #4a2c11;
+            color: #fff8eb;
+            border-color: #3e2210;
+            box-shadow: 0 2px 6px rgba(74, 44, 17, 0.3);
+        }
+
+        /* ==================== 沈浸式作品閱讀器 (Immersive Book Reader) ==================== */
+        .immersive-reader-overlay {
+            position: fixed; inset: 0; z-index: 10000;
+            display: flex; flex-direction: column;
+            background-color: #e8d7be;
+            background-image: 
+                radial-gradient(rgba(130, 85, 35, 0.05) 1px, transparent 0),
+                linear-gradient(135deg, #ede0ca 0%, #e5d1b3 45%, #dcbf99 100%);
+            background-size: 24px 24px, 100% 100%;
+            color: #4a2c11;
+            font-family: 'Klee One', 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+            overflow: hidden;
+            transition: background 0.3s, color 0.3s;
+        }
+        .immersive-reader-overlay.theme-kraft {
+            background-color: #e8d7be;
+            background-image: radial-gradient(rgba(130, 85, 35, 0.05) 1px, transparent 0), linear-gradient(135deg, #ede0ca 0%, #e5d1b3 45%, #dcbf99 100%);
+            color: #4a2c11;
+        }
+        .immersive-reader-overlay.theme-parchment {
+            background-color: #fdf6e2;
+            background-image: radial-gradient(rgba(150, 110, 50, 0.04) 1px, transparent 0), linear-gradient(135deg, #fffdf5 0%, #f7eccb 100%);
+            color: #3e2210;
+        }
+        .immersive-reader-overlay.theme-night {
+            background-color: #1e1915;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0), linear-gradient(135deg, #25201b 0%, #171310 100%);
+            color: #e6dac6;
+        }
+
+        /* 頂部懸浮控制列 */
+        .immersive-nav-bar {
+            height: 60px; min-height: 60px; padding: 0 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(232, 215, 190, 0.95);
+            backdrop-filter: blur(8px);
+            border-bottom: 1.5px solid #cbb692;
+            box-shadow: 0 4px 15px rgba(60, 35, 15, 0.08);
+            z-index: 100; gap: 12px;
+        }
+        .theme-parchment .immersive-nav-bar {
+            background: rgba(253, 246, 226, 0.95);
+            border-bottom: 1.5px solid #d8caa5;
+        }
+        .theme-night .immersive-nav-bar {
+            background: rgba(30, 25, 21, 0.96);
+            border-bottom: 1.5px solid #483d34;
+            color: #e6dac6;
+        }
+
+        /* 閱讀器卷軸與書頁主容器 */
+        .immersive-scroll-container {
+            flex: 1; overflow-y: auto; padding: 30px 16px 100px 16px;
+            scroll-behavior: smooth;
+        }
+        .immersive-paper-page {
+            max-width: 960px; margin: 0 auto;
+            background: #f4e8d3;
+            border: 2px solid #cbb692;
+            border-radius: 8px;
+            padding: 40px 48px;
+            box-shadow: inset 0 0 50px rgba(160, 115, 60, 0.12), 0 10px 30px rgba(70, 45, 20, 0.12);
+            min-height: 80vh;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .theme-parchment .immersive-paper-page {
+            background: #fffdf7;
+            border-color: #e2d3b2;
+            box-shadow: inset 0 0 50px rgba(200, 160, 90, 0.1), 0 10px 30px rgba(90, 60, 20, 0.08);
+        }
+        .theme-night .immersive-paper-page {
+            background: #2a231d;
+            border-color: #4a3e34;
+            color: #ebdcc8;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 側邊章節目錄抽屜 */
+        .immersive-drawer {
+            position: absolute; top: 60px; bottom: 0; left: 0; width: 330px;
+            background: #ebdcc3;
+            border-right: 2px solid #c4af87;
+            box-shadow: 8px 0 24px rgba(60, 35, 15, 0.2);
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 150;
+            display: flex; flex-direction: column;
+        }
+        .immersive-drawer.open {
+            transform: translateX(0);
+        }
+        .theme-parchment .immersive-drawer {
+            background: #fcf5e3;
+            border-right-color: #d8caa5;
+        }
+        .theme-night .immersive-drawer {
+            background: #241e19;
+            border-right-color: #43372e;
+            color: #dfd0bc;
+        }
+        .drawer-backdrop {
+            position: absolute; inset: 60px 0 0 0;
+            background: rgba(30, 18, 8, 0.4);
+            z-index: 140; display: none;
+        }
+        .drawer-backdrop.open { display: block; }
+
+        /* 章節項目在抽屜中的樣式 */
+        .drawer-chapter-item {
+            padding: 12px 16px;
+            border-bottom: 1px dashed #d5c4a1;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 15px; color: inherit;
+        }
+        .theme-night .drawer-chapter-item {
+            border-bottom-color: #3f332a;
+        }
+        .drawer-chapter-item:hover {
+            background: rgba(180, 140, 70, 0.15);
+        }
+        .drawer-chapter-item.active {
+            background: #4a2c11;
+            color: #fff8eb !important;
+            font-weight: bold;
+        }
+        .theme-night .drawer-chapter-item.active {
+            background: #5d4037;
+            color: #fff !important;
+        }
+
+        /* ==================== 胖達商城風格作品評價留言系統 ==================== */
+        .work-reviews-section {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px dashed #cbb692;
+        }
+        .theme-night .work-reviews-section {
+            border-top-color: #483d34;
+        }
+        .review-stats-card {
+            display: flex; align-items: center; gap: 24px;
+            padding: 20px 24px; border-radius: 8px;
+            background: #ede0c8; border: 1.5px solid #c9b48c;
+            margin-bottom: 24px; flex-wrap: wrap;
+        }
+        .theme-parchment .review-stats-card {
+            background: #f7edd4; border-color: #decba5;
+        }
+        .theme-night .review-stats-card {
+            background: #231c17; border-color: #44372e; color: #e6dac6;
+        }
+        .rating-big-num {
+            font-size: 46px; font-weight: bold; color: #b26a00;
+            line-height: 1; font-family: 'Klee One', serif;
+        }
+        .theme-night .rating-big-num { color: #f5b041; }
+        .rating-progress-bar {
+            height: 8px; border-radius: 4px; background: #dac39e;
+            overflow: hidden; flex: 1; margin: 0 10px; min-width: 80px;
+        }
+        .theme-night .rating-progress-bar { background: #3b3026; }
+        .rating-progress-fill {
+            height: 100%; background: #b26a00; border-radius: 4px;
+        }
+        .theme-night .rating-progress-fill { background: #f5b041; }
+
+        .star-pick-row {
+            display: inline-flex; gap: 6px; font-size: 24px; color: #b26a00; cursor: pointer;
+        }
+        .star-pick-row i { transition: transform 0.15s; }
+        .star-pick-row i:hover { transform: scale(1.2); }
+
+        .review-item-card {
+            background: #fbf3e6; border: 1.5px solid #d8c6a5;
+            border-radius: 8px; padding: 18px 20px; margin-bottom: 16px;
+            position: relative; transition: all 0.2s;
+        }
+        .theme-parchment .review-item-card {
+            background: #fffdf7; border-color: #e2d3b2;
+        }
+        .theme-night .review-item-card {
+            background: #251e18; border-color: #43372c; color: #e6dac6;
+        }
+        .review-avatar {
+            width: 38px; height: 38px; border-radius: 50%;
+            object-fit: cover; border: 1.5px solid #c9b48c;
+        }
+        .badge-role-author {
+            background: #8c5828; color: #fff8eb; font-size: 11px;
+            padding: 2px 7px; border-radius: 4px; font-weight: bold; margin-left: 6px;
+        }
+        .badge-role-admin {
+            background: #1976d2; color: #fff; font-size: 11px;
+            padding: 2px 7px; border-radius: 4px; font-weight: bold; margin-left: 6px;
+        }
+        .badge-role-reply {
+            background: #6d4c41; color: #fff8eb; font-size: 10px;
+            padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-left: 6px;
+        }
+
+        .comment-input-area {
+            width: 100%; padding: 12px; font-family: 'Klee One', 'Noto Sans TC', sans-serif;
+            border: none !important; border-bottom: 1.5px solid #bfa57c !important;
+            background: transparent !important; color: #4a2c11 !important;
+            font-size: 15px; line-height: 1.7; resize: vertical; min-height: 75px;
+            outline: none !important; box-sizing: border-box; caret-color: #5d4037 !important;
+        }
+        .theme-night .comment-input-area {
+            border-bottom-color: #5c4b3e !important; color: #e6dac6 !important; caret-color: #f5b041 !important;
+        }
+        .comment-input-area:focus {
+            border-bottom: 2px solid #5d4037 !important; background: rgba(180, 140, 80, 0.08) !important;
+        }
+        .theme-night .comment-input-area:focus {
+            border-bottom-color: #f5b041 !important; background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        /* 互動小按鈕 (讚/踩/回覆) */
+        .review-action-btn {
+            background: transparent; border: none; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 13px; color: #7d5836; font-family: inherit;
+            padding: 4px 8px; border-radius: 4px; transition: all 0.2s;
+        }
+        .theme-night .review-action-btn { color: #bcaaa4; }
+        .review-action-btn:hover { background: rgba(140, 88, 40, 0.12); color: #4a2c11; }
+        .theme-night .review-action-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        .review-action-btn.active-like { color: #1976d2 !important; font-weight: bold; }
+        .review-action-btn.active-dislike { color: #d32f2f !important; font-weight: bold; }
+
         /* 模態框 (Modal) */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -820,6 +1089,30 @@
 
                     <!-- 純文字在線編輯區塊 -->
                     <div id="textEditorArea">
+                        <!-- 章節設定與切換面板 -->
+                        <div class="chapters-manager-bar" id="chaptersManagerBar">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                                <div style="font-weight:bold; color:#4a2c11; font-size:16px;">
+                                    <i class="fas fa-bookmark" style="color:#b26a00;"></i> 作品章節設定 (<span id="chapterCountBadge">1</span> 章)
+                                </div>
+                                <button type="button" class="mode-btn" onclick="addNewChapter()" style="font-size:13px; padding:5px 14px;">
+                                    <i class="fas fa-plus"></i> 新增章節
+                                </button>
+                            </div>
+                            <!-- 章節標籤分頁列 (牛皮紙書籤風) -->
+                            <div id="chapterTabsContainer" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px;">
+                                <!-- 動態渲染 Tab -->
+                            </div>
+                            <!-- 當前章節屬性列 -->
+                            <div style="display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; background:rgba(255,255,255,0.3); padding:8px 12px; border-radius:6px;">
+                                <label style="margin:0; font-weight:bold; font-size:14px; white-space:nowrap; color:#5a3818;">當前章節標題：</label>
+                                <input type="text" id="currentChapterTitleInput" oninput="updateCurrentChapterTitle(this.value)" placeholder="例如：第一章 序幕" style="flex:1; min-width:180px; padding:6px 10px; font-size:15px;">
+                                <button type="button" class="action-btn secondary" onclick="moveCurrentChapter(-1)" title="上移章節" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-arrow-up"></i> 上移</button>
+                                <button type="button" class="action-btn secondary" onclick="moveCurrentChapter(1)" title="下移章節" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-arrow-down"></i> 下移</button>
+                                <button type="button" class="action-btn danger" onclick="deleteCurrentChapter()" title="刪除本章" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-trash-alt"></i> 刪除本章</button>
+                            </div>
+                        </div>
+
                         <!-- 文字樣式工具列 -->
                         <div class="editor-toolbar">
                             <button type="button" class="tool-btn" onclick="formatDoc('bold')" title="粗體 (Ctrl+B)"><b>B</b></button>
@@ -1016,6 +1309,150 @@
                 <button type="button" class="action-btn secondary" style="margin:0;" onclick="closeWorkPreviewModal()">
                     <i class="fas fa-pencil-alt"></i> 關閉預覽，返回繼續編輯
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 全螢幕沈浸式作品閱覽器 (Immersive Book Reader) ==================== -->
+    <div id="immersiveReaderOverlay" class="immersive-reader-overlay theme-kraft hidden">
+        <!-- 頂部懸浮控制導航列 -->
+        <div class="immersive-nav-bar">
+            <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                <button type="button" class="mode-btn" onclick="closeImmersiveReader()" style="padding:6px 14px; font-size:14px;">
+                    <i class="fas fa-arrow-left"></i> 退出閱覽
+                </button>
+                <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    <span id="immersiveWorkTitle" style="font-size:18px; font-weight:bold; color:inherit;">載入作品中...</span>
+                    <span id="immersiveAuthorBadge" style="font-size:13px; opacity:0.8; margin-left:8px;"></span>
+                </div>
+            </div>
+
+            <!-- 控制工具群 (目錄、字級、主題、行距、全螢幕) -->
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                <button type="button" class="mode-btn" onclick="toggleImmersiveDrawer()" title="章節目錄">
+                    <i class="fas fa-list-ul"></i> <span class="hide-mobile">目錄</span> (<span id="immersiveChapterCount">1</span>)
+                </button>
+                <button type="button" class="mode-btn" onclick="adjustImmersiveFont(-2)" title="縮小字體" style="padding:5px 10px;">A-</button>
+                <button type="button" class="mode-btn" onclick="adjustImmersiveFont(2)" title="放大字體" style="padding:5px 10px;">A+</button>
+                
+                <select id="immersiveLineHeightSelect" onchange="changeImmersiveLineHeight(this.value)" class="tool-select" style="padding:4px 8px; font-size:13px;">
+                    <option value="1.8">行距 1.8x</option>
+                    <option value="2.2" selected>行距 2.2x</option>
+                    <option value="2.6">行距 2.6x</option>
+                </select>
+
+                <select id="immersiveThemeSelect" onchange="changeImmersiveTheme(this.value)" class="tool-select" style="padding:4px 8px; font-size:13px;">
+                    <option value="kraft">📜 原生牛皮紙</option>
+                    <option value="parchment">📖 暖陽羊皮紙</option>
+                    <option value="night">🌙 深夜護眼紙</option>
+                </select>
+
+                <button type="button" class="mode-btn" onclick="toggleImmersiveFullscreen()" title="切換全螢幕" style="padding:5px 10px;">
+                    <i class="fas fa-expand" id="immersiveFullscreenIcon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- 側邊章節目錄抽屜 Backdrop -->
+        <div class="drawer-backdrop" id="immersiveDrawerBackdrop" onclick="toggleImmersiveDrawer()"></div>
+
+        <!-- 側邊章節目錄抽屜 -->
+        <div class="immersive-drawer" id="immersiveDrawer">
+            <div style="padding:16px; border-bottom:1.5px solid #cbb692; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-weight:bold; font-size:16px;"><i class="fas fa-book-open"></i> 章節目錄</div>
+                <button type="button" onclick="toggleImmersiveDrawer()" style="background:none; border:none; font-size:18px; color:inherit; cursor:pointer;">&times;</button>
+            </div>
+            <div id="immersiveDrawerList" style="flex:1; overflow-y:auto;">
+                <!-- 動態注入章節清單 -->
+            </div>
+        </div>
+
+        <!-- 閱讀器正文卷軸捲動區 -->
+        <div class="immersive-scroll-container" id="immersiveScrollContainer">
+            <div class="immersive-paper-page">
+                <!-- 作品 Header 區 (橫幅、封面、標題、作者、禁轉聲明) -->
+                <div id="immersiveWorkHeader">
+                    <!-- 動態渲染 Header -->
+                </div>
+
+                <!-- 章節標題大字提示 -->
+                <div id="immersiveChapterHeader" style="margin:25px 0 20px 0; border-bottom:2px solid #bfa57c; padding-bottom:12px;">
+                    <h2 id="immersiveChapterTitleText" style="margin:0; font-size:26px; color:#3e2210; font-family:'Klee One', serif;">
+                        第一章
+                    </h2>
+                </div>
+
+                <!-- 正文內容區 (純文字、PDF、Word) -->
+                <div id="immersiveContentBody" style="line-height:2.2; font-size:19px; white-space:pre-wrap; word-break:break-word;">
+                    <!-- 動態注入本章小說內容 -->
+                </div>
+
+                <!-- 章節上下換頁切換導航按鈕 -->
+                <div id="immersiveChapterNavRow" style="display:flex; justify-content:space-between; align-items:center; margin-top:40px; padding-top:20px; border-top:1.5px dashed #cbb692; flex-wrap:wrap; gap:12px;">
+                    <button type="button" id="btnPrevChapter" class="action-btn secondary" onclick="navigateImmersiveChapter(-1)" style="margin:0;">
+                        <i class="fas fa-arrow-left"></i> 上一章
+                    </button>
+                    <span id="immersiveChapterProgress" style="font-size:14px; font-weight:bold; opacity:0.8;">第 1 / 1 章</span>
+                    <button type="button" id="btnNextChapter" class="action-btn" onclick="navigateImmersiveChapter(1)" style="margin:0;">
+                        下一章 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- ==================== 讀者交流與留言評價專區 (參考胖達商城架構) ==================== -->
+                <div class="work-reviews-section" id="workReviewsSection">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0; font-size:22px; color:inherit; font-family:'Klee One', serif;">
+                            <i class="fas fa-comments" style="color:#b26a00;"></i> 讀者心得與評價交流
+                        </h3>
+                        <span id="reviewCountBadge" style="font-size:13px; background:rgba(178,106,0,0.15); border:1px solid #b26a00; color:#8c5300; padding:3px 10px; border-radius:12px; font-weight:bold;">
+                            共 0 則心得
+                        </span>
+                    </div>
+
+                    <!-- 未公開提示區 -->
+                    <div id="reviewsPrivateNotice" class="hidden" style="background:#fcf1de; border:1px solid #d5a864; border-left:4px solid #b26a00; padding:15px; border-radius:6px; color:#522800; font-size:14px; line-height:1.6;">
+                        <i class="fas fa-lock" style="color:#b26a00; margin-right:6px;"></i>
+                        <b>【作品暫未全面公開】</b><br>
+                        本作品目前設定為暫不公開展示，將於比賽徵件截止後自動全面公開並開放全體讀者留下心得評價與交流互動！
+                    </div>
+
+                    <!-- 公開後的評價統計展板與留言主體 -->
+                    <div id="reviewsPublicArea">
+                        <!-- 胖達商城式評分分佈統計展板 -->
+                        <div class="review-stats-card" id="reviewsStatsCard">
+                            <!-- 動態注入平均評分與 5~1 星比例進度條 -->
+                        </div>
+
+                        <!-- 撰寫心得留言表單 -->
+                        <div style="background:rgba(255,255,255,0.4); border:1.5px solid #c9b48c; border-radius:8px; padding:18px 20px; margin-bottom:24px;" id="reviewFormContainer">
+                            <div style="font-weight:bold; font-size:16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                                <span><i class="fas fa-pen-nib" style="color:#b26a00;"></i> 發表您對這部作品的評價與心得：</span>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:14px; font-weight:normal;">您的評分：</span>
+                                    <div class="star-pick-row" id="starPickContainer">
+                                        <i class="fas fa-star" onclick="setPickRating(1)"></i>
+                                        <i class="fas fa-star" onclick="setPickRating(2)"></i>
+                                        <i class="fas fa-star" onclick="setPickRating(3)"></i>
+                                        <i class="fas fa-star" onclick="setPickRating(4)"></i>
+                                        <i class="fas fa-star" onclick="setPickRating(5)"></i>
+                                    </div>
+                                    <input type="hidden" id="selectedRatingVal" value="5">
+                                </div>
+                            </div>
+                            <textarea id="workCommentInput" class="comment-input-area" placeholder="請沾墨寫下您對這部作品的品讀心得、角色刻畫感想或應援鼓勵..."></textarea>
+                            <div style="display:flex; justify-content:flex-end; margin-top:10px;">
+                                <button type="button" class="action-btn" onclick="submitCurrentWorkReview()" style="margin:0; padding:8px 22px; font-size:14px;">
+                                    <i class="fas fa-paper-plane"></i> 送出心得評價
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 留言評論清單容器 -->
+                        <div id="reviewsListContainer">
+                            <!-- 動態渲染每筆讀者留言、讚踩、回覆 -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1680,8 +2117,8 @@
             const readBtn = document.createElement('button');
             readBtn.className = 'action-btn secondary';
             readBtn.style.margin = '0';
-            readBtn.innerHTML = `<i class="fas fa-eye"></i> 預覽作品`;
-            readBtn.onclick = () => openReaderView(work.id);
+            readBtn.innerHTML = `<i class="fas fa-book-reader"></i> 沈浸閱覽作品`;
+            readBtn.onclick = () => openImmersiveReader(work.id);
             btnContainer.appendChild(readBtn);
 
             // 編輯按鈕 (若未截止)
@@ -1764,6 +2201,12 @@
                 }
             }
 
+            // 初始化章節設定 (若無章節則建立第一章)
+            if (!window.workChapters || window.workChapters.length === 0) {
+                window.workChapters = [{ id: 'ch_1', title: '第一章 啟程', content: '' }];
+                window.currentChapterIndex = 0;
+            }
+
             // 切換畫面
             document.getElementById('articleStep1').style.display = 'none';
             document.getElementById('articleStep2').style.display = 'block';
@@ -1776,6 +2219,9 @@
                 hint.innerHTML = `<i class="fas fa-book"></i> 正在填寫：《${escapeHtml(titleVal)}》`;
             }
 
+            // 渲染章節標籤並載入當前章節正文
+            renderChapterTabs();
+
             // 套用步驟 1 所設定的文字樣式到富文本編輯器
             const editor = document.getElementById('cp-content-editor');
             if (editor) {
@@ -1787,6 +2233,9 @@
                 else editor.style.fontStyle = 'normal';
                 if (window.currentStyling.underline) editor.style.textDecoration = 'underline';
                 else editor.style.textDecoration = 'none';
+
+                editor.innerHTML = window.workChapters[window.currentChapterIndex]?.content || '';
+                handleEditorInput();
             }
 
             // 格式切換顯示
@@ -1804,11 +2253,116 @@
         };
 
         window.goToStep1 = function() {
+            syncCurrentChapterContent();
             document.getElementById('articleStep2').style.display = 'none';
             document.getElementById('articleStep1').style.display = 'block';
             document.getElementById('stepPill2')?.classList.remove('active');
             document.getElementById('stepPill1')?.classList.add('active');
             window.scrollTo({ top: 300, behavior: 'smooth' });
+        };
+
+        // ==========================================
+        // 章節設定管理核心函數
+        // ==========================================
+        window.workChapters = [
+            { id: 'ch_1', title: '第一章 啟程', content: '' }
+        ];
+        window.currentChapterIndex = 0;
+
+        window.renderChapterTabs = function() {
+            const container = document.getElementById('chapterTabsContainer');
+            if (!container) return;
+            const countBadge = document.getElementById('chapterCountBadge');
+            if (countBadge) countBadge.innerText = window.workChapters.length;
+
+            container.innerHTML = window.workChapters.map((ch, idx) => {
+                const isActive = idx === window.currentChapterIndex;
+                const shortTitle = escapeHtml(ch.title || `第 ${idx + 1} 章`);
+                return `
+                    <button type="button" class="chapter-tab-item ${isActive ? 'active' : ''}" onclick="switchChapter(${idx})">
+                        <i class="fas ${isActive ? 'fa-book-open' : 'fa-bookmark'}"></i> ${shortTitle}
+                    </button>
+                `;
+            }).join('');
+
+            const titleInput = document.getElementById('currentChapterTitleInput');
+            if (titleInput) {
+                titleInput.value = window.workChapters[window.currentChapterIndex]?.title || '';
+            }
+        };
+
+        window.syncCurrentChapterContent = function() {
+            const editor = document.getElementById('cp-content-editor');
+            if (!editor || !window.workChapters[window.currentChapterIndex]) return;
+            window.workChapters[window.currentChapterIndex].content = editor.innerHTML;
+        };
+
+        window.switchChapter = function(newIdx) {
+            if (newIdx < 0 || newIdx >= window.workChapters.length) return;
+            syncCurrentChapterContent();
+            window.currentChapterIndex = newIdx;
+            renderChapterTabs();
+
+            const editor = document.getElementById('cp-content-editor');
+            if (editor) {
+                editor.innerHTML = window.workChapters[newIdx].content || '';
+            }
+            handleEditorInput();
+        };
+
+        window.addNewChapter = function() {
+            syncCurrentChapterContent();
+            const newIdx = window.workChapters.length;
+            const newTitle = `第 ${newIdx + 1} 章`;
+            window.workChapters.push({
+                id: 'ch_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                title: newTitle,
+                content: ''
+            });
+            switchChapter(newIdx);
+        };
+
+        window.updateCurrentChapterTitle = function(val) {
+            if (window.workChapters[window.currentChapterIndex]) {
+                window.workChapters[window.currentChapterIndex].title = val;
+                renderChapterTabs();
+            }
+        };
+
+        window.deleteCurrentChapter = function() {
+            if (window.workChapters.length <= 1) {
+                alert('作品至少需要保留一個章節！');
+                return;
+            }
+            const curTitle = window.workChapters[window.currentChapterIndex]?.title || '本章';
+            if (!confirm(`確定要刪除「${curTitle}」嗎？該章節的正文內容將會被移除！`)) return;
+
+            window.workChapters.splice(window.currentChapterIndex, 1);
+            if (window.currentChapterIndex >= window.workChapters.length) {
+                window.currentChapterIndex = window.workChapters.length - 1;
+            }
+            renderChapterTabs();
+            const editor = document.getElementById('cp-content-editor');
+            if (editor) {
+                editor.innerHTML = window.workChapters[window.currentChapterIndex].content || '';
+            }
+            handleEditorInput();
+        };
+
+        window.moveCurrentChapter = function(dir) {
+            syncCurrentChapterContent();
+            const targetIdx = window.currentChapterIndex + dir;
+            if (targetIdx < 0 || targetIdx >= window.workChapters.length) return;
+            const temp = window.workChapters[window.currentChapterIndex];
+            window.workChapters[window.currentChapterIndex] = window.workChapters[targetIdx];
+            window.workChapters[targetIdx] = temp;
+            window.currentChapterIndex = targetIdx;
+            renderChapterTabs();
+            const editor = document.getElementById('cp-content-editor');
+            if (editor) {
+                editor.innerHTML = window.workChapters[targetIdx].content || '';
+            }
+            handleEditorInput();
         };
 
         // 富文本編輯器指令
@@ -1979,15 +2533,18 @@
             const contentEl = document.getElementById('previewModalContentArea');
             if (contentEl) {
                 if (format === 'text') {
-                    const editorContent = document.getElementById('cp-content-editor')?.innerHTML || '';
-                    const plainContent = document.getElementById('cp-content')?.value || '';
-                    const displayHtml = editorContent.trim() ? editorContent : (plainContent.trim() ? plainContent : '<span style="color:#a1887f; font-style:italic;">（目前正文尚為空白，請進入步驟 2 填寫小說內容）</span>');
-
-                    contentEl.innerHTML = `
-                        <div class="reader-container" style="font-size:${window.currentStyling.fontSize}; line-height:${window.currentStyling.lineHeight}; text-indent:${window.currentStyling.indent}; font-weight:${window.currentStyling.bold ? 'bold' : 'normal'}; font-style:${window.currentStyling.italic ? 'italic' : 'normal'}; text-decoration:${window.currentStyling.underline ? 'underline' : 'none'};">
-                            ${displayHtml}
+                    syncCurrentChapterContent();
+                    let previewChaptersHtml = window.workChapters.map((ch, idx) => `
+                        <div style="margin-bottom:28px;">
+                            <h3 style="font-size:22px; color:#3e2210; border-bottom:1.5px solid #c9b48c; padding-bottom:6px; margin:0 0 12px 0; font-family:'Klee One', serif;">
+                                <i class="fas fa-feather-alt" style="color:#b26a00; font-size:16px;"></i> ${escapeHtml(ch.title || `第 ${idx + 1} 章`)}
+                            </h3>
+                            <div class="reader-container" style="font-size:${window.currentStyling.fontSize}; line-height:${window.currentStyling.lineHeight}; text-indent:${window.currentStyling.indent}; font-weight:${window.currentStyling.bold ? 'bold' : 'normal'}; font-style:${window.currentStyling.italic ? 'italic' : 'normal'}; text-decoration:${window.currentStyling.underline ? 'underline' : 'none'};">
+                                ${ch.content && ch.content.trim() ? sanitizeRichText(ch.content) : '<span style="color:#a1887f; font-style:italic;">（本章節尚無內容）</span>'}
+                            </div>
                         </div>
-                    `;
+                    `).join('');
+                    contentEl.innerHTML = previewChaptersHtml;
                 } else if (format === 'pdf') {
                     contentEl.innerHTML = `
                         <div style="margin-top:15px; padding:30px; text-align:center; background:#f9f3e3; border:2px dashed #bfa57c; border-radius:8px;">
@@ -2032,6 +2589,18 @@
             // 重置回到步驟 1
             goToStep1();
 
+            // 載入多章節資料
+            if (work.chapters && Array.isArray(work.chapters) && work.chapters.length > 0) {
+                window.workChapters = JSON.parse(JSON.stringify(work.chapters));
+            } else {
+                window.workChapters = [{
+                    id: 'ch_1',
+                    title: work.episode || '第一章',
+                    content: work.content || ''
+                }];
+            }
+            window.currentChapterIndex = 0;
+
             // 填入既有內容
             document.getElementById('editWorkId').value = work.id;
             document.getElementById('cp-title').value = work.title || '';
@@ -2041,9 +2610,9 @@
 
             if (work.format === 'text') {
                 const editor = document.getElementById('cp-content-editor');
-                if (editor) editor.innerHTML = work.content || '';
+                if (editor) editor.innerHTML = window.workChapters[0]?.content || '';
                 const hiddenInput = document.getElementById('cp-content');
-                if (hiddenInput) hiddenInput.value = work.content || '';
+                if (hiddenInput) hiddenInput.value = window.workChapters[0]?.content || '';
                 handleEditorInput();
             } else {
                 document.getElementById('currentFileHint').innerText = `目前已上傳：${work.fileName || '既有檔案'} (若不變更檔案請留空)`;
@@ -2108,6 +2677,11 @@
             clearBannerImage();
             document.getElementById('currentFileHint').innerText = '';
             document.getElementById('docFileNameLabel').innerText = '尚未選取檔案';
+            
+            // 重置章節
+            window.workChapters = [{ id: 'ch_1', title: '第一章 啟程', content: '' }];
+            window.currentChapterIndex = 0;
+
             const editor = document.getElementById('cp-content-editor');
             if (editor) editor.innerHTML = '';
             const hidden = document.getElementById('cp-content');
@@ -2220,17 +2794,20 @@
             let coverData = window.currentCoverData || (isEditing ? (db.works.find(w => w.id === editId)?.cover || '') : '');
             let bannerData = window.currentBannerData || (isEditing ? (db.works.find(w => w.id === editId)?.banner || '') : '');
 
-            // 讀取正文內容 (純文字富文本)
+            // 讀取正文內容 (純文字富文本多章節)
             let contentHtml = '';
             if (format === 'text') {
-                const editor = document.getElementById('cp-content-editor');
-                contentHtml = editor ? editor.innerHTML : (document.getElementById('cp-content')?.value || '');
-                const textOnly = editor ? editor.innerText.trim() : '';
-                if (!textOnly) {
-                    alert('小說正文內容不可為空白，請在編輯器中撰寫參賽小說！');
+                syncCurrentChapterContent();
+                let totalChars = 0;
+                window.workChapters.forEach(ch => {
+                    totalChars += (ch.content || '').replace(/<[^>]*>/g, '').trim().length;
+                });
+                if (totalChars === 0) {
+                    alert('小說正文內容不可為空白，請在編輯器中至少為一個章節撰寫小說內容！');
                     goToStep2();
                     return;
                 }
+                contentHtml = window.workChapters[0]?.content || '';
             }
 
             const nowStr = new Date().toLocaleString();
@@ -2248,6 +2825,7 @@
                     work.fileName = fileName;
                     work.fileData = fileData;
                     work.content = contentHtml;
+                    work.chapters = JSON.parse(JSON.stringify(window.workChapters));
                     work.styling = { ...window.currentStyling };
                     work.cover = coverData;
                     work.banner = bannerData;
@@ -2270,6 +2848,8 @@
                     fileName: fileName,
                     fileData: fileData,
                     content: contentHtml,
+                    chapters: JSON.parse(JSON.stringify(window.workChapters)),
+                    reviews: [],
                     styling: { ...window.currentStyling },
                     cover: coverData,
                     banner: bannerData,
@@ -2279,7 +2859,7 @@
                     updatedAt: ''
                 };
                 db.works.push(newWork);
-                alert('參賽作品已成功交件！在比賽截止日前，您隨時可以回來修改作品內容。');
+                alert('參賽作品已成功交件！在比賽截止日前，您隨時可以回來修改作品內容與章節。');
             }
 
             await saveCloudData();
@@ -2359,25 +2939,46 @@
                     ? `<img src="${w.authorAvatar}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;">`
                     : `<i class="fas fa-user-circle"></i>`;
 
+                // 章節數標籤
+                const chapCount = (w.chapters && w.chapters.length) ? w.chapters.length : 1;
+                const chapBadge = `<span style="font-size:12px; color:#7d5836; background:#e8dcc3; padding:2px 6px; border-radius:4px;"><i class="fas fa-bookmark"></i> ${chapCount} 章</span>`;
+
+                // 胖達商城式 讀者評分與留言數徽章
+                let reviewRatingHtml = '';
+                if (w.reviews && w.reviews.length > 0) {
+                    let totalRating = 0;
+                    w.reviews.forEach(r => totalRating += (r.rating || 5));
+                    let avg = (totalRating / w.reviews.length).toFixed(1);
+                    reviewRatingHtml = `<span style="color:#b26a00; font-weight:bold; font-size:13px;"><i class="fas fa-star"></i> ${avg} (${w.reviews.length})</span>`;
+                } else {
+                    reviewRatingHtml = `<span style="color:#a1887f; font-size:12px;"><i class="far fa-star"></i> 尚無評價</span>`;
+                }
+
                 return `
-                    <div class="work-card" onclick="openReaderView('${w.id}')">
+                    <div class="work-card" onclick="openImmersiveReader('${w.id}')" title="點擊展開沈浸式牛皮紙作品閱覽">
                         ${w.cover ? `<img src="${w.cover}" class="card-cover" alt="封面">` : `<div class="card-cover" style="display:flex; align-items:center; justify-content:center; color:#8d6e63; font-size:40px;"><i class="fas fa-book"></i></div>`}
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
                             <h4 class="card-title">${escapeHtml(w.title)}</h4>
-                            <span class="badge-format">${formatLabel}</span>
+                            <div style="display:flex; gap:4px; align-items:center;">
+                                ${chapBadge}
+                                <span class="badge-format">${formatLabel}</span>
+                            </div>
                         </div>
                         <div class="card-author">
                             ${avatarImg}
                             <span>${escapeHtml(w.authorName || w.author)}</span>
                             ${privBadge}
                         </div>
-                        ${w.episode ? `<div style="font-size:13px; color:#7d5836; margin-bottom:4px;"><i class="fas fa-bookmark" style="font-size:11px;"></i> ${escapeHtml(w.episode)}</div>` : ''}
-                        <div style="font-size:12px; color:#b26a00; margin-bottom:8px; display:flex; align-items:center; gap:4px;">
-                            <i class="fas fa-shield-alt"></i> <span>專屬首發創作 · 嚴禁公開轉載</span>
+                        ${w.episode ? `<div style="font-size:13px; color:#7d5836; margin-bottom:4px;"><i class="fas fa-feather-alt" style="font-size:11px;"></i> ${escapeHtml(w.episode)}</div>` : ''}
+                        <div style="font-size:12px; color:#b26a00; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
+                            <span><i class="fas fa-shield-alt"></i> 專屬首發創作</span>
+                            ${reviewRatingHtml}
                         </div>
                         <div class="card-meta">
                             <span>${w.submittedAt ? w.submittedAt.split(' ')[0] : ''}</span>
-                            <span style="color:#5d4037; font-weight:bold;">閱讀作品 →</span>
+                            <span style="color:#5d4037; font-weight:bold; display:inline-flex; align-items:center; gap:4px;">
+                                <i class="fas fa-book-reader"></i> 沈浸閱覽 →
+                            </span>
                         </div>
                     </div>
                 `;
@@ -2552,6 +3153,659 @@
             if (!str) return '';
             return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
+
+        // ==========================================
+        // 2. 沈浸式作品閱覽器 (Immersive Book Reader)
+        // ==========================================
+        window.immersiveState = {
+            workId: null,
+            chapterIndex: 0,
+            chapters: [],
+            theme: 'kraft',
+            fontSize: 19,
+            lineHeight: '2.2'
+        };
+
+        window.openImmersiveReader = function(workId, chapterIdx = 0, pushHistory = true) {
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work) return;
+
+            const isEnded = isContestEnded();
+            if (work.isPublic === false && !isEnded) {
+                const canSee = currentUser && (currentUser.isAdmin || currentUser.username === work.author);
+                if (!canSee) {
+                    alert('此參賽作品目前設定為暫不公開，將於比賽截止後自動公開，敬請期待！');
+                    return;
+                }
+            }
+
+            // 標準化章節清單
+            let chapters = (work.chapters && Array.isArray(work.chapters) && work.chapters.length > 0)
+                ? work.chapters
+                : [{ id: 'ch_1', title: work.episode || '全文篇章', content: work.content || '' }];
+
+            if (chapterIdx < 0 || chapterIdx >= chapters.length) chapterIdx = 0;
+
+            window.immersiveState.workId = work.id;
+            window.immersiveState.chapterIndex = chapterIdx;
+            window.immersiveState.chapters = chapters;
+
+            const overlay = document.getElementById('immersiveReaderOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('hidden');
+
+            // 頂部標題與作者徽章
+            const titleEl = document.getElementById('immersiveWorkTitle');
+            if (titleEl) titleEl.innerText = `《${work.title}》`;
+            const authorBadge = document.getElementById('immersiveAuthorBadge');
+            if (authorBadge) authorBadge.innerHTML = `執筆：${escapeHtml(work.authorName || work.author)}`;
+            const chCountEl = document.getElementById('immersiveChapterCount');
+            if (chCountEl) chCountEl.innerText = chapters.length;
+
+            // Header 區塊
+            const isPrivate = work.isPublic === false && !isEnded;
+            const headerEl = document.getElementById('immersiveWorkHeader');
+            if (headerEl) {
+                headerEl.innerHTML = `
+                    ${work.banner ? `<img src="${work.banner}" style="width:100%; height:200px; object-fit:cover; border-radius:6px; margin-bottom:20px; border:1px solid #cbb691; box-shadow:0 3px 10px rgba(0,0,0,0.12);">` : ''}
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
+                        <div style="flex:1; min-width:260px;">
+                            <h1 style="font-size:32px; color:inherit; margin:0 0 10px 0; font-family:'Klee One', serif;">${escapeHtml(work.title)}</h1>
+                            <div style="font-size:16px; opacity:0.85; line-height:1.8;">
+                                <div><b>創作者：</b>${escapeHtml(work.authorName || work.author)} ${isPrivate ? `<span class="badge-private"><i class="fas fa-lock"></i> 暫不公開 (截止自動公開)</span>` : `<span class="badge-public"><i class="fas fa-eye"></i> 公開展示</span>`}</div>
+                                ${work.episode ? `<div><b>篇章名稱：</b>${escapeHtml(work.episode)}</div>` : ''}
+                                <div><b>交件時間：</b>${work.submittedAt || ''}</div>
+                            </div>
+                            <div style="margin-top:14px; background:rgba(215,160,70,0.14); border:1px solid #cfa35d; border-left:4px solid #b26a00; padding:12px 16px; border-radius:4px; font-size:14px; line-height:1.6;">
+                                <i class="fas fa-shield-alt" style="color:#b26a00; margin-right:6px;"></i>
+                                <b>【著作權與全網禁轉聲明】</b><br>
+                                本作品為探險者文文盃之專屬首發參賽創作，受著作權法保護。<b>未經書面許可，嚴禁以任何形式轉載、節錄、刊登或發表於任何第三方平台或出版媒介。</b>
+                            </div>
+                        </div>
+                        ${work.cover ? `<img src="${work.cover}" style="width:130px; height:180px; object-fit:cover; border-radius:6px; border:1.5px solid #c9b48c; box-shadow:0 4px 12px rgba(0,0,0,0.18);">` : ''}
+                    </div>
+                `;
+            }
+
+            // 渲染側邊抽屜目錄清單
+            renderImmersiveDrawerList();
+
+            // 渲染當前章節正文
+            renderImmersiveChapterContent();
+
+            // 渲染胖達商城風格作品評價留言區
+            renderWorkReviews(work.id);
+
+            // 更新網址參數
+            if (pushHistory) {
+                const url = new URL(window.location);
+                url.searchParams.set('page', 'browse');
+                url.searchParams.set('work', workId);
+                url.searchParams.set('chapter', chapterIdx);
+                url.searchParams.set('mode', 'immersive');
+                window.history.pushState({ page: 'browse', work: workId, chapter: chapterIdx, mode: 'immersive' }, '', url);
+            }
+        };
+
+        window.closeImmersiveReader = function(pushHistory = true) {
+            const overlay = document.getElementById('immersiveReaderOverlay');
+            if (overlay) overlay.classList.add('hidden');
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(() => {});
+            }
+            if (pushHistory) {
+                const url = new URL(window.location);
+                url.searchParams.set('page', 'browse');
+                url.searchParams.delete('work');
+                url.searchParams.delete('chapter');
+                url.searchParams.delete('mode');
+                window.history.pushState({ page: 'browse' }, '', url);
+            }
+        };
+
+        window.renderImmersiveDrawerList = function() {
+            const listEl = document.getElementById('immersiveDrawerList');
+            if (!listEl) return;
+            const chapters = window.immersiveState.chapters;
+            const curIdx = window.immersiveState.chapterIndex;
+
+            listEl.innerHTML = chapters.map((ch, idx) => {
+                const isActive = idx === curIdx;
+                const charCount = (ch.content || '').replace(/<[^>]*>/g, '').trim().length;
+                return `
+                    <div class="drawer-chapter-item ${isActive ? 'active' : ''}" onclick="switchImmersiveChapter(${idx})">
+                        <span><i class="fas ${isActive ? 'fa-book-open' : 'fa-bookmark'}" style="margin-right:8px; opacity:0.8;"></i> ${escapeHtml(ch.title || `第 ${idx + 1} 章`)}</span>
+                        <span style="font-size:12px; opacity:0.7;">${charCount > 0 ? charCount + ' 字' : ''}</span>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.renderImmersiveChapterContent = function() {
+            const work = (db.works || []).find(w => String(w.id) === String(window.immersiveState.workId));
+            if (!work) return;
+
+            const chapters = window.immersiveState.chapters;
+            const curIdx = window.immersiveState.chapterIndex;
+            const curChap = chapters[curIdx] || chapters[0];
+
+            // 章節標題
+            const chTitleEl = document.getElementById('immersiveChapterTitleText');
+            if (chTitleEl) {
+                chTitleEl.innerText = curChap.title || `第 ${curIdx + 1} 章`;
+            }
+
+            // 正文內容
+            const bodyEl = document.getElementById('immersiveContentBody');
+            if (bodyEl) {
+                bodyEl.style.fontSize = `${window.immersiveState.fontSize}px`;
+                bodyEl.style.lineHeight = window.immersiveState.lineHeight;
+
+                if (work.format === 'text') {
+                    const safeHtml = (curChap.content && curChap.content.trim())
+                        ? sanitizeRichText(curChap.content)
+                        : '<span style="opacity:0.6; font-style:italic;">（本章節尚無純文字內容）</span>';
+                    bodyEl.innerHTML = safeHtml;
+                } else if (work.format === 'pdf') {
+                    bodyEl.innerHTML = `
+                        <div style="margin-top:15px; text-align:center;">
+                            <div style="margin-bottom:15px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+                                <a href="${work.fileData}" download="${work.fileName || 'contest_work.pdf'}" class="action-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                                    <i class="fas fa-file-pdf"></i> 下載 PDF 原檔 (${work.fileName || 'contest_work.pdf'})
+                                </a>
+                                <a href="${work.fileData}" target="_blank" class="action-btn secondary" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                                    <i class="fas fa-external-link-alt"></i> 在新分頁全螢幕開啟
+                                </a>
+                            </div>
+                            <div style="border:2px solid #cbb691; border-radius:8px; overflow:hidden; background:#fff; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                                <iframe src="${work.fileData}" style="width:100%; height:750px; border:none;"></iframe>
+                            </div>
+                        </div>
+                    `;
+                } else if (work.format === 'word') {
+                    bodyEl.innerHTML = `
+                        <div style="margin-top:20px; padding:40px; background:rgba(255,255,255,0.4); border:2px dashed #bfa57c; border-radius:8px; text-align:center;">
+                            <i class="fas fa-file-word" style="font-size:55px; color:#2b579a; margin-bottom:15px;"></i>
+                            <h3 style="font-size:22px; margin-bottom:8px;">Word 格式參賽作品</h3>
+                            <p style="font-size:16px; opacity:0.85;">檔名：${work.fileName || 'contest_work.docx'}</p>
+                            <a href="${work.fileData}" download="${work.fileName || 'contest_work.docx'}" class="action-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px; margin-top:15px;">
+                                <i class="fas fa-download"></i> 下載並閱讀 Word 參賽檔案
+                            </a>
+                        </div>
+                    `;
+                }
+            }
+
+            // 更新上下章切換按鈕狀態
+            const prevBtn = document.getElementById('btnPrevChapter');
+            const nextBtn = document.getElementById('btnNextChapter');
+            const progressEl = document.getElementById('immersiveChapterProgress');
+
+            if (progressEl) progressEl.innerText = `第 ${curIdx + 1} / ${chapters.length} 章`;
+
+            if (prevBtn) {
+                if (curIdx > 0) {
+                    prevBtn.disabled = false;
+                    prevBtn.style.opacity = '1';
+                    prevBtn.style.pointerEvents = 'auto';
+                } else {
+                    prevBtn.disabled = true;
+                    prevBtn.style.opacity = '0.4';
+                    prevBtn.style.pointerEvents = 'none';
+                }
+            }
+
+            if (nextBtn) {
+                if (curIdx < chapters.length - 1) {
+                    nextBtn.disabled = false;
+                    nextBtn.style.opacity = '1';
+                    nextBtn.style.pointerEvents = 'auto';
+                } else {
+                    nextBtn.disabled = true;
+                    nextBtn.style.opacity = '0.4';
+                    nextBtn.style.pointerEvents = 'none';
+                }
+            }
+
+            // 抽屜標記高亮更新
+            renderImmersiveDrawerList();
+        };
+
+        window.switchImmersiveChapter = function(targetIdx) {
+            const chapters = window.immersiveState.chapters;
+            if (targetIdx < 0 || targetIdx >= chapters.length) return;
+            window.immersiveState.chapterIndex = targetIdx;
+            renderImmersiveChapterContent();
+            toggleImmersiveDrawer(false); // 關閉抽屜
+            const scrollContainer = document.getElementById('immersiveScrollContainer');
+            if (scrollContainer) scrollContainer.scrollTo({ top: 350, behavior: 'smooth' });
+        };
+
+        window.navigateImmersiveChapter = function(dir) {
+            switchImmersiveChapter(window.immersiveState.chapterIndex + dir);
+        };
+
+        window.toggleImmersiveDrawer = function(forceState = null) {
+            const drawer = document.getElementById('immersiveDrawer');
+            const backdrop = document.getElementById('immersiveDrawerBackdrop');
+            if (!drawer || !backdrop) return;
+            const isOpen = drawer.classList.contains('open');
+            const shouldOpen = forceState !== null ? forceState : !isOpen;
+            if (shouldOpen) {
+                drawer.classList.add('open');
+                backdrop.classList.add('open');
+            } else {
+                drawer.classList.remove('open');
+                backdrop.classList.remove('open');
+            }
+        };
+
+        window.changeImmersiveTheme = function(theme) {
+            const overlay = document.getElementById('immersiveReaderOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('theme-kraft', 'theme-parchment', 'theme-night');
+            overlay.classList.add(`theme-${theme}`);
+            window.immersiveState.theme = theme;
+        };
+
+        window.adjustImmersiveFont = function(delta) {
+            window.immersiveState.fontSize = Math.max(14, Math.min(34, window.immersiveState.fontSize + delta));
+            const bodyEl = document.getElementById('immersiveContentBody');
+            if (bodyEl) bodyEl.style.fontSize = `${window.immersiveState.fontSize}px`;
+        };
+
+        window.changeImmersiveLineHeight = function(lh) {
+            window.immersiveState.lineHeight = lh;
+            const bodyEl = document.getElementById('immersiveContentBody');
+            if (bodyEl) bodyEl.style.lineHeight = lh;
+        };
+
+        window.toggleImmersiveFullscreen = function() {
+            const overlay = document.getElementById('immersiveReaderOverlay');
+            if (!overlay) return;
+            if (!document.fullscreenElement) {
+                overlay.requestFullscreen().catch(() => {});
+                document.getElementById('immersiveFullscreenIcon')?.classList.replace('fa-expand', 'fa-compress');
+            } else {
+                document.exitFullscreen().catch(() => {});
+                document.getElementById('immersiveFullscreenIcon')?.classList.replace('fa-compress', 'fa-expand');
+            }
+        };
+
+        // ==========================================
+        // 3. 胖達商城風格 作品評價與留言系統 (Reviews)
+        // ==========================================
+        window.currentPickRating = 5;
+        window.setPickRating = function(val) {
+            window.currentPickRating = val;
+            const hidden = document.getElementById('selectedRatingVal');
+            if (hidden) hidden.value = val;
+            const container = document.getElementById('starPickContainer');
+            if (container) {
+                const stars = container.querySelectorAll('i');
+                stars.forEach((s, idx) => {
+                    if (idx < val) {
+                        s.className = 'fas fa-star';
+                    } else {
+                        s.className = 'far fa-star';
+                    }
+                });
+            }
+        };
+
+        window.renderWorkReviews = function(workId) {
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work) return;
+
+            const isEnded = isContestEnded();
+            const isPublic = (work.isPublic !== false) || isEnded;
+
+            const privateNotice = document.getElementById('reviewsPrivateNotice');
+            const publicArea = document.getElementById('reviewsPublicArea');
+            const countBadge = document.getElementById('reviewCountBadge');
+
+            if (!work.reviews) work.reviews = [];
+
+            if (countBadge) {
+                countBadge.innerText = `共 ${work.reviews.length} 則心得評價`;
+            }
+
+            if (!isPublic) {
+                if (privateNotice) privateNotice.classList.remove('hidden');
+                if (publicArea) publicArea.classList.add('hidden');
+                return;
+            } else {
+                if (privateNotice) privateNotice.classList.add('hidden');
+                if (publicArea) publicArea.classList.remove('hidden');
+            }
+
+            // 1. 計算星級分佈統計展板 (胖達商城式)
+            const statsCard = document.getElementById('reviewsStatsCard');
+            if (statsCard) {
+                let totalRating = 0;
+                let reviewCount = work.reviews.length;
+                let avgRating = '5.0';
+                let starsCount = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+                if (reviewCount > 0) {
+                    work.reviews.forEach(r => {
+                        const star = r.rating || 5;
+                        totalRating += star;
+                        if (starsCount[star] !== undefined) starsCount[star]++;
+                    });
+                    avgRating = (totalRating / reviewCount).toFixed(1);
+                }
+
+                if (reviewCount > 0) {
+                    let progressHtml = '';
+                    for (let i = 5; i >= 1; i--) {
+                        let pct = Math.round((starsCount[i] / reviewCount) * 100);
+                        progressHtml += `
+                            <div style="display:flex; align-items:center; font-size:13px; opacity:0.85; margin-bottom:4px;">
+                                <span style="width:14px; text-align:right;">${i}</span>
+                                <i class="fas fa-star" style="color:#b26a00; font-size:11px; margin:0 6px;"></i>
+                                <div class="rating-progress-bar">
+                                    <div class="rating-progress-fill" style="width: ${pct}%;"></div>
+                                </div>
+                                <span style="width:36px; text-align:right; font-size:12px;">${pct}%</span>
+                            </div>
+                        `;
+                    }
+
+                    statsCard.innerHTML = `
+                        <div style="text-align:center; min-width:130px; padding-right:15px; border-right:1.5px solid rgba(180,140,70,0.3);">
+                            <div class="rating-big-num">${avgRating}</div>
+                            <div style="color:#b26a00; font-size:15px; margin:4px 0;">
+                                ${'<i class="fas fa-star"></i>'.repeat(Math.round(avgRating))}${'<i class="far fa-star"></i>'.repeat(5 - Math.round(avgRating))}
+                            </div>
+                            <div style="font-size:13px; opacity:0.8;">共 ${reviewCount} 則讀者評分</div>
+                        </div>
+                        <div style="flex:1; min-width:200px;">
+                            ${progressHtml}
+                        </div>
+                    `;
+                } else {
+                    statsCard.innerHTML = `
+                        <div style="width:100%; text-align:center; padding:15px; opacity:0.85; font-size:15px;">
+                            <i class="fas fa-feather-alt" style="font-size:24px; color:#b26a00; margin-bottom:6px;"></i><br>
+                            目前尚無讀者留下心得，快來成為第一個品評此作的探險者吧！
+                        </div>
+                    `;
+                }
+            }
+
+            // 2. 渲染留言清單
+            const listContainer = document.getElementById('reviewsListContainer');
+            if (listContainer) {
+                if (work.reviews.length === 0) {
+                    listContainer.innerHTML = '';
+                    return;
+                }
+
+                let html = '<div style="display:flex; flex-direction:column; gap:16px;">';
+                work.reviews.slice().reverse().forEach((r, idx) => {
+                    const realIdx = work.reviews.length - 1 - idx;
+                    const isAuthor = currentUser && (r.username === currentUser.username);
+                    const isAdmin = currentUser && Boolean(currentUser.isAdmin);
+                    const isWorkAuthor = r.username === work.author;
+
+                    let authorBadge = isWorkAuthor ? `<span class="badge-role-author"><i class="fas fa-feather"></i> 作品作者</span>` : '';
+                    let adminBadge = r.isAdmin ? `<span class="badge-role-admin"><i class="fas fa-user-shield"></i> 大會評審</span>` : '';
+
+                    let likeBtnClass = (r.likesList && currentUser && r.likesList.includes(currentUser.username)) ? 'active-like' : '';
+                    let dislikeBtnClass = (r.dislikesList && currentUser && r.dislikesList.includes(currentUser.username)) ? 'active-dislike' : '';
+
+                    // 編輯與刪除按鈕 (僅本人或管理員)
+                    let actionMenuHtml = '';
+                    if (isAuthor || isAdmin) {
+                        actionMenuHtml = `
+                            <div style="display:flex; gap:6px; margin-left:auto;">
+                                <button type="button" class="review-action-btn" onclick="editWorkReview('${work.id}', ${realIdx})" title="編輯留言">
+                                    <i class="fas fa-pen"></i> 編輯
+                                </button>
+                                <button type="button" class="review-action-btn" onclick="deleteWorkReview('${work.id}', ${realIdx})" style="color:#c62828;" title="刪除留言">
+                                    <i class="fas fa-trash"></i> 刪除
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    // 巢狀回覆列表
+                    let repliesHtml = '';
+                    if (r.replies && r.replies.length > 0) {
+                        repliesHtml += `<div style="margin-top:12px; margin-left:24px; padding-left:14px; border-left:2px solid #c9b48c; display:flex; flex-direction:column; gap:10px;">`;
+                        r.replies.forEach(rep => {
+                            let repAuthorBadge = rep.isAuthor ? `<span class="badge-role-author"><i class="fas fa-feather"></i> 作者回覆</span>` : '';
+                            let repAdminBadge = rep.isAdmin ? `<span class="badge-role-admin"><i class="fas fa-user-shield"></i> 官方評審</span>` : '';
+                            repliesHtml += `
+                                <div style="background:rgba(255,255,255,0.45); padding:10px 14px; border-radius:6px; border:1px solid rgba(180,140,70,0.25);">
+                                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                                        <img src="${rep.avatar || 'https://i.imgur.com/8Qh1JqC.png'}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" onerror="this.src='https://i.imgur.com/8Qh1JqC.png'">
+                                        <span style="font-weight:bold; font-size:14px;">${escapeHtml(rep.nickname || rep.username)}</span>
+                                        ${repAuthorBadge}
+                                        ${repAdminBadge}
+                                        <span style="font-size:12px; opacity:0.6; margin-left:auto;">${rep.timeStr || ''}</span>
+                                    </div>
+                                    <p style="margin:4px 0 0 0; font-size:14px; line-height:1.6; white-space:pre-wrap;">${escapeHtml(rep.comment)}</p>
+                                </div>
+                            `;
+                        });
+                        repliesHtml += `</div>`;
+                    }
+
+                    html += `
+                        <div class="review-item-card">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+                                <img src="${r.avatar || 'https://i.imgur.com/8Qh1JqC.png'}" class="review-avatar" onerror="this.src='https://i.imgur.com/8Qh1JqC.png'">
+                                <div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span style="font-weight:bold; font-size:15px;">${escapeHtml(r.nickname || r.username)}</span>
+                                        ${authorBadge}
+                                        ${adminBadge}
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
+                                        <div style="color:#b26a00; font-size:12px;">
+                                            ${'<i class="fas fa-star"></i>'.repeat(r.rating || 5)}${'<i class="far fa-star"></i>'.repeat(5 - (r.rating || 5))}
+                                        </div>
+                                        <span style="font-size:12px; opacity:0.6;">· ${r.dateStr || ''}</span>
+                                        ${r.edited ? '<span style="font-size:11px; opacity:0.6;">(已編輯)</span>' : ''}
+                                    </div>
+                                </div>
+                                ${actionMenuHtml}
+                            </div>
+
+                            <p style="margin:8px 0 10px 0; font-size:15px; line-height:1.7; white-space:pre-wrap; color:inherit;">${escapeHtml(r.comment)}</p>
+
+                            <!-- 讚/踩/回覆 互動列 -->
+                            <div style="display:flex; align-items:center; gap:12px; padding-top:8px; border-top:1px dashed rgba(180,140,70,0.3); flex-wrap:wrap;">
+                                <button type="button" class="review-action-btn ${likeBtnClass}" onclick="likeWorkReview('${work.id}', ${realIdx})">
+                                    <i class="fas fa-thumbs-up"></i> 讚 <span>(${r.likes || 0})</span>
+                                </button>
+                                <button type="button" class="review-action-btn ${dislikeBtnClass}" onclick="dislikeWorkReview('${work.id}', ${realIdx})">
+                                    <i class="fas fa-thumbs-down"></i> 踩 <span>(${r.dislikes || 0})</span>
+                                </button>
+                                <button type="button" class="review-action-btn" onclick="toggleReplyBox('${realIdx}')">
+                                    <i class="fas fa-reply"></i> 回覆
+                                </button>
+                            </div>
+
+                            <!-- 回覆輸入框 (折疊) -->
+                            <div id="replyBox_${realIdx}" style="display:none; margin-top:10px; background:rgba(255,255,255,0.4); padding:10px; border-radius:6px; border:1px solid #cbb692;">
+                                <input type="text" id="replyInput_${realIdx}" placeholder="寫下對此留言的回覆..." style="width:100%; padding:6px 10px; font-size:14px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <button type="button" class="action-btn secondary" style="margin:0; padding:4px 10px; font-size:12px;" onclick="toggleReplyBox('${realIdx}')">取消</button>
+                                    <button type="button" class="action-btn" style="margin:0; padding:4px 12px; font-size:12px;" onclick="submitReviewReply('${work.id}', ${realIdx})">送出回覆</button>
+                                </div>
+                            </div>
+
+                            ${repliesHtml}
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                listContainer.innerHTML = html;
+            }
+        };
+
+        window.toggleReplyBox = function(idx) {
+            const el = document.getElementById(`replyBox_${idx}`);
+            if (el) {
+                el.style.display = (el.style.display === 'none') ? 'block' : 'none';
+            }
+        };
+
+        window.submitCurrentWorkReview = async function() {
+            if (!currentUser) {
+                alert('請先登入帳號後再發表心得評價！');
+                return;
+            }
+            const workId = window.immersiveState.workId;
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work) return;
+
+            const commentInput = document.getElementById('workCommentInput');
+            const comment = commentInput ? commentInput.value.trim() : '';
+            if (!comment) {
+                alert('請沾墨寫下您的心得評語！');
+                return;
+            }
+
+            const rating = parseInt(document.getElementById('selectedRatingVal')?.value || window.currentPickRating || 5);
+            if (!work.reviews) work.reviews = [];
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            work.reviews.push({
+                id: 'rev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                username: currentUser.username,
+                nickname: currentUser.nickname || currentUser.username,
+                avatar: currentUser.avatar || '',
+                isAdmin: Boolean(currentUser.isAdmin),
+                rating: rating,
+                comment: comment,
+                date: now.toISOString(),
+                dateStr: dateStr,
+                likes: 0,
+                likesList: [],
+                dislikes: 0,
+                dislikesList: [],
+                edited: false,
+                replies: []
+            });
+
+            if (commentInput) commentInput.value = '';
+            setPickRating(5);
+
+            await saveCloudData();
+            renderWorkReviews(work.id);
+            renderBrowseList();
+            alert('感謝您的品讀與寶貴心得！評價已成功送出。');
+        };
+
+        window.likeWorkReview = async function(workId, reviewIdx) {
+            if (!currentUser) { alert('請先登入！'); return; }
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
+
+            const r = work.reviews[reviewIdx];
+            if (!r.likesList) r.likesList = [];
+            if (!r.dislikesList) r.dislikesList = [];
+
+            const user = currentUser.username;
+            if (r.likesList.includes(user)) {
+                r.likesList = r.likesList.filter(u => u !== user);
+            } else {
+                r.likesList.push(user);
+                r.dislikesList = r.dislikesList.filter(u => u !== user);
+            }
+            r.likes = r.likesList.length;
+            r.dislikes = r.dislikesList.length;
+
+            await saveCloudData();
+            renderWorkReviews(workId);
+        };
+
+        window.dislikeWorkReview = async function(workId, reviewIdx) {
+            if (!currentUser) { alert('請先登入！'); return; }
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
+
+            const r = work.reviews[reviewIdx];
+            if (!r.likesList) r.likesList = [];
+            if (!r.dislikesList) r.dislikesList = [];
+
+            const user = currentUser.username;
+            if (r.dislikesList.includes(user)) {
+                r.dislikesList = r.dislikesList.filter(u => u !== user);
+            } else {
+                r.dislikesList.push(user);
+                r.likesList = r.likesList.filter(u => u !== user);
+            }
+            r.likes = r.likesList.length;
+            r.dislikes = r.dislikesList.length;
+
+            await saveCloudData();
+            renderWorkReviews(workId);
+        };
+
+        window.submitReviewReply = async function(workId, reviewIdx) {
+            if (!currentUser) { alert('請先登入！'); return; }
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
+
+            const input = document.getElementById(`replyInput_${reviewIdx}`);
+            const comment = input ? input.value.trim() : '';
+            if (!comment) return;
+
+            const r = work.reviews[reviewIdx];
+            if (!r.replies) r.replies = [];
+
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            r.replies.push({
+                username: currentUser.username,
+                nickname: currentUser.nickname || currentUser.username,
+                avatar: currentUser.avatar || '',
+                isAuthor: (currentUser.username === work.author),
+                isAdmin: Boolean(currentUser.isAdmin),
+                comment: comment,
+                time: now.toISOString(),
+                timeStr: timeStr
+            });
+
+            if (input) input.value = '';
+            toggleReplyBox(reviewIdx);
+
+            await saveCloudData();
+            renderWorkReviews(workId);
+        };
+
+        window.editWorkReview = async function(workId, reviewIdx) {
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
+            const r = work.reviews[reviewIdx];
+
+            const newComment = prompt('修改您的讀者心得留言：', r.comment);
+            if (newComment && newComment.trim() && newComment.trim() !== r.comment) {
+                r.comment = newComment.trim();
+                r.edited = true;
+                await saveCloudData();
+                renderWorkReviews(workId);
+            }
+        };
+
+        window.deleteWorkReview = async function(workId, reviewIdx) {
+            if (!confirm('確定要刪除這則心得留言嗎？')) return;
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
+            if (!work || !work.reviews || !work.reviews[reviewIdx]) return;
+
+            work.reviews.splice(reviewIdx, 1);
+            await saveCloudData();
+            renderWorkReviews(workId);
+            renderBrowseList();
+        };
 
         // --- 管理員時程與題目設定 Modal ---
         window.openAdminScheduleModal = function() {
@@ -2809,7 +4063,8 @@
 
             if (wId) {
                 showPage('browse', false);
-                openReaderView(wId, false);
+                const chapterParam = parseInt(params.get('chapter') || '0', 10);
+                openImmersiveReader(wId, isNaN(chapterParam) ? 0 : chapterParam, false);
             } else if (page && pageIds.includes(page)) {
                 showPage(page, false);
             } else {
