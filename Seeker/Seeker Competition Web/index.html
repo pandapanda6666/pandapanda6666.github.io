@@ -290,6 +290,10 @@
         .kraft-paper-editor:empty:before, .kraft-notebook-editor:empty:before {
             content: attr(placeholder); color: #a1887f; font-style: italic; opacity: 0.75;
         }
+        .kraft-paper-editor font[size="2"], .reader-container font[size="2"], .immersive-paper-page font[size="2"] { font-size: 15px !important; }
+        .kraft-paper-editor font[size="3"], .reader-container font[size="3"], .immersive-paper-page font[size="3"] { font-size: 18px !important; }
+        .kraft-paper-editor font[size="4"], .reader-container font[size="4"], .immersive-paper-page font[size="4"] { font-size: 21px !important; font-weight: bold; }
+        .kraft-paper-editor font[size="5"], .reader-container font[size="5"], .immersive-paper-page font[size="5"] { font-size: 26px !important; font-weight: bold; }
 
         /* 客製化圖片上傳按鈕與尺寸限制容器 */
         .custom-upload-btn {
@@ -315,30 +319,106 @@
             display: none; box-shadow: 0 3px 8px rgba(70, 40, 15, 0.15); margin-top: 8px;
         }
         
-        /* 參賽作品展示格 (Work Cards) */
+        /* ==================== 靈感勇現風格作品展示格 (Work Cards & Wall) ==================== */
+        .filters-container {
+            display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;
+        }
+        .filter-chip {
+            border: 1.5px solid #c9b792; background: #fdfbf7; color: #7d5836;
+            padding: 7px 18px; border-radius: 999px; font-size: 14px; font-weight: bold;
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+            box-shadow: 0 1px 3px rgba(90, 55, 25, 0.06);
+        }
+        .filter-chip:hover {
+            border-color: #5d4037; color: #4a2c11; transform: translateY(-1px);
+            background: #f7eedb;
+        }
+        .filter-chip.active {
+            background: #5d4037; color: #fff8eb; border-color: #3e2723;
+            box-shadow: 0 3px 10px rgba(60, 35, 15, 0.25);
+            transform: translateY(-1px);
+        }
+        .filter-chip .chip-count {
+            background: rgba(255, 255, 255, 0.25); color: inherit;
+            font-size: 11px; padding: 1px 7px; border-radius: 10px; font-family: monospace;
+        }
+        .filter-chip.active .chip-count {
+            background: rgba(255, 255, 255, 0.3); color: #fff;
+        }
+
         .works-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-            gap: 24px; margin-top: 20px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: 24px; margin-top: 15px;
         }
         .work-card {
-            background: #fdfbf7; border: 1.5px solid #d4c29a; border-radius: 8px;
-            padding: 16px; transition: all 0.25s; cursor: pointer; display: flex; flex-direction: column;
-            box-shadow: 0 4px 10px rgba(90, 55, 25, 0.08); position: relative;
+            background: #fdfbf7; border: 1.5px solid #d4c29a; border-radius: 14px;
+            overflow: hidden; transition: transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.35s ease, border-color 0.25s;
+            cursor: pointer; display: flex; flex-direction: column;
+            box-shadow: 0 3px 12px rgba(90, 55, 25, 0.08); position: relative;
         }
         .work-card:hover {
-            transform: translateY(-3px); box-shadow: 0 8px 18px rgba(90, 55, 25, 0.15);
+            transform: translateY(-6px) scale(1.012);
+            box-shadow: 0 12px 28px rgba(70, 40, 15, 0.16);
             border-color: #8c5828;
         }
-        .card-cover {
-            width: 100%; height: 160px; object-fit: cover; border-radius: 6px;
-            background: #ede2c7; border: 1px solid #dcd0b5; margin-bottom: 12px;
+        .card-vis {
+            aspect-ratio: 16/9; width: 100%; position: relative;
+            display: grid; place-items: center; overflow: hidden;
+            background: linear-gradient(135deg, #ede2c7 0%, #dfcea8 100%);
+            border-bottom: 1.5px solid #dcd0b5;
+        }
+        .card-vis-img {
+            width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease;
+        }
+        .work-card:hover .card-vis-img {
+            transform: scale(1.05);
+        }
+        .card-vis-placeholder {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #8d6e63; gap: 8px;
+        }
+        .card-vis-placeholder i { font-size: 42px; color: #a1887f; filter: drop-shadow(0 2px 4px rgba(70,40,15,0.15)); }
+        .card-run-overlay {
+            position: absolute; inset: 0; display: grid; place-items: center;
+            background: rgba(35, 20, 8, 0.45); opacity: 0; backdrop-filter: blur(3px);
+            transition: opacity 0.3s ease; z-index: 2;
+        }
+        .work-card:hover .card-run-overlay {
+            opacity: 1;
+        }
+        .card-run-overlay span {
+            background: rgba(45, 25, 10, 0.85); backdrop-filter: blur(8px);
+            color: #fff8eb; padding: 9px 20px; border-radius: 999px;
+            font-size: 13.5px; font-weight: bold; border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35); display: inline-flex; align-items: center; gap: 7px;
+            transform: translateY(4px); transition: transform 0.25s;
+        }
+        .work-card:hover .card-run-overlay span {
+            transform: translateY(0);
+        }
+        .card-body {
+            padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1;
         }
         .card-title {
-            font-size: 19px; font-weight: 600; color: #3e2210; margin: 0 0 6px 0;
-            font-family: 'Klee One', 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            font-size: 19px; font-weight: 700; color: #3e2210; margin: 0;
+            line-height: 1.35; font-family: 'Klee One', 'Noto Sans TC', sans-serif;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .card-author { font-size: 14px; color: #7d5836; display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
-        .card-meta { font-size: 13px; color: #8d6e63; margin-top: auto; padding-top: 8px; border-top: 1px dashed #e0d0b8; display: flex; justify-content: space-between; align-items: center; }
+        .card-desc {
+            font-size: 13.5px; color: #7d5836; line-height: 1.5; margin: 0;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .card-badges-row {
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px;
+        }
+        .card-author {
+            font-size: 13.5px; color: #7d5836; display: flex; align-items: center; gap: 7px;
+        }
+        .card-meta {
+            font-size: 12.5px; color: #8d6e63; margin-top: auto; padding-top: 10px;
+            border-top: 1px dashed #e0d0b8; display: flex; justify-content: space-between; align-items: center;
+        }
         
         .badge-private {
             background: #8d6e63; color: #fff8eb; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;
@@ -347,7 +427,20 @@
             background: #558b2f; color: #fff8eb; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;
         }
         .badge-format {
-            background: #e8dbc0; color: #5a3818; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;
+            background: #e8dbc0; color: #5a3818; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;
+        }
+
+        /* 靈感勇現風格：檔案上傳拖曳/點選框 */
+        .linggan-dropzone {
+            border: 2px dashed #bfa57c; border-radius: 12px; padding: 28px 20px;
+            text-align: center; color: #6d4c41; background: #faf4e4;
+            cursor: pointer; transition: all 0.25s ease;
+        }
+        .linggan-dropzone:hover {
+            border-color: #5d4037; background: #f5eedb; transform: translateY(-1px);
+        }
+        .linggan-dropzone i.main-icon {
+            font-size: 38px; color: #8c5828; margin-bottom: 8px; display: inline-block;
         }
 
         /* 我的參賽作品面板 */
@@ -872,282 +965,196 @@
                 <i class="fas fa-thumbtack"></i> <b>規則提醒：</b>每位創作者限交 1 件參賽作品。在比賽截止日前，您皆可隨時在此重新編輯作品內容。
             </p>
 
-            <!-- 兩階段流程指示標籤 -->
-            <div class="step-progress-bar">
-                <div class="step-pill active" id="stepPill1">
-                    <i class="fas fa-cog"></i> 步驟 1：文章設定與排版樣式
-                </div>
-                <div class="step-arrow"><i class="fas fa-chevron-right"></i></div>
-                <div class="step-pill" id="stepPill2">
-                    <i class="fas fa-pen-nib"></i> 步驟 2：小說內容撰寫
-                </div>
-            </div>
-
-            <form id="competitionForm" onsubmit="handleWorkFormSubmit(event)" style="display:flex; flex-direction:column; gap:16px;">
+            <!-- 靈感勇現風格：流暢單頁式小說創作與交件表單 -->
+            <form id="competitionForm" onsubmit="handleWorkFormSubmit(event)" style="display:flex; flex-direction:column; gap:18px;">
                 <input type="hidden" id="editWorkId">
 
-                <!-- 步驟 1：文章基本資訊、檔案限制與排版樣式設定 -->
-                <div id="articleStep1">
+                <!-- 1. 作品基本資料 -->
+                <div style="background:#fcf9f2; border:1.5px solid #d5c4a1; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(90,55,25,0.05);">
+                    <div style="font-size:16px; font-weight:bold; color:#3e2210; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-feather-alt" style="color:#8c5828;"></i> 作品基本資訊
+                    </div>
                     <div>
                         <label>作品標題：<span style="color:#c62828;">*</span></label>
-                        <input type="text" id="cp-title" required placeholder="請在此輸入參賽作品名稱">
+                        <input type="text" id="cp-title" required placeholder="請在此輸入參賽作品名稱 (例：深淵之歌、失落的王國...)">
                     </div>
 
-                    <div style="margin-top:12px;">
+                    <div style="margin-top:14px;">
                         <label>副標題 / 篇章名稱 (選填)：</label>
-                        <input type="text" id="cp-episode" placeholder="例如：破曉之章、全篇、序章... (選填)">
+                        <input type="text" id="cp-episode" placeholder="例如：破曉之章、序幕、全一卷... (選填)">
                     </div>
 
-                    <div style="margin-top:12px;">
-                        <label>作品本體格式：<span style="color:#c62828;">*</span></label>
+                    <div style="margin-top:14px;">
+                        <label>作品呈現格式：<span style="color:#c62828;">*</span></label>
                         <select id="cp-format" onchange="handleFormatChange(this.value)">
-                            <option value="text">純文字 (在線排版撰寫)</option>
+                            <option value="text">純文字 (在線多章節排版撰寫)</option>
                             <option value="pdf">PDF 檔案上傳</option>
                             <option value="word">Word (docx) 檔案上傳</option>
                         </select>
                     </div>
+                </div>
 
-                    <!-- PDF 專屬設定 -->
-                    <div id="pdf-settings-box" style="display:none; background:#f4ebd0; padding:15px; border-radius:8px; border:1px solid #d4c29a; margin-top:12px;">
-                        <label style="color:#3e2210; margin-top:0;">PDF 專屬閱讀設定：</label>
-                        <div style="margin-top:8px;">
-                            <span style="font-weight:bold; margin-right:15px;">封面位置：</span>
-                            <label style="display:inline-flex; align-items:center; gap:5px; margin:0;"><input type="radio" name="pdf-cover" value="first" checked> 第一頁為封面</label>
-                            <label style="display:inline-flex; align-items:center; gap:5px; margin-left:15px;"><input type="radio" name="pdf-cover" value="last"> 最後一頁為封面</label>
+                <!-- 2. PDF 專屬設定 -->
+                <div id="pdf-settings-box" style="display:none; background:#f4ebd0; padding:18px; border-radius:10px; border:1.5px solid #d4c29a;">
+                    <label style="color:#3e2210; margin-top:0; font-size:15px; font-weight:bold;"><i class="fas fa-cog"></i> PDF 專屬閱覽設定：</label>
+                    <div style="margin-top:10px; display:flex; gap:20px; flex-wrap:wrap;">
+                        <div>
+                            <span style="font-weight:bold; margin-right:10px; color:#5a3818;">封面位置：</span>
+                            <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer;"><input type="radio" name="pdf-cover" value="first" checked> 第一頁為封面</label>
+                            <label style="display:inline-flex; align-items:center; gap:5px; margin-left:15px; cursor:pointer;"><input type="radio" name="pdf-cover" value="last"> 最後一頁為封面</label>
                         </div>
-                        <div style="margin-top:10px;">
-                            <span style="font-weight:bold; margin-right:15px;">翻頁方向：</span>
-                            <label style="display:inline-flex; align-items:center; gap:5px; margin:0;"><input type="radio" name="pdf-turn" value="left" checked> 左翻頁</label>
-                            <label style="display:inline-flex; align-items:center; gap:5px; margin-left:15px;"><input type="radio" name="pdf-turn" value="right"> 右翻頁</label>
+                        <div>
+                            <span style="font-weight:bold; margin-right:10px; color:#5a3818;">翻頁方向：</span>
+                            <label style="display:inline-flex; align-items:center; gap:5px; margin:0; cursor:pointer;"><input type="radio" name="pdf-turn" value="left" checked> 左翻頁</label>
+                            <label style="display:inline-flex; align-items:center; gap:5px; margin-left:15px; cursor:pointer;"><input type="radio" name="pdf-turn" value="right"> 右翻頁</label>
                         </div>
-                    </div>
-
-                    <!-- 檔案上傳區塊 (PDF / Word) -->
-                    <div id="file-upload-box" style="display:none; margin-top:12px;">
-                        <label id="fileUploadLabel">上傳檔案：<span style="color:#c62828;">*</span></label>
-                        <div style="margin-top:6px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                            <label class="custom-upload-btn" for="cp-file">
-                                <i class="fas fa-folder-open"></i> 選擇檔案
-                            </label>
-                            <input type="file" id="cp-file" accept=".pdf,.doc,.docx" style="display:none;" onchange="handleDocFileChange(this)">
-                            <span id="docFileNameLabel" style="font-size:14px; color:#5a3818; font-weight:bold;">尚未選取檔案</span>
-                        </div>
-                        <div id="currentFileHint" style="font-size:13px; color:#7d5836; margin-top:4px;"></div>
-                    </div>
-
-                    <!-- 封面與橫幅圖限制上傳區塊 -->
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:15px;">
-                        <!-- 封面圖 (限制 2MB, 3:4 直式) -->
-                        <div style="background:#f7f0de; border:1px solid #d4c29a; border-radius:8px; padding:15px;">
-                            <label style="margin-top:0;">封面圖片 (選填)：</label>
-                            <div style="font-size:12px; color:#8d6e63; margin:3px 0 8px 0;">
-                                <i class="fas fa-info-circle"></i> 限制大小：<b>2 MB 以內</b>（建議比例 3:4 直式）
-                            </div>
-                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                <label class="custom-upload-btn" for="cp-cover-file">
-                                    <i class="fas fa-image"></i> 選取封面圖
-                                </label>
-                                <input type="file" id="cp-cover-file" accept="image/*" style="display:none;" onchange="handleImageFileSelected(this, 'cover')">
-                                <button type="button" id="removeCoverBtn" class="action-btn secondary" style="display:none; margin:0; padding:6px 12px; font-size:12px;" onclick="clearCoverImage()"><i class="fas fa-trash-alt"></i> 清除</button>
-                            </div>
-                            <div id="coverFileHint" style="font-size:12px; color:#7d5836; margin-top:4px;"></div>
-                            <img id="coverPreview" class="cover-preview-box" alt="封面預覽">
-                        </div>
-
-                        <!-- 橫幅橫圖 (限制 3MB, 16:9 橫式) -->
-                        <div style="background:#f7f0de; border:1px solid #d4c29a; border-radius:8px; padding:15px;">
-                            <label style="margin-top:0;">橫幅橫圖 (選填)：</label>
-                            <div style="font-size:12px; color:#8d6e63; margin:3px 0 8px 0;">
-                                <i class="fas fa-info-circle"></i> 限制大小：<b>3 MB 以內</b>（建議比例 16:9 橫圖）
-                            </div>
-                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                <label class="custom-upload-btn" for="cp-banner-file">
-                                    <i class="fas fa-panorama"></i> 選取橫幅圖
-                                </label>
-                                <input type="file" id="cp-banner-file" accept="image/*" style="display:none;" onchange="handleImageFileSelected(this, 'banner')">
-                                <button type="button" id="removeBannerBtn" class="action-btn secondary" style="display:none; margin:0; padding:6px 12px; font-size:12px;" onclick="clearBannerImage()"><i class="fas fa-trash-alt"></i> 清除</button>
-                            </div>
-                            <div id="bannerFileHint" style="font-size:12px; color:#7d5836; margin-top:4px;"></div>
-                            <img id="bannerPreview" class="banner-preview-box" alt="橫幅預覽">
-                        </div>
-                    </div>
-
-                    <!-- 文章內容排版樣式設定面板 -->
-                    <div id="article-style-settings-panel" style="background:#f6ecd5; border:1.5px solid #c9b48c; border-radius:8px; padding:16px; margin-top:15px;">
-                        <div style="font-size:16px; font-weight:bold; color:#3e2210; margin-bottom:10px; display:flex; align-items:center; gap:8px;">
-                            <i class="fas fa-paint-roller"></i> 小說內容文字樣式與排版設定
-                        </div>
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:15px;">
-                            <div>
-                                <label style="margin-top:0; font-size:14px;">預設文字大小：</label>
-                                <select id="settingFontSize" onchange="applyStyleSettingsToPreview()">
-                                    <option value="16px">小 (16px)</option>
-                                    <option value="18px" selected>標準 (18px)</option>
-                                    <option value="20px">大 (20px)</option>
-                                    <option value="24px">特大 (24px)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="margin-top:0; font-size:14px;">段落行距：</label>
-                                <select id="settingLineHeight" onchange="applyStyleSettingsToPreview()">
-                                    <option value="1.8">緊湊 (1.8)</option>
-                                    <option value="2.0" selected>標準舒適 (2.0)</option>
-                                    <option value="2.3">寬鬆手抄 (2.3)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="margin-top:0; font-size:14px;">段落首行縮排：</label>
-                                <select id="settingIndent" onchange="applyStyleSettingsToPreview()">
-                                    <option value="2em" selected>縮排 2 字元 (傳統格式)</option>
-                                    <option value="0">不縮排</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label style="margin-top:0; font-size:14px;">預設字體樣式：</label>
-                                <div style="display:flex; gap:8px; margin-top:5px;">
-                                    <button type="button" id="btnToggleBold" class="tool-btn" onclick="toggleDefaultStyle('bold')"><b>B 粗體</b></button>
-                                    <button type="button" id="btnToggleItalic" class="tool-btn" onclick="toggleDefaultStyle('italic')"><i>I 斜體</i></button>
-                                    <button type="button" id="btnToggleUnderline" class="tool-btn" onclick="toggleDefaultStyle('underline')"><u>U 底線</u></button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 樣式即時效果示範卡片 -->
-                        <div style="margin-top:12px; padding:12px 16px; background:#fefdf8; border:1px dashed #bfa57c; border-radius:6px;">
-                            <div style="font-size:12px; color:#8d6e63; font-weight:bold; margin-bottom:4px;"><i class="fas fa-eye"></i> 排版樣式效果即時示範：</div>
-                            <div id="styleDemoBox" style="color:#4a2c11; font-family:'Klee One', 'Noto Sans TC', sans-serif; font-size:18px; line-height:2.0; text-indent:2em;">
-                                探險者的晨曦灑落在羊皮古卷上，微風輕拂過密林的梢頭。此段文字即時展示您所設定的字級、字重與行距樣式。
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 公開/不公開隱私設定 -->
-                    <div style="background:#f6eed8; padding:15px; border-radius:8px; border:1px solid #bfa57c; margin-top:15px;">
-                        <label style="cursor:pointer; display:flex; align-items:center; gap:8px; margin:0; font-size:17px; color:#3e2210;">
-                            <input type="checkbox" id="cp-is-public" checked style="width:18px; height:18px; cursor:pointer;">
-                            <span><i class="fas fa-globe-asia"></i> 開放公開此參賽作品</span>
-                        </label>
-                        <p style="margin:6px 0 0 26px; font-size:14px; color:#7d5836;">
-                            <i class="fas fa-lightbulb"></i> <b>隱私說明：</b>若勾選，作品將公開於「作品展示」供所有訪客與參賽者閱讀。<br>
-                            若<b>取消勾選（暫不公開）</b>，在比賽截止前<b>只有管理員與您自己能看到</b>；<b>比賽截止後系統會自動為所有人公開展示</b>！
-                        </p>
-                    </div>
-
-                    <!-- 獨家首發授權與全網禁轉聲明 -->
-                    <div style="background:#fcf1de; border:1.5px solid #c99355; border-radius:8px; padding:15px; margin-top:15px;">
-                        <div style="display:flex; align-items:flex-start; gap:10px;">
-                            <i class="fas fa-shield-alt" style="color:#b26a00; font-size:22px; margin-top:2px;"></i>
-                            <div style="flex:1;">
-                                <div style="font-weight:bold; color:#522800; font-size:16px;">
-                                    【獨家首發授權與全網禁轉聲明】
-                                </div>
-                                <div style="color:#784515; font-size:14px; margin-top:4px; line-height:1.6;">
-                                    本參賽作品為「探險者文文盃」專屬首發創作。作者茲聲明並承諾：<b>本作品（含全文、節錄或延伸改編）嚴禁在任何第三方公開平台、網站、論壇、社群自媒體或公開刊物發表、刊載或轉載</b>。經查證若違反獨家首發承諾，主辦方將逕行撤銷參賽與評選獲獎資格。
-                                </div>
-                                <label style="cursor:pointer; display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:bold; color:#4a2c11; font-size:15px;">
-                                    <input type="checkbox" id="cp-agree-exclusive" required checked style="width:18px; height:18px; cursor:pointer;">
-                                    <span>我已詳閱並承諾遵守上述「獨家首發授權與全網禁轉聲明」規範</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 步驟 1 底部按鈕：完成設定後進入填寫正文 -->
-                    <div style="display:flex; gap:12px; margin-top:20px; flex-wrap:wrap;">
-                        <button type="button" class="action-btn secondary" onclick="openWorkPreviewModal()">
-                            <i class="fas fa-eye"></i> 即時預覽作品
-                        </button>
-                        <button type="button" class="action-btn" onclick="goToStep2()">
-                            <i class="fas fa-feather-alt"></i> 完成設定，進入小說內容填寫 <i class="fas fa-arrow-right"></i>
-                        </button>
                     </div>
                 </div>
 
-                <!-- 步驟 2：小說內容撰寫 (設定完成後才出現) -->
-                <div id="articleStep2" style="display:none;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
-                        <div style="font-size:16px; font-weight:bold; color:#3e2210;" id="step2WorkHeaderHint">
-                            <i class="fas fa-book"></i> 正在填寫：未命名作品
+                <!-- 3. 檔案上傳區塊 (PDF / Word) -->
+                <div id="file-upload-box" style="display:none;">
+                    <label id="fileUploadLabel" style="font-weight:bold; margin-bottom:8px; display:block;">上傳作品檔案：<span style="color:#c62828;">*</span></label>
+                    <div class="linggan-dropzone" onclick="document.getElementById('cp-file').click()">
+                        <i class="fas fa-cloud-upload-alt main-icon"></i>
+                        <div style="font-size:16px; font-weight:bold; color:#4a2c11; margin-bottom:4px;" id="docFileNameLabel">點擊選取檔案或拖曳至此處</div>
+                        <div style="font-size:13px; color:#8d6e63;">支援 PDF、Word (.doc, .docx) 格式作品</div>
+                        <input type="file" id="cp-file" accept=".pdf,.doc,.docx" style="display:none;" onchange="handleDocFileChange(this)">
+                    </div>
+                    <div id="currentFileHint" style="font-size:13px; color:#7d5836; margin-top:6px;"></div>
+                </div>
+
+                <!-- 4. 封面與橫幅圖上傳區塊 (靈感勇現風格) -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:18px;">
+                    <!-- 封面圖 (限制 2MB, 3:4 直式) -->
+                    <div style="background:#fcf9f2; border:1.5px solid #d5c4a1; border-radius:10px; padding:16px;">
+                        <label style="margin-top:0; font-size:15px; font-weight:bold; color:#3e2210;"><i class="fas fa-image"></i> 作品封面 (選填)：</label>
+                        <div style="font-size:12px; color:#8d6e63; margin:4px 0 10px 0;">
+                            限制大小：<b>2 MB 以內</b>（建議比例 3:4 直式）
                         </div>
-                        <div style="display:flex; gap:10px; align-items:center;">
-                            <span id="wordCountLabel" style="font-size:14px; color:#7d5836; font-weight:bold;">字數：0 字</span>
-                            <button type="button" class="action-btn secondary" style="margin:0; padding:6px 14px; font-size:13px;" onclick="goToStep1()">
-                                <i class="fas fa-arrow-left"></i> 返回修改文章設定
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <label class="custom-upload-btn" for="cp-cover-file">
+                                <i class="fas fa-image"></i> 選取封面圖
+                            </label>
+                            <input type="file" id="cp-cover-file" accept="image/*" style="display:none;" onchange="handleImageFileSelected(this, 'cover')">
+                            <button type="button" id="removeCoverBtn" class="action-btn secondary" style="display:none; margin:0; padding:6px 12px; font-size:12px;" onclick="clearCoverImage()"><i class="fas fa-trash-alt"></i> 清除</button>
+                        </div>
+                        <div id="coverFileHint" style="font-size:12px; color:#7d5836; margin-top:4px;"></div>
+                        <img id="coverPreview" class="cover-preview-box" alt="封面預覽">
+                    </div>
+
+                    <!-- 橫幅橫圖 (限制 3MB, 16:9 橫式) -->
+                    <div style="background:#fcf9f2; border:1.5px solid #d5c4a1; border-radius:10px; padding:16px;">
+                        <label style="margin-top:0; font-size:15px; font-weight:bold; color:#3e2210;"><i class="fas fa-panorama"></i> 卷首橫幅 (選填)：</label>
+                        <div style="font-size:12px; color:#8d6e63; margin:4px 0 10px 0;">
+                            限制大小：<b>3 MB 以內</b>（建議比例 16:9 橫圖）
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <label class="custom-upload-btn" for="cp-banner-file">
+                                <i class="fas fa-panorama"></i> 選取橫幅圖
+                            </label>
+                            <input type="file" id="cp-banner-file" accept="image/*" style="display:none;" onchange="handleImageFileSelected(this, 'banner')">
+                            <button type="button" id="removeBannerBtn" class="action-btn secondary" style="display:none; margin:0; padding:6px 12px; font-size:12px;" onclick="clearBannerImage()"><i class="fas fa-trash-alt"></i> 清除</button>
+                        </div>
+                        <div id="bannerFileHint" style="font-size:12px; color:#7d5836; margin-top:4px;"></div>
+                        <img id="bannerPreview" class="banner-preview-box" alt="橫幅預覽">
+                    </div>
+                </div>
+
+                <!-- 5. 純文字在線編輯區塊 (含多章節設定與編輯時局部文字大小切換工具列) -->
+                <div id="textEditorArea" style="background:#fcf9f2; border:1.5px solid #d5c4a1; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(90,55,25,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+                        <div style="font-size:17px; font-weight:bold; color:#3e2210;">
+                            <i class="fas fa-book-open" style="color:#8c5828;"></i> 小說章節與正文撰寫
+                        </div>
+                        <span id="wordCountLabel" style="font-size:14px; color:#7d5836; font-weight:bold; background:#f4ebd0; padding:4px 12px; border-radius:15px; border:1px solid #d5c4a1;">字數：0 字</span>
+                    </div>
+
+                    <!-- 章節設定與切換面板 -->
+                    <div class="chapters-manager-bar" id="chaptersManagerBar">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                            <div style="font-weight:bold; color:#4a2c11; font-size:15px;">
+                                <i class="fas fa-bookmark" style="color:#b26a00;"></i> 章節管理 (<span id="chapterCountBadge">1</span> 章)
+                            </div>
+                            <button type="button" class="mode-btn" onclick="addNewChapter()" style="font-size:13px; padding:5px 14px;">
+                                <i class="fas fa-plus"></i> 新增章節
                             </button>
-                            <button type="button" class="action-btn secondary" style="margin:0; padding:6px 14px; font-size:13px;" onclick="openWorkPreviewModal()">
-                                <i class="fas fa-eye"></i> 即時預覽作品
-                            </button>
+                        </div>
+                        <!-- 章節標籤分頁列 (牛皮紙書籤風) -->
+                        <div id="chapterTabsContainer" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px;">
+                            <!-- 動態渲染 Tab -->
+                        </div>
+                        <!-- 當前章節屬性列 -->
+                        <div style="display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; background:rgba(255,255,255,0.3); padding:8px 12px; border-radius:6px;">
+                            <label style="margin:0; font-weight:bold; font-size:14px; white-space:nowrap; color:#5a3818;">當前章節標題：</label>
+                            <input type="text" id="currentChapterTitleInput" oninput="updateCurrentChapterTitle(this.value)" placeholder="例如：第一章 序幕" style="flex:1; min-width:180px; padding:6px 10px; font-size:15px;">
+                            <button type="button" class="action-btn secondary" onclick="moveCurrentChapter(-1)" title="上移章節" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-arrow-up"></i> 上移</button>
+                            <button type="button" class="action-btn secondary" onclick="moveCurrentChapter(1)" title="下移章節" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-arrow-down"></i> 下移</button>
+                            <button type="button" class="action-btn danger" onclick="deleteCurrentChapter()" title="刪除本章" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-trash-alt"></i> 刪除本章</button>
                         </div>
                     </div>
 
-                    <!-- 非純文字提示 (若選擇 PDF / Word) -->
-                    <div id="nonTextNotice" style="display:none; background:#f4ebd0; border:1px solid #c9b48c; border-radius:8px; padding:20px; text-align:center; margin-bottom:15px;">
-                        <i class="fas fa-file-check" style="font-size:36px; color:#5d4037; margin-bottom:8px;"></i>
-                        <h4 style="margin:0 0 6px 0; color:#3e2210;">您選擇的作品格式為檔案上傳（PDF / Word）</h4>
-                        <p style="margin:0; color:#7d5836; font-size:14px;" id="nonTextFileSummary">已成功選取檔案，無須額外在線填寫正文，可直接於下方確認送出！</p>
+                    <!-- 文字樣式工具列 (編輯時局部的文字大小與粗體斜體底線設定) -->
+                    <div class="editor-toolbar">
+                        <button type="button" class="tool-btn" onclick="formatDoc('bold')" title="粗體 (Ctrl+B)"><b>B</b></button>
+                        <button type="button" class="tool-btn" onclick="formatDoc('italic')" title="斜體 (Ctrl+I)"><i>I</i></button>
+                        <button type="button" class="tool-btn" onclick="formatDoc('underline')" title="底線 (Ctrl+U)"><u>U</u></button>
+                        <span style="color:#c9b48c;">|</span>
+                        <span style="font-size:13px; font-weight:bold; color:#5a3818;"><i class="fas fa-text-height"></i> 編輯文字大小：</span>
+                        <select class="tool-select" id="editorFontSizeSelect" onchange="formatDoc('fontSize', this.value)" title="選取文字切換大小">
+                            <option value="3">標準文字 (18px)</option>
+                            <option value="2">較小文字 (15px)</option>
+                            <option value="4">較大標題 (21px)</option>
+                            <option value="5">特大篇章 (26px)</option>
+                        </select>
+                        <span style="color:#c9b48c;">|</span>
+                        <button type="button" class="tool-btn" onclick="insertIndent()" title="插入首行縮排空兩格"><i class="fas fa-outdent"></i> 縮排空兩格</button>
+                        <button type="button" class="tool-btn" onclick="formatDoc('removeFormat')" title="清除格式"><i class="fas fa-eraser"></i> 清除格式</button>
                     </div>
 
-                    <!-- 純文字在線編輯區塊 -->
-                    <div id="textEditorArea">
-                        <!-- 章節設定與切換面板 -->
-                        <div class="chapters-manager-bar" id="chaptersManagerBar">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                                <div style="font-weight:bold; color:#4a2c11; font-size:16px;">
-                                    <i class="fas fa-bookmark" style="color:#b26a00;"></i> 作品章節設定 (<span id="chapterCountBadge">1</span> 章)
-                                </div>
-                                <button type="button" class="mode-btn" onclick="addNewChapter()" style="font-size:13px; padding:5px 14px;">
-                                    <i class="fas fa-plus"></i> 新增章節
-                                </button>
+                    <!-- 正統純牛皮紙正文編輯器 (無橫線) -->
+                    <div id="cp-content-editor" class="kraft-paper-editor kraft-notebook-editor" contenteditable="true" placeholder="請在此沾墨撰寫您的參賽小說正文..." oninput="handleEditorInput()"></div>
+                    <textarea id="cp-content" style="display:none;"></textarea>
+                </div>
+
+                <!-- 6. 公開/不公開隱私設定 -->
+                <div style="background:#f6eed8; padding:16px; border-radius:10px; border:1.5px solid #bfa57c;">
+                    <label style="cursor:pointer; display:flex; align-items:center; gap:8px; margin:0; font-size:17px; color:#3e2210;">
+                        <input type="checkbox" id="cp-is-public" checked style="width:18px; height:18px; cursor:pointer;">
+                        <span><i class="fas fa-globe-asia"></i> 開放公開此參賽作品</span>
+                    </label>
+                    <p style="margin:6px 0 0 26px; font-size:13.5px; color:#7d5836; line-height:1.6;">
+                        <i class="fas fa-lightbulb"></i> <b>隱私說明：</b>若勾選，作品將公開於「作品展示」供所有訪客與參賽者閱讀。<br>
+                        若<b>取消勾選（暫不公開）</b>，在比賽截止前<b>只有管理員與您自己能看到</b>；<b>比賽截止後系統會自動為所有人公開展示</b>！
+                    </p>
+                </div>
+
+                <!-- 7. 獨家首發授權與全網禁轉聲明 -->
+                <div style="background:#fcf1de; border:1.5px solid #c99355; border-radius:10px; padding:16px;">
+                    <div style="display:flex; align-items:flex-start; gap:12px;">
+                        <i class="fas fa-shield-alt" style="color:#b26a00; font-size:24px; margin-top:2px;"></i>
+                        <div style="flex:1;">
+                            <div style="font-weight:bold; color:#522800; font-size:16px;">
+                                【獨家首發授權與全網禁轉聲明】
                             </div>
-                            <!-- 章節標籤分頁列 (牛皮紙書籤風) -->
-                            <div id="chapterTabsContainer" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:6px;">
-                                <!-- 動態渲染 Tab -->
+                            <div style="color:#784515; font-size:13.5px; margin-top:5px; line-height:1.6;">
+                                本參賽作品為「探險者文文盃」專屬首發創作。作者茲聲明並承諾：<b>本作品（含全文、節錄或延伸改編）嚴禁在任何第三方公開平台、網站、論壇、社群自媒體或公開刊物發表、刊載或轉載</b>。經查證若違反獨家首發承諾，主辦方將逕行撤銷參賽與評選獲獎資格。
                             </div>
-                            <!-- 當前章節屬性列 -->
-                            <div style="display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap; background:rgba(255,255,255,0.3); padding:8px 12px; border-radius:6px;">
-                                <label style="margin:0; font-weight:bold; font-size:14px; white-space:nowrap; color:#5a3818;">當前章節標題：</label>
-                                <input type="text" id="currentChapterTitleInput" oninput="updateCurrentChapterTitle(this.value)" placeholder="例如：第一章 序幕" style="flex:1; min-width:180px; padding:6px 10px; font-size:15px;">
-                                <button type="button" class="action-btn secondary" onclick="moveCurrentChapter(-1)" title="上移章節" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-arrow-up"></i> 上移</button>
-                                <button type="button" class="action-btn secondary" onclick="moveCurrentChapter(1)" title="下移章節" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-arrow-down"></i> 下移</button>
-                                <button type="button" class="action-btn danger" onclick="deleteCurrentChapter()" title="刪除本章" style="padding:5px 10px; margin:0; font-size:13px;"><i class="fas fa-trash-alt"></i> 刪除本章</button>
-                            </div>
+                            <label style="cursor:pointer; display:flex; align-items:center; gap:8px; margin-top:10px; font-weight:bold; color:#4a2c11; font-size:15px;">
+                                <input type="checkbox" id="cp-agree-exclusive" required checked style="width:18px; height:18px; cursor:pointer;">
+                                <span>我已詳閱並承諾遵守上述「獨家首發授權與全網禁轉聲明」規範</span>
+                            </label>
                         </div>
-
-                        <!-- 文字樣式工具列 -->
-                        <div class="editor-toolbar">
-                            <button type="button" class="tool-btn" onclick="formatDoc('bold')" title="粗體 (Ctrl+B)"><b>B</b></button>
-                            <button type="button" class="tool-btn" onclick="formatDoc('italic')" title="斜體 (Ctrl+I)"><i>I</i></button>
-                            <button type="button" class="tool-btn" onclick="formatDoc('underline')" title="底線 (Ctrl+U)"><u>U</u></button>
-                            <span style="color:#c9b48c;">|</span>
-                            <span style="font-size:13px; font-weight:bold; color:#5a3818;">字級：</span>
-                            <select class="tool-select" id="editorFontSizeSelect" onchange="formatDoc('fontSize', this.value)">
-                                <option value="3">標準 (18px)</option>
-                                <option value="2">較小 (16px)</option>
-                                <option value="4">較大 (20px)</option>
-                                <option value="5">特大 (24px)</option>
-                            </select>
-                            <span style="color:#c9b48c;">|</span>
-                            <button type="button" class="tool-btn" onclick="insertIndent()" title="插入首行縮排空兩格"><i class="fas fa-outdent"></i> 縮排空兩格</button>
-                            <button type="button" class="tool-btn" onclick="formatDoc('removeFormat')" title="清除格式"><i class="fas fa-eraser"></i> 清除格式</button>
-                        </div>
-
-                        <!-- 正統牛皮紙正文編輯器 (無橫線) -->
-                        <div id="cp-content-editor" class="kraft-paper-editor kraft-notebook-editor" contenteditable="true" placeholder="請在此沾墨撰寫您的參賽小說正文..." oninput="handleEditorInput()"></div>
-                        <textarea id="cp-content" style="display:none;"></textarea>
                     </div>
+                </div>
 
-                    <!-- 步驟 2 底部操作列 -->
-                    <div style="display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; align-items:center;">
-                        <button type="button" class="action-btn secondary" onclick="goToStep1()">
-                            <i class="fas fa-arrow-left"></i> 返回修改文章設定
-                        </button>
-                        <button type="button" class="action-btn secondary" onclick="openWorkPreviewModal()">
-                            <i class="fas fa-eye"></i> 即時預覽作品
-                        </button>
-                        <button type="submit" id="submitWorkBtn" class="action-btn">
-                            <i class="fas fa-paper-plane"></i> 確認繳交作品 (限一件)
-                        </button>
-                    </div>
+                <!-- 8. 表單底部操作列 -->
+                <div style="display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+                    <button type="button" class="action-btn secondary" onclick="openWorkPreviewModal()">
+                        <i class="fas fa-eye"></i> 即時預覽作品
+                    </button>
+                    <button type="submit" id="submitWorkBtn" class="action-btn">
+                        <i class="fas fa-paper-plane"></i> 確認繳交作品 (限一件)
+                    </button>
                 </div>
             </form>
         </div>
@@ -1167,15 +1174,35 @@
         <!-- 作品列表檢視 -->
         <div id="browseListView">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:15px;">
-                <h2 style="margin:0;"><i class="fas fa-book-open"></i> 參賽作品展示</h2>
+                <div>
+                    <h2 style="margin:0;"><i class="fas fa-book-open"></i> 參賽作品展示</h2>
+                    <p style="color:#7d5836; font-size:14px; margin:4px 0 0 0;" id="browseStatsSummary">
+                        載入作品中...
+                    </p>
+                </div>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                    <input type="text" id="workSearchInput" placeholder="搜尋標題、作者、篇章..." oninput="filterBrowseWorks()" style="width:250px; margin:0; padding:6px 12px;">
+                    <div style="position:relative;">
+                        <i class="fas fa-search" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#8d6e63; font-size:13px;"></i>
+                        <input type="text" id="workSearchInput" placeholder="搜尋作品標題、作者、篇章..." oninput="filterBrowseWorks()" style="width:260px; margin:0; padding:8px 12px 8px 32px; font-size:14px;">
+                    </div>
                 </div>
             </div>
-            
-            <p style="color:#7d5836; font-size:15px; margin:0 0 15px 0;" id="browseStatsSummary">
-                載入作品中...
-            </p>
+
+            <!-- 靈感勇現風格分類標籤膠囊 (Filter Chips) -->
+            <div class="filters-container" id="browseFiltersContainer">
+                <button type="button" class="filter-chip active" data-filter="all" onclick="setBrowseFilter('all')">
+                    <i class="fas fa-layer-group"></i> 全部作品 <span class="chip-count" id="chipCountAll">0</span>
+                </button>
+                <button type="button" class="filter-chip" data-filter="text" onclick="setBrowseFilter('text')">
+                    <i class="fas fa-feather-alt"></i> 純文字小說 <span class="chip-count" id="chipCountText">0</span>
+                </button>
+                <button type="button" class="filter-chip" data-filter="pdf" onclick="setBrowseFilter('pdf')">
+                    <i class="fas fa-file-pdf"></i> PDF 作品 <span class="chip-count" id="chipCountPdf">0</span>
+                </button>
+                <button type="button" class="filter-chip" data-filter="word" onclick="setBrowseFilter('word')">
+                    <i class="fas fa-file-word"></i> Word 作品 <span class="chip-count" id="chipCountWord">0</span>
+                </button>
+            </div>
 
             <div class="works-grid" id="browseWorksGrid">
                 <!-- 動態呈現作品卡片清單 -->
@@ -2142,123 +2169,14 @@
             underline: false
         };
 
-        // 樣式示範切換
-        window.toggleDefaultStyle = function(type) {
-            window.currentStyling[type] = !window.currentStyling[type];
-            const btn = document.getElementById(
-                type === 'bold' ? 'btnToggleBold' : (type === 'italic' ? 'btnToggleItalic' : 'btnToggleUnderline')
-            );
-            if (btn) {
-                if (window.currentStyling[type]) btn.classList.add('active');
-                else btn.classList.remove('active');
-            }
-            applyStyleSettingsToPreview();
-        };
-
-        window.applyStyleSettingsToPreview = function() {
-            const fs = document.getElementById('settingFontSize')?.value || '18px';
-            const lh = document.getElementById('settingLineHeight')?.value || '2.0';
-            const ind = document.getElementById('settingIndent')?.value || '2em';
-            window.currentStyling.fontSize = fs;
-            window.currentStyling.lineHeight = lh;
-            window.currentStyling.indent = ind;
-
-            const demo = document.getElementById('styleDemoBox');
-            if (demo) {
-                demo.style.fontSize = fs;
-                demo.style.lineHeight = lh;
-                demo.style.textIndent = ind;
-                demo.style.fontWeight = window.currentStyling.bold ? 'bold' : 'normal';
-                demo.style.fontStyle = window.currentStyling.italic ? 'italic' : 'normal';
-                demo.style.textDecoration = window.currentStyling.underline ? 'underline' : 'none';
-            }
-        };
-
-        // 步驟 1 與步驟 2 切換導航
-        window.goToStep2 = function() {
-            const titleInput = document.getElementById('cp-title');
-            const titleVal = titleInput ? titleInput.value.trim() : '';
-            if (!titleVal) {
-                alert('請先填寫「作品標題」！');
-                titleInput?.focus();
-                return;
-            }
-
-            const agree = document.getElementById('cp-agree-exclusive');
-            if (agree && !agree.checked) {
-                alert('請確認勾選同意遵守「獨家首發授權與全網禁轉聲明」規範！');
-                return;
-            }
-
-            const format = document.getElementById('cp-format')?.value || 'text';
-            const isEditing = Boolean(document.getElementById('editWorkId')?.value);
-            const fileInput = document.getElementById('cp-file');
-
-            if (!isEditing && (format === 'pdf' || format === 'word')) {
-                if (!fileInput.files || !fileInput.files[0]) {
-                    alert('請先選取欲上傳的 ' + (format === 'pdf' ? 'PDF' : 'Word') + ' 檔案！');
-                    return;
-                }
-            }
-
-            // 初始化章節設定 (若無章節則建立第一章)
-            if (!window.workChapters || window.workChapters.length === 0) {
-                window.workChapters = [{ id: 'ch_1', title: '第一章 啟程', content: '' }];
-                window.currentChapterIndex = 0;
-            }
-
-            // 切換畫面
-            document.getElementById('articleStep1').style.display = 'none';
-            document.getElementById('articleStep2').style.display = 'block';
-            document.getElementById('stepPill1')?.classList.remove('active');
-            document.getElementById('stepPill2')?.classList.add('active');
-
-            // 更新步驟 2 標題提示
-            const hint = document.getElementById('step2WorkHeaderHint');
-            if (hint) {
-                hint.innerHTML = `<i class="fas fa-book"></i> 正在填寫：《${escapeHtml(titleVal)}》`;
-            }
-
-            // 渲染章節標籤並載入當前章節正文
-            renderChapterTabs();
-
-            // 套用步驟 1 所設定的文字樣式到富文本編輯器
-            const editor = document.getElementById('cp-content-editor');
-            if (editor) {
-                editor.style.fontSize = window.currentStyling.fontSize;
-                editor.style.lineHeight = window.currentStyling.lineHeight || '2.0';
-                if (window.currentStyling.bold) editor.style.fontWeight = 'bold';
-                else editor.style.fontWeight = 'normal';
-                if (window.currentStyling.italic) editor.style.fontStyle = 'italic';
-                else editor.style.fontStyle = 'normal';
-                if (window.currentStyling.underline) editor.style.textDecoration = 'underline';
-                else editor.style.textDecoration = 'none';
-
-                editor.innerHTML = window.workChapters[window.currentChapterIndex]?.content || '';
-                handleEditorInput();
-            }
-
-            // 格式切換顯示
-            if (format === 'text') {
-                document.getElementById('textEditorArea').style.display = 'block';
-                document.getElementById('nonTextNotice').style.display = 'none';
-            } else {
-                document.getElementById('textEditorArea').style.display = 'none';
-                document.getElementById('nonTextNotice').style.display = 'block';
-                const fName = fileInput?.files?.[0]?.name || document.getElementById('currentFileHint')?.innerText || '已選取檔案';
-                document.getElementById('nonTextFileSummary').innerText = `已就緒檔案：${fName}。您可直接於下方確認送出繳交！`;
-            }
-
-            window.scrollTo({ top: 300, behavior: 'smooth' });
-        };
-
+        // 相容性 shim 函數 (流暢單頁編輯，無須割裂步驟)
+        window.toggleDefaultStyle = function(type) {};
+        window.applyStyleSettingsToPreview = function() {};
         window.goToStep1 = function() {
             syncCurrentChapterContent();
-            document.getElementById('articleStep2').style.display = 'none';
-            document.getElementById('articleStep1').style.display = 'block';
-            document.getElementById('stepPill2')?.classList.remove('active');
-            document.getElementById('stepPill1')?.classList.add('active');
-            window.scrollTo({ top: 300, behavior: 'smooth' });
+        };
+        window.goToStep2 = function() {
+            syncCurrentChapterContent();
         };
 
         // ==========================================
@@ -2608,6 +2526,8 @@
             document.getElementById('cp-format').value = work.format || 'text';
             handleFormatChange(work.format || 'text');
 
+            // 渲染章節分頁與編輯器內容
+            renderChapterTabs();
             if (work.format === 'text') {
                 const editor = document.getElementById('cp-content-editor');
                 if (editor) editor.innerHTML = window.workChapters[0]?.content || '';
@@ -2616,22 +2536,8 @@
                 handleEditorInput();
             } else {
                 document.getElementById('currentFileHint').innerText = `目前已上傳：${work.fileName || '既有檔案'} (若不變更檔案請留空)`;
-            }
-
-            // 還原排版樣式設定
-            if (work.styling) {
-                window.currentStyling = { ...window.currentStyling, ...work.styling };
-                if (document.getElementById('settingFontSize')) document.getElementById('settingFontSize').value = window.currentStyling.fontSize || '18px';
-                if (document.getElementById('settingLineHeight')) document.getElementById('settingLineHeight').value = window.currentStyling.lineHeight || '2.0';
-                if (document.getElementById('settingIndent')) document.getElementById('settingIndent').value = window.currentStyling.indent || '2em';
-                
-                const bBtn = document.getElementById('btnToggleBold');
-                if (bBtn) { if (window.currentStyling.bold) bBtn.classList.add('active'); else bBtn.classList.remove('active'); }
-                const iBtn = document.getElementById('btnToggleItalic');
-                if (iBtn) { if (window.currentStyling.italic) iBtn.classList.add('active'); else iBtn.classList.remove('active'); }
-                const uBtn = document.getElementById('btnToggleUnderline');
-                if (uBtn) { if (window.currentStyling.underline) uBtn.classList.add('active'); else uBtn.classList.remove('active'); }
-                applyStyleSettingsToPreview();
+                const docLabel = document.getElementById('docFileNameLabel');
+                if (docLabel) docLabel.innerText = `已就緒：${work.fileName || '既有作品檔案'}`;
             }
 
             // PDF 設定
@@ -2676,11 +2582,13 @@
             clearCoverImage();
             clearBannerImage();
             document.getElementById('currentFileHint').innerText = '';
-            document.getElementById('docFileNameLabel').innerText = '尚未選取檔案';
+            const docLabel = document.getElementById('docFileNameLabel');
+            if (docLabel) docLabel.innerText = '點擊選取檔案或拖曳至此處';
             
             // 重置章節
             window.workChapters = [{ id: 'ch_1', title: '第一章 啟程', content: '' }];
             window.currentChapterIndex = 0;
+            renderChapterTabs();
 
             const editor = document.getElementById('cp-content-editor');
             if (editor) editor.innerHTML = '';
@@ -2691,33 +2599,32 @@
             document.getElementById('cp-is-public').checked = true;
             const agreeEl = document.getElementById('cp-agree-exclusive');
             if (agreeEl) agreeEl.checked = true;
-            goToStep1();
         };
 
         window.handleFormatChange = function(val) {
             const pdfBox = document.getElementById('pdf-settings-box');
             const fileBox = document.getElementById('file-upload-box');
-            const stylePanel = document.getElementById('article-style-settings-panel');
+            const textEditorArea = document.getElementById('textEditorArea');
             const fileInput = document.getElementById('cp-file');
             const label = document.getElementById('fileUploadLabel');
 
             if (val === 'text') {
-                pdfBox.style.display = 'none';
-                fileBox.style.display = 'none';
-                stylePanel.style.display = 'block';
-                fileInput.required = false;
+                if (pdfBox) pdfBox.style.display = 'none';
+                if (fileBox) fileBox.style.display = 'none';
+                if (textEditorArea) textEditorArea.style.display = 'block';
+                if (fileInput) fileInput.required = false;
             } else if (val === 'pdf') {
-                pdfBox.style.display = 'block';
-                fileBox.style.display = 'block';
-                stylePanel.style.display = 'none';
-                label.innerHTML = `上傳 PDF 檔案：<span style="color:#c62828;">*</span>`;
-                fileInput.accept = '.pdf';
+                if (pdfBox) pdfBox.style.display = 'block';
+                if (fileBox) fileBox.style.display = 'block';
+                if (textEditorArea) textEditorArea.style.display = 'none';
+                if (label) label.innerHTML = `上傳作品檔案 (PDF)：<span style="color:#c62828;">*</span>`;
+                if (fileInput) fileInput.accept = '.pdf';
             } else if (val === 'word') {
-                pdfBox.style.display = 'none';
-                fileBox.style.display = 'block';
-                stylePanel.style.display = 'none';
-                label.innerHTML = `上傳 Word (.docx) 檔案：<span style="color:#c62828;">*</span>`;
-                fileInput.accept = '.doc,.docx';
+                if (pdfBox) pdfBox.style.display = 'none';
+                if (fileBox) fileBox.style.display = 'block';
+                if (textEditorArea) textEditorArea.style.display = 'none';
+                if (label) label.innerHTML = `上傳作品檔案 (Word)：<span style="color:#c62828;">*</span>`;
+                if (fileInput) fileInput.accept = '.doc,.docx';
             }
         };
 
@@ -2804,7 +2711,8 @@
                 });
                 if (totalChars === 0) {
                     alert('小說正文內容不可為空白，請在編輯器中至少為一個章節撰寫小說內容！');
-                    goToStep2();
+                    document.getElementById('cp-content-editor')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    document.getElementById('cp-content-editor')?.focus();
                     return;
                 }
                 contentHtml = window.workChapters[0]?.content || '';
@@ -2886,6 +2794,21 @@
             });
         }
 
+        // 靈感勇現風格分類篩選狀態
+        window.currentBrowseFilter = 'all';
+
+        window.setBrowseFilter = function(filter) {
+            window.currentBrowseFilter = filter;
+            const container = document.getElementById('browseFiltersContainer');
+            if (container) {
+                container.querySelectorAll('.filter-chip').forEach(btn => {
+                    if (btn.getAttribute('data-filter') === filter) btn.classList.add('active');
+                    else btn.classList.remove('active');
+                });
+            }
+            renderBrowseList();
+        };
+
         function renderBrowseList() {
             const grid = document.getElementById('browseWorksGrid');
             const summary = document.getElementById('browseStatsSummary');
@@ -2894,26 +2817,47 @@
             const visible = getVisibleWorks();
             const isEnded = isContestEnded();
 
+            // 更新分類膠囊數量計數
+            const countAll = visible.length;
+            const countText = visible.filter(w => (w.format || 'text') === 'text').length;
+            const countPdf = visible.filter(w => w.format === 'pdf').length;
+            const countWord = visible.filter(w => w.format === 'word').length;
+
+            const elAll = document.getElementById('chipCountAll');
+            const elText = document.getElementById('chipCountText');
+            const elPdf = document.getElementById('chipCountPdf');
+            const elWord = document.getElementById('chipCountWord');
+            if (elAll) elAll.innerText = countAll;
+            if (elText) elText.innerText = countText;
+            if (elPdf) elPdf.innerText = countPdf;
+            if (elWord) elWord.innerText = countWord;
+
             if (summary) {
                 summary.innerHTML = `
                     目前共展示 <b>${visible.length}</b> 件參賽作品。
-                    ${isEnded ? '<i class="fas fa-check-circle" style="color:#2e7d32;"></i> <b>比賽已截止，所有作品均已自動全面公開！</b>' : '<i class="fas fa-lock"></i> <b>未截止前不公開作品僅評審管理員與作者本人可提前閱讀。</b>'}
+                    ${isEnded ? '<i class="fas fa-check-circle" style="color:#2e7d32;"></i> <b>比賽已截止，所有作品均已全面自動公開！</b>' : '<i class="fas fa-lock"></i> <b>未截止前不公開作品僅評審管理員與作者本人可提前閱讀。</b>'}
                 `;
             }
 
             if (visible.length === 0) {
                 grid.innerHTML = `
-                    <div style="grid-column:1/-1; text-align:center; padding:60px 20px; background:#f7f0dc; border:1px dashed #d5c49f; border-radius:8px;">
-                        <i class="fas fa-feather" style="font-size:40px; color:#a1887f; margin-bottom:12px;"></i>
-                        <p style="font-size:18px; color:#5a3818; margin:0;">目前尚無公開的參賽作品，歡迎成為第一個交件的創作者！</p>
+                    <div style="grid-column:1/-1; text-align:center; padding:60px 20px; background:#f7f0dc; border:1.5px dashed #d5c49f; border-radius:12px;">
+                        <i class="fas fa-feather" style="font-size:42px; color:#a1887f; margin-bottom:12px;"></i>
+                        <p style="font-size:18px; color:#5a3818; margin:0; font-weight:bold;">目前尚無參賽作品，歡迎成為第一個沾墨繳交的創作者！</p>
                     </div>
                 `;
                 return;
             }
 
             const query = (document.getElementById('workSearchInput')?.value || '').toLowerCase().trim();
+            const curFilter = window.currentBrowseFilter || 'all';
 
             const filtered = visible.filter(w => {
+                // 分類篩選
+                const wFormat = w.format || 'text';
+                if (curFilter !== 'all' && wFormat !== curFilter) return false;
+
+                // 搜尋關鍵字
                 if (query) {
                     const matchTitle = (w.title || '').toLowerCase().includes(query);
                     const matchAuthor = (w.authorName || w.author || '').toLowerCase().includes(query);
@@ -2924,24 +2868,29 @@
             });
 
             if (filtered.length === 0) {
-                grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#7d5836;">查無符合搜尋條件的作品。</div>`;
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:50px 20px; background:#f7f0dc; border:1px dashed #d5c49f; border-radius:12px; color:#7d5836;">
+                        <i class="fas fa-search" style="font-size:32px; color:#a1887f; margin-bottom:10px;"></i>
+                        <p style="margin:0; font-size:16px;">查無符合此分類或搜尋條件的參賽作品。</p>
+                    </div>
+                `;
                 return;
             }
 
             grid.innerHTML = filtered.map(w => {
                 const isPrivate = w.isPublic === false && !isEnded;
                 const privBadge = isPrivate 
-                    ? `<span class="badge-private" title="僅管理員與作者本人在截止前可見"><i class="fas fa-lock"></i> 暫不公開 (截止自動公開)</span>`
+                    ? `<span class="badge-private" title="僅管理員與作者本人在截止前可見"><i class="fas fa-lock"></i> 暫不公開</span>`
                     : '';
 
-                const formatLabel = { text: '純文字', pdf: 'PDF', word: 'Word' }[w.format] || '純文字';
+                const formatLabel = { text: '純文字小說', pdf: 'PDF 作品', word: 'Word 作品' }[w.format] || '純文字小說';
                 const avatarImg = w.authorAvatar 
-                    ? `<img src="${w.authorAvatar}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;">`
-                    : `<i class="fas fa-user-circle"></i>`;
+                    ? `<img src="${w.authorAvatar}" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1px solid #c9b48c;">`
+                    : `<i class="fas fa-user-circle" style="font-size:16px; color:#8c5828;"></i>`;
 
                 // 章節數標籤
                 const chapCount = (w.chapters && w.chapters.length) ? w.chapters.length : 1;
-                const chapBadge = `<span style="font-size:12px; color:#7d5836; background:#e8dcc3; padding:2px 6px; border-radius:4px;"><i class="fas fa-bookmark"></i> ${chapCount} 章</span>`;
+                const chapBadge = `<span class="badge-format" style="background:#ebdcc0;"><i class="fas fa-bookmark"></i> ${chapCount} 章</span>`;
 
                 // 胖達商城式 讀者評分與留言數徽章
                 let reviewRatingHtml = '';
@@ -2949,36 +2898,62 @@
                     let totalRating = 0;
                     w.reviews.forEach(r => totalRating += (r.rating || 5));
                     let avg = (totalRating / w.reviews.length).toFixed(1);
-                    reviewRatingHtml = `<span style="color:#b26a00; font-weight:bold; font-size:13px;"><i class="fas fa-star"></i> ${avg} (${w.reviews.length})</span>`;
+                    reviewRatingHtml = `<span style="color:#b26a00; font-weight:bold; font-size:12.5px;"><i class="fas fa-star"></i> ${avg} (${w.reviews.length})</span>`;
                 } else {
                     reviewRatingHtml = `<span style="color:#a1887f; font-size:12px;"><i class="far fa-star"></i> 尚無評價</span>`;
                 }
 
-                return `
-                    <div class="work-card" onclick="openImmersiveReader('${w.id}')" title="點擊展開沈浸式牛皮紙作品閱覽">
-                        ${w.cover ? `<img src="${w.cover}" class="card-cover" alt="封面">` : `<div class="card-cover" style="display:flex; align-items:center; justify-content:center; color:#8d6e63; font-size:40px;"><i class="fas fa-book"></i></div>`}
-                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-                            <h4 class="card-title">${escapeHtml(w.title)}</h4>
-                            <div style="display:flex; gap:4px; align-items:center;">
-                                ${chapBadge}
-                                <span class="badge-format">${formatLabel}</span>
+                // 摘要提要
+                let descText = '';
+                if (w.episode) {
+                    descText = `【${w.episode}】 `;
+                }
+                if (w.content) {
+                    const clean = w.content.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+                    descText += clean ? clean.slice(0, 50) + '...' : '點擊展開牛皮紙手寫卷軸，進入沈浸閱覽全文。';
+                } else {
+                    descText += '點擊展開牛皮紙手寫卷軸，進入沈浸閱覽全文。';
+                }
+
+                // 封面區塊 (16:9 + 靈感勇現 hover overlay 按鈕)
+                const visHtml = w.cover 
+                    ? `<div class="card-vis">
+                            <img src="${w.cover}" class="card-vis-img" alt="封面">
+                            <div class="card-run-overlay">
+                                <span><i class="fas fa-book-reader"></i> 進入沈浸閱覽</span>
                             </div>
-                        </div>
-                        <div class="card-author">
-                            ${avatarImg}
-                            <span>${escapeHtml(w.authorName || w.author)}</span>
-                            ${privBadge}
-                        </div>
-                        ${w.episode ? `<div style="font-size:13px; color:#7d5836; margin-bottom:4px;"><i class="fas fa-feather-alt" style="font-size:11px;"></i> ${escapeHtml(w.episode)}</div>` : ''}
-                        <div style="font-size:12px; color:#b26a00; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between;">
-                            <span><i class="fas fa-shield-alt"></i> 專屬首發創作</span>
-                            ${reviewRatingHtml}
-                        </div>
-                        <div class="card-meta">
-                            <span>${w.submittedAt ? w.submittedAt.split(' ')[0] : ''}</span>
-                            <span style="color:#5d4037; font-weight:bold; display:inline-flex; align-items:center; gap:4px;">
-                                <i class="fas fa-book-reader"></i> 沈浸閱覽 →
-                            </span>
+                       </div>`
+                    : `<div class="card-vis">
+                            <div class="card-vis-placeholder">
+                                <i class="fas fa-feather-alt"></i>
+                                <span style="font-size:13px; font-weight:bold; color:#7d5836;">文文盃原創作品</span>
+                            </div>
+                            <div class="card-run-overlay">
+                                <span><i class="fas fa-book-reader"></i> 進入沈浸閱覽</span>
+                            </div>
+                       </div>`;
+
+                return `
+                    <div class="work-card" onclick="openImmersiveReader('${w.id}')" title="點擊展開《${escapeHtml(w.title)}》沈浸式牛皮紙閱讀器">
+                        ${visHtml}
+                        <div class="card-body">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                                <h3 class="card-title">${escapeHtml(w.title)}</h3>
+                                ${privBadge}
+                            </div>
+                            <p class="card-desc">${escapeHtml(descText)}</p>
+                            <div class="card-badges-row">
+                                <span class="badge-format">${formatLabel}</span>
+                                ${chapBadge}
+                                ${reviewRatingHtml}
+                            </div>
+                            <div class="card-meta">
+                                <div class="card-author">
+                                    ${avatarImg}
+                                    <span style="font-weight:bold;">${escapeHtml(w.authorName || w.author)}</span>
+                                </div>
+                                <span style="color:#8d6e63;">${w.submittedAt ? w.submittedAt.split(' ')[0] : ''}</span>
+                            </div>
                         </div>
                     </div>
                 `;
