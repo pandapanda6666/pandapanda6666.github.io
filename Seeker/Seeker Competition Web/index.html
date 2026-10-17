@@ -9,15 +9,15 @@
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Kalam:wght@400;700&family=Liu+Jian+Mao+Cao&family=Long+Cang&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Kalam:wght@400;700&family=Ma+Shan+Zheng&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="../../custom_ui.js"></script>
     <style>
         /* 泛黃紙背景與暖棕手寫字體主題 */
         body {
             margin: 0;
-            padding-top: 50px;
-            padding-bottom: 50px;
+            padding-top: 60px;
+            padding-bottom: 60px;
             background-color: #f7f1e1;
             background-image: 
                 radial-gradient(#eadebe 15%, transparent 16%), 
@@ -26,8 +26,13 @@
             background-size: 60px 60px, 60px 60px, 100% 100%;
             background-position: 0 0, 30px 30px, 0 0;
             color: #4a2c11;
-            font-family: 'Kalam', 'Caveat', 'Liu Jian Mao Cao', 'Ma Shan Zheng', '標楷體', 'BiauKai', 'DFKai-SB', cursive, serif;
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
             line-height: 1.7;
+        }
+
+        /* 確保所有按鈕、輸入框、導覽列清晰可讀，不因草書導致文字無法辨識 */
+        button, input, select, textarea, .navbar, .mode-btn, .action-btn, .status-badge, .badge-private, .badge-public, .badge-format, .modal-content, .notif-inner, .footer, .user-profile-panel {
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif !important;
         }
         
         #notificationBar {
@@ -113,7 +118,7 @@
         
         h1, h2, h3, h4, h5 {
             color: #3b200b;
-            font-family: 'Kalam', 'Caveat', 'Liu Jian Mao Cao', 'Ma Shan Zheng', '標楷體', cursive, serif;
+            font-family: 'Ma Shan Zheng', '標楷體', 'BiauKai', 'DFKai-SB', 'Noto Serif TC', serif;
             letter-spacing: 1px;
             margin-top: 0;
         }
@@ -210,7 +215,8 @@
         .reader-container {
             background: #fefcf7; border: 1.5px solid #d5c49f; border-radius: 8px;
             padding: 35px; margin-top: 20px; box-shadow: inset 0 0 35px rgba(180, 140, 70, 0.1);
-            line-height: 2.1; font-size: 18px; color: #43250c; white-space: pre-wrap; word-break: break-word;
+            line-height: 2.2; font-size: 19px; color: #43250c; white-space: pre-wrap; word-break: break-word;
+            font-family: 'Noto Serif TC', '標楷體', 'BiauKai', 'DFKai-SB', serif;
         }
 
         /* 模態框 (Modal) */
@@ -648,6 +654,8 @@
         let socket;
         let currentUser = null;
         let readerFontSize = 18;
+        let currentLang = 'zh';
+        window.serverUrl = '';
 
         // 比賽資料結構
         let db = {
@@ -817,50 +825,84 @@
             if (!sUrl) {
                 sUrl = localStorage.getItem('sso_server') || window.location.origin;
             }
+            window.serverUrl = sUrl;
+            localStorage.setItem('sso_server', sUrl);
 
-            socket = io(sUrl, { transports: ['polling', 'websocket'], extraHeaders: { 'ngrok-skip-browser-warning': '69420' } });
-
-            socket.on('connect', () => {
-                socket.emit('initClientInfo', { location: '文文盃', device: navigator.userAgent });
-                socket.emit('joinGameRoom', { room: appId, characterData: {} });
-                checkLogin();
-                loadCloudData();
-            });
-
-            socket.on('loginResult', (data) => {
-                if (data.success) {
-                    currentUser = data;
-                    localStorage.setItem('panda_session_token', data.token);
-                    if (data.isAdmin) localStorage.setItem('sso_admin', 'true');
-                    renderUserUI();
-                    renderCreatePage();
-                    renderBrowseList();
-                } else {
-                    localStorage.removeItem('panda_session_token');
-                    renderGuestUI();
-                }
-            });
-
-            // 雙向即時更新通知
-            socket.on('appData', (payload) => {
-                if (payload && payload.data) {
-                    db = payload.data;
-                    localStorage.setItem('cached_competition_db', JSON.stringify(db));
-                    renderBrowseList();
-                    renderCreatePage();
-                    updateAllStatusBars();
-                }
-            });
-
+            // 優先即時進行本地身份判定與快取渲染，不等 Socket 握手
             checkLogin();
             loadCloudData();
             updateAllStatusBars();
             setInterval(updateAllStatusBars, 60000); // 每分鐘刷新倒數
+
+            try {
+                socket = io(sUrl, { transports: ['polling', 'websocket'], extraHeaders: { 'ngrok-skip-browser-warning': '69420' } });
+
+                socket.on('connect', () => {
+                    socket.emit('initClientInfo', { location: '文文盃', device: navigator.userAgent });
+                    socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                    checkLogin();
+                    loadCloudData();
+                });
+
+                socket.on('loginResult', (data) => {
+                    if (data && data.success) {
+                        currentUser = {
+                            success: true,
+                            username: data.username,
+                            nickname: data.nickname || data.username,
+                            avatar: data.avatar || '',
+                            isAdmin: Boolean(data.isAdmin || localStorage.getItem('sso_isAdmin') === 'true' || localStorage.getItem('sso_admin') === 'true')
+                        };
+                        localStorage.setItem('panda_session_token', data.token);
+                        if (currentUser.isAdmin) {
+                            localStorage.setItem('sso_isAdmin', 'true');
+                            localStorage.setItem('sso_admin', 'true');
+                        }
+                        renderUserUI();
+                        renderCreatePage();
+                        renderBrowseList();
+                    } else {
+                        localStorage.removeItem('panda_session_token');
+                        const ssoAuth = localStorage.getItem('sso_auth') === 'true';
+                        const ssoUser = localStorage.getItem('sso_user');
+                        if (ssoAuth && ssoUser) {
+                            currentUser = {
+                                success: true,
+                                username: ssoUser,
+                                nickname: localStorage.getItem('sso_nickname') || ssoUser,
+                                avatar: localStorage.getItem('sso_avatar') || '',
+                                isAdmin: localStorage.getItem('sso_isAdmin') === 'true' || localStorage.getItem('sso_admin') === 'true'
+                            };
+                            renderUserUI();
+                            renderCreatePage();
+                            renderBrowseList();
+                        } else {
+                            currentUser = null;
+                            renderGuestUI();
+                            renderCreatePage();
+                            renderBrowseList();
+                        }
+                    }
+                });
+
+                // 雙向即時更新通知
+                socket.on('appData', (payload) => {
+                    if (payload && payload.data) {
+                        db = payload.data;
+                        localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                        renderBrowseList();
+                        renderCreatePage();
+                        updateAllStatusBars();
+                    }
+                });
+            } catch(e) {
+                console.warn('Socket 連線異常:', e);
+            }
         }
 
         async function loadCloudData() {
             // 1. REST API
-            const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : (localStorage.getItem('sso_server') || '');
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
             if (sUrl) {
                 try {
                     const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/get`, {
@@ -872,6 +914,10 @@
                             if (data.works) db.works = data.works;
                             if (data.settings) db.settings = { ...db.settings, ...data.settings };
                             localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                            renderBrowseList();
+                            renderCreatePage();
+                            updateAllStatusBars();
+                            handleUrlRouting();
                         }
                     }
                 } catch(e) {}
@@ -909,7 +955,7 @@
             }
 
             // 2. REST API
-            const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : (localStorage.getItem('sso_server') || '');
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
             if (sUrl) {
                 try {
                     await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/save`, {
@@ -927,14 +973,9 @@
             const token = params.get('token') || localStorage.getItem('panda_session_token');
             const ssoAuth = localStorage.getItem('sso_auth') === 'true';
             const ssoUser = localStorage.getItem('sso_user');
-            const ssoAdmin = localStorage.getItem('sso_admin') === 'true';
+            const ssoAdmin = localStorage.getItem('sso_isAdmin') === 'true' || localStorage.getItem('sso_admin') === 'true';
 
-            if (token && socket && socket.connected) {
-                socket.emit('tokenLogin', { token: token });
-                if(params.get('token')) {
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
-            } else if (ssoAuth && ssoUser) {
+            if (ssoAuth && ssoUser) {
                 currentUser = {
                     success: true,
                     username: ssoUser,
@@ -943,8 +984,19 @@
                     isAdmin: ssoAdmin
                 };
                 renderUserUI();
+                renderCreatePage();
+                renderBrowseList();
             } else {
                 renderGuestUI();
+                renderCreatePage();
+                renderBrowseList();
+            }
+
+            if (token && socket && socket.connected) {
+                socket.emit('tokenLogin', { token: token });
+                if(params.get('token')) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
             }
         }
 
@@ -1013,17 +1065,21 @@
             updateAllStatusBars();
         }
 
-        function logoutUser() {
+        window.logoutUser = function() {
             localStorage.removeItem('panda_session_token');
             localStorage.removeItem('sso_auth');
             localStorage.removeItem('sso_admin');
+            localStorage.removeItem('sso_isAdmin');
+            localStorage.removeItem('sso_user');
+            localStorage.removeItem('sso_nickname');
+            localStorage.removeItem('sso_avatar');
             currentUser = null;
             window.location.reload();
-        }
+        };
 
         // --- 頁面切換控制 ---
         const pageIds = ['home', 'about', 'create', 'browse'];
-        function showPage(id) {
+        window.showPage = function(id) {
             pageIds.forEach(p => {
                 const el = document.getElementById(`page-${p}`);
                 if (el) el.classList.add('hidden');
@@ -1033,22 +1089,26 @@
 
             // 模式按鈕狀態
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            if (id === 'home') document.getElementById('homeModeBtn').classList.add('active');
+            if (id === 'home') document.getElementById('homeModeBtn')?.classList.add('active');
             if (id === 'browse') {
-                document.getElementById('browseModeBtn').classList.add('active');
+                document.getElementById('browseModeBtn')?.classList.add('active');
+                document.getElementById('browseReadView')?.classList.add('hidden');
+                document.getElementById('browseListView')?.classList.remove('hidden');
                 renderBrowseList();
             }
             if (id === 'create') {
-                document.getElementById('createModeBtn').classList.add('active');
+                document.getElementById('createModeBtn')?.classList.add('active');
                 renderCreatePage();
             }
 
             updateAllStatusBars();
             window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+        };
 
-        document.getElementById('logoBtn').onclick = () => showPage('home');
-        document.getElementById('aboutBtn').onclick = (e) => { e.preventDefault(); showPage('about'); };
+        const logoBtn = document.getElementById('logoBtn');
+        if (logoBtn) logoBtn.onclick = () => showPage('home');
+        const abBtn = document.getElementById('aboutBtn');
+        if (abBtn) abBtn.onclick = (e) => { e.preventDefault(); showPage('about'); };
 
         // --- 頁面 3: 「我要參賽」一人一作與時程控制 ---
         function renderCreatePage() {
@@ -1170,7 +1230,7 @@
         }
 
         // 開啟編輯我的作品
-        function startEditingMyWork(work) {
+        window.startEditingMyWork = function(work) {
             if (isContestEnded()) {
                 alert('比賽交件已截止，作品無法再進行修改！');
                 return;
@@ -1215,18 +1275,22 @@
             if (work.cover) {
                 const img = document.getElementById('coverPreview');
                 img.src = work.cover; img.style.display = 'block';
+            } else {
+                document.getElementById('coverPreview').style.display = 'none';
             }
             if (work.banner) {
                 const img = document.getElementById('bannerPreview');
                 img.src = work.banner; img.style.display = 'block';
+            } else {
+                document.getElementById('bannerPreview').style.display = 'none';
             }
-        }
+        };
 
-        function cancelEditingMyWork() {
+        window.cancelEditingMyWork = function() {
             renderCreatePage();
-        }
+        };
 
-        function resetWorkForm() {
+        window.resetWorkForm = function() {
             document.getElementById('competitionForm').reset();
             document.getElementById('editWorkId').value = '';
             document.getElementById('coverPreview').style.display = 'none';
@@ -1237,9 +1301,9 @@
             document.getElementById('cp-is-public').checked = true;
             const agreeEl = document.getElementById('cp-agree-exclusive');
             if (agreeEl) agreeEl.checked = true;
-        }
+        };
 
-        function handleFormatChange(val) {
+        window.handleFormatChange = function(val) {
             const pdfBox = document.getElementById('pdf-settings-box');
             const fileBox = document.getElementById('file-upload-box');
             const textBox = document.getElementById('text-editor-box');
@@ -1264,27 +1328,30 @@
                 label.innerHTML = `上傳 Word (.docx) 檔案：<span style="color:#c62828;">*</span>`;
                 fileInput.accept = '.doc,.docx';
             }
-        }
+        };
 
-        function updateWordCount(val) {
+        window.updateWordCount = function(val) {
             const len = val ? val.trim().length : 0;
-            document.getElementById('wordCountLabel').innerText = `字數：${len} 字`;
-        }
+            const lbl = document.getElementById('wordCountLabel');
+            if (lbl) lbl.innerText = `字數：${len} 字`;
+        };
 
-        function previewImg(input, targetImgId) {
-            const file = input.files[0];
+        window.previewImg = function(input, targetImgId) {
+            const file = input && input.files ? input.files[0] : null;
             if (!file) return;
             const reader = new FileReader();
             reader.onload = (e) => {
                 const img = document.getElementById(targetImgId);
-                img.src = e.target.result;
-                img.style.display = 'block';
+                if (img) {
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                }
             };
             reader.readAsDataURL(file);
-        }
+        };
 
         // 提交參賽作品表單
-        async function handleWorkFormSubmit(e) {
+        window.handleWorkFormSubmit = async function(e) {
             e.preventDefault();
 
             if (!currentUser) {
@@ -1423,7 +1490,8 @@
 
             await saveCloudData();
             renderCreatePage();
-        }
+            renderBrowseList();
+        };
 
         // --- 頁面 4: 「作品展示」公開/不公開 與 閱讀器 ---
         function getVisibleWorks() {
@@ -1522,13 +1590,13 @@
             }).join('');
         }
 
-        function filterBrowseWorks() {
+        window.filterBrowseWorks = function() {
             renderBrowseList();
-        }
+        };
 
         // --- 單篇作品閱讀檢視 ---
-        function openReaderView(workId) {
-            const work = (db.works || []).find(w => w.id === workId);
+        window.openReaderView = function(workId) {
+            const work = (db.works || []).find(w => String(w.id) === String(workId));
             if (!work) return;
 
             const isEnded = isContestEnded();
@@ -1631,21 +1699,21 @@ ${escapeHtml(work.content || '（本作品無純文字內容）')}
             url.searchParams.set('work', workId);
             window.history.pushState({ work: workId }, '', url);
             window.scrollTo({ top: 150, behavior: 'smooth' });
-        }
+        };
 
-        function closeReaderView() {
+        window.closeReaderView = function() {
             document.getElementById('browseReadView').classList.add('hidden');
             document.getElementById('browseListView').classList.remove('hidden');
             const url = new URL(window.location);
             url.searchParams.delete('work');
             window.history.pushState({}, '', url);
-        }
+        };
 
-        function adjustReaderFont(delta) {
+        window.adjustReaderFont = function(delta) {
             readerFontSize = Math.max(14, Math.min(32, readerFontSize + delta));
             const el = document.getElementById('readerTextBody');
             if (el) el.style.fontSize = readerFontSize + 'px';
-        }
+        };
 
         function escapeHtml(str) {
             if (!str) return '';
@@ -1653,7 +1721,7 @@ ${escapeHtml(work.content || '（本作品無純文字內容）')}
         }
 
         // --- 管理員時程設定 Modal ---
-        function openAdminScheduleModal() {
+        window.openAdminScheduleModal = function() {
             if (!currentUser || !currentUser.isAdmin) {
                 alert('權限不足，只有管理員能設定比賽時程！');
                 return;
@@ -1663,13 +1731,13 @@ ${escapeHtml(work.content || '（本作品無純文字內容）')}
             document.getElementById('schedTitle').value = (db.settings && db.settings.title) ? db.settings.title : '第一屆探險者文文盃寫作比賽';
             document.getElementById('schedStartTime').value = (db.settings && db.settings.startTime) ? db.settings.startTime : '';
             document.getElementById('schedEndTime').value = (db.settings && db.settings.endTime) ? db.settings.endTime : '';
-        }
+        };
 
-        function closeAdminScheduleModal() {
+        window.closeAdminScheduleModal = function() {
             document.getElementById('adminScheduleModal').classList.add('hidden');
-        }
+        };
 
-        function applyQuickSchedule(val) {
+        window.applyQuickSchedule = function(val) {
             const pad = n => String(n).padStart(2, '0');
             const toLocalStr = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
             
@@ -1680,9 +1748,9 @@ ${escapeHtml(work.content || '（本作品無純文字內容）')}
                 const future = new Date(now.getTime() + val * 86400000);
                 document.getElementById('schedEndTime').value = toLocalStr(future);
             }
-        }
+        };
 
-        async function saveAdminSchedule(e) {
+        window.saveAdminSchedule = async function(e) {
             e.preventDefault();
             if (!currentUser || !currentUser.isAdmin) {
                 alert('只有管理員能設定比賽時程！');
@@ -1709,7 +1777,7 @@ ${escapeHtml(work.content || '（本作品無純文字內容）')}
             renderCreatePage();
             renderBrowseList();
             alert('比賽時程已成功更新並同步！');
-        }
+        };
 
         // --- 跑馬燈廣播機制 ---
         window.isBroadcastPaused = false;
