@@ -860,6 +860,166 @@
             display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s ease; font-family: inherit;
         }
         .notif-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+
+        /* ==================== 手機行動裝置深度 RWD 排版與防文字不當斷行優化 ==================== */
+        .status-badge, .badge-private, .badge-public, .badge-format, .mode-btn span, .action-btn span, .rating-pill {
+            white-space: nowrap !important;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding-bottom: 75px;
+            }
+            .navbar {
+                top: 30px;
+                padding: 6px 10px;
+                gap: 6px;
+                height: auto;
+            }
+            .nav-left {
+                gap: 5px;
+            }
+            .bear {
+                width: 44px;
+                height: 28px;
+            }
+            .zh-text {
+                font-size: 16px;
+                letter-spacing: 0.5px;
+            }
+            .en-text {
+                display: none; /* 手機端隱藏過長英文副標避免擠爆導覽列 */
+            }
+            .nav-right {
+                gap: 5px;
+            }
+            .seeker-online-pill {
+                padding: 2px 6px;
+                font-size: 11px;
+            }
+            #langSelect {
+                padding: 2px 4px;
+                font-size: 11px;
+            }
+            .nav-right a#aboutBtn {
+                font-size: 13px;
+                padding: 2px 4px;
+            }
+            .login-btn {
+                padding: 3px 10px;
+                font-size: 12px;
+                white-space: nowrap !important;
+            }
+            .user-profile-panel {
+                padding: 2px 6px;
+            }
+
+            /* 模式切換按鈕組：在手機上橫向平滑滑動，按鈕絕不折成垂直直排 */
+            .mode-selector {
+                margin-top: 75px;
+                padding: 8px 10px;
+                gap: 8px;
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                justify-content: flex-start;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .mode-selector::-webkit-scrollbar {
+                display: none;
+            }
+            .mode-btn {
+                padding: 6px 14px;
+                font-size: 14px;
+                white-space: nowrap !important;
+                flex-shrink: 0;
+            }
+
+            /* 主容器與橫幅 */
+            .container {
+                width: 95%;
+                padding: 16px 12px;
+                margin: 12px auto 70px auto;
+                border-radius: 6px;
+            }
+            .contest-status-bar {
+                padding: 10px 12px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .contest-status-bar > div {
+                width: 100%;
+            }
+            .status-badge {
+                font-size: 12px;
+                padding: 3px 8px;
+            }
+
+            /* 卡片網格：手機改為單列滿版 */
+            .works-grid {
+                grid-template-columns: 1fr !important;
+                gap: 14px;
+            }
+            .work-card {
+                width: 100%;
+                box-sizing: border-box;
+            }
+
+            /* 編輯器手機適配 */
+            .kraft-paper-editor {
+                padding: 14px 10px !important;
+                min-height: 360px !important;
+                word-break: break-all;
+                overflow-wrap: break-word;
+            }
+            .editor-toolbar {
+                gap: 4px;
+                padding: 6px;
+            }
+            .editor-tool-btn {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+
+            /* 沈浸式閱讀器手機優化 */
+            .immersive-nav-bar {
+                padding: 0 8px;
+                height: 50px;
+                min-height: 50px;
+                gap: 6px;
+            }
+            .immersive-nav-bar .hide-mobile {
+                display: none !important;
+            }
+            #immersiveWorkTitle {
+                max-width: 110px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: 13px !important;
+            }
+            .immersive-scroll-container {
+                padding: 12px 6px 70px 6px;
+            }
+            .immersive-paper-page {
+                padding: 20px 12px !important;
+                border-radius: 6px;
+                font-size: 16px !important;
+                line-height: 1.8 !important;
+            }
+            .immersive-drawer {
+                width: 85vw !important;
+                max-width: 320px;
+            }
+
+            /* 彈窗在手機上全螢幕貼合 */
+            .modal-content {
+                width: 95% !important;
+                padding: 18px 12px !important;
+                max-height: 92vh !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1460,34 +1620,69 @@
                     <button type="button" id="adminAiJudgeBtn" class="action-btn" style="margin:0; padding:8px 16px; font-size:14px; background:#4e342e; color:#ffe082;" onclick="adminStartAiJudge()">
                         <i class="fas fa-gavel"></i> 啟動 AI 智能文學評審與排行
                     </button>
-                    <!-- 刪除測試比賽按鈕 (測試比賽可隨時刪除，刪除後所屬作品與比賽完全消失) -->
+                    <!-- 複製私人比賽連結按鈕 (若為私人比賽則動態顯示) -->
+                    <button type="button" id="adminCopyPrivateLinkBtn" class="action-btn" style="margin:0; padding:8px 16px; font-size:14px; background:#e65100; color:#fff; display:none;" onclick="copyPrivateContestLink()">
+                        <i class="fas fa-link"></i> 複製私人比賽專屬連結
+                    </button>
+                    <!-- 無痕刪除比賽按鈕 (測試比賽、或無作品、或只有管理員作品均可無痕刪除) -->
                     <button type="button" id="adminDeleteTestContestBtn" class="action-btn danger" style="margin:0; padding:8px 16px; font-size:14px; display:none;" onclick="adminDeleteCurrentContest()">
-                        <i class="fas fa-trash-alt"></i> 刪除此測試比賽 (完全清空)
+                        <i class="fas fa-trash-alt"></i> 無痕刪除本屆比賽
                     </button>
                 </div>
                 <div id="adminDeleteHint" style="font-size:12px; color:#c62828; margin-top:8px; display:none;">
-                    <i class="fas fa-exclamation-triangle"></i> 提醒：此為測試用比賽，點擊刪除後，該比賽及其旗下所有參賽作品將自動完全永久消失！
+                    <i class="fas fa-check-circle"></i> 此比賽符合無痕刪除條件，點擊刪除後將自動完全永久清空所有相關數據與作品！
+                </div>
+                <!-- 底部重置清空幽靈比賽按鈕 -->
+                <div style="margin-top:12px; padding-top:10px; border-top:1px dashed #d5c4a1; display:flex; justify-content:flex-end;">
+                    <button type="button" class="action-btn secondary" style="margin:0; padding:4px 12px; font-size:12px; color:#c62828; border-color:#e57373;" onclick="adminClearAllCorruptedContests()" title="若有先前不小心開錯或卡住的比賽，可一鍵清空重置回空白狀態">
+                        <i class="fas fa-broom"></i> 清理/清空所有開錯的幽靈比賽 (徹底重置)
+                    </button>
                 </div>
             </div>
 
-            <!-- 區塊 2: 發起新一屆比賽 (固定第*屆自動累加，上一屆自動歸檔為歷屆作品) -->
+            <!-- 區塊 2: 發起新一屆比賽 (正式比賽 vs 測試比賽，支援自訂名稱與私人比賽) -->
             <div style="background:#f9f2e2; border:1.5px solid #d5c4a1; border-radius:10px; padding:20px;">
                 <h3 style="margin:0 0 12px 0; color:#3e2210;"><i class="fas fa-plus-circle"></i> 發起新一屆探險者文文盃寫作比賽</h3>
                 <p style="font-size:13px; color:#7d5836; margin:0 0 14px 0;">
-                    發起新比賽時，目前進行中或剛結束的舊比賽將自動歸檔封存至「歷屆作品」分頁，新比賽固定為第*屆自動增加。
+                    發起新比賽時，目前進行中或剛結束的舊比賽將自動歸檔封存至「歷屆作品」分頁。
                 </p>
 
                 <div style="display:flex; flex-direction:column; gap:14px;">
-                    <div>
-                        <label>新比賽名稱（系統固定自動遞增）：</label>
-                        <input type="text" id="newContestTitleInput" readonly style="background:rgba(0,0,0,0.04) !important; font-weight:bold; color:#5d4037;">
-                    </div>
-
-                    <div style="background:#fffaf0; border:1px solid #ebd8b5; padding:10px 14px; border-radius:6px;">
-                        <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; color:#bf360c; font-weight:bold;">
-                            <input type="checkbox" id="newContestIsTest" style="width:18px; height:18px;">
-                            <span>建立為「測試用比賽」（標籤顯示 [測試比賽]，全站皆可見，隨時可一鍵刪除且作品自動清空）</span>
+                    <!-- 比賽類型選擇：正式比賽 vs 測試比賽 -->
+                    <div style="background:#fffaf0; border:1.5px solid #d5c4a1; padding:12px 16px; border-radius:8px;">
+                        <label style="margin-top:0; font-weight:bold; color:#3e2210; font-size:15px; margin-bottom:8px;">
+                            <i class="fas fa-flag"></i> 比賽模式與性質：
                         </label>
+                        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:8px;">
+                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                <input type="radio" name="contestTypeRadio" id="typeOfficialRadio" value="official" checked onchange="toggleContestTypeUI()">
+                                <b><i class="fas fa-trophy" style="color:#f57f17;"></i> 正式比賽（固定第*屆自動累加，全站公開）</b>
+                            </label>
+                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                                <input type="radio" name="contestTypeRadio" id="typeTestRadio" value="test" onchange="toggleContestTypeUI()">
+                                <b style="color:#bf360c;"><i class="fas fa-vial"></i> 測試比賽（可自訂名稱、可設私人比賽、可無痕刪除）</b>
+                            </label>
+                        </div>
+
+                        <!-- 正式比賽名稱顯示框 -->
+                        <div id="officialTitleBox">
+                            <label style="margin-top:4px; font-size:13px; color:#5d4037;">正式比賽名稱（系統鎖定自動遞增）：</label>
+                            <input type="text" id="newContestTitleInput" readonly style="background:rgba(0,0,0,0.04) !important; font-weight:bold; color:#5d4037;">
+                        </div>
+
+                        <!-- 測試比賽專屬設定區 -->
+                        <div id="testContestSettingsBox" class="hidden" style="margin-top:8px; padding-top:10px; border-top:1px dashed #d5c4a1;">
+                            <div style="margin-bottom:10px;">
+                                <label style="margin-top:0; font-size:14px; color:#bf360c; font-weight:bold;">自訂測試比賽名稱：</label>
+                                <input type="text" id="customTestTitleInput" placeholder="例如：第1屆探險者文文盃測試交流賽">
+                            </div>
+                            <div style="background:#f5ebd7; border:1px solid #d4c29d; padding:10px 14px; border-radius:6px;">
+                                <label style="display:flex; align-items:center; gap:8px; margin:0; cursor:pointer; color:#5d4037; font-weight:bold;">
+                                    <input type="checkbox" id="testIsPrivateCheckbox" style="width:18px; height:18px;">
+                                    <span><i class="fas fa-lock"></i> 設定為「私人比賽」（只有持有專屬共用連結者才可看到並參賽，首頁對外隱藏）</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- 主題設定模式 -->
@@ -1796,44 +1991,108 @@
         } catch(e) {}
 
         // 競賽輔助檢索函數
+        // 權限與私人比賽授權檢查
+        function canAccessContest(c) {
+            if (!c) return false;
+            if (!c.isPrivate) return true;
+            if (currentUser && currentUser.isAdmin) return true;
+            try {
+                const params = new URLSearchParams(window.location.search);
+                const urlContest = params.get('contest');
+                const urlToken = params.get('token');
+                if (urlContest === c.id && urlToken && urlToken === c.privateToken) {
+                    sessionStorage.setItem('access_contest_' + c.id, urlToken);
+                    return true;
+                }
+                if (sessionStorage.getItem('access_contest_' + c.id) === c.privateToken) {
+                    return true;
+                }
+            } catch(e) {}
+            return false;
+        }
+
+        // 判定比賽是否可無痕刪除（測試用比賽、或無參賽作品、或只有管理員作品）
+        function canContestBeSeamlesslyDeleted(c) {
+            if (!c) return false;
+            if (c.isTest) return true;
+            const works = c.works || [];
+            if (works.length === 0) return true;
+            const isAdminAuthor = (author) => {
+                if (currentUser && currentUser.isAdmin && currentUser.username === author) return true;
+                return author === 'admin' || author === 'system';
+            };
+            return works.every(w => isAdminAuthor(w.author));
+        }
+
+        // 複製私人比賽共用連結
+        window.copyPrivateContestLink = function(contestId, token) {
+            const cur = contestId ? getAllContests().find(c => c.id === contestId) : getCurrentContest();
+            if (!cur) return;
+            const cId = cur.id;
+            const tok = token || cur.privateToken;
+            const url = new URL(window.location.href);
+            url.searchParams.set('contest', cId);
+            if (tok) url.searchParams.set('token', tok);
+            const linkStr = url.toString();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(linkStr).then(() => {
+                    alert('私人比賽專屬共用連結已成功複製！\n\n' + linkStr);
+                }).catch(() => {
+                    prompt('請手動複製私人比賽專屬連結：', linkStr);
+                });
+            } else {
+                prompt('請手動複製私人比賽專屬連結：', linkStr);
+            }
+        };
+
+        // 競賽輔助檢索函數
         function getAllContests() {
-            return (db.contests || []);
+            if (!db || !Array.isArray(db.contests)) return [];
+            return db.contests.filter(canAccessContest);
         }
 
         function getCurrentContest() {
-            if (!db || !Array.isArray(db.contests) || db.contests.length === 0) return null;
+            const accessible = getAllContests();
+            if (accessible.length === 0) return null;
             if (db.currentContestId) {
-                const found = db.contests.find(c => c.id === db.currentContestId);
+                const found = accessible.find(c => c.id === db.currentContestId);
                 if (found) return found;
             }
-            const nonArchived = db.contests.slice().reverse().find(c => c.status !== 'archived');
+            const nonArchived = accessible.slice().reverse().find(c => c.status !== 'archived');
             if (nonArchived) return nonArchived;
-            return db.contests[db.contests.length - 1];
+            return accessible[accessible.length - 1] || null;
         }
 
         function getEndedContest() {
-            if (!db || !Array.isArray(db.contests)) return null;
+            const accessible = getAllContests();
+            if (accessible.length === 0) return null;
             const cur = getCurrentContest();
             if (cur && cur.status === 'ended') return cur;
-            return db.contests.slice().reverse().find(c => c.status === 'ended') || cur;
+            return accessible.slice().reverse().find(c => c.status === 'ended') || cur;
         }
 
         function getArchivedContests() {
-            if (!db || !Array.isArray(db.contests)) return [];
-            return db.contests.filter(c => c.status === 'archived').sort((a, b) => (b.edition || 0) - (a.edition || 0));
+            return getAllContests()
+                .filter(c => c.status === 'archived')
+                .sort((a, b) => (b.edition || 0) - (a.edition || 0));
         }
 
         function getAllWorks() {
             let all = [];
-            if (Array.isArray(db.works)) all = all.concat(db.works);
-            if (Array.isArray(db.contests)) {
-                db.contests.forEach(c => {
-                    if (Array.isArray(c.works)) {
-                        c.works.forEach(w => {
-                            if (!all.some(existing => String(existing.id) === String(w.id))) {
-                                all.push(w);
-                            }
-                        });
+            const contests = getAllContests();
+            contests.forEach(c => {
+                if (Array.isArray(c.works)) {
+                    c.works.forEach(w => {
+                        if (!all.some(existing => String(existing.id) === String(w.id))) {
+                            all.push(w);
+                        }
+                    });
+                }
+            });
+            if (Array.isArray(db.works)) {
+                db.works.forEach(w => {
+                    if (!all.some(existing => String(existing.id) === String(w.id))) {
+                        all.push(w);
                     }
                 });
             }
@@ -1874,7 +2133,25 @@
         function formatContestStatus() {
             const { now, sTime, eTime, sStr, eStr } = getContestTimes();
             const cur = getCurrentContest();
-            const title = cur ? cur.title : ((db.settings && db.settings.title) ? db.settings.title : "第一屆探險者文文盃寫作比賽");
+
+            if (!cur) {
+                return {
+                    title: "探險者文文盃寫作比賽",
+                    rangeText: `<i class="fas fa-info-circle"></i> 目前暫無進行中之文文盃比賽`,
+                    badgeClass: 'status-pending',
+                    badgeText: `<i class="fas fa-hourglass-start"></i> 籌劃備賽中`,
+                    isStarted: false,
+                    isEnded: false,
+                    noContest: true
+                };
+            }
+
+            let title = cur.title;
+            if (cur.isPrivate) {
+                title += ' <span style="font-size:12px; background:#e65100; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle;"><i class="fas fa-lock"></i> 私人比賽</span>';
+            } else if (cur.isTest) {
+                title += ' <span style="font-size:12px; background:#bf360c; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle;"><i class="fas fa-vial"></i> 測試賽</span>';
+            }
             
             const formatDT = (dStr) => {
                 if (!dStr) return '未設定';
@@ -2010,32 +2287,46 @@
 
         window.renderTopicDisplay = function() {
             const cur = getCurrentContest();
-            let topic = '迷霧森林的古老守護者';
-            let desc = '在神祕而未知的原始山林深處，沉睡著受大自然祝福的守護者。請以此為題，描寫一段關於相遇、考驗與契約的奇幻冒險。';
+            const homeT = document.getElementById('homeTopicTitle');
+            const homeD = document.getElementById('homeTopicDesc');
+            const createT = document.getElementById('createTopicTitle');
+            const createD = document.getElementById('createTopicDesc');
 
-            if (cur) {
-                if (cur.selectedTopic && cur.selectedTopic.title) {
-                    topic = cur.selectedTopic.title;
-                    desc = cur.selectedTopic.desc || '';
-                    if (cur.selectedTopic.rules) desc += '\n\n【題目指引與規範】\n' + cur.selectedTopic.rules;
-                } else if (cur.topic) {
-                    topic = cur.topic;
-                    desc = cur.topicDesc || '';
+            if (!cur) {
+                const emptyTitle = '大會籌劃準備中（尚未發布題目）';
+                const emptyDesc = '目前暫無進行中之文文盃比賽。管理員可透過大會管理控制台發起新一屆正式比賽或測試用比賽！';
+                if (homeT) homeT.innerHTML = `<i class="fas fa-feather-alt" style="color:#b26a00; font-size:22px; margin-right:8px;"></i>${emptyTitle}`;
+                if (homeD) {
+                    homeD.innerHTML = `
+                        <div style="color:#5a3818; line-height:1.9;">${emptyDesc}</div>
+                        ${(currentUser && currentUser.isAdmin) ? `<div style="margin-top:15px;"><button type="button" class="action-btn" style="margin:0;" onclick="openAdminScheduleModal()"><i class="fas fa-plus-circle"></i> 立即發起新賽事（正式/測試）</button></div>` : ''}
+                    `;
                 }
-            } else if (db.settings) {
-                if (db.settings.topic) topic = db.settings.topic;
-                if (db.settings.topicDesc) desc = db.settings.topicDesc;
+                if (createT) createT.innerText = emptyTitle;
+                if (createD) createD.innerHTML = `<b>【題目指引】</b>${emptyDesc}`;
+                return;
+            }
+
+            let topic = '大會徵文主題';
+            let desc = '';
+
+            if (cur.selectedTopic && cur.selectedTopic.title) {
+                topic = cur.selectedTopic.title;
+                desc = cur.selectedTopic.desc || '';
+                if (cur.selectedTopic.rules) desc += '\n\n【題目指引與規範】\n' + cur.selectedTopic.rules;
+            } else if (cur.topic) {
+                topic = cur.topic;
+                desc = cur.topicDesc || '';
+            } else if (cur.status === 'voting') {
+                topic = '主題票選進行中（由全站讀者投票決定正式題目）';
+                desc = '請於下方票選專區投下您的一票！票選截止後將自動採用最高票者作為正式徵文題目。';
             }
 
             // 首頁題目展示
-            const homeT = document.getElementById('homeTopicTitle');
-            const homeD = document.getElementById('homeTopicDesc');
             if (homeT) homeT.innerHTML = `<i class="fas fa-feather-alt" style="color:#b26a00; font-size:22px; margin-right:8px;"></i>${escapeHtml(topic)}`;
             if (homeD) homeD.innerHTML = `<div style="font-weight:bold; color:#3e2210; margin-bottom:4px;"><i class="fas fa-compass"></i> 題目指引與創作要求：</div>${escapeHtml(desc).replace(/\n/g, '<br>')}`;
 
             // 參賽頁面常駐題目提示
-            const createT = document.getElementById('createTopicTitle');
-            const createD = document.getElementById('createTopicDesc');
             if (createT) createT.innerText = topic;
             if (createD) createD.innerHTML = `<b>【題目指引】</b>${escapeHtml(desc).replace(/\n/g, '<br>')}`;
         };
@@ -2120,6 +2411,21 @@
             }
         };
 
+        async function safeFetchJson(url, options = {}) {
+            const res = await fetch(url, options);
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch(err) {
+                throw new Error(`伺服器回應格式異常 (HTTP ${res.status}): ${text.slice(0, 100)}`);
+            }
+            if (!res.ok) {
+                throw new Error(data && data.error ? data.error : `伺服器回應錯誤 (HTTP ${res.status})`);
+            }
+            return data;
+        }
+
         window.voteContestTopic = async function(contestId, topicId) {
             if (!currentUser) {
                 alert('請先登入帳號後再參與題目票選！');
@@ -2128,12 +2434,11 @@
             }
             const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
             try {
-                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/vote-topic`, {
+                const data = await safeFetchJson(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/vote-topic`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
                     body: JSON.stringify({ contestId, topicId, username: currentUser.username })
                 });
-                const data = await res.json();
                 if (data.success) {
                     if (data.db) Object.assign(db, data.db);
                     await saveCloudData();
@@ -2267,10 +2572,11 @@
                     if (res.ok) {
                         const data = await res.json();
                         if (data && typeof data === 'object') {
-                            Object.assign(db, data);
-                            if (!db.contests) db.contests = [];
-                            if (!db.settings) db.settings = {};
-                            if (!db.works) db.works = [];
+                            db.currentContestId = data.currentContestId || null;
+                            db.nextEdition = data.nextEdition || 1;
+                            db.contests = Array.isArray(data.contests) ? data.contests : [];
+                            db.works = Array.isArray(data.works) ? data.works : [];
+                            db.settings = data.settings || {};
                             localStorage.setItem('cached_competition_db', JSON.stringify(db));
                             renderAllPages();
                             handleUrlRouting();
@@ -2285,11 +2591,14 @@
                     if (res) {
                         const remoteDb = res.data || res;
                         if (remoteDb && typeof remoteDb === 'object') {
-                            Object.assign(db, remoteDb);
-                            if (!db.contests) db.contests = [];
-                            if (!db.settings) db.settings = {};
-                            if (!db.works) db.works = [];
-                            localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                            if (Array.isArray(remoteDb.contests)) {
+                                db.currentContestId = remoteDb.currentContestId || null;
+                                db.nextEdition = remoteDb.nextEdition || 1;
+                                db.contests = remoteDb.contests;
+                                db.works = Array.isArray(remoteDb.works) ? remoteDb.works : [];
+                                db.settings = remoteDb.settings || {};
+                                localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                            }
                         }
                     }
                     renderAllPages();
@@ -3363,6 +3672,20 @@
             if (!grid) return;
 
             const cur = getCurrentContest();
+
+            if (!cur) {
+                if (summary) summary.innerHTML = `<span style="color:#5a3818;"><i class="fas fa-info-circle"></i> 目前無進行中之文文盃比賽，請等待大會公佈！</span>`;
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; text-align:center; padding:50px 20px; background:#f7f0dc; border:1.5px dashed #d5c49f; border-radius:12px;">
+                        <i class="fas fa-feather-alt" style="font-size:42px; color:#b26a00; margin-bottom:12px;"></i>
+                        <p style="font-size:18px; color:#5a3818; margin:0 0 14px 0; font-weight:bold;">目前暫無進行中之文文盃徵件賽事</p>
+                        <p style="font-size:15px; color:#7d5836; margin:0 0 18px 0;">新一屆賽事籌備中，敬請密切關注最新動態！若您想品讀過往大作，可前往歷屆作品閱覽。</p>
+                        <button type="button" class="action-btn secondary" onclick="showPage('archive')"><i class="fas fa-history"></i> 前往「歷屆作品」分頁</button>
+                    </div>
+                `;
+                return;
+            }
+
             const isEnded = isContestEnded();
             
             if (isEnded) {
@@ -3378,7 +3701,7 @@
                 return;
             }
 
-            const works = (cur && cur.works && cur.works.length > 0) ? cur.works : (db.works || []);
+            const works = (cur && Array.isArray(cur.works)) ? cur.works : [];
             const visible = works.filter(w => {
                 if (w.isPublic !== false) return true;
                 if (currentUser && (currentUser.isAdmin || currentUser.username === w.author)) return true;
@@ -4524,8 +4847,10 @@
             const curStatusEl = document.getElementById('adminCurrentStatusBadge');
             const deleteTestBtn = document.getElementById('adminDeleteTestContestBtn');
             const deleteHint = document.getElementById('adminDeleteHint');
+            const copyPrivateBtn = document.getElementById('adminCopyPrivateLinkBtn');
             const toggleBtn = document.getElementById('adminToggleCloseBtn');
             const nextEditionInput = document.getElementById('newContestTitleInput');
+            const customTestTitleInput = document.getElementById('customTestTitleInput');
 
             if (cur) {
                 if (curTitleEl) curTitleEl.innerText = cur.title;
@@ -4538,15 +4863,30 @@
                     curStatusEl.innerHTML = `<span class="status-badge ${stClass}">${stText}</span>`;
                 }
 
-                if (cur.isTest) {
-                    if (deleteTestBtn) deleteTestBtn.style.display = 'inline-flex';
-                    if (deleteHint) deleteHint.style.display = 'block';
+                // 私人比賽共用連結按鈕
+                if (copyPrivateBtn) {
+                    copyPrivateBtn.style.display = cur.isPrivate ? 'inline-flex' : 'none';
+                }
+
+                // 無痕刪除判定 (測試比賽、無參賽作品、或只有管理員作品)
+                const canDel = canContestBeSeamlesslyDeleted(cur);
+                if (canDel) {
+                    if (deleteTestBtn) {
+                        deleteTestBtn.style.display = 'inline-flex';
+                        deleteTestBtn.innerHTML = `<i class="fas fa-trash-alt"></i> 無痕刪除本屆比賽`;
+                    }
+                    if (deleteHint) {
+                        deleteHint.style.display = 'block';
+                        const reasonText = cur.isTest ? '測試用賽事' : ((cur.works && cur.works.length > 0) ? '僅有管理員作品' : '無參賽作品');
+                        deleteHint.innerHTML = `<i class="fas fa-check-circle"></i> 此比賽符合無痕刪除條件（${reasonText}），點擊刪除後將完全無痕清空！`;
+                    }
                 } else {
                     if (deleteTestBtn) deleteTestBtn.style.display = 'none';
                     if (deleteHint) deleteHint.style.display = 'none';
                 }
 
                 if (toggleBtn) {
+                    toggleBtn.style.display = 'inline-flex';
                     if (cur.status === 'ended') {
                         toggleBtn.className = 'action-btn';
                         toggleBtn.style.background = '#2e7d32';
@@ -4558,16 +4898,23 @@
                     }
                 }
             } else {
-                if (curTitleEl) curTitleEl.innerText = '目前無進行中之賽事';
-                if (curStatusEl) curStatusEl.innerHTML = `<span class="status-badge status-closed">無比賽</span>`;
+                if (curTitleEl) curTitleEl.innerText = '目前無進行中之賽事（等待發起）';
+                if (curStatusEl) curStatusEl.innerHTML = `<span class="status-badge status-pending">尚無比賽</span>`;
                 if (deleteTestBtn) deleteTestBtn.style.display = 'none';
                 if (deleteHint) deleteHint.style.display = 'none';
+                if (copyPrivateBtn) copyPrivateBtn.style.display = 'none';
+                if (toggleBtn) toggleBtn.style.display = 'none';
             }
 
             const nextEd = db.nextEdition || ((cur ? (cur.edition || 0) : 0) + 1);
             if (nextEditionInput) {
                 nextEditionInput.value = `第${nextEd}屆探險者文文盃寫作比賽`;
             }
+            if (customTestTitleInput && !customTestTitleInput.value) {
+                customTestTitleInput.value = `第${nextEd}屆探險者文文盃測試交流賽`;
+            }
+
+            toggleContestTypeUI();
 
             const pad = n => String(n).padStart(2, '0');
             const toLocalStr = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -4582,6 +4929,46 @@
 
         window.closeAdminScheduleModal = function() {
             document.getElementById('adminScheduleModal').classList.add('hidden');
+        };
+
+        window.toggleContestTypeUI = function() {
+            const isTest = document.getElementById('typeTestRadio')?.checked;
+            const officialBox = document.getElementById('officialTitleBox');
+            const testBox = document.getElementById('testContestSettingsBox');
+            if (isTest) {
+                if (officialBox) officialBox.classList.add('hidden');
+                if (testBox) testBox.classList.remove('hidden');
+            } else {
+                if (officialBox) officialBox.classList.remove('hidden');
+                if (testBox) testBox.classList.add('hidden');
+            }
+        };
+
+        window.adminClearAllCorruptedContests = async function() {
+            if (!currentUser || !currentUser.isAdmin) {
+                alert('權限不足！只有管理員能執行資料重置。');
+                return;
+            }
+            if (!confirm('確定要徹底清理/清空全站所有比賽與幽靈快取資料嗎？\n\n這將重置後端伺服器與本地快取為全新乾淨空白狀態，彻底清除之前開錯的幽靈比賽！此動作無法復原。')) {
+                return;
+            }
+
+            db.currentContestId = null;
+            db.nextEdition = 1;
+            db.contests = [];
+            db.works = [];
+            if (db.settings) {
+                db.settings.title = '';
+                db.settings.topic = '';
+                db.settings.topicDesc = '';
+                db.settings.startTime = '';
+                db.settings.endTime = '';
+            }
+            localStorage.removeItem('cached_competition_db');
+            await saveCloudData();
+            closeAdminScheduleModal();
+            renderAllPages();
+            alert('全站比賽資料已徹底清空重置為空白狀態！您現在可以重新建立全新的正式或測試比賽。');
         };
 
         window.toggleTopicModeUI = function() {
@@ -4642,12 +5029,11 @@
                 previewBox.innerHTML = `<div style="padding:15px; text-align:center; color:#8d6e63;"><i class="fas fa-spinner fa-spin"></i> 伺服器 AI 正在深思構思 3 組高水準題目並進行二次深度合規審核中...</div>`;
             }
             try {
-                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/ai-generate-topics`, {
+                const data = await safeFetchJson(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/ai-generate-topics`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
                     body: JSON.stringify({})
                 });
-                const data = await res.json();
                 if (data.success && data.topics) {
                     window.tempAiGeneratedTopics = data.topics;
                     window.tempAiAudit = data.audit;
@@ -4686,7 +5072,9 @@
             }
 
             const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
-            const isTest = document.getElementById('newContestIsTest').checked;
+            const isTest = document.getElementById('typeTestRadio').checked;
+            const isPrivate = isTest && document.getElementById('testIsPrivateCheckbox').checked;
+            const customTitle = isTest ? document.getElementById('customTestTitleInput').value.trim() : '';
             const isVotingMode = document.getElementById('topicModeVoting').checked;
             const startTime = document.getElementById('newContestStartTime').value;
             const endTime = document.getElementById('newContestEndTime').value;
@@ -4694,6 +5082,8 @@
 
             let payload = {
                 isTest: isTest,
+                isPrivate: isPrivate,
+                title: customTitle,
                 hasVoting: isVotingMode,
                 startTime: startTime,
                 endTime: endTime,
@@ -4730,23 +5120,23 @@
                 };
             }
 
-            if (!confirm(`確定要正式發布${isTest ? '【測試用比賽】' : '【正式比賽】'}嗎？\n\n發布後舊比賽將自動歸檔為「歷屆作品」！`)) {
+            const contestTypeDesc = isTest ? (isPrivate ? '【私人測試比賽（持專屬連結可見）】' : '【公開測試比賽】') : '【正式比賽】';
+            if (!confirm(`確定要發起${contestTypeDesc}嗎？\n\n發布後舊比賽將自動歸檔為「歷屆作品」！`)) {
                 return;
             }
 
             try {
-                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/create-contest`, {
+                const data = await safeFetchJson(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/create-contest`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
                 if (data.success) {
                     if (data.db) Object.assign(db, data.db);
                     await saveCloudData();
                     closeAdminScheduleModal();
                     renderAllPages();
-                    alert('新一屆文文盃比賽已成功發起並同步至全站！');
+                    alert(`新一屆文文盃${contestTypeDesc}已成功發起！`);
                 } else {
                     alert('發起失敗：' + (data.error || '未知原因'));
                 }
@@ -4757,7 +5147,7 @@
 
         window.adminDeleteCurrentContest = async function() {
             if (!currentUser || !currentUser.isAdmin) {
-                alert('權限不足！');
+                alert('權限不足！只有管理員能刪除比賽。');
                 return;
             }
             const cur = getCurrentContest();
@@ -4765,29 +5155,28 @@
                 alert('目前無可刪除的比賽！');
                 return;
             }
-            if (!cur.isTest) {
-                alert('只有標記為「測試用比賽」才能由管理員直接刪除！');
+            if (!canContestBeSeamlesslyDeleted(cur)) {
+                alert('此比賽已有一般創作者的參賽作品，為保護創作者心血，僅限測試賽、無作品或僅有管理員作品之賽事進行無痕刪除！');
                 return;
             }
 
-            if (!confirm(`確定要完全刪除「${cur.title}」嗎？\n\n此為測試比賽，刪除後該比賽與旗下所有參賽作品將自動永久消失！此動作無法復原！`)) {
+            if (!confirm(`確定要無痕刪除「${cur.title}」嗎？\n\n此賽事符合無痕清空規範，刪除後該比賽與其所有紀錄將自動永久消失，不留任何痕跡！此動作無法復原！`)) {
                 return;
             }
 
             const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
             try {
-                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/delete-contest`, {
+                const data = await safeFetchJson(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/delete-contest`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
-                    body: JSON.stringify({ contestId: cur.id })
+                    body: JSON.stringify({ contestId: cur.id, username: currentUser.username, forceDelete: true })
                 });
-                const data = await res.json();
                 if (data.success) {
                     if (data.db) Object.assign(db, data.db);
                     await saveCloudData();
                     closeAdminScheduleModal();
                     renderAllPages();
-                    alert('測試比賽及所屬作品已完全清空刪除！');
+                    alert('比賽及所屬紀錄已完全無痕清空刪除！');
                 } else {
                     alert('刪除失敗：' + (data.error || '未知原因'));
                 }
@@ -4822,12 +5211,11 @@
             if (btn) btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> AI 文學評判運算中...`;
 
             try {
-                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/ai-judge`, {
+                const data = await safeFetchJson(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/ai-judge`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
                     body: JSON.stringify({ contestId: cur.id })
                 });
-                const data = await res.json();
                 if (data.success && data.evaluation) {
                     cur.evaluation = data.evaluation;
                     if (cur.status !== 'archived') cur.status = 'ended';
