@@ -1120,8 +1120,11 @@
                 <i class="fas fa-circle" style="color:#2e7d32; font-size:8px;"></i>
                 <span>在線：<b id="seekerOnlineCount">1</b> 人</span>
             </div>
-            <select id="langSelect">
-                <option value="zh" selected>繁體中文</option>
+            <select id="langSelect" onchange="changeLanguage(this.value)">
+                <option value="zh-TW" selected>繁體中文 (臺灣)</option>
+                <option value="zh-HK">繁體中文 (香港)</option>
+                <option value="zh-CN">简体中文</option>
+                <option value="ja">日本語</option>
                 <option value="en">English</option>
             </select>
             <a href="#" id="aboutBtn">比賽章程</a>
@@ -1131,13 +1134,17 @@
 
     <!-- 模式選擇按鈕組 -->
     <div class="mode-selector">
-        <button id="homeModeBtn" class="mode-btn active" onclick="showPage('home')"><i class="fas fa-home"></i> 首頁</button>
-        <button id="rulesModeBtn" class="mode-btn" onclick="showPage('about')"><i class="fas fa-scroll"></i> 比賽章程</button>
-        <button id="worksModeBtn" class="mode-btn" onclick="showPage('works')"><i class="fas fa-feather-alt"></i> 作品</button>
-        <button id="browseModeBtn" class="mode-btn" onclick="showPage('browse')"><i class="fas fa-award"></i> 作品展示</button>
-        <button id="archiveModeBtn" class="mode-btn" onclick="showPage('archive')"><i class="fas fa-archive"></i> 歷屆作品</button>
-        <button id="createModeBtn" class="mode-btn" onclick="showPage('create')"><i class="fas fa-edit"></i> 我要參賽</button>
-        <button id="adminSchedBtn" class="mode-btn admin-btn" style="display:none;" onclick="openAdminScheduleModal()"><i class="fas fa-cog"></i> 大會管理</button>
+        <button id="homeModeBtn" class="mode-btn active" onclick="showPage('home')"><i class="fas fa-home"></i> <span class="i18n-home">首頁</span></button>
+        <button id="rulesModeBtn" class="mode-btn" onclick="showPage('about')"><i class="fas fa-scroll"></i> <span class="i18n-rules">比賽章程</span></button>
+        <button id="worksModeBtn" class="mode-btn" onclick="showPage('works')"><i class="fas fa-feather-alt"></i> <span class="i18n-works">作品</span></button>
+        <button id="browseModeBtn" class="mode-btn" onclick="showPage('browse')"><i class="fas fa-award"></i> <span class="i18n-browse">作品展示</span></button>
+        <button id="archiveModeBtn" class="mode-btn" onclick="showPage('archive')"><i class="fas fa-archive"></i> <span class="i18n-archive">歷屆作品</span></button>
+        <button id="createModeBtn" class="mode-btn" onclick="showPage('create')"><i class="fas fa-edit"></i> <span class="i18n-create">我要參賽</span></button>
+        <!-- 手動輸入十位數代碼加入比賽按鈕 -->
+        <button id="joinByCodeBtn" class="mode-btn" style="background:#f4ead2; color:#5a3818; border-color:#cbb692;" onclick="openJoinContestModal()"><i class="fas fa-key"></i> <span class="i18n-join-code">輸入代碼加入比賽</span></button>
+        <!-- 創辦比賽按鈕（一般人建立自訂賽事，管理員建立大會賽事） -->
+        <button id="createContestBtn" class="mode-btn" style="background:#5d4037; color:#fff8eb; border-color:#3e2723;" onclick="openContestCreationModal()"><i class="fas fa-plus-circle"></i> <span class="i18n-create-contest">發起比賽</span></button>
+        <button id="adminSchedBtn" class="mode-btn admin-btn" style="display:none;" onclick="openAdminScheduleModal()"><i class="fas fa-cog"></i> <span class="i18n-admin">大會管理</span></button>
     </div>
 
     <!-- 頁面 1: 首頁 -->
@@ -1649,12 +1656,12 @@
         <div class="modal-content" style="max-width: 850px; width: 95%;">
             <span class="close-btn" onclick="closeAdminScheduleModal()" title="關閉"><i class="fas fa-times"></i></span>
             <div style="display:flex; align-items:center; gap:10px; border-bottom:2px dashed #bfa57c; padding-bottom:12px; margin-bottom:16px;">
-                <h2 style="margin:0; color:#3e2723;"><i class="fas fa-tools"></i> 文文盃大會管理控制台</h2>
-                <span style="font-size:13px; color:#5d4037; background:#ebdcb9; padding:3px 10px; border-radius:12px;">管理員專屬</span>
+                <h2 style="margin:0; color:#3e2723;" id="adminModalMainTitle"><i class="fas fa-tools"></i> 文文盃比賽發起與管理中心</h2>
+                <span style="font-size:13px; color:#5d4037; background:#ebdcb9; padding:3px 10px; border-radius:12px;" id="adminModalUserBadge">大會主辦</span>
             </div>
 
             <!-- 區塊 1: 當前進行中/已建立賽事操作面板 -->
-            <div style="background:#fcf8ee; border:1.5px solid #c9b48c; border-radius:10px; padding:18px; margin-bottom:20px; box-shadow:0 2px 8px rgba(80,50,20,0.06);">
+            <div id="adminActionButtonsSection" style="background:#fcf8ee; border:1.5px solid #c9b48c; border-radius:10px; padding:18px; margin-bottom:20px; box-shadow:0 2px 8px rgba(80,50,20,0.06);">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-bottom:1px dashed #d5c4a1; padding-bottom:10px; margin-bottom:12px;">
                     <div>
                         <div style="font-size:12px; color:#8d6e63; font-weight:bold;">當前賽事資訊</div>
@@ -1689,18 +1696,19 @@
                     <i class="fas fa-check-circle"></i> 此比賽符合無痕刪除條件，點擊刪除後將自動完全永久清空所有相關數據與作品！
                 </div>
                 <!-- 底部重置清空幽靈比賽按鈕 -->
-                <div style="margin-top:12px; padding-top:10px; border-top:1px dashed #d5c4a1; display:flex; justify-content:flex-end;">
+                <div id="adminCorruptedClearBox" style="margin-top:12px; padding-top:10px; border-top:1px dashed #d5c4a1; display:flex; justify-content:flex-end;">
                     <button type="button" class="action-btn secondary" style="margin:0; padding:4px 12px; font-size:12px; color:#c62828; border-color:#e57373;" onclick="adminClearAllCorruptedContests()" title="若有先前不小心開錯或卡住的比賽，可一鍵清空重置回空白狀態">
                         <i class="fas fa-broom"></i> 清理/清空所有開錯的幽靈比賽 (徹底重置)
                     </button>
                 </div>
             </div>
 
-            <!-- 區塊 2: 發起新一屆比賽 (正式比賽 vs 測試比賽，支援自訂名稱與私人比賽) -->
+            <!-- 區塊 2: 發起比賽 (支援官方正式賽事與個人自訂賽事/私人賽事) -->
             <div style="background:#f9f2e2; border:1.5px solid #d5c4a1; border-radius:10px; padding:20px;">
-                <h3 style="margin:0 0 12px 0; color:#3e2210;"><i class="fas fa-plus-circle"></i> 發起新一屆探險者文文盃寫作比賽</h3>
+                <h3 style="margin:0 0 8px 0; color:#3e2210;"><i class="fas fa-plus-circle"></i> 發起文文盃寫作比賽</h3>
+                <div id="adminCreatorNotice" style="font-size:13.5px; color:#5d4037; background:#fff8eb; border:1px solid #d4c29d; padding:8px 12px; border-radius:6px; margin-bottom:12px;"></div>
                 <p style="font-size:13px; color:#7d5836; margin:0 0 14px 0;">
-                    發起新比賽時，目前進行中或剛結束的舊比賽將自動歸檔封存至「歷屆作品」分頁。
+                    發起官方比賽時，舊比賽將自動歸檔為「歷屆作品」；創作者自訂比賽則作為獨立賽事發布，不影響官方歷屆賽程。
                 </p>
 
                 <div style="display:flex; flex-direction:column; gap:14px;">
@@ -1709,14 +1717,15 @@
                         <label style="margin-top:0; font-weight:bold; color:#3e2210; font-size:15px; margin-bottom:8px;">
                             <i class="fas fa-flag"></i> 比賽模式與性質：
                         </label>
-                        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:8px;">
-                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
+                        <div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom:8px; align-items:center;">
+                            <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;" id="typeOfficialLabel">
                                 <input type="radio" name="contestTypeRadio" id="typeOfficialRadio" value="official" checked onchange="toggleContestTypeUI()">
-                                <b><i class="fas fa-trophy" style="color:#f57f17;"></i> 正式比賽（固定第*屆自動累加，全站公開）</b>
+                                <b><i class="fas fa-trophy" style="color:#f57f17;"></i> 正式比賽（大會官方第*屆累加，全站公開）</b>
+                                <span id="officialDisabledHint" style="font-size:12px; color:#bf360c; display:none;">（官方正式比賽僅限大會管理員發起）</span>
                             </label>
                             <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0;">
                                 <input type="radio" name="contestTypeRadio" id="typeTestRadio" value="test" onchange="toggleContestTypeUI()">
-                                <b style="color:#bf360c;"><i class="fas fa-vial"></i> 測試比賽（可自訂名稱、可設私人比賽、可無痕刪除）</b>
+                                <b style="color:#bf360c;"><i class="fas fa-vial"></i> 自訂/交流比賽（自訂名稱、可設私人賽事、顯示主辦人）</b>
                             </label>
                         </div>
 
@@ -1808,6 +1817,27 @@
                         <button type="button" class="action-btn" style="margin:0;" onclick="adminSubmitNewContest()"><i class="fas fa-paper-plane"></i> 正式發起並發布本屆比賽</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 手動輸入十位數代碼加入比賽 Modal -->
+    <div id="joinContestModal" class="modal-overlay hidden">
+        <div class="modal-content" style="max-width: 500px; width: 92%;">
+            <span class="close-btn" onclick="closeJoinContestModal()" title="關閉"><i class="fas fa-times"></i></span>
+            <div style="display:flex; align-items:center; gap:10px; border-bottom:2px dashed #bfa57c; padding-bottom:12px; margin-bottom:16px;">
+                <h3 style="margin:0; color:#3e2723;"><i class="fas fa-key"></i> <span id="joinModalTitleText">輸入十位數代碼加入比賽</span></h3>
+            </div>
+            <p id="joinModalDescText" style="font-size:14px; color:#5a3818; margin-bottom:14px;">
+                請輸入比賽主辦者所分享的 10 位數專屬純數字代碼。無論是公開交流賽或私人比賽，輸入正確代碼即可直接解鎖並進入該場賽事！
+            </p>
+            <div style="margin-bottom:18px;">
+                <label style="font-weight:bold; color:#4a2c11; font-size:14px; margin-bottom:6px; display:block;">比賽專屬代碼 (10 位數)：</label>
+                <input type="text" id="manualContestCodeInput" maxlength="10" placeholder="例如：7690568756" style="font-size:18px; letter-spacing:3px; font-weight:bold; text-align:center; padding:10px; border:1.5px solid #bfa57c !important; border-radius:6px !important; background:#fdfaf2 !important;" onkeypress="if(event.key==='Enter') submitJoinContestByCode()">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="action-btn secondary" style="margin:0;" onclick="closeJoinContestModal()">取消</button>
+                <button type="button" class="action-btn" style="margin:0;" onclick="submitJoinContestByCode()"><i class="fas fa-sign-in-alt"></i> 驗證代碼並加入</button>
             </div>
         </div>
     </div>
@@ -2142,6 +2172,67 @@
             shareContestLink(contestId);
         };
 
+        // 手動輸入代碼加入比賽邏輯
+        window.openJoinContestModal = function() {
+            const m = document.getElementById('joinContestModal');
+            if (m) m.classList.remove('hidden');
+            const input = document.getElementById('manualContestCodeInput');
+            if (input) {
+                input.value = '';
+                setTimeout(() => input.focus(), 100);
+            }
+        };
+
+        window.closeJoinContestModal = function() {
+            const m = document.getElementById('joinContestModal');
+            if (m) m.classList.add('hidden');
+        };
+
+        window.submitJoinContestByCode = async function() {
+            const input = document.getElementById('manualContestCodeInput');
+            const code = (input ? input.value : '').trim();
+            if (!code) {
+                alert('請輸入 10 位數比賽代碼！');
+                return;
+            }
+            if (!/^\d{10}$/.test(code)) {
+                alert('代碼格式不正確，必須是 10 位數純數字！');
+                return;
+            }
+
+            // 1. 先從本地快取尋找
+            let matched = (db.contests || []).find(c => String(c.code).trim() === code);
+
+            // 2. 若本地未找到（例如未載入之私人賽事），向伺服器 API 即時檢索
+            if (!matched) {
+                const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+                try {
+                    const res = await safeFetchJson(`${sUrl.replace(/\/$/, '')}/api/seekercompetition/find-by-code?code=${encodeURIComponent(code)}`);
+                    if (res && res.success && res.contest) {
+                        matched = res.contest;
+                        if (!Array.isArray(db.contests)) db.contests = [];
+                        if (!db.contests.some(c => c.id === matched.id)) {
+                            db.contests.push(matched);
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            if (matched) {
+                sessionStorage.setItem('access_contest_code_' + matched.id, String(matched.code));
+                if (matched.privateToken) {
+                    sessionStorage.setItem('access_contest_' + matched.id, matched.privateToken);
+                }
+                db.currentContestId = matched.id;
+                localStorage.setItem('cached_competition_db', JSON.stringify(db));
+                closeJoinContestModal();
+                renderAllPages();
+                alert(`成功加入比賽「${matched.title}」！\n代碼：${matched.code}\n已為您切換至該比賽。`);
+            } else {
+                alert('查無此比賽代碼，請確認代碼是否輸入正確或該賽事是否已由主辦者移除！');
+            }
+        };
+
         // 依據 URL 參數中的 10 位數代碼或 contestId 同步目前選取的比賽
         function syncContestFromUrlParams() {
             try {
@@ -2262,6 +2353,7 @@
             if (!cur) {
                 return {
                     pureTitle: "探險者文文盃寫作比賽",
+                    creatorBadgeHtml: "",
                     titleBadgeHtml: "",
                     codeBadgeHtml: "",
                     shareBtnHtml: "",
@@ -2275,11 +2367,21 @@
             }
 
             const pureTitle = cur.title || "探險者文文盃寫作比賽";
+            
+            // 建立者身分標籤（官方比賽顯示大會官方，一般人建立顯示主辦人姓名）
+            let creatorBadgeHtml = '';
+            if (cur.isOfficial) {
+                creatorBadgeHtml = ' <span style="font-size:12px; background:#2e7d32; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-shield-alt"></i> 大會官方</span>';
+            } else {
+                const creatorName = cur.creatorNickname || cur.creator || '民間創作者';
+                creatorBadgeHtml = ` <span style="font-size:12px; background:#6d4c41; color:#fff8eb; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;" title="此比賽由創作者發起"><i class="fas fa-user-edit"></i> 主辦人: ${escapeHtml(creatorName)}</span>`;
+            }
+
             let titleBadgeHtml = '';
             if (cur.isPrivate) {
                 titleBadgeHtml += ' <span style="font-size:12px; background:#e65100; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-lock"></i> 私人賽</span>';
             } else if (cur.isTest) {
-                titleBadgeHtml += ' <span style="font-size:12px; background:#bf360c; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-vial"></i> 測試賽</span>';
+                titleBadgeHtml += ' <span style="font-size:12px; background:#bf360c; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-vial"></i> 交流/測試賽</span>';
             }
 
             let codeBadgeHtml = '';
@@ -2302,6 +2404,7 @@
             if (cur && cur.status === 'voting') {
                 return {
                     pureTitle,
+                    creatorBadgeHtml,
                     titleBadgeHtml,
                     codeBadgeHtml,
                     shareBtnHtml,
@@ -2316,6 +2419,7 @@
             if (db.settings && Boolean(db.settings.isClosed)) {
                 return {
                     pureTitle,
+                    creatorBadgeHtml,
                     titleBadgeHtml,
                     codeBadgeHtml,
                     shareBtnHtml,
@@ -2335,6 +2439,7 @@
                 const diffMins = Math.floor((diffMs % 3600000) / 60000);
                 return {
                     pureTitle,
+                    creatorBadgeHtml,
                     titleBadgeHtml,
                     codeBadgeHtml,
                     shareBtnHtml,
@@ -2349,6 +2454,7 @@
             if (isContestEnded()) {
                 return {
                     pureTitle,
+                    creatorBadgeHtml,
                     titleBadgeHtml,
                     codeBadgeHtml,
                     shareBtnHtml,
@@ -2368,6 +2474,7 @@
                 const diffMins = Math.floor((diffMs % 3600000) / 60000);
                 return {
                     pureTitle,
+                    creatorBadgeHtml,
                     titleBadgeHtml,
                     codeBadgeHtml,
                     shareBtnHtml,
@@ -2381,6 +2488,7 @@
 
             return {
                 pureTitle,
+                creatorBadgeHtml,
                 titleBadgeHtml,
                 codeBadgeHtml,
                 shareBtnHtml,
@@ -2396,7 +2504,7 @@
             const st = formatContestStatus();
             const cur = getCurrentContest();
             
-            const renderTitleHtml = () => `<i class="fas fa-trophy"></i> ${escapeHtml(st.pureTitle)}${st.titleBadgeHtml}${st.codeBadgeHtml}${st.shareBtnHtml}`;
+            const renderTitleHtml = () => `<i class="fas fa-trophy"></i> ${escapeHtml(st.pureTitle)}${st.creatorBadgeHtml || ''}${st.titleBadgeHtml}${st.codeBadgeHtml}${st.shareBtnHtml}`;
 
             // Home
             const ht = document.getElementById('homeContestTitle');
@@ -2641,6 +2749,7 @@
             localStorage.setItem('sso_server', sUrl);
 
             // 優先即時進行本地身份判定與快取渲染，不等 Socket 握手
+            changeLanguage(localStorage.getItem('preferred_language') || 'zh-TW');
             checkLogin();
             loadCloudData();
             updateAllStatusBars();
@@ -2832,11 +2941,211 @@
             }
         }
 
+        // ==========================================
+        // 5 種語言多語系國際化系統 (i18n)
+        // 臺灣繁體 (zh-TW), 香港繁體 (zh-HK), 簡體中文 (zh-CN), 日本語 (ja), English (en)
+        // ==========================================
+        window.currentLang = localStorage.getItem('preferred_language') || 'zh-TW';
+
+        const compI18n = {
+            'zh-TW': {
+                siteTitle: '探險者文文盃寫作比賽',
+                home: '首頁',
+                rules: '比賽章程',
+                works: '作品',
+                browse: '作品展示',
+                archive: '歷屆作品',
+                create: '我要參賽',
+                joinCode: '輸入代碼加入比賽',
+                createContest: '發起比賽',
+                adminPanel: '大會管理',
+                online: '在線：',
+                loginRegister: '登入/註冊',
+                profile: '個人設定',
+                logout: '登出',
+                judgeAdmin: '評審管理員',
+                contestant: '參賽者',
+                joinContestTitle: '輸入專屬代碼加入比賽',
+                joinContestDesc: '請輸入 10 位數專屬純數字比賽代碼，即可直接檢索並進入比賽（包含私人自訂賽事）。',
+                joinContestInputPlaceholder: '請輸入 10 位數比賽代碼 (例: 1048291048)',
+                cancel: '取消',
+                verifyJoin: '驗證並加入比賽',
+                creatorOfficial: '大會官方',
+                creatorOrganizer: '主辦建立者：',
+                codeCopied: '已複製專屬比賽分享連結與代碼！',
+                searchPlaceholder: '搜尋作品標題、作者、篇章...'
+            },
+            'zh-HK': {
+                siteTitle: '探險者文文盃寫作比賽',
+                home: '首頁',
+                rules: '比賽章程',
+                works: '作品',
+                browse: '作品展示',
+                archive: '歷屆作品',
+                create: '我要參賽',
+                joinCode: '輸入代碼加入比賽',
+                createContest: '發起比賽',
+                adminPanel: '大會管理',
+                online: '在線：',
+                loginRegister: '登入/註冊',
+                profile: '個人設定',
+                logout: '登出',
+                judgeAdmin: '評審管理員',
+                contestant: '參賽者',
+                joinContestTitle: '輸入專屬代碼加入比賽',
+                joinContestDesc: '請輸入 10 位數專屬純數字比賽代碼，即可直接檢索並進入比賽（包含私人自訂賽事）。',
+                joinContestInputPlaceholder: '請輸入 10 位數比賽代碼 (例: 1048291048)',
+                cancel: '取消',
+                verifyJoin: '驗證並加入比賽',
+                creatorOfficial: '大會官方',
+                creatorOrganizer: '主辦建立者：',
+                codeCopied: '已複製專屬比賽分享連結同代碼！',
+                searchPlaceholder: '搜尋作品標題、作者、篇章...'
+            },
+            'zh-CN': {
+                siteTitle: '探险者文文杯写作比赛',
+                home: '首页',
+                rules: '比赛章程',
+                works: '作品',
+                browse: '作品展示',
+                archive: '历届作品',
+                create: '我要参赛',
+                joinCode: '输入代码加入比赛',
+                createContest: '发起比赛',
+                adminPanel: '大会管理',
+                online: '在线：',
+                loginRegister: '登录/注册',
+                profile: '个人设置',
+                logout: '退出登录',
+                judgeAdmin: '评审管理员',
+                contestant: '参赛者',
+                joinContestTitle: '输入专属代码加入比赛',
+                joinContestDesc: '请输入 10 位数专属纯数字比赛代码，即可直接检索并进入比赛（包含私人自定赛事）。',
+                joinContestInputPlaceholder: '请输入 10 位数比赛代码 (例: 1048291048)',
+                cancel: '取消',
+                verifyJoin: '验证并加入比赛',
+                creatorOfficial: '大会官方',
+                creatorOrganizer: '主办创建者：',
+                codeCopied: '已复制专属比赛分享链接与代码！',
+                searchPlaceholder: '搜索作品标题、作者、篇章...'
+            },
+            'ja': {
+                siteTitle: '文文杯執筆コンテスト',
+                home: 'ホーム',
+                rules: '規約',
+                works: '作品一覧',
+                browse: '作品展示',
+                archive: '過去の大会',
+                create: '応募する',
+                joinCode: 'コード入力で参加',
+                createContest: 'コンテスト開催',
+                adminPanel: '大会管理',
+                online: 'オンライン：',
+                loginRegister: 'ログイン/登録',
+                profile: 'プロフィール設定',
+                logout: 'ログアウト',
+                judgeAdmin: '審査管理者',
+                contestant: '応募者',
+                joinContestTitle: '専用コードでコンテストに参加',
+                joinContestDesc: '10桁の数字コードを入力すると、プライベート大会を含む対象のコンテストを検索して参加できます。',
+                joinContestInputPlaceholder: '10桁のコードを入力 (例: 1048291048)',
+                cancel: 'キャンセル',
+                verifyJoin: '認証して参加',
+                creatorOfficial: '大会公式',
+                creatorOrganizer: '主催者：',
+                codeCopied: '共有リンクとコードをコピーしました！',
+                searchPlaceholder: 'タイトル、作者、文章を検索...'
+            },
+            'en': {
+                siteTitle: 'Wenwen Writing Contest',
+                home: 'Home',
+                rules: 'Rules',
+                works: 'Submissions',
+                browse: 'Showcase',
+                archive: 'Past Editions',
+                create: 'Submit Work',
+                joinCode: 'Join by Code',
+                createContest: 'Host Contest',
+                adminPanel: 'Admin Panel',
+                online: 'Online: ',
+                loginRegister: 'Login / Register',
+                profile: 'Profile',
+                logout: 'Logout',
+                judgeAdmin: 'Judge Admin',
+                contestant: 'Contestant',
+                joinContestTitle: 'Join Contest by Code',
+                joinContestDesc: 'Enter the 10-digit contest code to access official or private contests directly.',
+                joinContestInputPlaceholder: 'Enter 10-digit code (e.g. 1048291048)',
+                cancel: 'Cancel',
+                verifyJoin: 'Verify & Join',
+                creatorOfficial: 'Official Contest',
+                creatorOrganizer: 'Host: ',
+                codeCopied: 'Contest link and code copied to clipboard!',
+                searchPlaceholder: 'Search titles, authors, chapters...'
+            }
+        };
+
+        window.changeLanguage = function(lang) {
+            if (!compI18n[lang]) lang = 'zh-TW';
+            window.currentLang = lang;
+            try { localStorage.setItem('preferred_language', lang); } catch(e) {}
+
+            const t = compI18n[lang] || compI18n['zh-TW'];
+
+            // 更新選單下拉框的選中值
+            document.querySelectorAll('#langSelect').forEach(sel => {
+                sel.value = lang;
+            });
+
+            // 更新模式導覽按鈕
+            const homeSpan = document.querySelector('.i18n-home');
+            if (homeSpan) homeSpan.innerText = t.home;
+            const rulesSpan = document.querySelector('.i18n-rules');
+            if (rulesSpan) rulesSpan.innerText = t.rules;
+            const worksSpan = document.querySelector('.i18n-works');
+            if (worksSpan) worksSpan.innerText = t.works;
+            const browseSpan = document.querySelector('.i18n-browse');
+            if (browseSpan) browseSpan.innerText = t.browse;
+            const archiveSpan = document.querySelector('.i18n-archive');
+            if (archiveSpan) archiveSpan.innerText = t.archive;
+            const createSpan = document.querySelector('.i18n-create');
+            if (createSpan) createSpan.innerText = t.create;
+            const joinCodeSpan = document.querySelector('.i18n-join-code');
+            if (joinCodeSpan) joinCodeSpan.innerText = t.joinCode;
+            const createContestSpan = document.querySelector('.i18n-create-contest');
+            if (createContestSpan) createContestSpan.innerText = t.createContest;
+            const adminSpan = document.querySelector('.i18n-admin');
+            if (adminSpan) adminSpan.innerText = t.adminPanel;
+
+            // 頂部導覽列按鈕
+            const aboutBtn = document.getElementById('aboutBtn');
+            if (aboutBtn) aboutBtn.innerText = t.rules;
+
+            // 搜尋框 placeholder
+            const searchInput = document.getElementById('workSearchInput');
+            if (searchInput) searchInput.placeholder = t.searchPlaceholder;
+
+            // 狀態橫幅重新整理
+            if (typeof updateAllStatusBars === 'function') updateAllStatusBars();
+        };
+
+        function getLangSelectOptionsHtml(curLang) {
+            return `
+                <option value="zh-TW" ${curLang==='zh-TW'?'selected':''}>繁體中文 (臺灣)</option>
+                <option value="zh-HK" ${curLang==='zh-HK'?'selected':''}>繁體中文 (香港)</option>
+                <option value="zh-CN" ${curLang==='zh-CN'?'selected':''}>简体中文</option>
+                <option value="ja" ${curLang==='ja'?'selected':''}>日本語</option>
+                <option value="en" ${curLang==='en'?'selected':''}>English</option>
+            `;
+        }
+
         function renderUserUI() {
             if (!currentUser) return renderGuestUI();
             const r = document.getElementById('navRightPanel');
             const avatarUrl = currentUser.avatar;
             const nick = currentUser.nickname || currentUser.username || '參賽者';
+            const curLang = window.currentLang || localStorage.getItem('preferred_language') || 'zh-TW';
+            const t = compI18n[curLang] || compI18n['zh-TW'];
             const avatarHTML = (avatarUrl && avatarUrl.trim()) 
                 ? `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` 
                 : `<i class="fas fa-user-edit" style="color:#5d4037; font-size:18px;"></i>`;
@@ -2844,20 +3153,19 @@
             r.innerHTML = `
                 <div class="seeker-online-pill" id="seekerNavOnlinePill">
                     <i class="fas fa-circle" style="color:#2e7d32; font-size:8px;"></i>
-                    <span>在線：<b id="seekerOnlineCount">1</b> 人</span>
+                    <span>${t.online}<b id="seekerOnlineCount">1</b> 人</span>
                 </div>
-                <select id="langSelect" onchange="currentLang=this.value;">
-                    <option value="zh" selected>繁體中文</option>
-                    <option value="en">English</option>
+                <select id="langSelect" onchange="changeLanguage(this.value)">
+                    ${getLangSelectOptionsHtml(curLang)}
                 </select>
-                <a href="#" id="aboutBtn" onclick="showPage('about'); return false;">比賽章程</a>
+                <a href="#" id="aboutBtn" onclick="showPage('about'); return false;">${t.rules}</a>
                 <div class="user-profile-panel" style="position:relative; display:flex; align-items:center; gap:8px; cursor:pointer;" id="user-profile-toggle">
                     <div style="width:34px; height:34px; border-radius:50%; background:#eedebf; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid #c9b48c;">
                         ${avatarHTML}
                     </div>
                     <div style="display:flex; flex-direction:column; line-height:1.2;">
                         <span style="font-size:11px; color:${currentUser.isAdmin ? '#c62828' : '#5a3818'}; font-weight:bold;">
-                            ${currentUser.isAdmin ? '<i class="fas fa-crown" style="color:#f57f17;"></i> 評審管理員' : '<i class="fas fa-pen-nib"></i> 參賽者'}
+                            ${currentUser.isAdmin ? '<i class="fas fa-crown" style="color:#f57f17;"></i> ' + t.judgeAdmin : '<i class="fas fa-pen-nib"></i> ' + t.contestant}
                         </span>
                         <span style="font-size:14px; font-weight:bold; color:#3e2210; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                             ${nick}
@@ -2866,10 +3174,10 @@
                     <i class="fas fa-caret-down" style="color:#5a3818; font-size:12px;"></i>
                     <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:#fdfaf0; border-radius:6px; box-shadow:0 4px 15px rgba(0,0,0,0.15); min-width:140px; z-index:1000; border:1.5px solid #d4c29a; overflow:hidden;">
                         <div style="padding:10px 14px; cursor:pointer; font-size:14px; font-weight:bold; color:#4a2c11; border-bottom:1px solid #ebdcc1;" onclick="window.location.href='../../login-hub/?action=editProfile&from=' + encodeURIComponent(window.location.href)">
-                            <i class="fas fa-id-card"></i> 個人設定
+                            <i class="fas fa-id-card"></i> ${t.profile}
                         </div>
                         <div style="padding:10px 14px; cursor:pointer; font-size:14px; font-weight:bold; color:#c62828;" onclick="logoutUser()">
-                            <i class="fas fa-door-open"></i> 登出
+                            <i class="fas fa-door-open"></i> ${t.logout}
                         </div>
                     </div>
                 </div>
@@ -2890,17 +3198,18 @@
 
         function renderGuestUI() {
             const r = document.getElementById('navRightPanel');
+            const curLang = window.currentLang || localStorage.getItem('preferred_language') || 'zh-TW';
+            const t = compI18n[curLang] || compI18n['zh-TW'];
             r.innerHTML = `
                 <div class="seeker-online-pill" id="seekerNavOnlinePill">
                     <i class="fas fa-circle" style="color:#2e7d32; font-size:8px;"></i>
-                    <span>在線：<b id="seekerOnlineCount">1</b> 人</span>
+                    <span>${t.online}<b id="seekerOnlineCount">1</b> 人</span>
                 </div>
-                <select id="langSelect" onchange="currentLang=this.value;">
-                    <option value="zh" selected>繁體中文</option>
-                    <option value="en">English</option>
+                <select id="langSelect" onchange="changeLanguage(this.value)">
+                    ${getLangSelectOptionsHtml(curLang)}
                 </select>
-                <a href="#" id="aboutBtn" onclick="showPage('about'); return false;">比賽章程</a>
-                <button class="login-btn" onclick="window.location.href='../../login-hub/?require=1&from=' + encodeURIComponent(window.location.href)">登入/註冊</button>
+                <a href="#" id="aboutBtn" onclick="showPage('about'); return false;">${t.rules}</a>
+                <button class="login-btn" onclick="window.location.href='../../login-hub/?require=1&from=' + encodeURIComponent(window.location.href)">${t.loginRegister}</button>
             `;
             updateAllStatusBars();
         }
@@ -4994,13 +5303,57 @@
         window.tempAiGeneratedTopics = null;
         window.tempAiAudit = null;
 
+        window.openContestCreationModal = function() {
+            openAdminScheduleModal();
+        };
+
         window.openAdminScheduleModal = function() {
-            if (!currentUser || !currentUser.isAdmin) {
-                alert('權限不足，只有管理員能開啟文文盃大會管理控制台！');
-                return;
+            const isAdmin = Boolean(currentUser && currentUser.isAdmin);
+            const modal = document.getElementById('adminScheduleModal');
+            if (modal) modal.classList.remove('hidden');
+
+            const modalTitle = document.getElementById('adminModalMainTitle');
+            const userBadge = document.getElementById('adminModalUserBadge');
+            const corruptedBox = document.getElementById('adminCorruptedClearBox');
+            const creatorNotice = document.getElementById('adminCreatorNotice');
+            const officialRadio = document.getElementById('typeOfficialRadio');
+            const testRadio = document.getElementById('typeTestRadio');
+            const officialHint = document.getElementById('officialDisabledHint');
+
+            if (userBadge) {
+                userBadge.innerText = isAdmin ? '大會管理員' : (currentUser ? (currentUser.nickname || currentUser.username) : '創作者');
+            }
+            if (modalTitle) {
+                modalTitle.innerHTML = isAdmin ? '<i class="fas fa-tools"></i> 文文盃大會管理控制台' : '<i class="fas fa-plus-circle"></i> 發起文文盃寫作賽';
             }
 
-            document.getElementById('adminScheduleModal').classList.remove('hidden');
+            if (creatorNotice) {
+                if (isAdmin) {
+                    creatorNotice.innerHTML = '<i class="fas fa-shield-alt" style="color:#2e7d32;"></i> <b>身分確認：</b>您具有大會管理員權限，可發起【官方正式比賽】或【自訂測試賽事】。';
+                } else {
+                    const myName = currentUser ? (currentUser.nickname || currentUser.username) : '民間創作者';
+                    creatorNotice.innerHTML = `<i class="fas fa-info-circle" style="color:#bf360c;"></i> <b>創作者主辦身分：</b>您目前以【<b>${escapeHtml(myName)}</b>】身分建立自訂比賽。建立後賽事將公開標示「主辦建立者：${escapeHtml(myName)}」。官方正式比賽僅限大會管理員發起。`;
+                }
+            }
+
+            // 一般人無法建立官方比賽，官方選項鎖定並強制切換自訂賽事
+            if (officialRadio) {
+                if (isAdmin) {
+                    officialRadio.disabled = false;
+                    if (officialHint) officialHint.style.display = 'none';
+                } else {
+                    officialRadio.disabled = true;
+                    if (officialHint) officialHint.style.display = 'inline';
+                    if (testRadio) testRadio.checked = true;
+                }
+            }
+
+            // 非管理員隱藏管理操作（截止、啟動 AI 評判、重置清空幽靈）
+            if (corruptedBox) corruptedBox.style.display = isAdmin ? 'flex' : 'none';
+            const toggleCloseBtn = document.getElementById('adminToggleCloseBtn');
+            const aiJudgeBtn = document.getElementById('adminAiJudgeBtn');
+            if (toggleCloseBtn) toggleCloseBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+            if (aiJudgeBtn) aiJudgeBtn.style.display = isAdmin ? 'inline-flex' : 'none';
 
             const cur = getCurrentContest();
             const curTitleEl = document.getElementById('adminCurrentContestTitle');
@@ -5229,21 +5582,28 @@
         };
 
         window.adminSubmitNewContest = async function() {
-            if (!currentUser || !currentUser.isAdmin) {
-                alert('只有管理員能發起比賽！');
-                return;
-            }
-
-            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
-            const isTest = document.getElementById('typeTestRadio').checked;
+            const isAdmin = Boolean(currentUser && currentUser.isAdmin);
+            const isTestRadio = document.getElementById('typeTestRadio').checked;
+            
+            // 只有管理員且未選交流測試賽，才能是官方正式比賽
+            const isOfficial = !isTestRadio && isAdmin;
+            const isTest = !isOfficial;
             const isPrivate = isTest && document.getElementById('testIsPrivateCheckbox').checked;
             const customTitle = isTest ? document.getElementById('customTestTitleInput').value.trim() : '';
+            const myUsername = currentUser ? currentUser.username : 'guest';
+            const myNickname = currentUser ? (currentUser.nickname || currentUser.username) : '民間創作者';
+
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
             const isVotingMode = document.getElementById('topicModeVoting').checked;
             const startTime = document.getElementById('newContestStartTime').value;
             const endTime = document.getElementById('newContestEndTime').value;
             const votingEndTime = document.getElementById('newContestVotingEndTime').value;
 
             let payload = {
+                isAdmin: isAdmin,
+                isOfficial: isOfficial,
+                username: myUsername,
+                creatorNickname: myNickname,
                 isTest: isTest,
                 isPrivate: isPrivate,
                 title: customTitle,
@@ -5272,7 +5632,7 @@
                 const manualTopic = document.getElementById('newContestManualTopic').value.trim();
                 const manualDesc = document.getElementById('newContestManualTopicDesc').value.trim();
                 if (!manualTopic) {
-                    alert('請輸入手動指定之比賽題目！');
+                    alert('請輸入指定之比賽題目！');
                     document.getElementById('newContestManualTopic')?.focus();
                     return;
                 }
@@ -5283,8 +5643,11 @@
                 };
             }
 
-            const contestTypeDesc = isTest ? (isPrivate ? '【私人測試比賽（持專屬連結可見）】' : '【公開測試比賽】') : '【正式比賽】';
-            if (!confirm(`確定要發起${contestTypeDesc}嗎？\n\n發布後舊比賽將自動歸檔為「歷屆作品」！`)) {
+            const contestTypeDesc = isOfficial ? '【大會官方正式比賽】' : (isPrivate ? '【私人自訂賽事（持代碼專屬存取）】' : '【公開交流比賽】');
+            const confirmMsg = isOfficial 
+                ? `確定要發起${contestTypeDesc}嗎？\n\n發布後舊的官方比賽將自動歸檔為「歷屆作品」！`
+                : `確定要以「${myNickname}」名義發起${contestTypeDesc}嗎？\n\n發布後該比賽將向全站公開標示「主辦建立者：${myNickname}」！`;
+            if (!confirm(confirmMsg)) {
                 return;
             }
 
@@ -5296,10 +5659,14 @@
                 });
                 if (data.success) {
                     if (data.db) Object.assign(db, data.db);
+                    if (data.contest && data.contest.code) {
+                        sessionStorage.setItem('access_contest_code_' + data.contest.id, String(data.contest.code));
+                    }
                     await saveCloudData();
                     closeAdminScheduleModal();
                     renderAllPages();
-                    alert(`新一屆文文盃${contestTypeDesc}已成功發起！`);
+                    const codeMsg = data.contest && data.contest.code ? `\n【十位數專屬代碼】：${data.contest.code}` : '';
+                    alert(`文文盃${contestTypeDesc}已成功發起！\n主辦建立者：${myNickname}${codeMsg}`);
                 } else {
                     alert('發起失敗：' + (data.error || '未知原因'));
                 }
