@@ -755,26 +755,26 @@
                 const redMat = new THREE.MeshLambertMaterial({ color: 0xF44336, transparent:true, opacity:0.9 });
                 const whiteMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF, transparent:true, opacity:0.9 });
                 
-                // Track layout with return path (依序建立賽道門)
-                window.raceGates.push({ mesh: createArch(0, 0, -10, 5, 4, gateMat), pos: new THREE.Vector3(0, 0.5, -10), radius: 3.5, circleRadius: 1.9 });
-                window.raceGates.push({ mesh: createWindowGate(0, 5, -50, 5, gateMat), pos: new THREE.Vector3(0, 3.5, -50), radius: 3.5, circleRadius: 2.2 });
-                window.raceGates.push({ mesh: createArch(-8, 0, -80, 4, 3, redMat), pos: new THREE.Vector3(-8, 0, -80), radius: 3.0, circleRadius: 1.4 });
-                window.raceGates.push({ mesh: createArch(8, 0, -110, 4, 3, whiteMat), pos: new THREE.Vector3(8, 0, -110), radius: 3.0, circleRadius: 1.4 });
-                window.raceGates.push({ mesh: createArch(20, 0, -90, 5, 4, gateMat), pos: new THREE.Vector3(20, 0.5, -90), radius: 4.0, circleRadius: 1.9 });
-                window.raceGates.push({ mesh: createArch(15, 0, -30, 5, 4, gateMat), pos: new THREE.Vector3(15, 0.5, -30), radius: 4.0, circleRadius: 1.9 });
-                // Finish line is start line
-                window.raceGates.push({ mesh: createArch(0, 0, -10, 5, 4, gateMat), pos: new THREE.Vector3(0, 0.5, -10), radius: 3.5, circleRadius: 1.9 });
+                // Track layout with return path (依序建立賽道門，並指定各門框唯一通行方向 dir 向量)
+                window.raceGates.push({ mesh: createArch(0, 0, -10, 5, 4, gateMat), pos: new THREE.Vector3(0, 0.5, -10), dir: new THREE.Vector3(0, 0, -1), radius: 3.5, circleRadius: 1.9 });
+                window.raceGates.push({ mesh: createWindowGate(0, 5, -50, 5, gateMat), pos: new THREE.Vector3(0, 3.5, -50), dir: new THREE.Vector3(0, 0, -1), radius: 3.5, circleRadius: 2.2 });
+                window.raceGates.push({ mesh: createArch(-8, 0, -80, 4, 3, redMat), pos: new THREE.Vector3(-8, 0, -80), dir: new THREE.Vector3(0, 0, -1), radius: 3.0, circleRadius: 1.4 });
+                window.raceGates.push({ mesh: createArch(8, 0, -110, 4, 3, whiteMat), pos: new THREE.Vector3(8, 0, -110), dir: new THREE.Vector3(0, 0, -1), radius: 3.0, circleRadius: 1.4 });
+                window.raceGates.push({ mesh: createArch(20, 0, -90, 5, 4, gateMat), pos: new THREE.Vector3(20, 0.5, -90), dir: new THREE.Vector3(0, 0, 1), radius: 4.0, circleRadius: 1.9 });
+                window.raceGates.push({ mesh: createArch(15, 0, -30, 5, 4, gateMat), pos: new THREE.Vector3(15, 0.5, -30), dir: new THREE.Vector3(0, 0, 1), radius: 4.0, circleRadius: 1.9 });
+                // Finish line is start line (返航衝線方向為 +Z)
+                window.raceGates.push({ mesh: createArch(0, 0, -10, 5, 4, gateMat), pos: new THREE.Vector3(0, 0.5, -10), dir: new THREE.Vector3(0, 0, 1), radius: 3.5, circleRadius: 1.9 });
                 
-                // 為所有門框中間添加大圓形平面靶心 (標記 isTargetPlane = true，可自由穿越，顯示醒目導引與穿越回饋)
+                // 只有要到的門框中間才需要有圓形 (非目標門框圓形不顯示)
                 window.raceGates.forEach((g, idx) => {
                     const cRadius = g.circleRadius || 1.9;
                     const circleGeo = new THREE.CircleGeometry(cRadius, 48);
                     let isTarget = (idx === window.currentGateIndex);
                     let planeMat = new THREE.MeshBasicMaterial({
                         map: circleTargetTexture,
-                        color: isTarget ? 0x00FFFF : 0xFFAA00,
+                        color: 0x00FFFF,
                         transparent: true,
-                        opacity: isTarget ? 0.65 : 0.22,
+                        opacity: 0.7,
                         side: THREE.DoubleSide,
                         depthWrite: false
                     });
@@ -782,6 +782,12 @@
                     plane.isTargetPlane = true;
                     plane.isGuideRing = true; // 碰撞系統排除
                     plane.position.copy(g.pos);
+                    // 根據通行方向調整靶心朝向正面迎向飛來的無人機
+                    if (g.dir.z > 0) {
+                        plane.rotation.y = Math.PI;
+                    }
+                    // 只有要到的門框中間才需要有圓形！
+                    plane.visible = isTarget;
                     mapGroup.add(plane);
                     g.targetPlane = plane;
                 });
@@ -2074,28 +2080,20 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                 }
                 
                 
-                // --- RACE GATE LOGIC ---
+                // --- RACE GATE LOGIC (限制面通行判定 & 僅當前目標門框顯示中間圓形) ---
                 if (currentMapId === 'race' && window.raceGates && window.raceGates.length > 0 && !window.droneCrashed) {
                     let targetGate = window.raceGates[window.currentGateIndex];
+                    let gPos = targetGate.pos;
+                    let gDir = targetGate.dir;
                     
-                    window.raceGates.forEach((g, idx) => {
-                        let isTarget = (idx === window.currentGateIndex);
-                        if (g.mesh && g.mesh.children) {
-                            g.mesh.children.forEach(c => {
-                                if (c.material) {
-                                    c.material.emissive = isTarget ? new THREE.Color(0x00FF00) : new THREE.Color(0x000000);
-                                    c.material.emissiveIntensity = isTarget ? 0.8 : 0;
-                                    c.material.opacity = isTarget ? 1.0 : 0.4;
-                                }
-                            });
-                        }
-                        if (g.targetPlane && g.targetPlane.material) {
-                            g.targetPlane.material.color = isTarget ? new THREE.Color(0x00FFFF) : new THREE.Color(0xFFAA00);
-                            g.targetPlane.material.opacity = isTarget ? 0.65 : 0.22;
-                        }
-                    });
+                    // 只有正面通行才能觸發 Checkpoint 通關 (只有一面可以過)
+                    let toGate = droneGroup.position.clone().sub(gPos);
+                    let distPlane = toGate.dot(gDir);
+                    let radialDist = Math.sqrt(toGate.x * toGate.x + toGate.y * toGate.y);
+                    let vDotDir = window.droneVelocity.dot(gDir);
                     
-                    if (droneGroup.position.distanceTo(targetGate.pos) < targetGate.radius) {
+                    // 穿過門框平面 (distPlane >= -0.2 且 distPlane < 2.0)，徑向在孔洞範圍內，且速度為順向 (vDotDir > -0.5)
+                    if (radialDist < targetGate.radius && distPlane >= -0.2 && distPlane < 2.0 && vDotDir > -0.5) {
                         window.currentGateIndex++;
                         if (window.currentGateIndex >= window.raceGates.length) {
                             window.currentGateIndex = 0;
@@ -2110,6 +2108,23 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                             gameTimer = 0;
                         }
                     }
+                    
+                    window.raceGates.forEach((g, idx) => {
+                        let isTarget = (idx === window.currentGateIndex);
+                        if (g.mesh && g.mesh.children) {
+                            g.mesh.children.forEach(c => {
+                                if (c.material) {
+                                    c.material.emissive = isTarget ? new THREE.Color(0x00FF00) : new THREE.Color(0x000000);
+                                    c.material.emissiveIntensity = isTarget ? 0.8 : 0;
+                                    c.material.opacity = isTarget ? 1.0 : 0.4;
+                                }
+                            });
+                        }
+                        if (g.targetPlane) {
+                            // 只有要到的門框中間才需要有圓形！
+                            g.targetPlane.visible = isTarget;
+                        }
+                    });
                 }
                 
                 // --- CONTINUOUS COLLISION DETECTION & SUB-STEPPING RIGID BODY SOLVER ---
@@ -2395,6 +2410,58 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                         } else {
                             // 無碰撞，安全前進
                             droneGroup.position.copy(targetPos);
+                        }
+
+                        // === 門框單向面物理阻擋 (One-Way Gate Physics Barrier) ===
+                        // 只有正面可以過，反面 (逆向) 絕對不給過！
+                        if (currentMapId === 'race' && window.raceGates && window.raceGates.length > 0) {
+                            for (let gi = 0; gi < window.raceGates.length; gi++) {
+                                let gate = window.raceGates[gi];
+                                let gPos = gate.pos;
+                                let gDir = gate.dir;
+                                let holeRadius = gate.circleRadius || 1.9;
+                                
+                                let dx = droneGroup.position.x - gPos.x;
+                                let dy = droneGroup.position.y - gPos.y;
+                                let radialDist = Math.sqrt(dx * dx + dy * dy);
+                                
+                                // 在門框孔洞橫向投影範圍內
+                                if (radialDist < holeRadius) {
+                                    // 沿通行方向的有向距離 (正面 < 0，門框面 = 0，背面 > 0)
+                                    let distPlane = (droneGroup.position.x - gPos.x) * gDir.x +
+                                                    (droneGroup.position.y - gPos.y) * gDir.y +
+                                                    (droneGroup.position.z - gPos.z) * gDir.z;
+                                    
+                                    let vDotDir = window.droneVelocity.x * gDir.x +
+                                                  window.droneVelocity.y * gDir.y +
+                                                  window.droneVelocity.z * gDir.z;
+                                    
+                                    // 逆向進入阻擋：無人機處於背面或即將逆向穿入正面 (vDotDir < 0 且接觸門框面)
+                                    if (distPlane >= -0.05 && distPlane <= (droneRadius + 0.12) && vDotDir < 0) {
+                                        // 強制將無人機阻擋在反面力場外 (不給穿過！)
+                                        let pushDist = (droneRadius + 0.12) - distPlane;
+                                        droneGroup.position.x += gDir.x * pushDist;
+                                        droneGroup.position.y += gDir.y * pushDist;
+                                        droneGroup.position.z += gDir.z * pushDist;
+                                        
+                                        // 垂直於力場面強力反彈
+                                        window.droneVelocity.x -= (1.0 + restitution * 0.6) * vDotDir * gDir.x;
+                                        window.droneVelocity.y -= (1.0 + restitution * 0.6) * vDotDir * gDir.y;
+                                        window.droneVelocity.z -= (1.0 + restitution * 0.6) * vDotDir * gDir.z;
+                                        
+                                        // 切向摩擦
+                                        window.droneVelocity.x *= 0.85;
+                                        window.droneVelocity.y *= 0.85;
+                                        window.droneVelocity.z *= 0.85;
+                                        
+                                        // 畫面力場反饋
+                                        if (typeof updateBoundaryGlitch === 'function') {
+                                            updateBoundaryGlitch(true);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -2842,9 +2909,8 @@ renderer.render(scene, camera);
                             }
                         });
                     }
-                    if (g.targetPlane && g.targetPlane.material) {
-                        g.targetPlane.material.color = isTarget ? new THREE.Color(0x00FFFF) : new THREE.Color(0xFFAA00);
-                        g.targetPlane.material.opacity = isTarget ? 0.65 : 0.22;
+                    if (g.targetPlane) {
+                        g.targetPlane.visible = isTarget; // 只有要到的門框中間才需要有圓形！
                     }
                 });
             }
@@ -3141,7 +3207,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.014';
+        const CURRENT_VERSION = 'v4.015';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3302,7 +3368,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.014</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.015</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
