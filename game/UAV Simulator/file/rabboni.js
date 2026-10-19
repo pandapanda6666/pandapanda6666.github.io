@@ -219,10 +219,10 @@ function loadRabboniSettings() {
 loadRabboniSettings();
 
 let controlConfig = {
-    pitch: { stick: 'A', mode: 'fixed', sens: 1.0 },
-    roll: { stick: 'A', mode: 'fixed', sens: 1.0 },
-    thrust: { stick: 'B', mode: 'fixed', sens: 1.0 },
-    yaw: { stick: 'B', mode: 'fixed', sens: 1.0 }
+    pitch: { stick: 'A', mode: 'fixed', sens: 1.0, invert: false },
+    roll: { stick: 'A', mode: 'fixed', sens: 1.0, invert: false },
+    thrust: { stick: 'B', mode: 'fixed', sens: 1.0, invert: false },
+    yaw: { stick: 'B', mode: 'fixed', sens: 1.0, invert: false }
 };
 
 function getStickValue(axis) {
@@ -260,27 +260,40 @@ function getStickValue(axis) {
     
     // Merge Rabboni logic if connected
     if (rabboni && rabboni.connected) {
+        let rVal = 0;
         if (config.mode === 'sync') {
             // Normalize angles (assume +-30 degrees is max stick throw)
-            if (axis === 'pitch') return (rabboni.pitch / 30.0) * config.sens;
-            if (axis === 'roll') return -(rabboni.roll / 30.0) * config.sens;
-            if (axis === 'yaw') return -((rabboni.yaw * Math.PI / 180) / Math.PI) * config.sens;
+            if (axis === 'pitch') rVal = (rabboni.pitch / 30.0);
+            // 左右反轉修正：原 -(rabboni.roll/30) 導致左右顛倒，修正為正向
+            if (axis === 'roll') rVal = (rabboni.roll / 30.0);
+            // 左右反轉修正：原 -((rabboni.yaw*...)) 導致偏航顛倒，修正為正向
+            if (axis === 'yaw') rVal = ((rabboni.yaw * Math.PI / 180) / Math.PI);
             if (axis === 'thrust') {
-                if (config.mode === 'sync') return (rabboni.az) * config.sens; // Z-axis Accel
-                if (config.mode === 'sync-pitch') return (rabboni.pitch / 30.0) * config.sens;
-                if (config.mode === 'sync-roll') return (rabboni.roll / 30.0) * config.sens;
+                if (config.mode === 'sync') rVal = rabboni.az;
+                if (config.mode === 'sync-pitch') rVal = (rabboni.pitch / 30.0);
+                if (config.mode === 'sync-roll') rVal = (rabboni.roll / 30.0);
             }
         } else {
             // Threshold / Fixed Mode from Rabboni tilt
-            let rVal = 0;
             if (axis === 'pitch' && Math.abs(rabboni.pitch) > 15) rVal = Math.sign(rabboni.pitch);
-            if (axis === 'roll' && Math.abs(rabboni.roll) > 15) rVal = Math.sign(rabboni.roll);
-            if (axis === 'yaw' && Math.abs(rabboni.gz) > 10) rVal = Math.sign(rabboni.gz); // Threshold on gyro
+            // 左右反轉修正：原 Math.sign(rabboni.roll) 導致左右顛倒，取反修正
+            if (axis === 'roll' && Math.abs(rabboni.roll) > 15) rVal = -Math.sign(rabboni.roll);
+            // 左右反轉修正：原 Math.sign(rabboni.gz) 導致轉向顛倒，取反修正
+            if (axis === 'yaw' && Math.abs(rabboni.gz) > 10) rVal = -Math.sign(rabboni.gz);
             if (axis === 'thrust' && Math.abs(rabboni.az) > 1.2) rVal = Math.sign(rabboni.az);
-            val = rVal || val; // prioritize rabboni
+        }
+        
+        // 自訂反向開關支援
+        if (config.invert) {
+            rVal = -rVal;
+        }
+        
+        if (rVal !== 0) {
+            return rVal * config.sens;
         }
     }
     
+    if (config.invert) val = -val;
     return val * config.sens;
 }
 
@@ -293,9 +306,11 @@ function syncSettingsToUI() {
         let modeSel = document.getElementById(`r-${axis}-mode`);
         let sensInput = document.getElementById(`r-${axis}-sens`);
         let stickSel = document.getElementById(`r-${axis}-stick`);
+        let invBox = document.getElementById(`r-${axis}-inv`);
         if (modeSel && controlConfig[axis]) modeSel.value = controlConfig[axis].mode;
         if (sensInput && controlConfig[axis]) sensInput.value = controlConfig[axis].sens;
         if (stickSel && controlConfig[axis]) stickSel.value = controlConfig[axis].stick;
+        if (invBox && controlConfig[axis]) invBox.checked = !!controlConfig[axis].invert;
     });
 }
 window.addEventListener('DOMContentLoaded', () => {

@@ -141,6 +141,7 @@
     <div id="ui-container">
         <button id="resetCamBtn">重置攝影機視角 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
         <button id="viewSwitchBtn">目前視角：第三人稱</button>
+        <button id="camFollowBtn" onclick="toggleCamFollow()" style="background-color: #00bcd4;">視角跟隨旋轉：開啟 [C]</button>
         <button id="hoverBtn" style="display:none; background-color: #2196F3;" onclick="toggleHover()">滯空模式 [H]</button>
         <button id="headlessBtn" style="display:none; background-color: #9C27B0;" onclick="toggleHeadless()">無頭模式 [M]</button>
         <button id="ledBtn" style="display:none; background-color: #FF5722;" onclick="toggleLED()">切換燈光顏色 [L]</button>
@@ -153,6 +154,7 @@
             左右鍵：水平轉動 (Yaw)<br>
             W S 鍵：前後傾斜 (Pitch)<br>
             A D 鍵：左右傾斜 (Roll)<br>
+            C 鍵：第三人稱跟隨旋轉切換<br>
             Q / E 鍵：特技翻滾 (Flip)<br><br>
             [滑鼠操作]<br>
             左鍵拖曳：旋轉視角<br>
@@ -312,6 +314,7 @@
                                 <li><code>↑ / ↓</code>：俯仰 (機身前後傾斜)</li>
                                 <li><code>← / →</code>：翻滾 (機身左右側飛)</li>
                                 <li><code>[V]</code>：切換視角 (第一人稱/第三人稱)</li>
+                                <li><code>[C]</code>：第三人稱視角跟隨機身旋轉 (開/關)</li>
                                 <li><code>[T]</code>：切換飛行模式 (自穩/特技)</li>
                                 <li><code>[H]</code>：滯空模式</li>
                                 <li><code>[M]</code>：無頭模式</li>
@@ -327,6 +330,14 @@
                             <label style="color:#ddd; margin-right:15px; font-size:18px;">相機視野 (FOV):</label>
                             <input type="range" id="set-fov" min="60" max="120" step="5" value="75" onchange="applySettings()" style="width:200px; vertical-align:middle;">
                             <span id="fov-val" style="color:white; margin-left:10px;">75</span>
+                        </div>
+                        <div style="margin-bottom:20px;">
+                            <label style="color:#ddd; margin-right:15px; font-size:18px;">第三人稱視角跟隨旋轉 (Chase Cam):</label>
+                            <select id="set-cam-follow" onchange="applySettings()" style="padding:8px; background:#333; color:white; border:1px solid #555; border-radius:4px; font-size:16px;">
+                                <option value="true">開啟 (追尾跟隨 - 隨無人機航向旋轉)</option>
+                                <option value="false">關閉 (世界固定 - 視角固定朝向)</option>
+                            </select>
+                            <p style="color:#aaa; font-size:12px; margin-top:5px; line-height: 1.4;">開啟時第三人稱攝影機會自動維持在機身正後方並隨機身轉向；關閉時相機朝向固定於世界座標，可用滑鼠自由旋轉觀察。</p>
                         </div>
                     </div>
 
@@ -416,6 +427,30 @@
                 controlMode = layout;
                 localStorage.setItem('uav_controlMode', layout);
             }
+            
+            let camFollowEl = document.getElementById('set-cam-follow');
+            if (camFollowEl) {
+                let camFollow = camFollowEl.value === 'true';
+                window.thirdPersonFollowYaw = camFollow;
+                localStorage.setItem('uav_cam_follow_yaw', camFollow ? 'true' : 'false');
+                let btn = document.getElementById('camFollowBtn');
+                if (btn) {
+                    btn.innerText = camFollow ? '視角跟隨旋轉：開啟 [C]' : '視角跟隨旋轉：關閉 [C]';
+                    btn.style.backgroundColor = camFollow ? '#00bcd4' : '#555';
+                }
+            }
+        }
+        
+        function toggleCamFollow() {
+            window.thirdPersonFollowYaw = !window.thirdPersonFollowYaw;
+            localStorage.setItem('uav_cam_follow_yaw', window.thirdPersonFollowYaw ? 'true' : 'false');
+            let sel = document.getElementById('set-cam-follow');
+            if (sel) sel.value = window.thirdPersonFollowYaw ? 'true' : 'false';
+            let btn = document.getElementById('camFollowBtn');
+            if (btn) {
+                btn.innerText = window.thirdPersonFollowYaw ? '視角跟隨旋轉：開啟 [C]' : '視角跟隨旋轉：關閉 [C]';
+                btn.style.backgroundColor = window.thirdPersonFollowYaw ? '#00bcd4' : '#555';
+            }
         }
         
         // Auto-load settings on start
@@ -425,6 +460,17 @@
             
             let savedMode = localStorage.getItem('uav_controlMode');
             if(savedMode && document.getElementById('set-layout')) document.getElementById('set-layout').value = savedMode;
+
+            let savedFollow = localStorage.getItem('uav_cam_follow_yaw');
+            window.thirdPersonFollowYaw = (savedFollow === null || savedFollow === 'true');
+            if (document.getElementById('set-cam-follow')) {
+                document.getElementById('set-cam-follow').value = window.thirdPersonFollowYaw ? 'true' : 'false';
+            }
+            let btn = document.getElementById('camFollowBtn');
+            if (btn) {
+                btn.innerText = window.thirdPersonFollowYaw ? '視角跟隨旋轉：開啟 [C]' : '視角跟隨旋轉：關閉 [C]';
+                btn.style.backgroundColor = window.thirdPersonFollowYaw ? '#00bcd4' : '#555';
+            }
         });
         </script>
     </div>
@@ -480,8 +526,20 @@
         document.getElementById('resetCamBtn').addEventListener('click', () => {
             if(!isFPV) {
                 controls.reset();
-                camera.position.set(0, 0, 3.5);
-                  controls.target.copy(droneGroup.position);
+                if (window.thirdPersonFollowYaw && typeof droneGroup !== 'undefined') {
+                    let droneYaw = (typeof window.droneYawAngle !== 'undefined') ? window.droneYawAngle : 0;
+                    let qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), droneYaw);
+                    let offset = new THREE.Vector3(0, 0.38, 0.95).applyQuaternion(qYaw);
+                    camera.position.copy(droneGroup.position).add(offset);
+                    let lookTarget = droneGroup.position.clone().add(new THREE.Vector3(0, 0.08, -0.3).applyQuaternion(qYaw));
+                    camera.lookAt(lookTarget);
+                    controls.target.copy(droneGroup.position);
+                } else if (typeof droneGroup !== 'undefined') {
+                    camera.position.copy(droneGroup.position).add(new THREE.Vector3(0, 0.5, 1.5));
+                    controls.target.copy(droneGroup.position);
+                } else {
+                    camera.position.set(0, 0, 3.5);
+                }
             }
         });
 
@@ -1592,18 +1650,37 @@
 
         viewSwitchBtn.addEventListener('click', () => {
             isFPV = !isFPV;
+            let camFollowBtn = document.getElementById('camFollowBtn');
             if (isFPV) {
                 viewSwitchBtn.textContent = '切換視角：FPV 穿越視角 (無人機)';
+                if (camFollowBtn) camFollowBtn.style.display = 'none';
                 controls.enabled = false; crosshair.style.display = 'block'; osd.style.display = 'block';
                 if(window.droneCrashed) document.getElementById('static-overlay').style.display = 'block';
                 droneGroup.add(camera); resetFPVCamera();
             } else {
                 viewSwitchBtn.textContent = '切換視角：第三人稱 [V]';
-                controls.enabled = true; crosshair.style.display = 'none'; osd.style.display = 'none';
+                if (camFollowBtn) camFollowBtn.style.display = 'block';
+                crosshair.style.display = 'none'; osd.style.display = 'none';
                 document.getElementById('static-overlay').style.display = 'none';
                 droneGroup.remove(camera); scene.add(camera);
-                camera.position.set(0, 0, 3.5);
-                  controls.target.copy(droneGroup.position);
+                if (window.thirdPersonFollowYaw && typeof droneGroup !== 'undefined') {
+                    controls.enabled = false;
+                    let droneYaw = (typeof window.droneYawAngle !== 'undefined') ? window.droneYawAngle : 0;
+                    let qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), droneYaw);
+                    let offset = new THREE.Vector3(0, 0.38, 0.95).applyQuaternion(qYaw);
+                    camera.position.copy(droneGroup.position).add(offset);
+                    let lookTarget = droneGroup.position.clone().add(new THREE.Vector3(0, 0.08, -0.3).applyQuaternion(qYaw));
+                    camera.lookAt(lookTarget);
+                    controls.target.copy(droneGroup.position);
+                } else {
+                    controls.enabled = true;
+                    if (typeof droneGroup !== 'undefined') {
+                        camera.position.copy(droneGroup.position).add(new THREE.Vector3(0, 0.5, 1.5));
+                        controls.target.copy(droneGroup.position);
+                    } else {
+                        camera.position.set(0, 0, 3.5);
+                    }
+                }
             }
         });
 
@@ -2394,17 +2471,39 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                         if (keys.left) camera.rotation.y += rotSpeed;
                         if (keys.right) camera.rotation.y -= rotSpeed;
                     } else {
-                    // True Follow Camera: Move camera position by the drone's movement delta
-                    let currentDronePos = droneGroup.position.clone();
-                    if (!window.lastDronePos) window.lastDronePos = currentDronePos.clone();
-                    let deltaPos = currentDronePos.clone().sub(window.lastDronePos);
-                    window.lastDronePos = currentDronePos.clone();
-                    
-                    camera.position.add(deltaPos);
-                    controls.target.copy(droneGroup.position);
+                        let followYaw = (window.thirdPersonFollowYaw !== false);
+                        if (followYaw) {
+                            controls.enabled = false;
+                            let droneYaw = (typeof window.droneYawAngle !== 'undefined')
+                                ? window.droneYawAngle
+                                : new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ').y;
+                            let qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), droneYaw);
+                            // 相機理想位置：位於無人機後方 0.95m，上方 0.38m
+                            let offset = new THREE.Vector3(0, 0.38, 0.95).applyQuaternion(qYaw);
+                            let targetCamPos = droneGroup.position.clone().add(offset);
+                            
+                            // 平滑追尾跟隨 (時間無關的指數平滑)
+                            let lerpRate = Math.min(1.0, 15.0 * dt);
+                            camera.position.lerp(targetCamPos, lerpRate);
+                            
+                            // 看向機身前方稍微偏上
+                            let lookTarget = droneGroup.position.clone().add(new THREE.Vector3(0, 0.08, -0.3).applyQuaternion(qYaw));
+                            camera.lookAt(lookTarget);
+                            controls.target.copy(droneGroup.position);
+                        } else {
+                            controls.enabled = true;
+                            // True Follow Camera: Move camera position by the drone's movement delta
+                            let currentDronePos = droneGroup.position.clone();
+                            if (!window.lastDronePos) window.lastDronePos = currentDronePos.clone();
+                            let deltaPos = currentDronePos.clone().sub(window.lastDronePos);
+                            window.lastDronePos = currentDronePos.clone();
+                            
+                            camera.position.add(deltaPos);
+                            controls.target.copy(droneGroup.position);
 
-                    controls.update();
-                }
+                            controls.update();
+                        }
+                    }
             }
             // Anti-jitter: if moving very slowly while on ground, zero it out
 
@@ -2444,27 +2543,23 @@ renderer.render(scene, camera);
     <script>
         function updateRabboniConf() {
             if (typeof controlConfig === 'undefined') return;
-            controlConfig.pitch.stick = document.getElementById('r-pitch-stick').value;
-            controlConfig.pitch.mode = document.getElementById('r-pitch-mode').value;
-            controlConfig.pitch.sens = parseFloat(document.getElementById('r-pitch-sens').value);
-            
-            controlConfig.roll.stick = document.getElementById('r-roll-stick').value;
-            controlConfig.roll.mode = document.getElementById('r-roll-mode').value;
-            controlConfig.roll.sens = parseFloat(document.getElementById('r-roll-sens').value);
-            
-            controlConfig.thrust.stick = document.getElementById('r-thrust-stick').value;
-            controlConfig.thrust.mode = document.getElementById('r-thrust-mode').value;
-            controlConfig.thrust.sens = parseFloat(document.getElementById('r-thrust-sens').value);
-            
-            controlConfig.yaw.stick = document.getElementById('r-yaw-stick').value;
-            controlConfig.yaw.mode = document.getElementById('r-yaw-mode').value;
-            controlConfig.yaw.sens = parseFloat(document.getElementById('r-yaw-sens').value);
+            ['pitch', 'roll', 'thrust', 'yaw'].forEach(axis => {
+                let stickEl = document.getElementById(`r-${axis}-stick`);
+                let modeEl = document.getElementById(`r-${axis}-mode`);
+                let sensEl = document.getElementById(`r-${axis}-sens`);
+                let invEl = document.getElementById(`r-${axis}-inv`);
+                if (stickEl && controlConfig[axis]) controlConfig[axis].stick = stickEl.value;
+                if (modeEl && controlConfig[axis]) controlConfig[axis].mode = modeEl.value;
+                if (sensEl && controlConfig[axis]) controlConfig[axis].sens = parseFloat(sensEl.value);
+                if (invEl && controlConfig[axis]) controlConfig[axis].invert = invEl.checked;
+            });
+            if (typeof saveRabboniSettings === 'function') saveRabboniSettings();
         }
     </script>
 
 
     <div id="rabboni-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="width:550px; max-width:90vw;">
+        <div class="modal-content" style="width:580px; max-width:90vw;">
             <div class="modal-header"><span>Rabboni 控制器設定</span><div><button onclick="resetAll設定()" style="margin-right:15px; padding:4px 8px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">重置所有設定</button><span class="close-btn" onclick="document.getElementById('rabboni-modal').style.display='none'">&times;</span></div>
               
               <div style="margin-bottom:15px; padding:10px; background:rgba(33, 150, 243, 0.1); border-radius:8px; border:1px solid #2196F3;">
@@ -2491,29 +2586,33 @@ renderer.render(scene, camera);
             </div>
             
             <table style="width:100%; text-align:left; border-collapse:collapse;" id="rabboni-table">
-                <tr style="border-bottom:1px solid #555;"><th>控制項</th><th>搖桿分配</th><th>控制方式</th><th>靈敏度</th></tr>
+                <tr style="border-bottom:1px solid #555;"><th>控制項</th><th>搖桿分配</th><th>控制方式</th><th style="text-align:center;">反向</th><th>靈敏度</th></tr>
                 <tr>
                     <td>前後傾斜 (Pitch)</td>
                     <td><select id="r-pitch-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
                     <td><select id="r-pitch-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">同步 Rabboni 角度</option></select></td>
+                    <td style="text-align:center;"><input type="checkbox" id="r-pitch-inv" onchange="updateRabboniConf()"></td>
                     <td><input type="range" id="r-pitch-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
                 </tr>
                 <tr>
                     <td>左右傾斜 (Roll)</td>
                     <td><select id="r-roll-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
                     <td><select id="r-roll-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">同步 Rabboni 角度</option></select></td>
+                    <td style="text-align:center;"><input type="checkbox" id="r-roll-inv" onchange="updateRabboniConf()"></td>
                     <td><input type="range" id="r-roll-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
                 </tr>
                 <tr>
                     <td>升降 (Thrust)</td>
                     <td><select id="r-thrust-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
                     <td><select id="r-thrust-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">Rabboni Z軸加速度</option></select></td>
+                    <td style="text-align:center;"><input type="checkbox" id="r-thrust-inv" onchange="updateRabboniConf()"></td>
                     <td><input type="range" id="r-thrust-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
                 </tr>
                 <tr>
                     <td>左右旋轉 (Yaw)</td>
                     <td><select id="r-yaw-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
                     <td><select id="r-yaw-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">同步 Z軸旋轉</option></select></td>
+                    <td style="text-align:center;"><input type="checkbox" id="r-yaw-inv" onchange="updateRabboniConf()"></td>
                     <td><input type="range" id="r-yaw-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
                 </tr>
             </table>
@@ -2563,6 +2662,10 @@ renderer.render(scene, camera);
                 document.getElementById('r-yaw-stick').value = 'B';
                 document.getElementById('r-yaw-mode').value = 'fixed';
                 document.getElementById('r-yaw-sens').value = '1.0';
+                ['pitch', 'roll', 'thrust', 'yaw'].forEach(a => {
+                    let inv = document.getElementById(`r-${a}-inv`);
+                    if (inv) inv.checked = false;
+                });
                 updateRabboniSelection();
                 updateRabboniConf();
             }
@@ -2698,6 +2801,7 @@ renderer.render(scene, camera);
             }
 
             if (e.key === 'v' || e.key === 'V') { let btn = document.getElementById('viewSwitchBtn'); if(btn) btn.click(); }
+            if (e.key === 'c' || e.key === 'C') { if (!isFPV && currentPage === 'page-D') toggleCamFollow(); }
             if (e.key === 'h' || e.key === 'H') { let btn = document.getElementById('hoverBtn'); if(btn && btn.style.display !== 'none') btn.click(); }
             if (e.key === 'm' || e.key === 'M') { let btn = document.getElementById('headlessBtn'); if(btn && btn.style.display !== 'none') btn.click(); }
             if (e.key === 't' || e.key === 'T') { let btn = document.getElementById('modeSwitchBtn'); if(btn) btn.click(); }
@@ -3037,7 +3141,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.013';
+        const CURRENT_VERSION = 'v4.014';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3198,7 +3302,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.013</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.014</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
