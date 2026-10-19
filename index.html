@@ -2852,110 +2852,162 @@ function applyQuickTime(btn, minutes, targetField) {
     targetInput.value = toDatetimeLocalStr(futureTime);
 }
 
-// 繪製 1200x400 官方高質感 Canvas 橫幅圖片
-window.generateBannerCanvasDataUrl = function(titleText, subtitleText = '官方最新消息公告') {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1200;
-    canvas.height = 400;
-    const ctx = canvas.getContext('2d');
+// 智慧橫幅生成核心：以第一語言原圖為母版底圖，智慧覆蓋替換為目標語言文字
+window.generateLocalizedBannerDataUrl = function(masterImgSrc, titleText, subtitleText = '', layoutMode = 'left') {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1200;
+        canvas.height = 400;
+        const ctx = canvas.getContext('2d');
 
-    // 1. 背景主漸層 (深綠奢華)
-    const bgGrad = ctx.createLinearGradient(0, 0, 1200, 400);
-    bgGrad.addColorStop(0, '#041f0f');
-    bgGrad.addColorStop(0.5, '#0b381d');
-    bgGrad.addColorStop(1, '#154e2a');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 1200, 400);
+        function renderFallbackBackground() {
+            const bgGrad = ctx.createLinearGradient(0, 0, 1200, 400);
+            bgGrad.addColorStop(0, '#041f0f');
+            bgGrad.addColorStop(0.5, '#0b381d');
+            bgGrad.addColorStop(1, '#154e2a');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, 1200, 400);
+            const glow = ctx.createRadialGradient(600, 200, 50, 600, 200, 500);
+            glow.addColorStop(0, 'rgba(74, 222, 128, 0.25)');
+            glow.addColorStop(1, 'transparent');
+            ctx.fillStyle = glow;
+            ctx.fillRect(0, 0, 1200, 400);
+        }
 
-    // 2. 放射光暈中心
-    const glowGrad = ctx.createRadialGradient(600, 200, 50, 600, 200, 500);
-    glowGrad.addColorStop(0, 'rgba(74, 222, 128, 0.25)');
-    glowGrad.addColorStop(0.5, 'rgba(34, 197, 94, 0.1)');
-    glowGrad.addColorStop(1, 'transparent');
-    ctx.fillStyle = glowGrad;
-    ctx.fillRect(0, 0, 1200, 400);
+        function drawTextContent() {
+            const title = (titleText || '').trim();
+            if (!title) return canvas.toDataURL('image/jpeg', 0.92);
 
-    // 3. 裝飾光點微粒
-    ctx.fillStyle = 'rgba(254, 240, 138, 0.35)';
-    const particles = [
-        [150, 80, 3], [300, 120, 2], [900, 90, 3.5], [1050, 140, 2],
-        [180, 320, 2.5], [350, 280, 3], [850, 310, 2.5], [1020, 290, 4],
-        [600, 60, 2], [520, 340, 2.5], [680, 350, 3]
-    ];
-    particles.forEach(([x, y, r]) => {
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fill();
+            if (layoutMode === 'left') {
+                // 左側標題覆蓋面板 (精準覆蓋左側原文字，保留右側主要視覺插畫)
+                const panelX = 35;
+                const panelY = 40;
+                const panelW = 440;
+                const panelH = 220;
+                const radius = 18;
+
+                // 面板背景：深邃高雅微透漸層，完美遮蔽原底圖文字
+                const panelGrad = ctx.createLinearGradient(panelX, panelY, panelX + panelW, panelY + panelH);
+                panelGrad.addColorStop(0, 'rgba(12, 28, 48, 0.88)');
+                panelGrad.addColorStop(1, 'rgba(6, 16, 28, 0.82)');
+                ctx.fillStyle = panelGrad;
+                ctx.beginPath();
+                ctx.roundRect(panelX, panelY, panelW, panelH, radius);
+                ctx.fill();
+
+                // 雅緻金邊
+                ctx.strokeStyle = 'rgba(234, 179, 8, 0.55)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 頂部小副標
+                if (subtitleText) {
+                    ctx.fillStyle = '#fef08a';
+                    ctx.font = 'bold 15px "Noto Sans TC", "PingFang TC", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(subtitleText, panelX + 24, panelY + 22);
+                }
+
+                // 主標題文字排版
+                let fontSize = 34;
+                if (title.length > 18) fontSize = 28;
+                if (title.length > 32) fontSize = 22;
+                ctx.font = `bold ${fontSize}px "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 8;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                const textStartY = subtitleText ? (panelY + 115) : (panelY + 110);
+                if (title.length <= 14) {
+                    ctx.fillText(title, panelX + 24, textStartY);
+                } else {
+                    const mid = Math.ceil(title.length / 2);
+                    ctx.fillText(title.slice(0, mid), panelX + 24, textStartY - (fontSize * 0.7));
+                    ctx.fillText(title.slice(mid), panelX + 24, textStartY + (fontSize * 0.7));
+                }
+                ctx.shadowBlur = 0;
+            } else if (layoutMode === 'center') {
+                // 置中懸浮卡片
+                const panelW = 760;
+                const panelH = 180;
+                const panelX = (1200 - panelW) / 2;
+                const panelY = (400 - panelH) / 2;
+                ctx.fillStyle = 'rgba(10, 25, 40, 0.85)';
+                ctx.beginPath();
+                ctx.roundRect(panelX, panelY, panelW, panelH, 16);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                let fontSize = 38;
+                if (title.length > 25) fontSize = 30;
+                ctx.font = `bold ${fontSize}px "Noto Sans TC", "Microsoft JhengHei", sans-serif`;
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(title, 600, 200);
+            } else if (layoutMode === 'bottom') {
+                // 底部橫條
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+                ctx.fillRect(0, 310, 1200, 90);
+                ctx.fillStyle = 'rgba(234, 179, 8, 0.8)';
+                ctx.fillRect(0, 310, 1200, 3);
+
+                ctx.font = 'bold 30px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(title, 600, 355);
+            } else {
+                // direct 模式：純壓字無遮罩
+                ctx.font = 'bold 38px "Noto Sans TC", "Microsoft JhengHei", sans-serif';
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                ctx.shadowBlur = 12;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(title, 600, 200);
+                ctx.shadowBlur = 0;
+            }
+
+            return canvas.toDataURL('image/jpeg', 0.92);
+        }
+
+        if (masterImgSrc && masterImgSrc.trim()) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const targetRatio = 1200 / 400;
+                const imgRatio = img.width / img.height;
+                let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+                if (imgRatio > targetRatio) {
+                    sWidth = img.height * targetRatio;
+                    sx = (img.width - sWidth) / 2;
+                } else {
+                    sHeight = img.width / targetRatio;
+                    sy = (img.height - sHeight) / 2;
+                }
+                ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 1200, 400);
+                resolve(drawTextContent());
+            };
+            img.onerror = function() {
+                renderFallbackBackground();
+                resolve(drawTextContent());
+            };
+            img.src = masterImgSrc;
+        } else {
+            renderFallbackBackground();
+            resolve(drawTextContent());
+        }
     });
+};
 
-    // 4. 外框飾線 (細金邊)
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.35)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(30, 25, 1140, 350);
-
-    ctx.strokeStyle = 'rgba(234, 179, 8, 0.6)';
-    ctx.lineWidth = 3;
-    const cSize = 25;
-    ctx.beginPath(); ctx.moveTo(25, 25 + cSize); ctx.lineTo(25, 25); ctx.lineTo(25 + cSize, 25); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(1175 - cSize, 25); ctx.lineTo(1175, 25); ctx.lineTo(1175, 25 + cSize); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(25, 375 - cSize); ctx.lineTo(25, 375); ctx.lineTo(25 + cSize, 375); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(1175 - cSize, 375); ctx.lineTo(1175, 375); ctx.lineTo(1175, 375 - cSize); ctx.stroke();
-
-    // 5. 頂部徽章標籤 (Pill badge)
-    ctx.fillStyle = 'rgba(22, 101, 52, 0.85)';
-    ctx.beginPath();
-    ctx.roundRect(460, 55, 280, 38, 19);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(250, 204, 21, 0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    ctx.fillStyle = '#fef08a';
-    ctx.font = 'bold 16px "Noto Sans TC", "PingFang TC", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('✨ 官方公告 · ANNOUNCEMENT ✨', 600, 74);
-
-    // 6. 標題排版 (支援自動換行與字級調整)
-    const title = titleText || 'PandaPanda 官方最新公告';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    let fontSize = 48;
-    if (title.length > 25) fontSize = 38;
-    if (title.length > 40) fontSize = 30;
-    ctx.font = `bold ${fontSize}px "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif`;
-
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 4;
-
-    ctx.fillStyle = '#ffffff';
-
-    if (title.length <= 20) {
-        ctx.fillText(title, 600, 195);
-    } else {
-        const mid = Math.ceil(title.length / 2);
-        const l1 = title.slice(0, mid);
-        const l2 = title.slice(mid);
-        ctx.fillText(l1, 600, 170);
-        ctx.fillText(l2, 600, 225);
-    }
-
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-
-    // 7. 底部副標與浮水印
-    ctx.fillStyle = 'rgba(254, 240, 138, 0.85)';
-    ctx.font = 'bold 17px "Noto Sans TC", sans-serif';
-    ctx.fillText(subtitleText, 600, 285);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-    ctx.font = '13px "Courier New", monospace, sans-serif';
-    ctx.fillText('PandaPanda 的 AI 日常 • pandapanda6666.github.io', 600, 335);
-
-    return canvas.toDataURL('image/jpeg', 0.9);
+window.generateBannerCanvasDataUrl = function(titleText, subtitleText = '官方最新消息') {
+    return generateLocalizedBannerDataUrl('', titleText, subtitleText, 'center');
 };
 
 // 一鍵自動翻譯各語標題 (調用後端代理翻譯)
@@ -3014,30 +3066,68 @@ window.autoTranslateBannerRow = async function(btn) {
     }
 };
 
-// 一鍵使用 Canvas 智慧繪製高解析官方橫幅圖片
-window.autoGenerateBannerCanvas = function(btn) {
+// 一鍵以第一語言圖片為母版，智慧繪製各語言專屬橫幅
+window.autoGenerateBannerCanvas = async function(btn) {
     const row = btn.closest('.hero-admin-row');
     if (!row) return;
+
+    // 1. 抓取第一語言（母版）圖片
+    let masterImg = row.querySelector('.b-img-zh-TW')?.value || row.querySelector('.b-img')?.value || '';
+    if (!masterImg) {
+        const preview = row.querySelector('.b-img-preview');
+        if (preview && preview.src && !preview.src.endsWith('/')) masterImg = preview.src;
+    }
+    if (masterImg && !masterImg.startsWith('data:') && !masterImg.startsWith('http')) {
+        masterImg = getFullImageUrl(masterImg);
+    }
 
     const tTW = row.querySelector('.b-title-zh-TW')?.value.trim() || '';
     const tHK = row.querySelector('.b-title-zh-HK')?.value.trim() || '';
     const tCN = row.querySelector('.b-title-zh-CN')?.value.trim() || '';
     const tJA = row.querySelector('.b-title-ja')?.value.trim() || '';
     const tEN = row.querySelector('.b-title-en')?.value.trim() || '';
-    const baseTitle = tTW || tHK || tCN || tJA || tEN || row.querySelector('.b-title')?.value.trim() || 'PandaPanda 官方最新公告';
+    const baseTitle = tTW || tHK || tCN || tJA || tEN || row.querySelector('.b-title')?.value.trim() || '';
 
-    const twImg = generateBannerCanvasDataUrl(tTW || baseTitle, '官方最新消息公告');
-    row.querySelector('.b-img').value = twImg;
-    const preview = row.querySelector('.b-img-preview');
-    if (preview) preview.src = twImg;
+    if (!baseTitle) {
+        alert('請先填寫標題（或點擊「自動翻譯各語標題」）後再產生橫幅！');
+        return;
+    }
 
-    if (row.querySelector('.b-img-zh-TW')) row.querySelector('.b-img-zh-TW').value = twImg;
-    if (row.querySelector('.b-img-zh-HK')) row.querySelector('.b-img-zh-HK').value = generateBannerCanvasDataUrl(tHK || baseTitle, '官方最新消息公告');
-    if (row.querySelector('.b-img-zh-CN')) row.querySelector('.b-img-zh-CN').value = generateBannerCanvasDataUrl(tCN || baseTitle, '官方最新消息公告');
-    if (row.querySelector('.b-img-ja')) row.querySelector('.b-img-ja').value = generateBannerCanvasDataUrl(tJA || baseTitle, '公式最新ニュース');
-    if (row.querySelector('.b-img-en')) row.querySelector('.b-img-en').value = generateBannerCanvasDataUrl(tEN || baseTitle, 'Official Latest Announcement');
+    const layoutMode = row.querySelector('.b-canvas-layout')?.value || 'left';
 
-    alert('🎨 已使用 Canvas 成功自動產生高解析官方橫幅圖片！\n包含臺灣繁體、香港繁體、簡體中文、日文、英文等各版本。');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在根據原圖產生多語橫幅...';
+    btn.disabled = true;
+
+    try {
+        // 第一語言（臺灣繁體）：若本來已有原圖，絕對保留原圖不覆蓋！
+        let twImg = row.querySelector('.b-img-zh-TW')?.value || row.querySelector('.b-img')?.value || '';
+        if (!twImg) {
+            twImg = await generateLocalizedBannerDataUrl(masterImg, tTW || baseTitle, '官方最新消息', layoutMode);
+            row.querySelector('.b-img').value = twImg;
+            if (row.querySelector('.b-img-zh-TW')) row.querySelector('.b-img-zh-TW').value = twImg;
+            const preview = row.querySelector('.b-img-preview');
+            if (preview) preview.src = twImg;
+        }
+
+        // 其他 4 種語言：以第一語言圖片為母版底圖，將文字替換為各語言標題！
+        const hkImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tHK || baseTitle, '官方最新消息', layoutMode);
+        const cnImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tCN || baseTitle, '官方最新消息', layoutMode);
+        const jaImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tJA || baseTitle, '公式最新ニュース', layoutMode);
+        const enImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tEN || baseTitle, 'Official Announcement', layoutMode);
+
+        if (row.querySelector('.b-img-zh-HK')) row.querySelector('.b-img-zh-HK').value = hkImg;
+        if (row.querySelector('.b-img-zh-CN')) row.querySelector('.b-img-zh-CN').value = cnImg;
+        if (row.querySelector('.b-img-ja')) row.querySelector('.b-img-ja').value = jaImg;
+        if (row.querySelector('.b-img-en')) row.querySelector('.b-img-en').value = enImg;
+
+        alert('🎨 已成功根據第一語言圖片母版，自動為香港繁體、簡體中文、日文、英文替換產生對應橫幅圖片！\n臺灣繁體原圖完整保留！');
+    } catch(err) {
+        alert('產生橫幅時發生錯誤：' + err.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 };
 
 function renderBannerAdminList() {
@@ -3083,9 +3173,15 @@ function renderBannerAdminList() {
                     <div style="display:flex; flex-direction:column; gap:6px; background:#f0f9f0; padding:8px 10px; border-radius:6px; border:1px solid #c8e6c9;">
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                             <span style="font-weight:bold; font-size:12px; color:#1b4332;"><i class="fas fa-language"></i> 多語系公告標題 (手動填寫/自動翻譯)：</span>
-                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                <select class="b-canvas-layout" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1px solid #00796b; color:#004d40; background:#e0f2f1; font-weight:bold;" title="文字覆蓋版型">
+                                    <option value="left" selected>左側面板 (遮蓋原字)</option>
+                                    <option value="center">置中面板</option>
+                                    <option value="bottom">底部橫條</option>
+                                    <option value="direct">純壓字 (無遮罩)</option>
+                                </select>
                                 <button type="button" class="quick-time-btn" onclick="autoTranslateBannerRow(this)" style="background:#2e7d32; color:white; font-size:11px;" title="輸入臺灣繁體後自動翻譯成其他 4 國語言"><i class="fas fa-globe"></i> 自動翻譯各語標題</button>
-                                <button type="button" class="quick-time-btn" onclick="autoGenerateBannerCanvas(this)" style="background:#00796b; color:white; font-size:11px;" title="根據輸入標題自動以 Canvas 繪製各語系專屬高畫質橫幅圖片"><i class="fas fa-paint-brush"></i> 🎨 自動翻譯產生橫幅</button>
+                                <button type="button" class="quick-time-btn" onclick="autoGenerateBannerCanvas(this)" style="background:#00796b; color:white; font-size:11px;" title="根據第一語言母版圖片自動替換文字產生多語橫幅圖片"><i class="fas fa-paint-brush"></i> 🎨 自動翻譯產生橫幅</button>
                             </div>
                         </div>
                         <input type="text" class="b-title b-title-zh-TW" placeholder="🇹🇼 臺灣繁體中文標題 (主要標題)" value="${(b.titles && b.titles['zh-TW']) || b.title || ''}" style="font-weight:bold;">
@@ -3261,9 +3357,15 @@ function addHeroRow() {
                 <div style="display:flex; flex-direction:column; gap:6px; background:#f0f9f0; padding:8px 10px; border-radius:6px; border:1px solid #c8e6c9;">
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                         <span style="font-weight:bold; font-size:12px; color:#1b4332;"><i class="fas fa-language"></i> 多語系公告標題 (手動填寫/自動翻譯)：</span>
-                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <select class="b-canvas-layout" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1px solid #00796b; color:#004d40; background:#e0f2f1; font-weight:bold;" title="文字覆蓋版型">
+                                <option value="left" selected>左側面板 (遮蓋原字)</option>
+                                <option value="center">置中面板</option>
+                                <option value="bottom">底部橫條</option>
+                                <option value="direct">純壓字 (無遮罩)</option>
+                            </select>
                             <button type="button" class="quick-time-btn" onclick="autoTranslateBannerRow(this)" style="background:#2e7d32; color:white; font-size:11px;" title="輸入臺灣繁體後自動翻譯成其他 4 國語言"><i class="fas fa-globe"></i> 自動翻譯各語標題</button>
-                            <button type="button" class="quick-time-btn" onclick="autoGenerateBannerCanvas(this)" style="background:#00796b; color:white; font-size:11px;" title="根據輸入標題自動以 Canvas 繪製各語系專屬高畫質橫幅圖片"><i class="fas fa-paint-brush"></i> 🎨 自動翻譯產生橫幅</button>
+                            <button type="button" class="quick-time-btn" onclick="autoGenerateBannerCanvas(this)" style="background:#00796b; color:white; font-size:11px;" title="根據第一語言母版圖片自動替換文字產生多語橫幅圖片"><i class="fas fa-paint-brush"></i> 🎨 自動翻譯產生橫幅</button>
                         </div>
                     </div>
                     <input type="text" class="b-title b-title-zh-TW" placeholder="🇹🇼 臺灣繁體中文標題 (主要標題)" style="font-weight:bold;">
