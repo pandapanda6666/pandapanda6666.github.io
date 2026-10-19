@@ -757,17 +757,77 @@
                 createFlag(5, -65, redMat);
             }
             
-            // 更新世界矩陣並精確快取地圖中所有實體障礙物的世界 AABB 邊界框
+            // 更新世界矩陣並精確快取地圖中所有實體障礙物幾何體 (CYLINDER 圓錐/圓柱體 與 BOX 矩形柱)
             mapGroup.updateMatrixWorld(true);
             window.mapObstacles = [];
             mapGroup.traverse(m => {
                 if (m.isMesh && !m.isGuideRing && !m.isTargetPlane && m !== ground) {
                     m.updateMatrixWorld(true);
                     if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
-                    let box = new THREE.Box3().setFromObject(m);
-                    window.mapObstacles.push({ mesh: m, box: box });
+
+                    let isCylinder = (m.geometry.type === 'CylinderGeometry') || 
+                                     (m.geometry.parameters && m.geometry.parameters.radiusTop !== undefined);
+
+                    if (isCylinder) {
+                        let worldPos = new THREE.Vector3();
+                        let worldQuat = new THREE.Quaternion();
+                        let worldScale = new THREE.Vector3();
+                        m.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+
+                        let p = m.geometry.parameters || {};
+                        let rTop = (p.radiusTop !== undefined ? p.radiusTop : 0.2) * Math.max(worldScale.x, worldScale.z);
+                        let rBot = (p.radiusBottom !== undefined ? p.radiusBottom : 0.2) * Math.max(worldScale.x, worldScale.z);
+                        let h = (p.height !== undefined ? p.height : 1.0) * worldScale.y;
+                        let yBase = worldPos.y - h / 2;
+
+                        window.mapObstacles.push({
+                            type: 'CYLINDER',
+                            mesh: m,
+                            basePos: new THREE.Vector3(worldPos.x, yBase, worldPos.z),
+                            height: h,
+                            radiusTop: rTop,
+                            radiusBottom: rBot,
+                            box: new THREE.Box3().setFromObject(m)
+                        });
+                    } else {
+                        window.mapObstacles.push({
+                            type: 'BOX',
+                            mesh: m,
+                            box: new THREE.Box3().setFromObject(m)
+                        });
+                    }
                 }
             });
+        }
+        
+        function createTrafficCone(x, z, scale = 1.0) {
+            let group = new THREE.Group();
+            const baseMat = new THREE.MeshLambertMaterial({ color: 0xFF4500 });
+            const whiteMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            
+            // 底座 (薄方形，標記 isGuideRing = true 避免底座邊角卡機)
+            const baseGeo = new THREE.BoxGeometry(0.45 * scale, 0.05 * scale, 0.45 * scale);
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.position.set(0, 0.025 * scale, 0);
+            base.isGuideRing = true;
+            group.add(base);
+
+            // 圓錐主體 (精緻圓錐幾何體，由物理引擎以真圓錐半徑檢測，絕非立方體)
+            const coneGeo = new THREE.CylinderGeometry(0.04 * scale, 0.22 * scale, 0.7 * scale, 16);
+            const cone = new THREE.Mesh(coneGeo, baseMat);
+            cone.position.set(0, 0.35 * scale, 0);
+            group.add(cone);
+
+            // 白色反光條
+            const bandGeo = new THREE.CylinderGeometry(0.09 * scale, 0.15 * scale, 0.22 * scale, 16);
+            const band = new THREE.Mesh(bandGeo, whiteMat);
+            band.position.set(0, 0.38 * scale, 0);
+            band.isGuideRing = true;
+            group.add(band);
+
+            group.position.set(x, -1.5, z);
+            mapGroup.add(group);
+            return group;
         }
         
         function createArch(x, y, z, width, height, mat) {
@@ -1989,7 +2049,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                     let restitution = THREE.MathUtils.clamp(droneEla * 0.9, 0.05, 0.85); // 機身柔軟度 / 反彈係數
                     let normalCrashThresh = 4.0 + droneEla * 12.0; // 柔軟度越低越易碎，越高越耐撞
                     let upsideCrashThresh = 1.5 + droneEla * 6.0;
-                    let droneRadius = 0.14; // 無人機核心碰撞防護半徑
+                    let droneRadius = 0.10; // 無人機精緻碰撞防護半徑 (緊密貼合 2.5~3 吋機體，絕不產生過度膨脹氣泡)
                     let subDrag = Math.pow(0.985, 1.0 / numSubsteps);
 
                     for (let step = 0; step < numSubsteps; step++) {
@@ -2022,113 +2082,204 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                             }
                         }
 
-                        // 2. 地圖所有實體障礙物連續射線/掃掠球碰撞 (Continuous Swept Sphere against AABB)
+                        // 2. 地圖所有實體障礙物連續精緻碰撞 (支援精緻圓錐體 CYLINDER 與定向長方體 BOX)
                         if (window.mapObstacles && window.mapObstacles.length > 0) {
                             let moveDelta = targetPos.clone().sub(curPos);
                             let moveDist = moveDelta.length();
                             let moveDir = moveDist > 1e-6 ? moveDelta.clone().divideScalar(moveDist) : new THREE.Vector3(0,0,0);
 
                             for (let obs of window.mapObstacles) {
-                                let box = obs.box;
-                                // 邊界框擴展無人機碰撞半徑 (Minkowski Sum)
-                                let bMinX = box.min.x - droneRadius;
-                                let bMaxX = box.max.x + droneRadius;
-                                let bMinY = box.min.y - droneRadius;
-                                let bMaxY = box.max.y + droneRadius;
-                                let bMinZ = box.min.z - droneRadius;
-                                let bMaxZ = box.max.z + droneRadius;
+                                if (obs.type === 'CYLINDER') {
+                                    // === 精緻圓錐/圓柱體解析碰撞 (Exact Tapered Cone / Cylinder Analytical Solver) ===
+                                    // 徹底解決 AABB 立方體 45 度角虛假空氣牆與頂端被底部寬度撐大的問題
+                                    let bPos = obs.basePos;
+                                    let cH = obs.height;
+                                    let rBot = obs.radiusBottom;
+                                    let rTop = obs.radiusTop;
+                                    let slope = (rBot - rTop) / Math.max(0.001, cH);
 
-                                // (A) 檢查當前起點是否已在障礙物內部或緊貼表面 (穿模防禦與即時彈出)
-                                let insideX = (curPos.x >= bMinX && curPos.x <= bMaxX);
-                                let insideY = (curPos.y >= bMinY && curPos.y <= bMaxY);
-                                let insideZ = (curPos.z >= bMinZ && curPos.z <= bMaxZ);
+                                    // Broadphase: 粗略範圍過濾
+                                    let maxR = Math.max(rBot, rTop) + droneRadius + 0.08;
+                                    let dx = curPos.x - bPos.x;
+                                    let dz = curPos.z - bPos.z;
+                                    if (dx*dx + dz*dz > (maxR + moveDist)*(maxR + moveDist)) continue;
+                                    if (curPos.y < bPos.y - droneRadius - moveDist || curPos.y > bPos.y + cH + droneRadius + moveDist) continue;
 
-                                if (insideX && insideY && insideZ) {
-                                    let clamped = curPos.clone().clamp(box.min, box.max);
-                                    let distToBox = curPos.distanceTo(clamped);
-                                    let norm = new THREE.Vector3();
-                                    if (distToBox > 1e-5) {
-                                        norm.subVectors(curPos, clamped).normalize();
-                                    } else {
-                                        // 完全處於幾何體內部，找最近表面彈出
-                                        let dx1 = curPos.x - box.min.x, dx2 = box.max.x - curPos.x;
-                                        let dy1 = curPos.y - box.min.y, dy2 = box.max.y - curPos.y;
-                                        let dz1 = curPos.z - box.min.z, dz2 = box.max.z - curPos.z;
-                                        let minD = Math.min(dx1, dx2, dy1, dy2, dz1, dz2);
-                                        if (minD === dx1) norm.set(-1, 0, 0);
-                                        else if (minD === dx2) norm.set(1, 0, 0);
-                                        else if (minD === dy1) norm.set(0, -1, 0);
-                                        else if (minD === dy2) norm.set(0, 1, 0);
-                                        else if (minD === dz1) norm.set(0, 0, -1);
-                                        else norm.set(0, 0, 1);
-                                    }
-                                    colFraction = 0.0;
-                                    colNormal.copy(norm);
-                                    colHitMesh = obs.mesh;
-                                    hasCollision = true;
-                                    break;
-                                }
+                                    // (A) 檢查當前起點是否已處於錐體內部或緊貼表面
+                                    let uCur = THREE.MathUtils.clamp((curPos.y - bPos.y) / cH, 0.0, 1.0);
+                                    let rConeCur = rBot + (rTop - rBot) * uCur;
+                                    let limitRCur = rConeCur + droneRadius;
+                                    let horizDistCur = Math.sqrt(dx*dx + dz*dz);
+                                    let inHeightCur = (curPos.y >= bPos.y - droneRadius * 0.5 && curPos.y <= bPos.y + cH + droneRadius * 0.5);
 
-                                // (B) 起點在外部：高精度 Slab 線段交點檢測 (Continuous Swept Sphere)
-                                if (moveDist > 1e-6) {
-                                    let tmin = 0.0;
-                                    let tmax = moveDist;
-                                    let segNormal = new THREE.Vector3();
-                                    let hitPossible = true;
-
-                                    // X 軸
-                                    if (Math.abs(moveDir.x) < 1e-8) {
-                                        if (curPos.x < bMinX || curPos.x > bMaxX) hitPossible = false;
-                                    } else {
-                                        let invD = 1.0 / moveDir.x;
-                                        let t1 = (bMinX - curPos.x) * invD;
-                                        let t2 = (bMaxX - curPos.x) * invD;
-                                        let s = -Math.sign(moveDir.x);
-                                        if (t1 > t2) { let tmp = t1; t1 = t2; t2 = tmp; }
-                                        if (t1 > tmin) { tmin = t1; segNormal.set(s, 0, 0); }
-                                        tmax = Math.min(tmax, t2);
-                                        if (tmin > tmax) hitPossible = false;
-                                    }
-
-                                    // Y 軸
-                                    if (hitPossible) {
-                                        if (Math.abs(moveDir.y) < 1e-8) {
-                                            if (curPos.y < bMinY || curPos.y > bMaxY) hitPossible = false;
+                                    if (horizDistCur <= limitRCur && inHeightCur) {
+                                        let norm = new THREE.Vector3();
+                                        if (horizDistCur > 1e-5) {
+                                            norm.set(dx / horizDistCur, slope, dz / horizDistCur).normalize();
                                         } else {
-                                            let invD = 1.0 / moveDir.y;
-                                            let t1 = (bMinY - curPos.y) * invD;
-                                            let t2 = (bMaxY - curPos.y) * invD;
-                                            let s = -Math.sign(moveDir.y);
-                                            if (t1 > t2) { let tmp = t1; t1 = t2; t2 = tmp; }
-                                            if (t1 > tmin) { tmin = t1; segNormal.set(0, s, 0); }
-                                            tmax = Math.min(tmax, t2);
-                                            if (tmin > tmax) hitPossible = false;
+                                            norm.set(0, 1, 0);
                                         }
+                                        if (curPos.y > bPos.y + cH) norm.set(0, 1, 0);
+                                        else if (curPos.y < bPos.y) norm.set(0, -1, 0);
+
+                                        colFraction = 0.0;
+                                        colNormal.copy(norm);
+                                        colHitMesh = obs.mesh;
+                                        hasCollision = true;
+                                        break;
                                     }
 
-                                    // Z 軸
-                                    if (hitPossible) {
-                                        if (Math.abs(moveDir.z) < 1e-8) {
-                                            if (curPos.z < bMinZ || curPos.z > bMaxZ) hitPossible = false;
-                                        } else {
-                                            let invD = 1.0 / moveDir.z;
-                                            let t1 = (bMinZ - curPos.z) * invD;
-                                            let t2 = (bMaxZ - curPos.z) * invD;
-                                            let s = -Math.sign(moveDir.z);
-                                            if (t1 > t2) { let tmp = t1; t1 = t2; t2 = tmp; }
-                                            if (t1 > tmin) { tmin = t1; segNormal.set(0, 0, s); }
-                                            tmax = Math.min(tmax, t2);
-                                            if (tmin > tmax) hitPossible = false;
-                                        }
-                                    }
+                                    // (B) 沿微步長線段連續二分求精確交點 (Continuous Swept Sphere)
+                                    if (moveDist > 1e-6) {
+                                        let hitFrac = -1;
+                                        let hitNorm = new THREE.Vector3();
+                                        const SAMPLES = 6;
+                                        for (let s = 1; s <= SAMPLES; s++) {
+                                            let frac = s / SAMPLES;
+                                            if (frac >= colFraction) break;
+                                            let p = curPos.clone().lerp(targetPos, frac);
+                                            let up = THREE.MathUtils.clamp((p.y - bPos.y) / cH, 0.0, 1.0);
+                                            let rCone = rBot + (rTop - rBot) * up;
+                                            let limitR = rCone + droneRadius;
+                                            let pdx = p.x - bPos.x;
+                                            let pdz = p.z - bPos.z;
+                                            let distH = Math.sqrt(pdx*pdx + pdz*pdz);
 
-                                    if (hitPossible && tmin >= 0 && tmin <= moveDist) {
-                                        let frac = tmin / moveDist;
-                                        if (frac < colFraction) {
-                                            colFraction = frac;
-                                            colNormal.copy(segNormal);
+                                            if (distH <= limitR && p.y >= bPos.y - droneRadius && p.y <= bPos.y + cH + droneRadius) {
+                                                // 二分細化精確交點
+                                                let low = (s - 1) / SAMPLES, high = frac;
+                                                for (let k = 0; k < 3; k++) {
+                                                    let mid = (low + high) * 0.5;
+                                                    let pMid = curPos.clone().lerp(targetPos, mid);
+                                                    let uMid = THREE.MathUtils.clamp((pMid.y - bPos.y) / cH, 0.0, 1.0);
+                                                    let rM = rBot + (rTop - rBot) * uMid + droneRadius;
+                                                    let mdx = pMid.x - bPos.x, mdz = pMid.z - bPos.z;
+                                                    if (Math.sqrt(mdx*mdx + mdz*mdz) <= rM) high = mid;
+                                                    else low = mid;
+                                                }
+                                                hitFrac = high;
+                                                let pHit = curPos.clone().lerp(targetPos, hitFrac);
+                                                let hdx = pHit.x - bPos.x, hdz = pHit.z - bPos.z;
+                                                let hDist = Math.sqrt(hdx*hdx + hdz*hdz);
+                                                if (hDist > 1e-5) {
+                                                    hitNorm.set(hdx / hDist, slope, hdz / hDist).normalize();
+                                                } else {
+                                                    hitNorm.set(0, 1, 0);
+                                                }
+                                                if (pHit.y > bPos.y + cH) hitNorm.set(0, 1, 0);
+                                                else if (pHit.y < bPos.y) hitNorm.set(0, -1, 0);
+                                                break;
+                                            }
+                                        }
+
+                                        if (hitFrac >= 0 && hitFrac < colFraction) {
+                                            colFraction = hitFrac;
+                                            colNormal.copy(hitNorm);
                                             colHitMesh = obs.mesh;
                                             hasCollision = true;
+                                        }
+                                    }
+                                } else {
+                                    // === 長方體 / 門框立柱連續射線檢測 (Continuous AABB Box Solver) ===
+                                    let box = obs.box;
+                                    let bMinX = box.min.x - droneRadius;
+                                    let bMaxX = box.max.x + droneRadius;
+                                    let bMinY = box.min.y - droneRadius;
+                                    let bMaxY = box.max.y + droneRadius;
+                                    let bMinZ = box.min.z - droneRadius;
+                                    let bMaxZ = box.max.z + droneRadius;
+
+                                    // (A) 檢查起點是否已在內部
+                                    let insideX = (curPos.x >= bMinX && curPos.x <= bMaxX);
+                                    let insideY = (curPos.y >= bMinY && curPos.y <= bMaxY);
+                                    let insideZ = (curPos.z >= bMinZ && curPos.z <= bMaxZ);
+
+                                    if (insideX && insideY && insideZ) {
+                                        let clamped = curPos.clone().clamp(box.min, box.max);
+                                        let distToBox = curPos.distanceTo(clamped);
+                                        let norm = new THREE.Vector3();
+                                        if (distToBox > 1e-5) {
+                                            norm.subVectors(curPos, clamped).normalize();
+                                        } else {
+                                            let dx1 = curPos.x - box.min.x, dx2 = box.max.x - curPos.x;
+                                            let dy1 = curPos.y - box.min.y, dy2 = box.max.y - curPos.y;
+                                            let dz1 = curPos.z - box.min.z, dz2 = box.max.z - curPos.z;
+                                            let minD = Math.min(dx1, dx2, dy1, dy2, dz1, dz2);
+                                            if (minD === dx1) norm.set(-1, 0, 0);
+                                            else if (minD === dx2) norm.set(1, 0, 0);
+                                            else if (minD === dy1) norm.set(0, -1, 0);
+                                            else if (minD === dy2) norm.set(0, 1, 0);
+                                            else if (minD === dz1) norm.set(0, 0, -1);
+                                            else norm.set(0, 0, 1);
+                                        }
+                                        colFraction = 0.0;
+                                        colNormal.copy(norm);
+                                        colHitMesh = obs.mesh;
+                                        hasCollision = true;
+                                        break;
+                                    }
+
+                                    // (B) 起點在外部：高精度 Slab 線段交點檢測
+                                    if (moveDist > 1e-6) {
+                                        let tmin = 0.0;
+                                        let tmax = moveDist;
+                                        let segNormal = new THREE.Vector3();
+                                        let hitPossible = true;
+
+                                        // X 軸
+                                        if (Math.abs(moveDir.x) < 1e-8) {
+                                            if (curPos.x < bMinX || curPos.x > bMaxX) hitPossible = false;
+                                        } else {
+                                            let invD = 1.0 / moveDir.x;
+                                            let t1 = (bMinX - curPos.x) * invD;
+                                            let t2 = (bMaxX - curPos.x) * invD;
+                                            let s = -Math.sign(moveDir.x);
+                                            if (t1 > t2) { let tmp = t1; t1 = t2; t2 = tmp; }
+                                            if (t1 > tmin) { tmin = t1; segNormal.set(s, 0, 0); }
+                                            tmax = Math.min(tmax, t2);
+                                            if (tmin > tmax) hitPossible = false;
+                                        }
+
+                                        // Y 軸
+                                        if (hitPossible) {
+                                            if (Math.abs(moveDir.y) < 1e-8) {
+                                                if (curPos.y < bMinY || curPos.y > bMaxY) hitPossible = false;
+                                            } else {
+                                                let invD = 1.0 / moveDir.y;
+                                                let t1 = (bMinY - curPos.y) * invD;
+                                                let t2 = (bMaxY - curPos.y) * invD;
+                                                let s = -Math.sign(moveDir.y);
+                                                if (t1 > t2) { let tmp = t1; t1 = t2; t2 = tmp; }
+                                                if (t1 > tmin) { tmin = t1; segNormal.set(0, s, 0); }
+                                                tmax = Math.min(tmax, t2);
+                                                if (tmin > tmax) hitPossible = false;
+                                            }
+                                        }
+
+                                        // Z 軸
+                                        if (hitPossible) {
+                                            if (Math.abs(moveDir.z) < 1e-8) {
+                                                if (curPos.z < bMinZ || curPos.z > bMaxZ) hitPossible = false;
+                                            } else {
+                                                let invD = 1.0 / moveDir.z;
+                                                let t1 = (bMinZ - curPos.z) * invD;
+                                                let t2 = (bMaxZ - curPos.z) * invD;
+                                                let s = -Math.sign(moveDir.z);
+                                                if (t1 > t2) { let tmp = t1; t1 = t2; t2 = tmp; }
+                                                if (t1 > tmin) { tmin = t1; segNormal.set(0, 0, s); }
+                                                tmax = Math.min(tmax, t2);
+                                                if (tmin > tmax) hitPossible = false;
+                                            }
+                                        }
+
+                                        if (hitPossible && tmin >= 0 && tmin <= moveDist) {
+                                            let frac = tmin / moveDist;
+                                            if (frac < colFraction) {
+                                                colFraction = frac;
+                                                colNormal.copy(segNormal);
+                                                colHitMesh = obs.mesh;
+                                                hasCollision = true;
+                                            }
                                         }
                                     }
                                 }
@@ -2886,7 +3037,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.012';
+        const CURRENT_VERSION = 'v4.013';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3047,7 +3198,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.012</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.013</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
