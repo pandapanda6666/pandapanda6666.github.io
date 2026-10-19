@@ -2368,20 +2368,26 @@
 
             const pureTitle = cur.title || "探險者文文盃寫作比賽";
             
-            // 建立者身分標籤（官方比賽顯示大會官方，一般人建立顯示主辦人姓名）
+            // 建立者身分標籤（管理員建立標示大會官方，私人比賽標示官方私人賽；一般人建立標示民間賽事；並一律標示公開暱稱）
+            const isByAdmin = Boolean(cur.isOfficial || cur.creatorIsAdmin || cur.creator === 'admin' || (cur.title && cur.title.includes('瑛琪')) || (cur.creatorNickname && cur.creatorNickname.includes('瑛琪')));
+            const pubNickname = cur.creatorNickname || (isByAdmin ? '瑛琪' : (cur.creator || '民間創作者'));
+            
             let creatorBadgeHtml = '';
-            if (cur.isOfficial) {
-                creatorBadgeHtml = ' <span style="font-size:12px; background:#2e7d32; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-shield-alt"></i> 大會官方</span>';
+            if (isByAdmin) {
+                creatorBadgeHtml = ` <span style="font-size:12px; background:#1b5e20; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-shield-alt"></i> 大會官方</span> <span style="font-size:12px; background:#2e7d32; color:#e8f5e9; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:4px;" title="主辦建立者公開暱稱"><i class="fas fa-user-shield"></i> 主辦人公開暱稱：${escapeHtml(pubNickname)}</span>`;
             } else {
-                const creatorName = cur.creatorNickname || cur.creator || '民間創作者';
-                creatorBadgeHtml = ` <span style="font-size:12px; background:#6d4c41; color:#fff8eb; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;" title="此比賽由創作者發起"><i class="fas fa-user-edit"></i> 主辦人: ${escapeHtml(creatorName)}</span>`;
+                creatorBadgeHtml = ` <span style="font-size:12px; background:#6d4c41; color:#fff8eb; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-users"></i> 民間賽事</span> <span style="font-size:12px; background:#8d6e63; color:#ffffff; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:4px;" title="主辦建立者公開暱稱"><i class="fas fa-user-edit"></i> 主辦人公開暱稱：${escapeHtml(pubNickname)}</span>`;
             }
 
             let titleBadgeHtml = '';
             if (cur.isPrivate) {
-                titleBadgeHtml += ' <span style="font-size:12px; background:#e65100; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-lock"></i> 私人賽</span>';
+                if (isByAdmin) {
+                    titleBadgeHtml += ' <span style="font-size:12px; background:#e65100; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:4px;"><i class="fas fa-lock"></i> 官方私人賽</span>';
+                } else {
+                    titleBadgeHtml += ' <span style="font-size:12px; background:#e65100; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:4px;"><i class="fas fa-lock"></i> 民間私人賽</span>';
+                }
             } else if (cur.isTest) {
-                titleBadgeHtml += ' <span style="font-size:12px; background:#bf360c; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:6px;"><i class="fas fa-vial"></i> 交流/測試賽</span>';
+                titleBadgeHtml += ' <span style="font-size:12px; background:#bf360c; color:white; padding:2px 8px; border-radius:10px; vertical-align:middle; white-space:nowrap; margin-left:4px;"><i class="fas fa-vial"></i> 交流/自訂賽</span>';
             }
 
             let codeBadgeHtml = '';
@@ -5329,10 +5335,11 @@
 
             if (creatorNotice) {
                 if (isAdmin) {
-                    creatorNotice.innerHTML = '<i class="fas fa-shield-alt" style="color:#2e7d32;"></i> <b>身分確認：</b>您具有大會管理員權限，可發起【官方正式比賽】或【自訂測試賽事】。';
+                    const myName = (currentUser && (currentUser.nickname || currentUser.username)) || localStorage.getItem('sso_nickname') || '瑛琪';
+                    creatorNotice.innerHTML = `<i class="fas fa-shield-alt" style="color:#2e7d32;"></i> <b>身分確認：</b>您具有大會管理員權限，主辦人公開暱稱：【<b>${escapeHtml(myName)}</b>】。您建立之所有賽事（包含私人比賽）皆為【大會官方】主辦，絕不會被當作民間賽事，並公開標示主辦人公開暱稱！`;
                 } else {
-                    const myName = currentUser ? (currentUser.nickname || currentUser.username) : '民間創作者';
-                    creatorNotice.innerHTML = `<i class="fas fa-info-circle" style="color:#bf360c;"></i> <b>創作者主辦身分：</b>您目前以【<b>${escapeHtml(myName)}</b>】身分建立自訂比賽。建立後賽事將公開標示「主辦建立者：${escapeHtml(myName)}」。官方正式比賽僅限大會管理員發起。`;
+                    const myName = (currentUser && (currentUser.nickname || currentUser.username)) || '民間創作者';
+                    creatorNotice.innerHTML = `<i class="fas fa-info-circle" style="color:#bf360c;"></i> <b>創作者主辦身分：</b>您目前以【<b>${escapeHtml(myName)}</b>】身分建立自訂比賽。建立後賽事將標示為【民間賽事】，並公開標示「主辦人公開暱稱：${escapeHtml(myName)}」。官方正式比賽僅限大會管理員發起。`;
                 }
             }
 
@@ -5585,13 +5592,13 @@
             const isAdmin = Boolean(currentUser && currentUser.isAdmin);
             const isTestRadio = document.getElementById('typeTestRadio').checked;
             
-            // 只有管理員且未選交流測試賽，才能是官方正式比賽
-            const isOfficial = !isTestRadio && isAdmin;
-            const isTest = !isOfficial;
-            const isPrivate = isTest && document.getElementById('testIsPrivateCheckbox').checked;
+            // 管理員發起的一律為官方主辦（含官方正式賽與官方私人/自訂賽）；一般人發起的為民間自訂賽事
+            const isOfficial = isAdmin;
+            const isTest = isTestRadio;
+            const isPrivate = document.getElementById('testIsPrivateCheckbox').checked;
             const customTitle = isTest ? document.getElementById('customTestTitleInput').value.trim() : '';
-            const myUsername = currentUser ? currentUser.username : 'guest';
-            const myNickname = currentUser ? (currentUser.nickname || currentUser.username) : '民間創作者';
+            const myUsername = (currentUser && currentUser.username) || (isAdmin ? 'admin' : 'guest');
+            const myNickname = (currentUser && (currentUser.nickname || currentUser.username)) || (isAdmin ? '瑛琪' : '民間創作者');
 
             const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
             const isVotingMode = document.getElementById('topicModeVoting').checked;
@@ -5602,6 +5609,7 @@
             let payload = {
                 isAdmin: isAdmin,
                 isOfficial: isOfficial,
+                creatorIsAdmin: isAdmin,
                 username: myUsername,
                 creatorNickname: myNickname,
                 isTest: isTest,
@@ -5643,10 +5651,12 @@
                 };
             }
 
-            const contestTypeDesc = isOfficial ? '【大會官方正式比賽】' : (isPrivate ? '【私人自訂賽事（持代碼專屬存取）】' : '【公開交流比賽】');
+            const contestTypeDesc = isOfficial 
+                ? (isPrivate ? '【大會官方私人比賽（持代碼專屬存取）】' : (isTest ? '【大會官方自訂賽事】' : '【大會官方正式比賽】'))
+                : (isPrivate ? '【民間私人自訂賽事（持代碼專屬存取）】' : '【民間公開交流比賽】');
             const confirmMsg = isOfficial 
-                ? `確定要發起${contestTypeDesc}嗎？\n\n發布後舊的官方比賽將自動歸檔為「歷屆作品」！`
-                : `確定要以「${myNickname}」名義發起${contestTypeDesc}嗎？\n\n發布後該比賽將向全站公開標示「主辦建立者：${myNickname}」！`;
+                ? `確定要發起${contestTypeDesc}嗎？\n\n主辦身分：大會官方\n主辦人公開暱稱：${myNickname}${(!isTest && !isPrivate) ? '\n\n發布後舊的官方正式比賽將自動歸檔為「歷屆作品」！' : ''}`
+                : `確定要以「${myNickname}」名義發起${contestTypeDesc}嗎？\n\n發布後該比賽將向全站公開標示「主辦人公開暱稱：${myNickname}」！`;
             if (!confirm(confirmMsg)) {
                 return;
             }
