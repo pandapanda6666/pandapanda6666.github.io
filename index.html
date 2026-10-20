@@ -13,6 +13,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
     
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/solarlunar@2.0.7/lib/solarlunar.min.js"></script>
 
     <style>
         :root {
@@ -991,9 +992,17 @@
             </nav>
         </header>
 
-<!-- Hero Section 外側控制列 (分享與暫停/繼續按鈕，避免遮擋橫幅圖片) -->
+<!-- Hero Section 外側控制列 (橫幅語言切換、分享與暫停/繼續按鈕，避免遮擋橫幅圖片) -->
 <div id="hero-outer-controls" style="max-width: 1800px; width: 95%; margin: 15px auto 8px auto; display: none; justify-content: flex-end; align-items: center;">
-    <div class="hero-controls-group">
+    <div class="hero-controls-group" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <select id="heroBannerLangSelect" onchange="changeHeroDisplayLanguage(this.value)" class="hero-control-btn" style="padding: 5px 10px; background: #fff; color: #1b4332; border: 1.5px solid #2e7d32; border-radius: 20px; font-weight: bold; cursor: pointer; outline: none; display: inline-flex; align-items: center; gap: 4px; font-size: 12px;" title="切換首頁橫幅顯示語言">
+            <option value="auto">🌐 橫幅語言：跟隨全站</option>
+            <option value="zh-TW">🇹🇼 繁體中文 (臺灣)</option>
+            <option value="zh-HK">🇭🇰 繁體中文 (香港)</option>
+            <option value="zh-CN">🇨🇳 簡體中文</option>
+            <option value="ja">🇯🇵 日本語</option>
+            <option value="en">🇺🇸 English</option>
+        </select>
         <button id="hero-share-btn" class="hero-control-btn" onclick="shareCurrentHeroBanner()" title="分享此橫幅">
             <i class="fas fa-share-alt"></i>
             <span>分享</span>
@@ -1088,6 +1097,43 @@
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:12px;">
             <button onclick="closeHeroAdmin()" style="background:#888; color:white; padding:8px 18px; border:none; border-radius:6px; cursor:pointer;">取消</button>
             <button onclick="saveHeroData()" style="background:#2c5e32; color:white; padding:8px 18px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;"><i class="fas fa-save"></i> 儲存設定</button>
+        </div>
+    </div>
+</div>
+
+<!-- Banner Image Full Preview Modal (橫幅大圖與實景即時預覽彈窗) -->
+<div id="bannerImagePreviewModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(6px); z-index:100000; justify-content:center; align-items:center; padding:15px; box-sizing:border-box;">
+    <div style="background:#1e293b; color:#fff; border-radius:12px; width:95%; max-width:980px; max-height:92vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.6); border:1px solid #334155;">
+        <div style="padding:12px 18px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; align-items:center; background:#0f172a;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-eye" style="color:#38bdf8; font-size:16px;"></i>
+                <span id="bannerPreviewModalTitle" style="font-weight:bold; font-size:14px;">橫幅即時實景預覽</span>
+                <span id="bannerPreviewModalLangBadge" style="background:#0284c7; color:#fff; font-size:11px; padding:2px 8px; border-radius:10px; font-weight:bold;">🇹🇼 臺灣繁體</span>
+            </div>
+            <button type="button" onclick="closeBannerImagePreview()" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer; line-height:1;" title="關閉預覽">✕</button>
+        </div>
+        <div style="padding:18px; overflow-y:auto; flex:1; display:flex; flex-direction:column; align-items:center; gap:12px;">
+            <!-- 5 國語言即時切換列 (大圖彈窗內可直接切換預覽) -->
+            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:center; width:100%;">
+                <span style="font-size:12px; color:#cbd5e1; font-weight:bold;"><i class="fas fa-globe"></i> 切換預覽語言：</span>
+                <button type="button" class="preview-lang-btn" onclick="switchModalPreviewLang('zh-TW')" style="padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; border:1px solid #38bdf8; background:#0284c7; color:#fff;">🇹🇼 臺灣繁體</button>
+                <button type="button" class="preview-lang-btn" onclick="switchModalPreviewLang('zh-HK')" style="padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; border:1px solid #475569; background:#1e293b; color:#cbd5e1;">🇭🇰 香港繁體</button>
+                <button type="button" class="preview-lang-btn" onclick="switchModalPreviewLang('zh-CN')" style="padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; border:1px solid #475569; background:#1e293b; color:#cbd5e1;">🇨🇳 簡體中文</button>
+                <button type="button" class="preview-lang-btn" onclick="switchModalPreviewLang('ja')" style="padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; border:1px solid #475569; background:#1e293b; color:#cbd5e1;">🇯🇵 日本語</button>
+                <button type="button" class="preview-lang-btn" onclick="switchModalPreviewLang('en')" style="padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer; border:1px solid #475569; background:#1e293b; color:#cbd5e1;">🇺🇸 English</button>
+            </div>
+            <!-- 實景比例容器 (1200x400) -->
+            <div style="width:100%; aspect-ratio:1200/400; max-height:420px; position:relative; border-radius:8px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.5); background:#020617; display:flex; align-items:center; justify-content:center;">
+                <img id="bannerPreviewLargeImg" src="" style="width:100%; height:100%; object-fit:cover;" alt="橫幅實景預覽">
+                <div id="bannerPreviewOverlayTitle" style="position:absolute; bottom:20px; left:20px; background:rgba(0,0,0,0.72); backdrop-filter:blur(5px); color:#fff; padding:6px 14px; border-radius:6px; font-weight:bold; font-size:16px; border:1px solid rgba(255,255,255,0.25); max-width:80%; word-break:break-all;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%; font-size:12px; color:#94a3b8; flex-wrap:wrap; gap:8px;">
+                <span id="bannerPreviewInfoText">標準尺寸: 1200 × 400 像素 • 即時實景模擬</span>
+                <div style="display:flex; gap:10px;">
+                    <a id="bannerPreviewOpenNewTab" href="#" target="_blank" style="color:#38bdf8; text-decoration:none; display:flex; align-items:center; gap:4px; font-weight:bold;"><i class="fas fa-external-link-alt"></i> 開啟原圖</a>
+                    <button type="button" onclick="closeBannerImagePreview()" style="background:#334155; color:#fff; border:none; padding:4px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">關閉預覽</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1843,6 +1889,7 @@
         function renderAuthUI() {
             const authContainer = document.getElementById('auth-container');
             const currentUrl = window.location.origin + window.location.pathname;
+            const t = (typeof siteI18n !== 'undefined' && siteI18n[window.currentSiteLang]) ? siteI18n[window.currentSiteLang] : ((typeof siteI18n !== 'undefined' && siteI18n['zh-TW']) ? siteI18n['zh-TW'] : {});
 
             if (window.authInfo.isAuth) {
                 const nick = window.authInfo.nickname || localStorage.getItem('sso_nickname') || localStorage.getItem('panda_nickname') || window.authInfo.user || localStorage.getItem('sso_user') || '使用者';
@@ -1855,9 +1902,6 @@
                 window.authInfo.isAdmin = isAdmin;
                 const crownSVG = isAdmin ? `<svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#b8860b;margin-left:4px;" title="管理員"><path d="M5 16h14l-2.1-9.1L14 9.5 12 4l-2 5.5-2.9-2.6L5 16zm-1 2h16v2H4v-2z"/></svg>` : '';
                 const bgStyle = isAdmin ? 'background:#fff9c4; border:2px solid #fbc02d;' : 'background:#e8f5e9; border:1px solid #c8e6c9;';
-
-                
-                const t = siteI18n[window.currentSiteLang] || siteI18n['zh-TW'];
 
                 if (window.authInfo.isAuth && !sessionStorage.getItem('welcomed_' + nick)) {
                     sessionStorage.setItem('welcomed_' + nick, 'true');
@@ -2620,6 +2664,140 @@ function generateRandomKeyString(len = 8) {
     }
 })();
 
+// ==========================================
+// 節日計時器連動清單與精確日期運算引擎
+// (與節日計時器 festival_timer.html 100% 同步，支援國曆、農曆、浮動節日與節氣)
+// ==========================================
+const FESTIVAL_DEFINITIONS = [
+    { id: 'spring_festival', name: '農曆春節', lunarMonth: 1, lunarDay: 1, durationDays: 5, defaultOffsetStart: 7, desc: '農曆初一至初五' },
+    { id: 'cny_eve', name: '農曆除夕', isEve: true, durationDays: 1, defaultOffsetStart: 3, desc: '春節前一天' },
+    { id: 'lantern', name: '元宵節', lunarMonth: 1, lunarDay: 15, durationDays: 1, defaultOffsetStart: 5, desc: '農曆正月十五' },
+    { id: 'peace_228', name: '和平紀念日', solarMonth: 2, solarDay: 28, durationDays: 1, defaultOffsetStart: 3, desc: '國曆 2月28日' },
+    { id: 'children_day', name: '兒童節', solarMonth: 4, solarDay: 4, durationDays: 1, defaultOffsetStart: 5, desc: '國曆 4月4日' },
+    { id: 'tomb_sweeping', name: '清明節', solarMonth: 4, solarDay: 5, durationDays: 1, defaultOffsetStart: 5, desc: '國曆 4月5日' },
+    { id: 'labor_day', name: '勞動節', solarMonth: 5, solarDay: 1, durationDays: 1, defaultOffsetStart: 3, desc: '國曆 5月1日' },
+    { id: 'mothers_day', name: '母親節', isMothersDay: true, durationDays: 1, defaultOffsetStart: 7, desc: '每年5月第二個週日' },
+    { id: 'dragon_boat', name: '端午節', lunarMonth: 5, lunarDay: 5, durationDays: 1, defaultOffsetStart: 7, desc: '農曆五月初五' },
+    { id: 'fathers_day', name: '父親節', solarMonth: 8, solarDay: 8, durationDays: 1, defaultOffsetStart: 5, desc: '國曆 8月8日' },
+    { id: 'qixi', name: '七夕情人節', lunarMonth: 7, lunarDay: 7, durationDays: 1, defaultOffsetStart: 5, desc: '農曆七月初七' },
+    { id: 'ghost_festival', name: '中元節', lunarMonth: 7, lunarDay: 15, durationDays: 1, defaultOffsetStart: 5, desc: '農曆七月十五' },
+    { id: 'mid_autumn', name: '中秋節', lunarMonth: 8, lunarDay: 15, durationDays: 1, defaultOffsetStart: 7, desc: '農曆八月十五' },
+    { id: 'teachers_day', name: '教師節', solarMonth: 9, solarDay: 28, durationDays: 1, defaultOffsetStart: 3, desc: '國曆 9月28日' },
+    { id: 'national_day', name: '國慶日', solarMonth: 10, solarDay: 10, durationDays: 1, defaultOffsetStart: 5, desc: '國曆 10月10日' },
+    { id: 'halloween', name: '萬聖節', solarMonth: 10, solarDay: 31, durationDays: 1, defaultOffsetStart: 7, desc: '國曆 10月31日' },
+    { id: 'winter_solstice', name: '冬至', isWinterSolstice: true, durationDays: 1, defaultOffsetStart: 3, desc: '國曆 12月21或22日' },
+    { id: 'christmas', name: '聖誕節', solarMonth: 12, solarDay: 25, durationDays: 1, defaultOffsetStart: 10, desc: '國曆 12月25日' },
+    { id: 'new_year', name: '元旦跨年', solarMonth: 1, solarDay: 1, durationDays: 1, defaultOffsetStart: 7, desc: '國曆 1月1日 (跨年)' }
+];
+
+const LUNAR_FESTIVAL_CACHE = {
+    2025: { '農曆春節': '2025-01-29', '農曆除夕': '2025-01-28', '元宵節': '2025-02-12', '端午節': '2025-05-31', '七夕情人節': '2025-08-29', '中元節': '2025-09-06', '中秋節': '2025-10-06' },
+    2026: { '農曆春節': '2026-02-17', '農曆除夕': '2026-02-16', '元宵節': '2026-03-03', '端午節': '2026-06-19', '七夕情人節': '2026-08-19', '中元節': '2026-08-27', '中秋節': '2026-09-25' },
+    2027: { '農曆春節': '2027-02-06', '農曆除夕': '2027-02-05', '元宵節': '2027-02-20', '端午節': '2027-06-09', '七夕情人節': '2027-08-08', '中元節': '2027-08-16', '中秋節': '2027-09-15' },
+    2028: { '農曆春節': '2028-01-26', '農曆除夕': '2028-01-25', '元宵節': '2028-02-09', '端午節': '2028-05-28', '七夕情人節': '2028-08-26', '中元節': '2028-09-03', '中秋節': '2028-10-03' },
+    2029: { '農曆春節': '2029-02-13', '農曆除夕': '2029-02-12', '元宵節': '2029-02-27', '端午節': '2029-06-16', '七夕情人節': '2029-08-16', '中元節': '2029-08-24', '中秋節': '2029-09-22' },
+    2030: { '農曆春節': '2030-02-03', '農曆除夕': '2030-02-02', '元宵節': '2030-02-17', '端午節': '2030-06-05', '七夕情人節': '2030-08-05', '中元節': '2030-08-13', '中秋節': '2030-09-12' },
+    2031: { '農曆春節': '2031-01-23', '農曆除夕': '2031-01-22', '元宵節': '2031-02-06', '端午節': '2031-06-24', '七夕情人節': '2031-08-24', '中元節': '2031-09-01', '中秋節': '2031-10-01' },
+    2032: { '農曆春節': '2032-02-11', '農曆除夕': '2032-02-10', '元宵節': '2032-02-25', '端午節': '2032-06-12', '七夕情人節': '2032-08-12', '中元節': '2032-08-20', '中秋節': '2032-09-19' },
+    2033: { '農曆春節': '2033-01-31', '農曆除夕': '2033-01-30', '元宵節': '2033-02-14', '端午節': '2033-05-31', '七夕情人節': '2033-07-31', '中元節': '2033-08-09', '中秋節': '2033-10-08' }
+};
+
+function calculateFestivalTargetDate(festItem, year) {
+    if (!festItem) return null;
+    if (festItem.solarMonth && festItem.solarDay) {
+        return new Date(year, festItem.solarMonth - 1, festItem.solarDay);
+    }
+    if (festItem.isMothersDay) {
+        const d = new Date(year, 4, 1);
+        let diff = 0 - d.getDay();
+        if (diff < 0) diff += 7;
+        const day = 1 + diff + 7;
+        return new Date(year, 4, day);
+    }
+    if (festItem.isWinterSolstice) {
+        const day = [2024, 2028, 2032, 2036, 2025, 2029, 2033].includes(year) ? 21 : 22;
+        return new Date(year, 11, day);
+    }
+    if (typeof solarlunar !== 'undefined' && solarlunar.lunar2solar) {
+        try {
+            if (festItem.isEve) {
+                const cnySolar = solarlunar.lunar2solar(year, 1, 1);
+                const eveDate = new Date(cnySolar.cYear, cnySolar.cMonth - 1, cnySolar.cDay);
+                eveDate.setDate(eveDate.getDate() - 1);
+                return eveDate;
+            }
+            if (festItem.lunarMonth && festItem.lunarDay) {
+                const s = solarlunar.lunar2solar(year, festItem.lunarMonth, festItem.lunarDay);
+                if (s && s.cYear) return new Date(s.cYear, s.cMonth - 1, s.cDay);
+            }
+        } catch(e) {}
+    }
+    if (LUNAR_FESTIVAL_CACHE[year] && LUNAR_FESTIVAL_CACHE[year][festItem.name]) {
+        return new Date(LUNAR_FESTIVAL_CACHE[year][festItem.name] + 'T00:00:00');
+    }
+    return new Date(year, 0, 1);
+}
+
+function getFestivalDateRange(festName, offsetStart = 7, offsetEnd = 0, now = Date.now()) {
+    const festItem = FESTIVAL_DEFINITIONS.find(f => f.name === festName) || FESTIVAL_DEFINITIONS[0];
+    const nowDate = new Date(now);
+    const curYear = nowDate.getFullYear();
+    const candidateYears = [curYear - 1, curYear, curYear + 1];
+    
+    const oStart = (offsetStart !== undefined && offsetStart !== '') ? parseInt(offsetStart, 10) : (festItem.defaultOffsetStart || 7);
+    const oEnd = (offsetEnd !== undefined && offsetEnd !== '') ? parseInt(offsetEnd, 10) : 0;
+    const dur = festItem.durationDays || 1;
+
+    let bestRange = null;
+    let minFutureDiff = Infinity;
+
+    for (const yr of candidateYears) {
+        const tDate = calculateFestivalTargetDate(festItem, yr);
+        if (!tDate) continue;
+        
+        const sDate = new Date(tDate.getFullYear(), tDate.getMonth(), tDate.getDate() - oStart, 0, 0, 0);
+        const eDate = new Date(tDate.getFullYear(), tDate.getMonth(), tDate.getDate() + (dur - 1) + oEnd, 23, 59, 59);
+
+        const startMs = sDate.getTime();
+        const endMs = eDate.getTime();
+
+        const pad = n => String(n).padStart(2, '0');
+        const fmt = d => `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
+
+        const rangeObj = {
+            name: festItem.name,
+            year: yr,
+            targetDate: tDate,
+            startMs,
+            endMs,
+            startStr: `${fmt(sDate)} 00:00`,
+            endStr: `${fmt(eDate)} 23:59`,
+            festDateStr: fmt(tDate),
+            isActive: (now >= startMs && now <= endMs),
+            daysLeft: Math.ceil((startMs - now) / 86400000)
+        };
+
+        if (rangeObj.isActive) {
+            return rangeObj;
+        }
+
+        if (startMs > now && (startMs - now) < minFutureDiff) {
+            minFutureDiff = startMs - now;
+            bestRange = rangeObj;
+        }
+    }
+
+    return bestRange || {
+        name: festItem.name,
+        startMs: 0,
+        endMs: 0,
+        startStr: '每年節日前後自動連動',
+        endStr: '',
+        isActive: false,
+        daysLeft: 0
+    };
+}
+
 function isBannerActive(b, now = Date.now()) {
     const isNormallyActive = (function() {
         if (b.enabled === false) return false;
@@ -2663,6 +2841,14 @@ function isBannerActive(b, now = Date.now()) {
                 if (!isNaN(eh) && !isNaN(em) && curMinTotal > eh * 60 + em) return false;
             }
             return true;
+        } else if (mode === 'festival') {
+            // 與節日計時器連動排程 (精確換算農曆、國曆、節氣起訖天數)
+            const festRange = getFestivalDateRange(b.festName, b.festOffsetStart, b.festOffsetEnd, now);
+            if (festRange) {
+                if (now < festRange.startMs || now > festRange.endMs) return false;
+                return true;
+            }
+            return true;
         }
         return true;
     })();
@@ -2674,10 +2860,9 @@ function isBannerActive(b, now = Date.now()) {
         const unlocked = JSON.parse(localStorage.getItem('unlocked_hero_banners') || '{}');
         const userPass = unlocked[String(b.id)];
         if (userPass && Array.isArray(b.accessKeys) && b.accessKeys.length > 0) {
-            // 管理員清單中必須存在該密碼，且該密碼目前處於「啟用中」狀態
             const matchedKey = b.accessKeys.find(k => String(k.pass).trim() === String(userPass).trim() && k.enabled !== false);
             if (matchedKey) {
-                return true; // 授權通過！
+                return true;
             }
         }
     } catch(e) {}
@@ -2819,9 +3004,16 @@ function renderHeroData(initial = false) {
     if(section) section.style.display = 'block';
     if(outerControls) outerControls.style.display = 'flex';
 
-    const curLang = window.currentSiteLang || 'zh-TW';
+    // 支援獨立鎖定橫幅顯示語言或跟隨全站
+    const forcedBannerLang = localStorage.getItem('hero_banner_lang');
+    const heroLangSel = document.getElementById('heroBannerLangSelect');
+    if (heroLangSel) {
+        heroLangSel.value = forcedBannerLang || 'auto';
+    }
+    const curLang = (forcedBannerLang && forcedBannerLang !== 'auto') ? forcedBannerLang : (window.currentSiteLang || 'zh-TW');
+
     slides.innerHTML = activeBanners.map((b, i) => {
-        const titleText = (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || '');
+        const titleText = (b.titles && b.titles[curLang]) ? b.titles[curLang] : ((b.titles && b.titles['zh-TW']) ? b.titles['zh-TW'] : (b.title || ''));
         const safeLink = b.linkUrl ? b.linkUrl.replace(/'/g, "\\'") : '';
         const safeTitle = (typeof window.escapeHtml === 'function') ? window.escapeHtml(titleText) : (titleText || '');
         return `
@@ -2833,12 +3025,21 @@ function renderHeroData(initial = false) {
     }).join('');
     
     activeBanners.forEach((b, i) => {
-        const imgUrl = (b.images && b.images[curLang]) ? b.images[curLang] : (b.imageUrl || b.imageBase64);
+        const imgUrl = (b.images && b.images[curLang]) ? b.images[curLang] : ((b.images && b.images['zh-TW']) ? b.images['zh-TW'] : (b.imageUrl || b.imageBase64 || ''));
         const imgEl = document.getElementById(`hero-img-${i}`);
         if (imgEl && imgUrl) {
             loadSecureImage(imgEl, getFullImageUrl(imgUrl));
         }
     });
+
+window.changeHeroDisplayLanguage = function(lang) {
+    if (!lang || lang === 'auto') {
+        localStorage.removeItem('hero_banner_lang');
+    } else {
+        localStorage.setItem('hero_banner_lang', lang);
+    }
+    renderHeroData(false);
+};
 
     if (initial) {
         // 檢查網址是否有橫幅參數 (?b=ID 或 ?banner=ID) 及播放設定 (?p=1/0 或 ?autoplay=1/0)
@@ -3190,32 +3391,17 @@ function toggleSchedInputs(sel) {
     const endBox = row.querySelector('.sched-end-box');
     const quickBox = row.querySelector('.sched-quick-box');
     const recurringBox = row.querySelector('.sched-recurring-box');
+    const festBox = row.querySelector('.sched-festival-box');
     
-    if (mode === 'none') {
-        startBox.style.display = 'none';
-        endBox.style.display = 'none';
-        quickBox.style.display = 'none';
-        if (recurringBox) recurringBox.style.display = 'none';
-    } else if (mode === 'range') {
-        startBox.style.display = 'flex';
-        endBox.style.display = 'flex';
-        quickBox.style.display = 'flex';
-        if (recurringBox) recurringBox.style.display = 'none';
-    } else if (mode === 'openAfter') {
-        startBox.style.display = 'flex';
-        endBox.style.display = 'none';
-        quickBox.style.display = 'flex';
-        if (recurringBox) recurringBox.style.display = 'none';
-    } else if (mode === 'closeAfter') {
-        startBox.style.display = 'none';
-        endBox.style.display = 'flex';
-        quickBox.style.display = 'flex';
-        if (recurringBox) recurringBox.style.display = 'none';
-    } else if (mode === 'recurring') {
-        startBox.style.display = 'none';
-        endBox.style.display = 'none';
-        quickBox.style.display = 'none';
-        if (recurringBox) recurringBox.style.display = 'flex';
+    if (startBox) startBox.style.display = (mode === 'range' || mode === 'openAfter') ? 'flex' : 'none';
+    if (endBox) endBox.style.display = (mode === 'range' || mode === 'closeAfter') ? 'flex' : 'none';
+    if (quickBox) quickBox.style.display = (mode === 'range' || mode === 'openAfter' || mode === 'closeAfter') ? 'flex' : 'none';
+    if (recurringBox) recurringBox.style.display = (mode === 'recurring') ? 'flex' : 'none';
+    if (festBox) {
+        festBox.style.display = (mode === 'festival') ? 'flex' : 'none';
+        if (mode === 'festival') {
+            updateFestivalScheduleHint(row.querySelector('.b-fest-name'));
+        }
     }
 }
 
@@ -3226,6 +3412,150 @@ function applyQuickTime(btn, minutes, targetField) {
     const futureTime = new Date(Date.now() + minutes * 60000);
     targetInput.value = toDatetimeLocalStr(futureTime);
 }
+
+// ==========================================
+// 橫幅即時實景預覽與節日連動輔助函式
+// ==========================================
+let currentPreviewRow = null;
+let currentPreviewLang = 'zh-TW';
+
+window.previewBannerFullRow = function(btn) {
+    const row = btn.closest('.hero-admin-row');
+    if (!row) return;
+    currentPreviewRow = row;
+    currentPreviewLang = 'zh-TW';
+    updateModalPreviewContent();
+};
+
+window.previewBannerModalImage = function(wrapperOrImg, langKey) {
+    const row = wrapperOrImg.closest('.hero-admin-row');
+    if (!row) return;
+    currentPreviewRow = row;
+    currentPreviewLang = langKey || 'zh-TW';
+    updateModalPreviewContent();
+};
+
+window.switchModalPreviewLang = function(targetLang) {
+    currentPreviewLang = targetLang || 'zh-TW';
+    updateModalPreviewContent();
+};
+
+window.closeBannerImagePreview = function() {
+    const modal = document.getElementById('bannerImagePreviewModal');
+    if (modal) modal.style.display = 'none';
+};
+
+function updateModalPreviewContent() {
+    const modal = document.getElementById('bannerImagePreviewModal');
+    if (!modal || !currentPreviewRow) return;
+
+    const langsMap = {
+        'zh-TW': '🇹🇼 臺灣繁體',
+        'zh-HK': '🇭🇰 香港繁體',
+        'zh-CN': '🇨🇳 簡體中文',
+        'ja': '🇯🇵 日本語',
+        'en': '🇺🇸 English'
+    };
+
+    modal.querySelectorAll('.preview-lang-btn').forEach(btn => {
+        const onclickAttr = btn.getAttribute('onclick') || '';
+        if (onclickAttr.includes(`'${currentPreviewLang}'`)) {
+            btn.style.background = '#0284c7';
+            btn.style.borderColor = '#38bdf8';
+            btn.style.color = '#fff';
+        } else {
+            btn.style.background = '#1e293b';
+            btn.style.borderColor = '#475569';
+            btn.style.color = '#cbd5e1';
+        }
+    });
+
+    const badge = document.getElementById('bannerPreviewModalLangBadge');
+    if (badge) badge.innerText = langsMap[currentPreviewLang] || currentPreviewLang;
+
+    const curTitleInput = currentPreviewRow.querySelector(`.b-title-${currentPreviewLang}`);
+    const twTitleInput = currentPreviewRow.querySelector('.b-title-zh-TW') || currentPreviewRow.querySelector('.b-title');
+    const titleVal = (curTitleInput && curTitleInput.value.trim()) ? curTitleInput.value.trim() : (twTitleInput ? twTitleInput.value.trim() : '');
+
+    const curImgInput = currentPreviewRow.querySelector(`.b-img-${currentPreviewLang}`);
+    const twImgInput = currentPreviewRow.querySelector('.b-img-zh-TW') || currentPreviewRow.querySelector('.b-img');
+    const imgVal = (curImgInput && curImgInput.value) ? curImgInput.value : (twImgInput ? twImgInput.value : '');
+
+    const largeImg = document.getElementById('bannerPreviewLargeImg');
+    const overlayTitle = document.getElementById('bannerPreviewOverlayTitle');
+    const openNewTab = document.getElementById('bannerPreviewOpenNewTab');
+
+    const fullSrc = imgVal ? (imgVal.startsWith('data:') ? imgVal : getFullImageUrl(imgVal)) : '';
+    if (largeImg) {
+        if (fullSrc) {
+            loadSecureImage(largeImg, fullSrc);
+            largeImg.style.display = 'block';
+        } else {
+            largeImg.src = '';
+            largeImg.style.display = 'none';
+        }
+    }
+
+    if (overlayTitle) {
+        if (titleVal) {
+            overlayTitle.innerText = titleVal;
+            overlayTitle.style.display = 'block';
+        } else {
+            overlayTitle.style.display = 'none';
+        }
+    }
+
+    if (openNewTab) {
+        openNewTab.href = fullSrc || '#';
+        openNewTab.style.display = fullSrc ? 'inline-flex' : 'none';
+    }
+
+    modal.style.display = 'flex';
+}
+
+window.updateFestivalScheduleHint = function(el) {
+    if (!el) return;
+    const row = el.closest('.hero-admin-row');
+    if (!row) return;
+    const festSel = row.querySelector('.b-fest-name');
+    const startOffsetEl = row.querySelector('.b-fest-offset-start');
+    const endOffsetEl = row.querySelector('.b-fest-offset-end');
+    const hintBox = row.querySelector('.fest-schedule-hint-text');
+    if (!festSel || !hintBox) return;
+
+    const festName = festSel.value;
+    const offsetStart = (startOffsetEl && startOffsetEl.value !== '') ? parseInt(startOffsetEl.value, 10) : 7;
+    const offsetEnd = (endOffsetEl && endOffsetEl.value !== '') ? parseInt(endOffsetEl.value, 10) : 0;
+
+    const r = getFestivalDateRange(festName, offsetStart, offsetEnd);
+    if (!r) {
+        hintBox.innerHTML = `<span>ℹ️ 每年節日前後自動連動輪播</span>`;
+        return;
+    }
+    const statusBadge = r.isActive 
+        ? `<span style="background:#16a34a; color:#fff; padding:1px 6px; border-radius:4px; font-weight:bold;">🟢 目前生效中</span>`
+        : `<span style="background:#475569; color:#fff; padding:1px 6px; border-radius:4px; font-weight:bold;">⏳ 倒數 ${r.daysLeft} 天生效</span>`;
+    
+    hintBox.innerHTML = `
+        <i class="fas fa-calendar-check"></i>
+        <span><b>連動 ${r.name}（${r.year} 年）</b>：生效排程為 <b>${r.startStr}</b> 至 <b>${r.endStr}</b> ${statusBadge}</span>
+    `;
+};
+
+// 鍵盤 ESC 關閉大圖預覽視窗
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeBannerImagePreview();
+});
+
+// 點擊彈窗外側半透明黑底關閉
+window.addEventListener('DOMContentLoaded', () => {
+    const previewModal = document.getElementById('bannerImagePreviewModal');
+    if (previewModal) {
+        previewModal.addEventListener('click', (e) => {
+            if (e.target === previewModal) closeBannerImagePreview();
+        });
+    }
+});
 
 // 智慧橫幅生成核心：以第一語言原圖為母版底圖，智慧覆蓋替換為目標語言文字
 window.generateLocalizedBannerDataUrl = function(masterImgSrc, titleText, subtitleText = '', layoutMode = 'left') {
@@ -3606,6 +3936,7 @@ function renderBannerAdminList() {
                     </label>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
+                    <button type="button" onclick="previewBannerFullRow(this)" class="quick-time-btn" style="background:#0284c7; color:white; font-size:11px; font-weight:bold;" title="開啟此橫幅大圖實景預覽"><i class="fas fa-eye"></i> 實景預覽</button>
                     <button type="button" onclick="moveHeroRow(this, -1)" class="quick-time-btn" title="向上調整排序"><i class="fas fa-arrow-up"></i> 上移</button>
                     <button type="button" onclick="moveHeroRow(this, 1)" class="quick-time-btn" title="向下調整排序"><i class="fas fa-arrow-down"></i> 下移</button>
                     <button type="button" onclick="this.closest('.hero-admin-row').remove()" style="background:#d32f2f; color:white; border:none; padding:4px 10px; cursor:pointer; border-radius:4px; font-size:12px; font-weight:bold;"><i class="fas fa-trash-alt"></i> 刪除</button>
@@ -3652,7 +3983,10 @@ function renderBannerAdminList() {
                                 <button type="button" onclick="clearLangImage(this, '${l.key}')" style="font-size:10px; background:#fee2e2; color:#b91c1c; border:none; padding:1px 5px; border-radius:3px; cursor:pointer;" title="清除圖片">清除圖</button>
                             </div>
                             <input type="text" class="b-title-${l.key}" placeholder="${l.placeholder}" value="${escapeHtml(lTitle)}" style="font-size:11px; padding:3px 6px; font-weight:bold; border:1px solid #cbd5e1; border-radius:4px;">
-                            <img id="admin-preview-${l.key}-${i}" class="b-img-preview-${l.key}" src="" style="width:100%; height:50px; object-fit:cover; border:1px solid #e2e8f0; border-radius:4px; background:#f8fafc;" alt="預覽">
+                            <div style="position:relative; cursor:pointer;" onclick="previewBannerModalImage(this, '${l.key}')" title="點擊放大預覽實景">
+                                <img id="admin-preview-${l.key}-${i}" class="b-img-preview-${l.key}" src="" style="width:100%; height:52px; object-fit:cover; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc;" alt="預覽">
+                                <div style="position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,0.65); color:#fff; font-size:10px; padding:1px 5px; border-radius:3px; display:flex; align-items:center; gap:2px;"><i class="fas fa-search-plus"></i> 放大</div>
+                            </div>
                             <input type="file" class="b-file-${l.key}" accept="image/*" onchange="handleLangBannerUpload(this, '${l.key}')" style="font-size:10px; width:100%;">
                             <input type="hidden" class="b-img-${l.key}" value="${lImg}">
                         </div>
@@ -3669,7 +4003,7 @@ function renderBannerAdminList() {
                 </div>
             </div>
 
-            <!-- 底部列：排程設定 (指定期間/多久後開/多久後關/固定週期通配) -->
+            <!-- 底部列：排程設定 (指定期間/多久後開/多久後關/固定週期通配/節日連動) -->
             <div style="background:#f9fafb; padding:8px 10px; border-radius:6px; border:1px solid #eef0f2; font-size:12px; display:flex; flex-direction:column; gap:6px;">
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span style="font-weight:bold; color:#374151;"><i class="fas fa-clock"></i> 排程設定：</span>
@@ -3679,6 +4013,7 @@ function renderBannerAdminList() {
                         <option value="openAfter" ${sMode==='openAfter'?'selected':''}>指定時間後開啟 (何時開 / 多久後開)</option>
                         <option value="closeAfter" ${sMode==='closeAfter'?'selected':''}>指定時間後關閉 (何時關 / 多久後關)</option>
                         <option value="recurring" ${sMode==='recurring'?'selected':''}>固定週期/時間 (未填年=每年、未填月=每月、未填日=每日)</option>
+                        <option value="festival" ${sMode==='festival'?'selected':''}>🎉 節日連動排程 (與節日計時器連動)</option>
                     </select>
                 </div>
                 
@@ -3735,6 +4070,23 @@ function renderBannerAdminList() {
                         <span style="color:#888; font-size:11px;">(時間留空代表全天生效)</span>
                     </div>
                 </div>
+
+                <!-- 節日連動排程 (與節日計時器連動) -->
+                <div class="sched-festival-box" style="display:${sMode==='festival'?'flex':'none'}; flex-direction:column; gap:6px; background:#fff7ed; padding:10px 12px; border-radius:6px; border:1px solid #fed7aa;">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span style="font-weight:bold; color:#9a3412;"><i class="fas fa-calendar-alt"></i> 連動節日：</span>
+                        <select class="b-fest-name" onchange="updateFestivalScheduleHint(this)" style="font-size:12px; padding:4px 8px; border-radius:4px; border:1.5px solid #ea580c; font-weight:bold; color:#7c2d12; background:#fff;">
+                            ${FESTIVAL_DEFINITIONS.map(f => `<option value="${f.name}" ${(b.festName || '農曆春節') === f.name ? 'selected' : ''}>${f.name} (${f.desc})</option>`).join('')}
+                        </select>
+                        <span style="font-size:12px; color:#9a3412; font-weight:bold; margin-left:6px;">排程區間：</span>
+                        <span>提前</span>
+                        <input type="number" class="b-fest-offset-start" value="${b.festOffsetStart !== undefined && b.festOffsetStart !== null ? b.festOffsetStart : 7}" min="0" max="60" style="width:55px; text-align:center; font-weight:bold; padding:2px 4px;" oninput="updateFestivalScheduleHint(this)">
+                        <span>天開始輪播，並於節日後延後</span>
+                        <input type="number" class="b-fest-offset-end" value="${b.festOffsetEnd !== undefined && b.festOffsetEnd !== null ? b.festOffsetEnd : 0}" min="0" max="30" style="width:50px; text-align:center; font-weight:bold; padding:2px 4px;" oninput="updateFestivalScheduleHint(this)">
+                        <span>天下架</span>
+                    </div>
+                    <div class="fest-schedule-hint-text" style="font-size:11px; color:#c2410c; background:#ffedd5; padding:5px 8px; border-radius:4px; display:inline-flex; align-items:center; gap:6px;"></div>
+                </div>
             </div>
 
             <!-- 通行密碼授權管理 (可分享未開啟的公告) -->
@@ -3790,6 +4142,8 @@ function renderBannerAdminList() {
             }
         });
     });
+
+    document.querySelectorAll('.hero-admin-row .b-fest-name').forEach(el => updateFestivalScheduleHint(el));
 }
 
 function addHeroRow() {
@@ -3824,6 +4178,7 @@ function addHeroRow() {
                 </label>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" onclick="previewBannerFullRow(this)" class="quick-time-btn" style="background:#0284c7; color:white; font-size:11px; font-weight:bold;" title="開啟此橫幅大圖實景預覽"><i class="fas fa-eye"></i> 實景預覽</button>
                 <button type="button" onclick="moveHeroRow(this, -1)" class="quick-time-btn" title="向上調整排序"><i class="fas fa-arrow-up"></i> 上移</button>
                 <button type="button" onclick="moveHeroRow(this, 1)" class="quick-time-btn" title="向下調整排序"><i class="fas fa-arrow-down"></i> 下移</button>
                 <button type="button" onclick="this.closest('.hero-admin-row').remove()" style="background:#d32f2f; color:white; border:none; padding:4px 10px; cursor:pointer; border-radius:4px; font-size:12px; font-weight:bold;"><i class="fas fa-trash-alt"></i> 刪除</button>
@@ -3865,7 +4220,10 @@ function addHeroRow() {
                             <button type="button" onclick="clearLangImage(this, '${l.key}')" style="font-size:10px; background:#fee2e2; color:#b91c1c; border:none; padding:1px 5px; border-radius:3px; cursor:pointer;">清除圖</button>
                         </div>
                         <input type="text" class="b-title-${l.key}" placeholder="${l.placeholder}" style="font-size:11px; padding:3px 6px; font-weight:bold; border:1px solid #cbd5e1; border-radius:4px;">
-                        <img id="admin-preview-${l.key}-${i}" class="b-img-preview-${l.key}" src="" style="width:100%; height:50px; object-fit:cover; border:1px solid #e2e8f0; border-radius:4px; background:#f8fafc;" alt="預覽">
+                        <div style="position:relative; cursor:pointer;" onclick="previewBannerModalImage(this, '${l.key}')" title="點擊放大預覽實景">
+                            <img id="admin-preview-${l.key}-${i}" class="b-img-preview-${l.key}" src="" style="width:100%; height:52px; object-fit:cover; border:1px solid #cbd5e1; border-radius:4px; background:#f8fafc;" alt="預覽">
+                            <div style="position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,0.65); color:#fff; font-size:10px; padding:1px 5px; border-radius:3px; display:flex; align-items:center; gap:2px;"><i class="fas fa-search-plus"></i> 放大</div>
+                        </div>
                         <input type="file" class="b-file-${l.key}" accept="image/*" onchange="handleLangBannerUpload(this, '${l.key}')" style="font-size:10px; width:100%;">
                         <input type="hidden" class="b-img-${l.key}" value="">
                     </div>
@@ -3880,7 +4238,7 @@ function addHeroRow() {
             </div>
         </div>
 
-        <!-- 底部列：排程設定 (指定期間/多久後開/多久後關/固定週期通配) -->
+        <!-- 底部列：排程設定 (指定期間/多久後開/多久後關/固定週期通配/節日連動) -->
         <div style="background:#f9fafb; padding:8px 10px; border-radius:6px; border:1px solid #eef0f2; font-size:12px; display:flex; flex-direction:column; gap:6px;">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span style="font-weight:bold; color:#374151;"><i class="fas fa-clock"></i> 排程設定：</span>
@@ -3890,6 +4248,7 @@ function addHeroRow() {
                     <option value="openAfter">指定時間後開啟 (何時開 / 多久後開)</option>
                     <option value="closeAfter">指定時間後關閉 (何時關 / 多久後關)</option>
                     <option value="recurring">固定週期/時間 (未填年=每年、未填月=每月、未填日=每日)</option>
+                    <option value="festival">🎉 節日連動排程 (與節日計時器連動)</option>
                 </select>
             </div>
             
@@ -3946,6 +4305,23 @@ function addHeroRow() {
                     <span style="color:#888; font-size:11px;">(時間留空代表全天生效)</span>
                 </div>
             </div>
+
+            <!-- 節日連動排程 (與節日計時器連動) -->
+            <div class="sched-festival-box" style="display:none; flex-direction:column; gap:6px; background:#fff7ed; padding:10px 12px; border-radius:6px; border:1px solid #fed7aa;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-weight:bold; color:#9a3412;"><i class="fas fa-calendar-alt"></i> 連動節日：</span>
+                    <select class="b-fest-name" onchange="updateFestivalScheduleHint(this)" style="font-size:12px; padding:4px 8px; border-radius:4px; border:1.5px solid #ea580c; font-weight:bold; color:#7c2d12; background:#fff;">
+                        ${FESTIVAL_DEFINITIONS.map(f => `<option value="${f.name}" ${f.name === '農曆春節' ? 'selected' : ''}>${f.name} (${f.desc})</option>`).join('')}
+                    </select>
+                    <span style="font-size:12px; color:#9a3412; font-weight:bold; margin-left:6px;">排程區間：</span>
+                    <span>提前</span>
+                    <input type="number" class="b-fest-offset-start" value="7" min="0" max="60" style="width:55px; text-align:center; font-weight:bold; padding:2px 4px;" oninput="updateFestivalScheduleHint(this)">
+                    <span>天開始輪播，並於節日後延後</span>
+                    <input type="number" class="b-fest-offset-end" value="0" min="0" max="30" style="width:50px; text-align:center; font-weight:bold; padding:2px 4px;" oninput="updateFestivalScheduleHint(this)">
+                    <span>天下架</span>
+                </div>
+                <div class="fest-schedule-hint-text" style="font-size:11px; color:#c2410c; background:#ffedd5; padding:5px 8px; border-radius:4px; display:inline-flex; align-items:center; gap:6px;"></div>
+            </div>
         </div>
 
         <!-- 通行密碼授權管理 (可分享未開啟的公告) -->
@@ -3964,6 +4340,7 @@ function addHeroRow() {
         </div>
     `;
     list.appendChild(row);
+    updateFestivalScheduleHint(row.querySelector('.b-fest-name'));
 }
 
 function handleBannerUpload(input) {
@@ -3985,6 +4362,12 @@ async function saveHeroData() {
         const schedWeekday = row.querySelector('.b-sched-weekday') ? row.querySelector('.b-sched-weekday').value : '';
         const schedStartTime = row.querySelector('.b-sched-start-time') ? row.querySelector('.b-sched-start-time').value : '';
         const schedEndTime = row.querySelector('.b-sched-end-time') ? row.querySelector('.b-sched-end-time').value : '';
+        
+        const festName = row.querySelector('.b-fest-name') ? row.querySelector('.b-fest-name').value : '農曆春節';
+        const festOffsetStartInput = row.querySelector('.b-fest-offset-start');
+        const festOffsetEndInput = row.querySelector('.b-fest-offset-end');
+        const festOffsetStart = (festOffsetStartInput && festOffsetStartInput.value !== '') ? parseInt(festOffsetStartInput.value, 10) : 7;
+        const festOffsetEnd = (festOffsetEndInput && festOffsetEndInput.value !== '') ? parseInt(festOffsetEndInput.value, 10) : 0;
         
         const keyRows = row.querySelectorAll('.key-row');
         const accessKeys = Array.from(keyRows).map(kr => {
@@ -4040,6 +4423,9 @@ async function saveHeroData() {
             schedWeekday,
             schedStartTime,
             schedEndTime,
+            festName,
+            festOffsetStart,
+            festOffsetEnd,
             accessKeys,
             imageUrl: primaryImg.startsWith('data:image/') ? '' : primaryImg,
             imageBase64: primaryImg.startsWith('data:image/') ? primaryImg : null,

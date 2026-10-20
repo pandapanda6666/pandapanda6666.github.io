@@ -141,7 +141,6 @@
     <div id="ui-container">
         <button id="resetCamBtn">重置攝影機視角 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
         <button id="viewSwitchBtn">目前視角：第三人稱</button>
-        <button id="camFollowBtn" onclick="toggleCamFollow()" style="background-color: #00bcd4;">視角跟隨旋轉：開啟 [C]</button>
         <button id="hoverBtn" style="display:none; background-color: #2196F3;" onclick="toggleHover()">滯空模式 [H]</button>
         <button id="headlessBtn" style="display:none; background-color: #9C27B0;" onclick="toggleHeadless()">無頭模式 [M]</button>
         <button id="ledBtn" style="display:none; background-color: #FF5722;" onclick="toggleLED()">切換燈光顏色 [L]</button>
@@ -446,11 +445,6 @@
             localStorage.setItem('uav_cam_follow_yaw', window.thirdPersonFollowYaw ? 'true' : 'false');
             let sel = document.getElementById('set-cam-follow');
             if (sel) sel.value = window.thirdPersonFollowYaw ? 'true' : 'false';
-            let btn = document.getElementById('camFollowBtn');
-            if (btn) {
-                btn.innerText = window.thirdPersonFollowYaw ? '視角跟隨旋轉：開啟 [C]' : '視角跟隨旋轉：關閉 [C]';
-                btn.style.backgroundColor = window.thirdPersonFollowYaw ? '#00bcd4' : '#555';
-            }
         }
         
         // Auto-load settings on start
@@ -462,7 +456,7 @@
             if(savedMode && document.getElementById('set-layout')) document.getElementById('set-layout').value = savedMode;
 
             let savedFollow = localStorage.getItem('uav_cam_follow_yaw');
-            window.thirdPersonFollowYaw = (savedFollow === null || savedFollow === 'true');
+            window.thirdPersonFollowYaw = (savedFollow === 'true'); // 預設關閉自由視角
             if (document.getElementById('set-cam-follow')) {
                 document.getElementById('set-cam-follow').value = window.thirdPersonFollowYaw ? 'true' : 'false';
             }
@@ -2506,28 +2500,27 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                         if (keys.left) camera.rotation.y += rotSpeed;
                         if (keys.right) camera.rotation.y -= rotSpeed;
                     } else {
-                        let followYaw = (window.thirdPersonFollowYaw !== false);
+                        let followYaw = (currentPage === 'page-D' && window.thirdPersonFollowYaw === true);
                         if (followYaw) {
                             controls.enabled = false;
                             let droneYaw = (typeof window.droneYawAngle !== 'undefined')
                                 ? window.droneYawAngle
                                 : new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ').y;
                             let qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), droneYaw);
-                            // 相機理想位置：位於無人機後方 0.95m，上方 0.38m
-                            let offset = new THREE.Vector3(0, 0.38, 0.95).applyQuaternion(qYaw);
+                            // 相機理想位置：位於無人機後方 1.8m，上方 0.75m (開闊舒適追尾視角，絕不貼地或穿地)
+                            let offset = new THREE.Vector3(0, 0.75, 1.8).applyQuaternion(qYaw);
                             let targetCamPos = droneGroup.position.clone().add(offset);
+                            if (targetCamPos.y < -0.7) targetCamPos.y = -0.7; // 保持開闊地面視距
                             
-                            // 平滑追尾跟隨 (時間無關的指數平滑)
-                            let lerpRate = Math.min(1.0, 15.0 * dt);
+                            let lerpRate = Math.min(1.0, 12.0 * dt);
                             camera.position.lerp(targetCamPos, lerpRate);
                             
-                            // 看向機身前方稍微偏上
-                            let lookTarget = droneGroup.position.clone().add(new THREE.Vector3(0, 0.08, -0.3).applyQuaternion(qYaw));
+                            let lookTarget = droneGroup.position.clone().add(new THREE.Vector3(0, 0.25, -0.6).applyQuaternion(qYaw));
                             camera.lookAt(lookTarget);
                             controls.target.copy(droneGroup.position);
                         } else {
                             controls.enabled = true;
-                            // True Follow Camera: Move camera position by the drone's movement delta
+                            // 自由視角 (Free OrbitControls): 玩家可用滑鼠自由旋轉與縮放
                             let currentDronePos = droneGroup.position.clone();
                             if (!window.lastDronePos) window.lastDronePos = currentDronePos.clone();
                             let deltaPos = currentDronePos.clone().sub(window.lastDronePos);
@@ -2734,6 +2727,8 @@ renderer.render(scene, camera);
 
     <script>
         currentPage = 'page-A';
+        // Initial map build on load
+        buildMap();
         navigateTo('page-A');
         
         function navigateTo(pageId) {
@@ -3175,7 +3170,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.016';
+        const CURRENT_VERSION = 'v4.017';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3336,7 +3331,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.016</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.017</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
