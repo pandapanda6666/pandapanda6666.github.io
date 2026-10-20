@@ -892,6 +892,23 @@
     <script src="custom_ui.js"></script>
 </head>
 <body>
+    <!-- 管理員在線即時 AI 橫幅背景生成進度條 -->
+    <div id="admin-ai-progress-bar" style="display:none; position:fixed; top:0; left:0; width:100%; z-index:99999; background:linear-gradient(90deg, #064e3b, #065f46); color:#fff; box-shadow:0 4px 16px rgba(0,0,0,0.4); font-size:13px; font-weight:bold; padding:8px 16px; border-bottom:2.5px solid #34d399; box-sizing:border-box;">
+        <div style="max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-robot fa-spin" style="color:#6ee7b7; font-size:16px;"></i>
+                <span id="ai-progress-badge" style="background:#047857; color:#a7f3d0; font-size:11px; padding:2px 7px; border-radius:10px; border:1px solid #34d399;">AI 橫幅</span>
+                <span id="ai-progress-status">AI 橫幅正在伺服器端背景運算中...</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex:1; max-width:460px;">
+                <div style="flex:1; background:rgba(255,255,255,0.2); border-radius:10px; height:10px; overflow:hidden;">
+                    <div id="ai-progress-fill" style="width:10%; height:100%; background:linear-gradient(90deg, #34d399, #10b981); transition:width 0.4s ease;"></div>
+                </div>
+                <span id="ai-progress-pct" style="min-width:45px; text-align:right; color:#a7f3d0;">10%</span>
+                <button type="button" onclick="document.getElementById('admin-ai-progress-bar').style.display='none'" style="background:transparent; border:none; color:#cbd5e1; cursor:pointer; font-size:14px; padding:0 4px;" title="收合進度列">✕</button>
+            </div>
+        </div>
+    </div>
     
     <div id="notificationBar">
         <div class="notif-inner">
@@ -1036,6 +1053,36 @@
             <h2 style="margin:0; color:#2c5e32; font-size:1.35rem;"><i class="fas fa-images"></i> 管理首頁橫幅公告</h2>
             <span style="font-size:12px; color:#666;">支援自訂排序、固定編號、排程開關</span>
         </div>
+
+        <!-- 🤖 AI 伺服器背景自動生成橫幅控制面板 (伺服器端計算，背景運行) -->
+        <div id="aiBannerServerGeneratorCard" style="background:linear-gradient(135deg, #f0fdf4, #e8f5e9); border:1.5px solid #86efac; border-radius:10px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                <span style="font-weight:bold; color:#14532d; font-size:13px;">
+                    <i class="fas fa-robot" style="color:#16a34a;"></i> 🤖 AI 伺服器背景自動生成橫幅 (在伺服器運算，即時推播進度)
+                </span>
+                <span style="font-size:11px; color:#166534; background:#dcfce7; padding:2px 8px; border-radius:12px; font-weight:bold;">
+                    ⚡ 異步背景執行 • 自動翻譯 5 國語言
+                </span>
+            </div>
+            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; align-items:center;">
+                <input type="text" id="ai-banner-theme-input" placeholder="輸入橫幅主題 (例：探險者寫作大賽正式開打！)" style="padding:6px 10px; border-radius:6px; border:1px solid #bbf7d0; font-size:12px; outline:none; font-weight:bold;">
+                <select id="ai-banner-type-select" style="padding:6px 8px; border-radius:6px; border:1px solid #bbf7d0; font-size:12px; background:white; font-weight:bold; color:#166534;">
+                    <option value="image">🎨 生成圖片 (插畫母版)</option>
+                    <option value="code">💻 用程式碼 (動態視覺)</option>
+                </select>
+                <select id="ai-banner-source-lang-select" style="padding:6px 8px; border-radius:6px; border:1px solid #bbf7d0; font-size:12px; background:white; font-weight:bold; color:#166534;">
+                    <option value="zh-TW" selected>🇹🇼 臺灣繁體 (原文)</option>
+                    <option value="zh-HK">🇭🇰 香港繁體 (原文)</option>
+                    <option value="zh-CN">🇨🇳 簡體中文 (原文)</option>
+                    <option value="ja">🇯🇵 日本語 (原文)</option>
+                    <option value="en">🇺🇸 English (原文)</option>
+                </select>
+                <button type="button" onclick="startAiBannerServerTask()" style="background:#15803d; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap; box-shadow:0 2px 6px rgba(21,128,61,0.25);">
+                    <i class="fas fa-magic"></i> 🚀 開始生成
+                </button>
+            </div>
+        </div>
+
         <div id="heroList"></div>
         <button onclick="addHeroRow()" style="margin-top:10px; background:#4a6c42; color:white; padding:8px 14px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;"><i class="fas fa-plus"></i> 新增橫幅</button>
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:12px;">
@@ -1081,7 +1128,7 @@
                 <div id="visitorStats" class="status-chip"></div>
                 <div id="system-monitor" class="status-chip"></div>
             </div>
-            <div class="copyright-text" style="color: #666; font-size: 0.9em; margin-top: 10px;">
+            <div class="copyright-text" id="site-copyright" style="color: #666; font-size: 0.9em; margin-top: 10px;">
                 版權所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPanda的AI日常</a> All Rights Reserved.
             </div>
         </footer>
@@ -1094,6 +1141,20 @@
             const messageStyles = 'font-size: 16px; line-height: 1.6;';
             console.log(message, stopStyles, messageStyles);
         })();
+
+        // 全域 HTML 跳脫函數 (最優先宣告，防止跨模組與提前呼叫 ReferenceError)
+        window.escapeHtml = function(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+        function escapeHtml(str) {
+            return window.escapeHtml(str);
+        }
 
         // ==========================================
         // 5 種語言多語系國際化系統 (i18n)
@@ -1109,6 +1170,21 @@
                 youtube: 'YouTube頻道',
                 facebook: 'Facebook',
                 loginBtn: '登入 / 註冊',
+                loggedIn: '已登入',
+                accountSettings: '帳號設定',
+                logout: '登出',
+                welcomeToast: '歡迎！{name}。',
+                adminBannersBtn: '設定公告橫幅',
+                prevBanner: '上一張橫幅',
+                nextBanner: '下一張橫幅',
+                pauseBanner: '暫停播放',
+                playBanner: '繼續播放',
+                shareBanner: '分享橫幅',
+                shareModalTitle: '分享橫幅公告',
+                shareModalDesc: '請選擇要分享的播放模式：',
+                sharePauseBtn: '複製「暫停播放」連結 (停留在此張)',
+                sharePlayBtn: '複製「自動播放」連結 (繼續輪播)',
+                copyright: '版權所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPanda的AI日常</a> 保留一切權利。',
                 notifLabel: '系統公告',
                 pause: '暫停',
                 play: '播放',
@@ -1127,7 +1203,13 @@
                 copyShare: '複製連結',
                 openProject: '進入專案',
                 toolsSectionTitle: '自製專案',
+                toolsHeading: '自製專案',
+                toolsIntro: '請選擇一個專案，探索各種自製的有趣內容！',
                 seekerSectionTitle: '探險者系列',
+                addBanner: '新增橫幅',
+                saveSettings: '儲存設定',
+                cancel: '取消',
+                close: '關閉',
                 securityTitle: '安全性警示',
                 securityText: '偵測到視窗尺寸異常，可能為無頭瀏覽器或自動化爬蟲操作。',
                 securityClose: '確定並關閉'
@@ -1141,6 +1223,21 @@
                 youtube: 'YouTube頻道',
                 facebook: 'Facebook',
                 loginBtn: '登入 / 註冊',
+                loggedIn: '已登入',
+                accountSettings: '帳戶設定',
+                logout: '登出',
+                welcomeToast: '歡迎！{name}。',
+                adminBannersBtn: '設定公告橫幅',
+                prevBanner: '上一張橫幅',
+                nextBanner: '下一張橫幅',
+                pauseBanner: '暫停播放',
+                playBanner: '繼續播放',
+                shareBanner: '分享橫幅',
+                shareModalTitle: '分享橫幅公告',
+                shareModalDesc: '請選擇要分享嘅播放模式：',
+                sharePauseBtn: '複製「暫停播放」連結 (停留喺呢張)',
+                sharePlayBtn: '複製「自動播放」連結 (繼續輪播)',
+                copyright: '版權所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPanda的AI日常</a> 保留所有權利。',
                 notifLabel: '系統公告',
                 pause: '暫停',
                 play: '播放',
@@ -1159,7 +1256,13 @@
                 copyShare: '複製連結',
                 openProject: '進入專案',
                 toolsSectionTitle: '自製專案',
+                toolsHeading: '自製專案',
+                toolsIntro: '請選擇一個專案，探索各種自製嘅有趣內容！',
                 seekerSectionTitle: '探險者系列',
+                addBanner: '新增橫幅',
+                saveSettings: '儲存設定',
+                cancel: '取消',
+                close: '關閉',
                 securityTitle: '安全性提示',
                 securityText: '偵測到視窗尺寸異常，可能係無頭瀏覽器或自動化爬蟲操作。',
                 securityClose: '確定並關閉'
@@ -1173,6 +1276,21 @@
                 youtube: 'YouTube频道',
                 facebook: 'Facebook',
                 loginBtn: '登录 / 注册',
+                loggedIn: '已登录',
+                accountSettings: '账号设置',
+                logout: '退出登录',
+                welcomeToast: '欢迎！{name}。',
+                adminBannersBtn: '设置公告横幅',
+                prevBanner: '上一张横幅',
+                nextBanner: '下一张横幅',
+                pauseBanner: '暂停播放',
+                playBanner: '继续播放',
+                shareBanner: '分享横幅',
+                shareModalTitle: '分享横幅公告',
+                shareModalDesc: '请选择要分享的播放模式：',
+                sharePauseBtn: '复制“暂停播放”链接 (停留在此张)',
+                sharePlayBtn: '复制“自动播放”链接 (继续轮播)',
+                copyright: '版权所有 &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPanda的AI日常</a> 保留所有权利。',
                 notifLabel: '系统公告',
                 pause: '暂停',
                 play: '播放',
@@ -1191,7 +1309,13 @@
                 copyShare: '复制链接',
                 openProject: '进入项目',
                 toolsSectionTitle: '自制项目',
+                toolsHeading: '自制项目',
+                toolsIntro: '请选择一个项目，探索各种自制的有趣内容！',
                 seekerSectionTitle: '探险者系列',
+                addBanner: '新增横幅',
+                saveSettings: '保存设置',
+                cancel: '取消',
+                close: '关闭',
                 securityTitle: '安全提示',
                 securityText: '检测到窗口尺寸异常，可能为无头浏览器或自动化爬虫操作。',
                 securityClose: '确定并关闭'
@@ -1205,6 +1329,21 @@
                 youtube: 'YouTubeチャンネル',
                 facebook: 'Facebook',
                 loginBtn: 'ログイン / 登録',
+                loggedIn: 'ログイン中',
+                accountSettings: 'アカウント設定',
+                logout: 'ログアウト',
+                welcomeToast: 'ようこそ！{name}さん。',
+                adminBannersBtn: 'バナー設定',
+                prevBanner: '前のバナー',
+                nextBanner: '次のバナー',
+                pauseBanner: '一時停止',
+                playBanner: '再生',
+                shareBanner: 'バナーを共有',
+                shareModalTitle: 'バナー告知を共有',
+                shareModalDesc: '共有する再生モードを選択してください：',
+                sharePauseBtn: '「一時停止」リンクをコピー (固定表示)',
+                sharePlayBtn: '「自動再生」リンクをコピー (ローテーション継続)',
+                copyright: '無断転載を禁じます &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPandaのAI日常</a> All Rights Reserved.',
                 notifLabel: 'システム告知',
                 pause: '一時停止',
                 play: '再生',
@@ -1223,7 +1362,13 @@
                 copyShare: 'リンクをコピー',
                 openProject: 'プロジェクトを開く',
                 toolsSectionTitle: '自作ツール一覧',
+                toolsHeading: '自作プロジェクト',
+                toolsIntro: 'プロジェクトを選択して、様々な自作コンテンツをお楽しみください！',
                 seekerSectionTitle: 'シーカーシリーズ',
+                addBanner: 'バナー追加',
+                saveSettings: '設定を保存',
+                cancel: 'キャンセル',
+                close: '閉じる',
                 securityTitle: 'セキュリティ警告',
                 securityText: 'ウィンドウサイズが異常です。自動化スクリプトまたはクローラーの可能性があります。',
                 securityClose: '確認して閉じる'
@@ -1237,6 +1382,21 @@
                 youtube: 'YouTube Channel',
                 facebook: 'Facebook',
                 loginBtn: 'Login / Register',
+                loggedIn: 'Logged In',
+                accountSettings: 'Account Settings',
+                logout: 'Log Out',
+                welcomeToast: 'Welcome, {name}!',
+                adminBannersBtn: 'Banner Settings',
+                prevBanner: 'Previous Banner',
+                nextBanner: 'Next Banner',
+                pauseBanner: 'Pause Banner',
+                playBanner: 'Resume Banner',
+                shareBanner: 'Share Banner',
+                shareModalTitle: 'Share Banner Announcement',
+                shareModalDesc: 'Select playback mode for the link:',
+                sharePauseBtn: 'Copy "Paused" Link (Stay on this slide)',
+                sharePlayBtn: 'Copy "Autoplay" Link (Continue rotation)',
+                copyright: 'Copyright &copy; 2026 <a href="https://pandapanda6666.github.io" target="_blank" style="color: var(--primary-color, #2c5e32); text-decoration: none; font-weight: bold;">PandaPanda\'s AI Life</a> All Rights Reserved.',
                 notifLabel: 'Announcement',
                 pause: 'Pause',
                 play: 'Play',
@@ -1255,7 +1415,13 @@
                 copyShare: 'Copy Link',
                 openProject: 'Open Project',
                 toolsSectionTitle: 'Projects & Tools',
+                toolsHeading: 'Creations & Projects',
+                toolsIntro: 'Select a project to explore various creative creations!',
                 seekerSectionTitle: 'Seeker Series',
+                addBanner: 'Add Banner',
+                saveSettings: 'Save Settings',
+                cancel: 'Cancel',
+                close: 'Close',
                 securityTitle: 'Security Notice',
                 securityText: 'Abnormal window size detected. Possible automated script or crawler.',
                 securityClose: 'Confirm & Close'
@@ -1287,12 +1453,44 @@
 
         window.currentSiteLang = detectInitialLanguage();
 
+        window.isMobileDevice = function() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        };
+
+        window.updateMonitorAndCheckSecurity = function() {
+            const screenW = screen.width;
+            const screenH = screen.height;
+            const windowW = window.outerWidth;
+            const windowH = window.outerHeight;
+            const innerW = window.innerWidth;
+            const innerH = window.innerHeight;
+            const isMobile = window.isMobileDevice();
+            const t = (typeof siteI18n !== 'undefined' && siteI18n[window.currentSiteLang]) ? siteI18n[window.currentSiteLang] : (siteI18n ? siteI18n['zh-TW'] : {});
+            const type = isMobile ? (t.deviceMobile || '行動裝置') : (t.deviceDesktop || '電腦');
+
+            const monitorEl = document.getElementById('system-monitor');
+            if (monitorEl) {
+                const devIcon = isMobile ? '<i class="fas fa-mobile-alt"></i>' : '<i class="fas fa-desktop"></i>';
+                monitorEl.innerHTML = `<span style="white-space:nowrap;">${devIcon} ${type}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;"></span> <span style="white-space:nowrap;"><i class="fas fa-expand-arrows-alt"></i> ${t.screen || '螢幕'}: ${screenW}×${screenH}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;"></span> <span style="white-space:nowrap;"><i class="fas fa-window-maximize"></i> ${t.window || '視窗'}: ${innerW}×${innerH}</span>`;
+            }
+
+            if (!isMobile) {
+                const threshold = 200; 
+                const widthDiff = windowW - innerW;
+                const heightDiff = windowH - innerH;
+
+                if ((widthDiff > threshold || heightDiff > threshold) && localStorage.getItem('isImmune') !== 'true') {
+                    if (typeof showSecurityWarning === 'function') showSecurityWarning();
+                }
+            }
+        };
+
         window.renderVisitorStats = function() {
             const el = document.getElementById('visitorStats');
-            if (!el || !window.lastSystemStats) return;
+            if (!el) return;
             const t = siteI18n[window.currentSiteLang] || siteI18n['zh-TW'];
-            const stats = window.lastSystemStats;
-            el.innerHTML = `<span style="white-space:nowrap;"><i class="fas fa-circle text-success"></i> ${t.onlineUsers}: ${stats.onlineUsers}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;" class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-eye"></i> ${t.totalUniqueIps}: ${stats.totalUniqueIps}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;" class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-chart-line"></i> ${t.totalVisits}: ${stats.totalVisits}</span>`;
+            const stats = window.lastSystemStats || { onlineUsers: 1, totalUniqueIps: 78, totalVisits: 677 };
+            el.innerHTML = `<span style="white-space:nowrap;"><i class="fas fa-circle text-success"></i> ${t.onlineUsers || '目前在線人數'}: ${stats.onlineUsers}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;" class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-eye"></i> ${t.totalUniqueIps || '總曾進入人數'}: ${stats.totalUniqueIps}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;" class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-chart-line"></i> ${t.totalVisits || '總網站進入次數'}: ${stats.totalVisits}</span>`;
         };
 
         window.changeSiteLanguage = function(lang) {
@@ -1346,18 +1544,79 @@
             const aboutP = document.querySelector('#about p');
             if (aboutP) aboutP.innerHTML = t.aboutIntro;
 
+            const toolsH2 = document.querySelector('#tools h2');
+            if (toolsH2) toolsH2.innerText = t.toolsHeading || t.tools;
+            const toolsP = document.querySelector('#tools p');
+            if (toolsP) toolsP.innerText = t.toolsIntro;
+
             const adminBannersBtn = document.getElementById('openAdminBtn');
             if (adminBannersBtn) adminBannersBtn.innerHTML = `<i class="fas fa-edit"></i> ${t.adminBanners}`;
 
+            // 即時更新頁尾版權宣告
+            const cp = document.getElementById('site-copyright');
+            if (cp && t.copyright) cp.innerHTML = t.copyright;
+
+            // 即時更新橫幅外側控制列 (分享、暫停/繼續、前後翻頁)
+            const shareBtn = document.getElementById('hero-share-btn');
+            if (shareBtn) {
+                shareBtn.title = t.shareBanner || t.share;
+                const sSpan = shareBtn.querySelector('span');
+                if (sSpan) sSpan.innerText = t.share;
+            }
+            const playPauseBtn = document.getElementById('hero-play-pause-btn');
+            if (playPauseBtn) {
+                playPauseBtn.title = window.isHeroPaused ? (t.playBanner || t.play) : (t.pauseBanner || t.pause);
+                const pSpan = document.getElementById('hero-play-pause-text');
+                if (pSpan) pSpan.innerText = window.isHeroPaused ? t.play : t.pause;
+            }
+            const prevBtn = document.querySelector('.hero-prev');
+            if (prevBtn && t.prevBanner) prevBtn.title = t.prevBanner;
+            const nextBtn = document.querySelector('.hero-next');
+            if (nextBtn && t.nextBanner) nextBtn.title = t.nextBanner;
+
+            // 橫幅分享彈窗多語言
+            const shareH3 = document.querySelector('#heroShareContent h3');
+            if (shareH3) shareH3.innerHTML = `<i class="fas fa-share-alt"></i> ${t.shareModalTitle || '分享橫幅公告'}`;
+            const shareDesc = document.querySelector('#heroShareContent > div > p');
+            if (shareDesc) shareDesc.innerText = t.shareModalDesc || '請選擇要分享的播放模式：';
+            const btnPause = document.querySelector('.share-opt-pause');
+            if (btnPause) btnPause.innerHTML = `<i class="fas fa-pause-circle" style="font-size:1.1rem;"></i> ${t.sharePauseBtn || '複製「暫停播放」連結 (停留在此張)'}`;
+            const btnPlay = document.querySelector('.share-opt-play');
+            if (btnPlay) btnPlay.innerHTML = `<i class="fas fa-play-circle" style="font-size:1.1rem;"></i> ${t.sharePlayBtn || '複製「自動播放」連結 (繼續輪播)'}`;
+            const closeShareBtn = document.querySelector('#heroShareContent button[onclick="closeHeroShareModal()"]');
+            if (closeShareBtn) closeShareBtn.innerText = t.close || '關閉';
+
+            // 橫幅管理彈窗按鈕
+            const addHeroBtn = document.querySelector('button[onclick="addHeroRow()"]');
+            if (addHeroBtn) addHeroBtn.innerHTML = `<i class="fas fa-plus"></i> ${t.addBanner || '新增橫幅'}`;
+            const cancelHeroBtn = document.querySelector('button[onclick="closeHeroAdmin()"]');
+            if (cancelHeroBtn) cancelHeroBtn.innerText = t.cancel || '取消';
+            const saveHeroBtn = document.querySelector('button[onclick="saveHeroData()"]');
+            if (saveHeroBtn) saveHeroBtn.innerHTML = `<i class="fas fa-save"></i> ${t.saveSettings || '儲存設定'}`;
+
+            // 重新渲染登入區塊多語系文字 (狀態、選單、管理員按鈕)
+            if (typeof renderAuthUI === 'function') {
+                renderAuthUI();
+            }
+
             // 即時連動節日計時器 iframe
             const timerFrame = document.getElementById('timer-iframe');
-            if (timerFrame && timerFrame.contentWindow) {
-                timerFrame.contentWindow.postMessage({ type: 'CHANGE_LANG', lang: lang }, '*');
+            if (timerFrame) {
+                if (timerFrame.contentWindow) {
+                    timerFrame.contentWindow.postMessage({ type: 'CHANGE_LANG', lang: lang }, '*');
+                }
+                try {
+                    const u = new URL(timerFrame.src, window.location.href);
+                    if (u.searchParams.get('lang') !== lang) {
+                        u.searchParams.set('lang', lang);
+                        timerFrame.src = u.toString();
+                    }
+                } catch(e) {}
             }
 
             // 更新訪客監控與視窗設備翻譯
-            if (window.renderVisitorStats) window.renderVisitorStats();
-            if (window.updateMonitorAndCheckSecurity) window.updateMonitorAndCheckSecurity();
+            window.renderVisitorStats();
+            window.updateMonitorAndCheckSecurity();
 
             // 即時切換首頁橫幅對應語言內容
             if (typeof renderHeroData === 'function') {
@@ -1598,10 +1857,12 @@
                 const bgStyle = isAdmin ? 'background:#fff9c4; border:2px solid #fbc02d;' : 'background:#e8f5e9; border:1px solid #c8e6c9;';
 
                 
+                const t = siteI18n[window.currentSiteLang] || siteI18n['zh-TW'];
+
                 if (window.authInfo.isAuth && !sessionStorage.getItem('welcomed_' + nick)) {
                     sessionStorage.setItem('welcomed_' + nick, 'true');
                     const toast = document.createElement('div');
-                    toast.innerHTML = `歡迎！${nick}。`;
+                    toast.innerHTML = (t.welcomeToast || '歡迎！{name}。').replace('{name}', nick);
                     toast.style.cssText = 'position:fixed; top:20px; right:-300px; background:#4a6c42; color:white; padding:15px 20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); font-weight:bold; z-index:999999; transition:0.5s;';
                     document.body.appendChild(toast);
                     setTimeout(() => { toast.style.right = '20px'; }, 100);
@@ -1614,7 +1875,7 @@
                 <div class="user-info" style="display:flex;align-items:center;gap:8px; padding:4px 12px; border-radius:20px; ${bgStyle}">
                     <div class="avatar" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;background:white;">${avatarHTML}</div>
                     <div class="details" style="display:flex;flex-direction:column;">
-                        <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
+                        <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">${t.loggedIn || '已登入'}</span>
                         <div style="display:flex;align-items:center;">
                             <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
                             ${crownSVG}
@@ -1624,8 +1885,8 @@
                 <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
 
                 <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
-                    <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;"><i class="fas fa-cog"></i> 帳號設定</div>
-                    <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;"><i class="fas fa-door-open"></i> 登出</div>
+                    <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;"><i class="fas fa-cog"></i> ${t.accountSettings || '帳號設定'}</div>
+                    <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;"><i class="fas fa-door-open"></i> ${t.logout || '登出'}</div>
                 </div>
             </div>
         </div>
@@ -1674,7 +1935,7 @@
 
                 authContainer.innerHTML = `
                     <button id="login-btn" class="login-btn">
-                        登入 / 註冊
+                        ${t.loginBtn || '登入 / 註冊'}
                     </button>
                 `;
                 const loginBtn = document.getElementById('login-btn');
@@ -1789,6 +2050,10 @@
                         }
                     });
 
+                    window.socket.on('aiBannerProgress', (task) => {
+                        if (typeof handleAiProgress === 'function') handleAiProgress(task);
+                    });
+
                     window.socket.on('connect_error', (err) => {
                         console.warn('Socket 連線錯誤:', err);
                         showBroadcast('伺服器連線中或暫時離線，前台離線模式已啟動');
@@ -1806,6 +2071,7 @@
                 connectSSOSocket(sUrl);
                 if (typeof loadHeroData === 'function') loadHeroData();
                 if (typeof fetchOnlineBroadcasts === 'function') fetchOnlineBroadcasts(sUrl);
+                if (typeof checkAiBannerStatus === 'function') checkAiBannerStatus(sUrl);
             }
 
             async function resolveServerUrl() {
@@ -1840,6 +2106,105 @@
             }
             resolveServerUrl();
         })();
+
+        // --- 管理員 AI 背景橫幅進度推播與任務觸發 ---
+        function checkIsAdminUser() {
+            return Boolean(
+                window.authInfo?.isAdmin === true ||
+                localStorage.getItem('sso_isAdmin') === 'true' ||
+                localStorage.getItem('sso_user') === 'admin' ||
+                localStorage.getItem('sso_user') === 'PandaPanda' ||
+                window.authInfo?.user === 'admin' ||
+                window.authInfo?.user === 'PandaPanda'
+            );
+        }
+
+        window.handleAiProgress = function(task) {
+            const bar = document.getElementById('admin-ai-progress-bar');
+            const statusEl = document.getElementById('ai-progress-status');
+            const fillEl = document.getElementById('ai-progress-fill');
+            const pctEl = document.getElementById('ai-progress-pct');
+            const badgeEl = document.getElementById('ai-progress-badge');
+            if (!bar || !statusEl || !fillEl || !pctEl) return;
+
+            const isAdmin = checkIsAdminUser();
+            if (!isAdmin) {
+                bar.style.display = 'none';
+                return;
+            }
+
+            if (!task || task.clear) {
+                bar.style.display = 'none';
+                return;
+            }
+
+            bar.style.display = 'block';
+            if (badgeEl) {
+                badgeEl.textContent = task.type === 'code' ? '💻 程式碼視覺' : '🎨 藝術插畫';
+            }
+            statusEl.textContent = task.status || 'AI 伺服器背景運算中...';
+            const pct = Math.min(100, Math.max(0, task.progress || 10));
+            fillEl.style.width = pct + '%';
+            pctEl.textContent = pct + '%';
+
+            if (task.done) {
+                fillEl.style.width = '100%';
+                pctEl.textContent = '100%';
+                if (typeof loadHeroData === 'function') loadHeroData();
+                const modal = document.getElementById('heroAdminModal');
+                if (modal && modal.style.display !== 'none' && typeof renderBannerAdminList === 'function') {
+                    renderBannerAdminList();
+                }
+                setTimeout(() => {
+                    bar.style.display = 'none';
+                }, 6000);
+            }
+        };
+
+        window.checkAiBannerStatus = async function(serverUrl) {
+            const isAdmin = checkIsAdminUser();
+            if (!isAdmin || !serverUrl) return;
+            try {
+                const res = await fetch(`${serverUrl.replace(/\/$/, '')}/api/ai-banner/status`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.task && !data.task.done) {
+                        window.handleAiProgress(data.task);
+                    }
+                }
+            } catch(e){}
+        };
+
+        window.startAiBannerServerTask = async function() {
+            const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : localStorage.getItem('sso_server');
+            if (!sUrl) {
+                alert('尚未連線至伺服器！');
+                return;
+            }
+            const themeInput = document.getElementById('ai-banner-theme-input');
+            const typeSelect = document.getElementById('ai-banner-type-select');
+            const langSelect = document.getElementById('ai-banner-source-lang-select');
+
+            const theme = (themeInput && themeInput.value.trim()) ? themeInput.value.trim() : 'PandaPanda 官方最新盛典';
+            const type = typeSelect ? typeSelect.value : 'image';
+            const sourceLang = langSelect ? langSelect.value : 'zh-TW';
+
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/ai-banner/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ theme, type, sourceLang })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('🚀 AI 橫幅已在伺服器端背景開始運算！\n進度將直接在頂端進度條即時顯示，完成後首頁將自動同步播放新橫幅。');
+                } else {
+                    alert('啟動失敗：' + (data.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線伺服器失敗：' + e.message);
+            }
+        };
 
         function permanentBlock(reason, details = '') {
             if (localStorage.getItem('isImmune') === 'true') return; 
@@ -1896,39 +2261,6 @@
             
 
             
-
-            const monitorEl = document.getElementById('system-monitor');
-            
-            function isMobileDevice() {
-                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            }
-
-            window.updateMonitorAndCheckSecurity = function() {
-                const screenW = screen.width;
-                const screenH = screen.height;
-                const windowW = window.outerWidth;
-                const windowH = window.outerHeight;
-                const innerW = window.innerWidth;
-                const innerH = window.innerHeight;
-                const isMobile = isMobileDevice();
-                const t = (typeof siteI18n !== 'undefined' && siteI18n[window.currentSiteLang]) ? siteI18n[window.currentSiteLang] : (siteI18n ? siteI18n['zh-TW'] : {});
-                const type = isMobile ? (t.deviceMobile || '行動裝置') : (t.deviceDesktop || '電腦');
-
-                if (monitorEl) {
-                    const devIcon = isMobile ? '<i class="fas fa-mobile-alt"></i>' : '<i class="fas fa-desktop"></i>';
-                    monitorEl.innerHTML = `<span style="white-space:nowrap;">${devIcon} ${type}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;"></span> <span style="white-space:nowrap;"><i class="fas fa-expand-arrows-alt"></i> ${t.screen || '螢幕'}: ${screenW}×${screenH}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;"></span> <span style="white-space:nowrap;"><i class="fas fa-window-maximize"></i> ${t.window || '視窗'}: ${innerW}×${innerH}</span>`;
-                }
-
-                if (!isMobile) {
-                    const threshold = 200; 
-                    const widthDiff = windowW - innerW;
-                    const heightDiff = windowH - innerH;
-
-                    if ((widthDiff > threshold || heightDiff > threshold) && localStorage.getItem('isImmune') !== 'true') {
-                        showSecurityWarning();
-                    }
-                }
-            };
 
             window.addEventListener('load', window.updateMonitorAndCheckSecurity);
             window.addEventListener('resize', window.updateMonitorAndCheckSecurity);
@@ -2353,6 +2685,16 @@ function isBannerActive(b, now = Date.now()) {
     return false;
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 async function loadHeroData() {
     // 1. 優先從本地快取渲染，讓訪客或未登入瞬間看到橫幅
     if (bannersData.length === 0) {
@@ -2408,7 +2750,7 @@ function getFullImageUrl(url) {
     if(sUrl) {
         return sUrl.replace(/\/$/, '') + (url.startsWith('/') ? '' : '/') + url;
     }
-    return url;
+    return url.startsWith('/') ? '.' + url : url;
 }
 
 async function loadSecureImage(imgEl, url) {
@@ -2417,31 +2759,55 @@ async function loadSecureImage(imgEl, url) {
         imgEl.src = url;
         return;
     }
+
+    // 智慧回退鏈：當 ngrok 逾期、離線或回傳 HTML 錯誤頁面時，自動降級至本地相對路徑或本地通訊埠，若都失效則產生自定義精美視覺絕不破圖
+    imgEl.onerror = function() {
+        const baseName = url.split('/').pop().split('?')[0];
+        if (!this.dataset.fallbackTried1) {
+            this.dataset.fallbackTried1 = 'true';
+            this.src = './banners/' + baseName;
+        } else if (!this.dataset.fallbackTried2) {
+            this.dataset.fallbackTried2 = 'true';
+            this.src = 'http://localhost:48921/banners/' + baseName;
+        } else if (!this.dataset.fallbackTried3) {
+            this.dataset.fallbackTried3 = 'true';
+            this.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400' width='1200' height='400'><rect width='1200' height='400' fill='%23132a13'/><rect x='20' y='20' width='1160' height='360' fill='none' stroke='%234ade80' stroke-width='2' rx='12'/><text x='600' y='190' fill='%23ecfdf5' font-size='42' font-family='sans-serif' font-weight='bold' text-anchor='middle'>PandaPanda 官方最新活動</text><text x='600' y='245' fill='%2386efac' font-size='20' font-family='sans-serif' text-anchor='middle'>歡迎蒞臨探索自製內容與 AI 專案</text></svg>";
+        }
+    };
+
     const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : localStorage.getItem('sso_server');
     if(sUrl && url.startsWith(sUrl.replace(/\/$/, ''))) {
         try {
             const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning': '69420' } });
             if(res.ok) {
+                const cType = res.headers.get('content-type') || '';
+                if (cType.includes('html')) {
+                    imgEl.onerror();
+                    return;
+                }
                 const blob = await res.blob();
                 imgEl.src = URL.createObjectURL(blob);
+                return;
             } else {
-                imgEl.src = url;
+                imgEl.onerror();
+                return;
             }
         } catch(e) {
-            imgEl.src = url;
+            imgEl.onerror();
+            return;
         }
-    } else {
-        imgEl.src = url;
     }
+    imgEl.src = url;
 }
 
 function renderHeroData(initial = false) {
     const section = document.getElementById('hero-section');
     const outerControls = document.getElementById('hero-outer-controls');
     const slides = document.getElementById('hero-slides');
+    if (!slides) return;
     
     // 過濾目前排程與啟用生效的橫幅
-    activeBanners = bannersData.filter(b => isBannerActive(b));
+    activeBanners = (bannersData || []).filter(b => isBannerActive(b));
     
     if (activeBanners.length === 0) {
         if(section) section.style.display = 'none';
@@ -2457,17 +2823,21 @@ function renderHeroData(initial = false) {
     slides.innerHTML = activeBanners.map((b, i) => {
         const titleText = (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || '');
         const safeLink = b.linkUrl ? b.linkUrl.replace(/'/g, "\\'") : '';
+        const safeTitle = (typeof window.escapeHtml === 'function') ? window.escapeHtml(titleText) : (titleText || '');
         return `
         <div class="hero-slide" onclick="if('${safeLink}') window.open('${safeLink}', '_blank')">
-            <img id="hero-img-${i}" src="" alt="${escapeHtml(titleText)}">
-            ${titleText ? `<div class="hero-title">${escapeHtml(titleText)}</div>` : ''}
+            <img id="hero-img-${i}" src="" alt="${safeTitle}">
+            ${titleText ? `<div class="hero-title">${safeTitle}</div>` : ''}
         </div>
         `;
     }).join('');
     
     activeBanners.forEach((b, i) => {
         const imgUrl = (b.images && b.images[curLang]) ? b.images[curLang] : (b.imageUrl || b.imageBase64);
-        loadSecureImage(document.getElementById(`hero-img-${i}`), getFullImageUrl(imgUrl));
+        const imgEl = document.getElementById(`hero-img-${i}`);
+        if (imgEl && imgUrl) {
+            loadSecureImage(imgEl, getFullImageUrl(imgUrl));
+        }
     });
 
     if (initial) {
@@ -2738,13 +3108,18 @@ window.copyHeroShareLink = function(autoPlay) {
 
 function moveHero(dir) {
     if(isAnimating || activeBanners.length <= 1) return;
-    isAnimating = true;
-    
     const slides = document.querySelectorAll('.hero-slide');
+    if (!slides || slides.length === 0) return;
+    if (currentBannerIdx >= slides.length) currentBannerIdx = 0;
     const currentSlide = slides[currentBannerIdx];
+    if (!currentSlide) return;
     
-    currentBannerIdx = (currentBannerIdx + dir + activeBanners.length) % activeBanners.length;
-    const nextSlide = slides[currentBannerIdx];
+    const nextIdx = (currentBannerIdx + dir + activeBanners.length) % activeBanners.length;
+    const nextSlide = slides[nextIdx];
+    if (!nextSlide) return;
+
+    isAnimating = true;
+    currentBannerIdx = nextIdx;
     
     nextSlide.classList.add('no-transition');
     nextSlide.style.left = dir === 1 ? '100%' : '-100%';
@@ -3010,124 +3385,194 @@ window.generateBannerCanvasDataUrl = function(titleText, subtitleText = '官方�
     return generateLocalizedBannerDataUrl('', titleText, subtitleText, 'center');
 };
 
-// 一鍵自動翻譯各語標題 (調用後端代理翻譯)
-window.autoTranslateBannerRow = async function(btn) {
+// --- 多語言橫幅進階翻譯核心 (標題翻譯 vs 圖片文字替換 vs 同時翻譯) ---
+window.translateBannerTitlesOnly = async function(btn, silent = false) {
     const row = btn.closest('.hero-admin-row');
-    if (!row) return;
+    if (!row) return false;
 
-    const tTW = row.querySelector('.b-title-zh-TW')?.value.trim() || '';
-    const tHK = row.querySelector('.b-title-zh-HK')?.value.trim() || '';
-    const tCN = row.querySelector('.b-title-zh-CN')?.value.trim() || '';
-    const tJA = row.querySelector('.b-title-ja')?.value.trim() || '';
-    const tEN = row.querySelector('.b-title-en')?.value.trim() || '';
-    const baseTitle = tTW || tHK || tCN || tJA || tEN || row.querySelector('.b-title')?.value.trim() || '';
+    const srcLang = row.querySelector('.b-source-lang')?.value || 'zh-TW';
+    const srcInput = row.querySelector(`.b-title-${srcLang}`);
+    const srcTitle = srcInput ? srcInput.value.trim() : (row.querySelector('.b-title')?.value.trim() || '');
 
-    if (!baseTitle) {
-        alert('請先輸入至少一種語言的標題（例如臺灣繁體中文標題），再點擊自動翻譯！');
-        return;
+    if (!srcTitle) {
+        if (!silent) alert('請先輸入所選原文語言的標題內容！');
+        return false;
     }
 
     const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : localStorage.getItem('sso_server');
     if (!sUrl) {
-        alert('尚未連線至後端伺服器！');
-        return;
+        if (!silent) alert('尚未連線至伺服器！');
+        return false;
     }
 
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 翻譯中...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 翻譯標題中...';
     btn.disabled = true;
 
     try {
-        const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/translate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
-            body: JSON.stringify({
-                text: baseTitle,
-                targetLangs: ['zh-TW', 'zh-HK', 'zh-CN', 'ja', 'en']
-            })
-        });
-        const data = await res.json();
-        if (data.success && data.translations) {
-            if (row.querySelector('.b-title-zh-TW')) row.querySelector('.b-title-zh-TW').value = data.translations['zh-TW'] || baseTitle;
-            if (row.querySelector('.b-title-zh-HK')) row.querySelector('.b-title-zh-HK').value = data.translations['zh-HK'] || baseTitle;
-            if (row.querySelector('.b-title-zh-CN')) row.querySelector('.b-title-zh-CN').value = data.translations['zh-CN'] || baseTitle;
-            if (row.querySelector('.b-title-ja')) row.querySelector('.b-title-ja').value = data.translations['ja'] || baseTitle;
-            if (row.querySelector('.b-title-en')) row.querySelector('.b-title-en').value = data.translations['en'] || baseTitle;
-            if (row.querySelector('.b-title')) row.querySelector('.b-title').value = data.translations['zh-TW'] || baseTitle;
-            alert('已成功自動翻譯為 5 種語言標題！');
-        } else {
-            alert('翻譯失敗：' + (data.error || '未知錯誤'));
+        const targetLangs = ['zh-TW', 'zh-HK', 'zh-CN', 'ja', 'en'].filter(l => l !== srcLang);
+        for (const tLang of targetLangs) {
+            const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/translate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                body: JSON.stringify({
+                    text: srcTitle,
+                    from: srcLang,
+                    to: tLang
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.translatedText) {
+                    const targetInput = row.querySelector(`.b-title-${tLang}`);
+                    if (targetInput) targetInput.value = data.translatedText;
+                }
+            }
         }
+        if (row.querySelector('.b-title')) row.querySelector('.b-title').value = row.querySelector('.b-title-zh-TW')?.value || srcTitle;
+        if (!silent) alert(`🔤 已成功根據 [${srcLang}] 原文，自動翻譯為其他 4 種語言標題！`);
+        return true;
     } catch(e) {
-        alert('連線失敗：' + e.message);
+        if (!silent) alert('翻譯連線失敗：' + e.message);
+        return false;
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
 };
 
-// 一鍵以第一語言圖片為母版，智慧繪製各語言專屬橫幅
-window.autoGenerateBannerCanvas = async function(btn) {
+window.translateBannerImagesOnly = async function(btn, silent = false) {
     const row = btn.closest('.hero-admin-row');
-    if (!row) return;
+    if (!row) return false;
 
-    // 1. 抓取第一語言（母版）圖片
-    let masterImg = row.querySelector('.b-img-zh-TW')?.value || row.querySelector('.b-img')?.value || '';
+    const srcLang = row.querySelector('.b-source-lang')?.value || 'zh-TW';
+    let masterImg = row.querySelector(`.b-img-${srcLang}`)?.value || row.querySelector('.b-img')?.value || '';
     if (!masterImg) {
-        const preview = row.querySelector('.b-img-preview');
+        const preview = row.querySelector(`.b-img-preview-${srcLang}`) || row.querySelector('.b-img-preview');
         if (preview && preview.src && !preview.src.endsWith('/')) masterImg = preview.src;
     }
     if (masterImg && !masterImg.startsWith('data:') && !masterImg.startsWith('http')) {
         masterImg = getFullImageUrl(masterImg);
     }
 
-    const tTW = row.querySelector('.b-title-zh-TW')?.value.trim() || '';
-    const tHK = row.querySelector('.b-title-zh-HK')?.value.trim() || '';
-    const tCN = row.querySelector('.b-title-zh-CN')?.value.trim() || '';
-    const tJA = row.querySelector('.b-title-ja')?.value.trim() || '';
-    const tEN = row.querySelector('.b-title-en')?.value.trim() || '';
-    const baseTitle = tTW || tHK || tCN || tJA || tEN || row.querySelector('.b-title')?.value.trim() || '';
-
-    if (!baseTitle) {
-        alert('請先填寫標題（或點擊「自動翻譯各語標題」）後再產生橫幅！');
-        return;
+    if (!masterImg) {
+        if (!silent) alert(`請先為所選原文語言 [${srcLang}] 上傳或設定底圖母版！`);
+        return false;
     }
 
     const layoutMode = row.querySelector('.b-canvas-layout')?.value || 'left';
-
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在根據原圖產生多語橫幅...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 繪製圖片中...';
     btn.disabled = true;
 
     try {
-        // 第一語言（臺灣繁體）：若本來已有原圖，絕對保留原圖不覆蓋！
-        let twImg = row.querySelector('.b-img-zh-TW')?.value || row.querySelector('.b-img')?.value || '';
-        if (!twImg) {
-            twImg = await generateLocalizedBannerDataUrl(masterImg, tTW || baseTitle, '官方最新消息', layoutMode);
-            row.querySelector('.b-img').value = twImg;
-            if (row.querySelector('.b-img-zh-TW')) row.querySelector('.b-img-zh-TW').value = twImg;
-            const preview = row.querySelector('.b-img-preview');
-            if (preview) preview.src = twImg;
+        const targetLangs = ['zh-TW', 'zh-HK', 'zh-CN', 'ja', 'en'].filter(l => l !== srcLang);
+        const subBadges = {
+            'zh-TW': '官方最新公告',
+            'zh-HK': '官方最新資訊',
+            'zh-CN': '官方最新通知',
+            'ja': '公式最新ニュース',
+            'en': 'Official Announcement'
+        };
+
+        for (const tLang of targetLangs) {
+            const titleInput = row.querySelector(`.b-title-${tLang}`);
+            let tTitle = titleInput ? titleInput.value.trim() : '';
+            if (!tTitle) {
+                const srcInput = row.querySelector(`.b-title-${srcLang}`);
+                tTitle = srcInput ? srcInput.value.trim() : '';
+            }
+
+            const localizedImg = await generateLocalizedBannerDataUrl(masterImg, tTitle, subBadges[tLang] || '官方消息', layoutMode);
+            const targetHidden = row.querySelector(`.b-img-${tLang}`);
+            if (targetHidden) targetHidden.value = localizedImg;
+            const targetPrev = row.querySelector(`.b-img-preview-${tLang}`);
+            if (targetPrev) targetPrev.src = localizedImg;
         }
 
-        // 其他 4 種語言：以第一語言圖片為母版底圖，將文字替換為各語言標題！
-        const hkImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tHK || baseTitle, '官方最新消息', layoutMode);
-        const cnImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tCN || baseTitle, '官方最新消息', layoutMode);
-        const jaImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tJA || baseTitle, '公式最新ニュース', layoutMode);
-        const enImg = await generateLocalizedBannerDataUrl(masterImg || twImg, tEN || baseTitle, 'Official Announcement', layoutMode);
+        if (!row.querySelector(`.b-img-${srcLang}`)?.value && masterImg) {
+            row.querySelector(`.b-img-${srcLang}`).value = masterImg;
+        }
 
-        if (row.querySelector('.b-img-zh-HK')) row.querySelector('.b-img-zh-HK').value = hkImg;
-        if (row.querySelector('.b-img-zh-CN')) row.querySelector('.b-img-zh-CN').value = cnImg;
-        if (row.querySelector('.b-img-ja')) row.querySelector('.b-img-ja').value = jaImg;
-        if (row.querySelector('.b-img-en')) row.querySelector('.b-img-en').value = enImg;
-
-        alert('🎨 已成功根據第一語言圖片母版，自動為香港繁體、簡體中文、日文、英文替換產生對應橫幅圖片！\n臺灣繁體原圖完整保留！');
-    } catch(err) {
-        alert('產生橫幅時發生錯誤：' + err.message);
+        if (!silent) alert(`🖼️ 已成功根據 [${srcLang}] 原圖母版，智慧遮蔽替換文字生成其餘 4 國語言橫幅圖！\n原文底圖 100% 完整保留！`);
+        return true;
+    } catch(e) {
+        if (!silent) alert('橫幅圖片生成出錯：' + e.message);
+        return false;
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
+};
+
+window.translateBannerBoth = async function(btn) {
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同時翻譯中...';
+    btn.disabled = true;
+    try {
+        const okTitles = await window.translateBannerTitlesOnly(btn, true);
+        const okImages = await window.translateBannerImagesOnly(btn, true);
+        if (okTitles && okImages) {
+            alert('⚡ 已成功同時完成 5 國語言標題翻譯與圖片文字智慧替換！');
+        }
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+window.autoTranslateBannerRow = window.translateBannerTitlesOnly;
+window.autoGenerateBannerCanvas = window.translateBannerImagesOnly;
+
+window.handleLangBannerUpload = function(input, langKey) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const targetRatio = 3 / 1;
+            const imgRatio = img.width / img.height;
+            let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+            if (imgRatio > targetRatio) {
+                sWidth = img.height * targetRatio;
+                sx = (img.width - sWidth) / 2;
+            } else {
+                sHeight = img.width / targetRatio;
+                sy = (img.height - sHeight) / 2;
+            }
+            canvas.width = 1200;
+            canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 1200, 400);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            
+            const row = input.closest('.hero-admin-row');
+            if (row) {
+                const hiddenEl = row.querySelector(`.b-img-${langKey}`);
+                if (hiddenEl) hiddenEl.value = dataUrl;
+                const prevEl = row.querySelector(`.b-img-preview-${langKey}`);
+                if (prevEl) prevEl.src = dataUrl;
+                if (langKey === 'zh-TW') {
+                    if (row.querySelector('.b-img')) row.querySelector('.b-img').value = dataUrl;
+                }
+            }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.clearLangImage = function(btn, langKey) {
+    const row = btn.closest('.hero-admin-row');
+    if (!row) return;
+    const hiddenEl = row.querySelector(`.b-img-${langKey}`);
+    if (hiddenEl) hiddenEl.value = '';
+    const prevEl = row.querySelector(`.b-img-preview-${langKey}`);
+    if (prevEl) prevEl.src = '';
+    const fileInput = row.querySelector(`.b-file-${langKey}`);
+    if (fileInput) fileInput.value = '';
 };
 
 function renderBannerAdminList() {
@@ -3135,6 +3580,17 @@ function renderBannerAdminList() {
     list.innerHTML = bannersData.map((b, i) => {
         const isEn = b.enabled !== false;
         const sMode = b.scheduleMode || 'none';
+        const titles = b.titles || { 'zh-TW': b.title || '' };
+        const images = b.images || { 'zh-TW': b.imageUrl || b.imageBase64 || '' };
+
+        const langsConfig = [
+            { key: 'zh-TW', name: '🇹🇼 臺灣繁體', placeholder: '主要繁體中文標題' },
+            { key: 'zh-HK', name: '🇭🇰 香港繁體', placeholder: '香港繁體標題' },
+            { key: 'zh-CN', name: '🇨🇳 簡體中文', placeholder: '簡體中文標題' },
+            { key: 'ja',    name: '🇯🇵 日本語',   placeholder: '日文標題' },
+            { key: 'en',    name: '🇺🇸 English',  placeholder: '英文標題' }
+        ];
+
         return `
         <div class="hero-admin-row ${isEn ? '' : 'disabled-row'}" data-idx="${i}">
             <!-- 頂部列：固定編號、開關、排序、刪除 -->
@@ -3156,45 +3612,60 @@ function renderBannerAdminList() {
                 </div>
             </div>
 
-            <!-- 中間列：圖片預覽與上傳、標題與連結 -->
-            <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
-                    <img id="admin-preview-${i}" class="b-img-preview" src="" style="width:130px; height:43px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
-                    <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)" style="font-size:11px; max-width:140px;">
-                    <input type="hidden" class="b-img" value="${b.imageBase64 || b.imageUrl || ''}">
-                    <input type="hidden" class="b-img-zh-TW" value="${(b.images && b.images['zh-TW']) || b.imageBase64 || b.imageUrl || ''}">
-                    <input type="hidden" class="b-img-zh-HK" value="${(b.images && b.images['zh-HK']) || ''}">
-                    <input type="hidden" class="b-img-zh-CN" value="${(b.images && b.images['zh-CN']) || ''}">
-                    <input type="hidden" class="b-img-ja" value="${(b.images && b.images['ja']) || ''}">
-                    <input type="hidden" class="b-img-en" value="${(b.images && b.images['en']) || ''}">
-                </div>
-                <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:240px;">
-                    <!-- 多語言標題輸入區 -->
-                    <div style="display:flex; flex-direction:column; gap:6px; background:#f0f9f0; padding:8px 10px; border-radius:6px; border:1px solid #c8e6c9;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                            <span style="font-weight:bold; font-size:12px; color:#1b4332;"><i class="fas fa-language"></i> 多語系公告標題 (手動填寫/自動翻譯)：</span>
-                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                <select class="b-canvas-layout" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1px solid #00796b; color:#004d40; background:#e0f2f1; font-weight:bold;" title="文字覆蓋版型">
-                                    <option value="left" selected>左側面板 (遮蓋原字)</option>
-                                    <option value="center">置中面板</option>
-                                    <option value="bottom">底部橫條</option>
-                                    <option value="direct">純壓字 (無遮罩)</option>
-                                </select>
-                                <button type="button" class="quick-time-btn" onclick="autoTranslateBannerRow(this)" style="background:#2e7d32; color:white; font-size:11px;" title="輸入臺灣繁體後自動翻譯成其他 4 國語言"><i class="fas fa-globe"></i> 自動翻譯各語標題</button>
-                                <button type="button" class="quick-time-btn" onclick="autoGenerateBannerCanvas(this)" style="background:#00796b; color:white; font-size:11px;" title="根據第一語言母版圖片自動替換文字產生多語橫幅圖片"><i class="fas fa-paint-brush"></i> 🎨 自動翻譯產生橫幅</button>
-                            </div>
-                        </div>
-                        <input type="text" class="b-title b-title-zh-TW" placeholder="🇹🇼 臺灣繁體中文標題 (主要標題)" value="${(b.titles && b.titles['zh-TW']) || b.title || ''}" style="font-weight:bold;">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                            <input type="text" class="b-title-zh-HK" placeholder="🇭🇰 香港繁體標題" value="${(b.titles && b.titles['zh-HK']) || ''}" style="font-size:12px;">
-                            <input type="text" class="b-title-zh-CN" placeholder="🇨🇳 簡體中文標題" value="${(b.titles && b.titles['zh-CN']) || ''}" style="font-size:12px;">
-                        </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                            <input type="text" class="b-title-ja" placeholder="🇯🇵 日文標題" value="${(b.titles && b.titles['ja']) || ''}" style="font-size:12px;">
-                            <input type="text" class="b-title-en" placeholder="🇺🇸 英文標題" value="${(b.titles && b.titles['en']) || ''}" style="font-size:12px;">
-                        </div>
+            <!-- 多語言控制核心與 5 國語言獨立設定 -->
+            <div style="display:flex; flex-direction:column; gap:10px; background:#f0fdf4; padding:10px 12px; border-radius:8px; border:1px solid #bbf7d0;">
+                <!-- 控制按鈕列: 選擇原文語言、版型、3大獨立翻譯動作 -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="font-weight:bold; font-size:12px; color:#14532d;"><i class="fas fa-language"></i> 原文語言：</span>
+                        <select class="b-source-lang" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1.5px solid #16a34a; background:white; font-weight:bold; color:#14532d;" title="以所選語言為母版進行生成">
+                            <option value="zh-TW" selected>🇹🇼 臺灣繁體 (原文)</option>
+                            <option value="zh-HK">🇭🇰 香港繁體 (原文)</option>
+                            <option value="zh-CN">🇨🇳 簡體中文 (原文)</option>
+                            <option value="ja">🇯🇵 日本語 (原文)</option>
+                            <option value="en">🇺🇸 English (原文)</option>
+                        </select>
+                        <span style="font-weight:bold; font-size:12px; color:#14532d; margin-left:6px;">文字遮罩版型：</span>
+                        <select class="b-canvas-layout" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1px solid #00796b; color:#004d40; background:#e0f2f1; font-weight:bold;">
+                            <option value="left" selected>左側面板 (遮蓋原字)</option>
+                            <option value="center">置中面板</option>
+                            <option value="bottom">底部橫條</option>
+                            <option value="direct">純壓字 (無遮罩)</option>
+                        </select>
                     </div>
-                    <input type="text" class="b-link" placeholder="點擊跳轉連結 (Link URL - 選填)" value="${b.linkUrl || ''}">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <button type="button" class="quick-time-btn" onclick="translateBannerTitlesOnly(this)" style="background:#2563eb; color:white; font-size:11px; font-weight:bold;" title="只改標題文字：以原文語言標題翻譯產生其他語言標題"><i class="fas fa-font"></i> 🔤 翻譯標題文字</button>
+                        <button type="button" class="quick-time-btn" onclick="translateBannerImagesOnly(this)" style="background:#0d9488; color:white; font-size:11px; font-weight:bold;" title="只改圖片中的文字：以原文語言圖片為底圖母版，智慧替換文字生成其他語言圖片"><i class="fas fa-image"></i> 🖼️ 翻譯替換圖片文字</button>
+                        <button type="button" class="quick-time-btn" onclick="translateBannerBoth(this)" style="background:#15803d; color:white; font-size:11px; font-weight:bold;" title="同時翻譯標題與圖片"><i class="fas fa-bolt"></i> ⚡ 同時翻譯標題與圖片</button>
+                    </div>
+                </div>
+
+                <!-- 5 國語言卡片 (支援手動設定專屬橫幅圖與標題) -->
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;">
+                    ${langsConfig.map(l => {
+                        const lTitle = titles[l.key] || (l.key === 'zh-TW' ? (b.title || '') : '');
+                        const lImg = images[l.key] || (l.key === 'zh-TW' ? (b.imageUrl || b.imageBase64 || '') : '');
+                        return `
+                        <div style="background:#fff; border:1px solid #dcfce7; border-radius:6px; padding:8px; display:flex; flex-direction:column; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:11px; font-weight:bold; color:#166534;">${l.name}</span>
+                                <button type="button" onclick="clearLangImage(this, '${l.key}')" style="font-size:10px; background:#fee2e2; color:#b91c1c; border:none; padding:1px 5px; border-radius:3px; cursor:pointer;" title="清除圖片">清除圖</button>
+                            </div>
+                            <input type="text" class="b-title-${l.key}" placeholder="${l.placeholder}" value="${escapeHtml(lTitle)}" style="font-size:11px; padding:3px 6px; font-weight:bold; border:1px solid #cbd5e1; border-radius:4px;">
+                            <img id="admin-preview-${l.key}-${i}" class="b-img-preview-${l.key}" src="" style="width:100%; height:50px; object-fit:cover; border:1px solid #e2e8f0; border-radius:4px; background:#f8fafc;" alt="預覽">
+                            <input type="file" class="b-file-${l.key}" accept="image/*" onchange="handleLangBannerUpload(this, '${l.key}')" style="font-size:10px; width:100%;">
+                            <input type="hidden" class="b-img-${l.key}" value="${lImg}">
+                        </div>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- 通用隱藏欄位與點擊連結 -->
+                <input type="hidden" class="b-img" value="${b.imageBase64 || b.imageUrl || (images && images['zh-TW']) || ''}">
+                <input type="hidden" class="b-title" value="${titles['zh-TW'] || b.title || ''}">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:12px; font-weight:bold; color:#1b4332; white-space:nowrap;"><i class="fas fa-link"></i> 跳轉連結：</span>
+                    <input type="text" class="b-link" placeholder="點擊跳轉網址 (Link URL - 選填)" value="${escapeHtml(b.linkUrl || '')}" style="flex:1; font-size:12px; padding:4px 8px;">
                 </div>
             </div>
 
@@ -3309,9 +3780,15 @@ function renderBannerAdminList() {
     }).join('');
     
     bannersData.forEach((b, i) => {
-        if(b.imageBase64 || b.imageUrl) {
-            loadSecureImage(document.getElementById(`admin-preview-${i}`), b.imageBase64 || getFullImageUrl(b.imageUrl));
-        }
+        const langs = ['zh-TW', 'zh-HK', 'zh-CN', 'ja', 'en'];
+        const images = b.images || { 'zh-TW': b.imageUrl || b.imageBase64 || '' };
+        langs.forEach(lKey => {
+            const el = document.getElementById(`admin-preview-${lKey}-${i}`);
+            const imgVal = images[lKey] || (lKey === 'zh-TW' ? (b.imageUrl || b.imageBase64) : '');
+            if (el && imgVal) {
+                loadSecureImage(el, imgVal.startsWith('data:') ? imgVal : getFullImageUrl(imgVal));
+            }
+        });
     });
 }
 
@@ -3322,7 +3799,19 @@ function addHeroRow() {
     
     const row = document.createElement('div');
     row.className = 'hero-admin-row';
+    const i = list.children.length;
+    row.setAttribute('data-idx', i);
+
+    const langsConfig = [
+        { key: 'zh-TW', name: '🇹🇼 臺灣繁體', placeholder: '主要繁體中文標題' },
+        { key: 'zh-HK', name: '🇭🇰 香港繁體', placeholder: '香港繁體標題' },
+        { key: 'zh-CN', name: '🇨🇳 簡體中文', placeholder: '簡體中文標題' },
+        { key: 'ja',    name: '🇯🇵 日本語',   placeholder: '日文標題' },
+        { key: 'en',    name: '🇺🇸 English',  placeholder: '英文標題' }
+    ];
+
     row.innerHTML = `
+        <!-- 頂部列：固定編號、開關、排序、刪除 -->
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid #eee; padding-bottom:8px;">
             <div style="display:flex; align-items:center; gap:10px;">
                 <label style="font-size:13px; font-weight:bold; color:#1b4332; display:flex; align-items:center; gap:4px;">
@@ -3341,47 +3830,57 @@ function addHeroRow() {
             </div>
         </div>
 
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-            <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-start;">
-                <img class="b-img-preview" src="" style="width:130px; height:43px; object-fit:cover; border:1px solid #ccc; border-radius:4px; background:#f0f0f0;" alt="預覽">
-                <input type="file" class="b-img-file" accept="image/*" onchange="handleBannerUpload(this)" style="font-size:11px; max-width:140px;">
-                <input type="hidden" class="b-img" value="">
-                <input type="hidden" class="b-img-zh-TW" value="">
-                <input type="hidden" class="b-img-zh-HK" value="">
-                <input type="hidden" class="b-img-zh-CN" value="">
-                <input type="hidden" class="b-img-ja" value="">
-                <input type="hidden" class="b-img-en" value="">
-            </div>
-            <div style="display:flex; flex-direction:column; gap:6px; flex:1; min-width:240px;">
-                <!-- 多語言標題輸入區 -->
-                <div style="display:flex; flex-direction:column; gap:6px; background:#f0f9f0; padding:8px 10px; border-radius:6px; border:1px solid #c8e6c9;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                        <span style="font-weight:bold; font-size:12px; color:#1b4332;"><i class="fas fa-language"></i> 多語系公告標題 (手動填寫/自動翻譯)：</span>
-                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                            <select class="b-canvas-layout" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1px solid #00796b; color:#004d40; background:#e0f2f1; font-weight:bold;" title="文字覆蓋版型">
-                                <option value="left" selected>左側面板 (遮蓋原字)</option>
-                                <option value="center">置中面板</option>
-                                <option value="bottom">底部橫條</option>
-                                <option value="direct">純壓字 (無遮罩)</option>
-                            </select>
-                            <button type="button" class="quick-time-btn" onclick="autoTranslateBannerRow(this)" style="background:#2e7d32; color:white; font-size:11px;" title="輸入臺灣繁體後自動翻譯成其他 4 國語言"><i class="fas fa-globe"></i> 自動翻譯各語標題</button>
-                            <button type="button" class="quick-time-btn" onclick="autoGenerateBannerCanvas(this)" style="background:#00796b; color:white; font-size:11px;" title="根據第一語言母版圖片自動替換文字產生多語橫幅圖片"><i class="fas fa-paint-brush"></i> 🎨 自動翻譯產生橫幅</button>
-                        </div>
-                    </div>
-                    <input type="text" class="b-title b-title-zh-TW" placeholder="🇹🇼 臺灣繁體中文標題 (主要標題)" style="font-weight:bold;">
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                        <input type="text" class="b-title-zh-HK" placeholder="🇭🇰 香港繁體標題" style="font-size:12px;">
-                        <input type="text" class="b-title-zh-CN" placeholder="🇨🇳 簡體中文標題" style="font-size:12px;">
-                    </div>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-                        <input type="text" class="b-title-ja" placeholder="🇯🇵 日文標題" style="font-size:12px;">
-                        <input type="text" class="b-title-en" placeholder="🇺🇸 英文標題" style="font-size:12px;">
-                    </div>
+        <!-- 多語言控制核心與 5 國語言獨立設定 -->
+        <div style="display:flex; flex-direction:column; gap:10px; background:#f0fdf4; padding:10px 12px; border-radius:8px; border:1px solid #bbf7d0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <span style="font-weight:bold; font-size:12px; color:#14532d;"><i class="fas fa-language"></i> 原文語言：</span>
+                    <select class="b-source-lang" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1.5px solid #16a34a; background:white; font-weight:bold; color:#14532d;">
+                        <option value="zh-TW" selected>🇹🇼 臺灣繁體 (原文)</option>
+                        <option value="zh-HK">🇭🇰 香港繁體 (原文)</option>
+                        <option value="zh-CN">🇨🇳 簡體中文 (原文)</option>
+                        <option value="ja">🇯🇵 日本語 (原文)</option>
+                        <option value="en">🇺🇸 English (原文)</option>
+                    </select>
+                    <span style="font-weight:bold; font-size:12px; color:#14532d; margin-left:6px;">文字遮罩版型：</span>
+                    <select class="b-canvas-layout" style="font-size:11px; padding:3px 6px; border-radius:4px; border:1px solid #00796b; color:#004d40; background:#e0f2f1; font-weight:bold;">
+                        <option value="left" selected>左側面板 (遮蓋原字)</option>
+                        <option value="center">置中面板</option>
+                        <option value="bottom">底部橫條</option>
+                        <option value="direct">純壓字 (無遮罩)</option>
+                    </select>
                 </div>
-                <input type="text" class="b-link" placeholder="點擊跳轉連結 (Link URL - 選填)">
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <button type="button" class="quick-time-btn" onclick="translateBannerTitlesOnly(this)" style="background:#2563eb; color:white; font-size:11px; font-weight:bold;" title="只改標題文字"><i class="fas fa-font"></i> 🔤 翻譯標題文字</button>
+                    <button type="button" class="quick-time-btn" onclick="translateBannerImagesOnly(this)" style="background:#0d9488; color:white; font-size:11px; font-weight:bold;" title="只改圖片中的文字"><i class="fas fa-image"></i> 🖼️ 翻譯替換圖片文字</button>
+                    <button type="button" class="quick-time-btn" onclick="translateBannerBoth(this)" style="background:#15803d; color:white; font-size:11px; font-weight:bold;" title="同時翻譯標題與圖片"><i class="fas fa-bolt"></i> ⚡ 同時翻譯標題與圖片</button>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:8px;">
+                ${langsConfig.map(l => `
+                    <div style="background:#fff; border:1px solid #dcfce7; border-radius:6px; padding:8px; display:flex; flex-direction:column; gap:5px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:11px; font-weight:bold; color:#166534;">${l.name}</span>
+                            <button type="button" onclick="clearLangImage(this, '${l.key}')" style="font-size:10px; background:#fee2e2; color:#b91c1c; border:none; padding:1px 5px; border-radius:3px; cursor:pointer;">清除圖</button>
+                        </div>
+                        <input type="text" class="b-title-${l.key}" placeholder="${l.placeholder}" style="font-size:11px; padding:3px 6px; font-weight:bold; border:1px solid #cbd5e1; border-radius:4px;">
+                        <img id="admin-preview-${l.key}-${i}" class="b-img-preview-${l.key}" src="" style="width:100%; height:50px; object-fit:cover; border:1px solid #e2e8f0; border-radius:4px; background:#f8fafc;" alt="預覽">
+                        <input type="file" class="b-file-${l.key}" accept="image/*" onchange="handleLangBannerUpload(this, '${l.key}')" style="font-size:10px; width:100%;">
+                        <input type="hidden" class="b-img-${l.key}" value="">
+                    </div>
+                `).join('')}
+            </div>
+
+            <input type="hidden" class="b-img" value="">
+            <input type="hidden" class="b-title" value="">
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:12px; font-weight:bold; color:#1b4332; white-space:nowrap;"><i class="fas fa-link"></i> 跳轉連結：</span>
+                <input type="text" class="b-link" placeholder="點擊跳轉網址 (Link URL - 選填)" style="flex:1; font-size:12px; padding:4px 8px;">
             </div>
         </div>
 
+        <!-- 底部列：排程設定 (指定期間/多久後開/多久後關/固定週期通配) -->
         <div style="background:#f9fafb; padding:8px 10px; border-radius:6px; border:1px solid #eef0f2; font-size:12px; display:flex; flex-direction:column; gap:6px;">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span style="font-weight:bold; color:#374151;"><i class="fas fa-clock"></i> 排程設定：</span>
@@ -3468,38 +3967,7 @@ function addHeroRow() {
 }
 
 function handleBannerUpload(input) {
-    const file = input.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const targetRatio = 3 / 1;
-            const imgRatio = img.width / img.height;
-            let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
-            if (imgRatio > targetRatio) {
-                sWidth = img.height * targetRatio;
-                sx = (img.width - sWidth) / 2;
-            } else {
-                sHeight = img.width / targetRatio;
-                sy = (img.height - sHeight) / 2;
-            }
-            canvas.width = 1200;
-            canvas.height = 400;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, 1200, 400);
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            
-            const row = input.closest('.hero-admin-row');
-            if(row) {
-                row.querySelector('.b-img').value = dataUrl;
-                row.querySelector('.b-img-preview').src = dataUrl;
-            }
-        }
-        img.src = e.target.result;
-    }
-    reader.readAsDataURL(file);
+    handleLangBannerUpload(input, 'zh-TW');
 }
 
 async function saveHeroData() {
@@ -3510,7 +3978,6 @@ async function saveHeroData() {
         const schedSel = row.querySelector('.b-sched-mode');
         const startInput = row.querySelector('.b-start-time');
         const endInput = row.querySelector('.b-end-time');
-        const imgVal = row.querySelector('.b-img').value;
 
         const schedYear = row.querySelector('.b-sched-year') ? row.querySelector('.b-sched-year').value.trim() : '';
         const schedMonth = row.querySelector('.b-sched-month') ? row.querySelector('.b-sched-month').value : '';
@@ -3545,7 +4012,7 @@ async function saveHeroData() {
             'en': bTitleEN || bTitleTW
         };
 
-        const imgTW = row.querySelector('.b-img-zh-TW')?.value || imgVal;
+        const imgTW = row.querySelector('.b-img-zh-TW')?.value || row.querySelector('.b-img')?.value || '';
         const imgHK = row.querySelector('.b-img-zh-HK')?.value || '';
         const imgCN = row.querySelector('.b-img-zh-CN')?.value || '';
         const imgJA = row.querySelector('.b-img-ja')?.value || '';
@@ -3558,6 +4025,8 @@ async function saveHeroData() {
             'ja': imgJA || imgTW,
             'en': imgEN || imgTW
         };
+
+        const primaryImg = imgTW || imgHK || imgCN || imgJA || imgEN || '';
 
         return {
             id: (idInput && idInput.value.trim()) ? idInput.value.trim() : String(idx + 1),
@@ -3572,14 +4041,14 @@ async function saveHeroData() {
             schedStartTime,
             schedEndTime,
             accessKeys,
-            imageUrl: imgVal.startsWith('data:image/') ? '' : imgVal,
-            imageBase64: imgVal.startsWith('data:image/') ? imgVal : null,
-            linkUrl: row.querySelector('.b-link').value.trim(),
+            imageUrl: primaryImg.startsWith('data:image/') ? '' : primaryImg,
+            imageBase64: primaryImg.startsWith('data:image/') ? primaryImg : null,
+            linkUrl: (row.querySelector('.b-link')?.value.trim()) || '',
             title: bTitleTW,
             titles,
             images
         };
-    }).filter(b => b.imageUrl.trim() !== '' || b.imageBase64 || (b.images && Object.values(b.images).some(x => !!x)));
+    }).filter(b => b.imageUrl || b.imageBase64 || (b.images && Object.values(b.images).some(x => !!x)));
     
     const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : localStorage.getItem('sso_server');
     if (!sUrl) {

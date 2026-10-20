@@ -775,7 +775,7 @@
                         color: 0x00FFFF,
                         transparent: true,
                         opacity: 0.7,
-                        side: THREE.DoubleSide,
+                        side: THREE.FrontSide, // 單面渲染：正面迎面看得見，反向看過去完全隱藏 (普通門無標記)
                         depthWrite: false
                     });
                     let plane = new THREE.Mesh(circleGeo, planeMat);
@@ -2080,20 +2080,26 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                 }
                 
                 
-                // --- RACE GATE LOGIC (限制面通行判定 & 僅當前目標門框顯示中間圓形) ---
+                // --- RACE GATE LOGIC (單向正面通關判定 & 反向看為普通門無加分) ---
                 if (currentMapId === 'race' && window.raceGates && window.raceGates.length > 0 && !window.droneCrashed) {
                     let targetGate = window.raceGates[window.currentGateIndex];
                     let gPos = targetGate.pos;
                     let gDir = targetGate.dir;
                     
-                    // 只有正面通行才能觸發 Checkpoint 通關 (只有一面可以過)
                     let toGate = droneGroup.position.clone().sub(gPos);
                     let distPlane = toGate.dot(gDir);
                     let radialDist = Math.sqrt(toGate.x * toGate.x + toGate.y * toGate.y);
                     let vDotDir = window.droneVelocity.dot(gDir);
                     
-                    // 穿過門框平面 (distPlane >= -0.2 且 distPlane < 2.0)，徑向在孔洞範圍內，且速度為順向 (vDotDir > -0.5)
-                    if (radialDist < targetGate.radius && distPlane >= -0.2 && distPlane < 2.0 && vDotDir > -0.5) {
+                    // 記錄前一步的平面距離，實現精確的正面穿透判定 (Zero-Crossing from Front to Back)
+                    if (targetGate.lastDistPlane === undefined) targetGate.lastDistPlane = distPlane;
+                    
+                    // 只有正面順向穿越才加分通關 (從正面 distPlane < 0.3 穿到背面 distPlane >= -0.2，且速度順向 vDotDir > 0.2)
+                    // 逆向穿越 (vDotDir <= 0) 自由穿過不被阻擋，但絕對不加分！
+                    let isPassingForward = (targetGate.lastDistPlane <= 0.3 && distPlane >= -0.2 && distPlane < 2.0 && vDotDir > 0.2);
+                    
+                    if (radialDist < targetGate.radius && isPassingForward) {
+                        delete targetGate.lastDistPlane;
                         window.currentGateIndex++;
                         if (window.currentGateIndex >= window.raceGates.length) {
                             window.currentGateIndex = 0;
@@ -2107,21 +2113,35 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                             // Reset timer for next lap without resetting game state
                             gameTimer = 0;
                         }
+                    } else {
+                        targetGate.lastDistPlane = distPlane;
                     }
                     
+                    // 更新所有門框視覺呈現
                     window.raceGates.forEach((g, idx) => {
                         let isTarget = (idx === window.currentGateIndex);
+                        
+                        // 檢測無人機是否在該門框的正面：
+                        // 如果無人機在門框背面 (distPlane > 0.5)，從反向看過去就是普通門 (不發光，無導引)
+                        let isFrontSide = true;
+                        if (isTarget) {
+                            let dPlane = (droneGroup.position.clone().sub(g.pos)).dot(g.dir);
+                            if (dPlane > 0.5) isFrontSide = false;
+                        }
+                        
+                        let showTargetHighlight = isTarget && isFrontSide;
+                        
                         if (g.mesh && g.mesh.children) {
                             g.mesh.children.forEach(c => {
                                 if (c.material) {
-                                    c.material.emissive = isTarget ? new THREE.Color(0x00FF00) : new THREE.Color(0x000000);
-                                    c.material.emissiveIntensity = isTarget ? 0.8 : 0;
-                                    c.material.opacity = isTarget ? 1.0 : 0.4;
+                                    c.material.emissive = showTargetHighlight ? new THREE.Color(0x00FF00) : new THREE.Color(0x000000);
+                                    c.material.emissiveIntensity = showTargetHighlight ? 0.8 : 0;
+                                    c.material.opacity = showTargetHighlight ? 1.0 : 0.85;
                                 }
                             });
                         }
                         if (g.targetPlane) {
-                            // 只有要到的門框中間才需要有圓形！
+                            // 只有當前要到的門框中間才顯示圓形 (FrontSide 單面材質，反向看過去也是自動隱藏的普通門)
                             g.targetPlane.visible = isTarget;
                         }
                     });
@@ -2408,60 +2428,8 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                                 }
                             }
                         } else {
-                            // 無碰撞，安全前進
+                            // 無碰撞，安全前進 (門框孔洞空間完全通暢，不進行物理阻擋)
                             droneGroup.position.copy(targetPos);
-                        }
-
-                        // === 門框單向面物理阻擋 (One-Way Gate Physics Barrier) ===
-                        // 只有正面可以過，反面 (逆向) 絕對不給過！
-                        if (currentMapId === 'race' && window.raceGates && window.raceGates.length > 0) {
-                            for (let gi = 0; gi < window.raceGates.length; gi++) {
-                                let gate = window.raceGates[gi];
-                                let gPos = gate.pos;
-                                let gDir = gate.dir;
-                                let holeRadius = gate.circleRadius || 1.9;
-                                
-                                let dx = droneGroup.position.x - gPos.x;
-                                let dy = droneGroup.position.y - gPos.y;
-                                let radialDist = Math.sqrt(dx * dx + dy * dy);
-                                
-                                // 在門框孔洞橫向投影範圍內
-                                if (radialDist < holeRadius) {
-                                    // 沿通行方向的有向距離 (正面 < 0，門框面 = 0，背面 > 0)
-                                    let distPlane = (droneGroup.position.x - gPos.x) * gDir.x +
-                                                    (droneGroup.position.y - gPos.y) * gDir.y +
-                                                    (droneGroup.position.z - gPos.z) * gDir.z;
-                                    
-                                    let vDotDir = window.droneVelocity.x * gDir.x +
-                                                  window.droneVelocity.y * gDir.y +
-                                                  window.droneVelocity.z * gDir.z;
-                                    
-                                    // 逆向進入阻擋：無人機處於背面或即將逆向穿入正面 (vDotDir < 0 且接觸門框面)
-                                    if (distPlane >= -0.05 && distPlane <= (droneRadius + 0.12) && vDotDir < 0) {
-                                        // 強制將無人機阻擋在反面力場外 (不給穿過！)
-                                        let pushDist = (droneRadius + 0.12) - distPlane;
-                                        droneGroup.position.x += gDir.x * pushDist;
-                                        droneGroup.position.y += gDir.y * pushDist;
-                                        droneGroup.position.z += gDir.z * pushDist;
-                                        
-                                        // 垂直於力場面強力反彈
-                                        window.droneVelocity.x -= (1.0 + restitution * 0.6) * vDotDir * gDir.x;
-                                        window.droneVelocity.y -= (1.0 + restitution * 0.6) * vDotDir * gDir.y;
-                                        window.droneVelocity.z -= (1.0 + restitution * 0.6) * vDotDir * gDir.z;
-                                        
-                                        // 切向摩擦
-                                        window.droneVelocity.x *= 0.85;
-                                        window.droneVelocity.y *= 0.85;
-                                        window.droneVelocity.z *= 0.85;
-                                        
-                                        // 畫面力場反饋
-                                        if (typeof updateBoundaryGlitch === 'function') {
-                                            updateBoundaryGlitch(true);
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
                         }
                     }
                 }
@@ -3207,7 +3175,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.015';
+        const CURRENT_VERSION = 'v4.016';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3368,7 +3336,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.015</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.016</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">

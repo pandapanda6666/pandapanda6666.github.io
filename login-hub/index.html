@@ -150,7 +150,10 @@
     <div id="app" class="relative bg-white/95 backdrop-blur-xl w-full max-w-md rounded-2xl shadow-xl overflow-hidden p-8 border border-green-100 z-10 my-8">
 
         <!-- 語言切換選單 (支援臺灣繁體、香港繁體、簡體中文、日本語、English) -->
-        <div style="position: absolute; top: 16px; right: 16px; z-index: 30;">
+        <div style="position: absolute; top: 16px; right: 16px; z-index: 30; display:flex; align-items:center; gap:6px;">
+            <button type="button" id="btnToggleLoginOfficialAnnounce" onclick="window.toggleLoginOfficialAnnouncement()" title="設定是否顯示官網公告" style="font-size:12px; padding:4px 8px; border-radius:8px; border:1px solid #86efac; background:white; color:#166534; font-weight:bold; cursor:pointer;">
+                <i class="fas fa-bullhorn"></i>
+            </button>
             <select id="loginLangSelect" onchange="window.changeLoginLanguage(this.value)" style="font-size: 12px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid #86efac; background: rgba(255,255,255,0.95); color: #166534; font-weight: bold; cursor: pointer; outline: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                 <option value="zh-TW">🇹🇼 臺灣繁體</option>
                 <option value="zh-HK">🇭🇰 香港繁體</option>
@@ -160,7 +163,22 @@
             </select>
         </div>
 
-        
+        <!-- 官網公告緊湊小卡 (顯示小一點的官網公告，支援開關) -->
+        <div id="loginOfficialAnnouncementWrapper" style="display:none; margin-top:28px; margin-bottom:12px;">
+            <div id="loginOfficialAnnouncementCard" style="background:linear-gradient(135deg, #f0fdf4, #dcfce7); border:1px solid #86efac; border-radius:10px; padding:7px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                <a id="loginOfficialAnnouncementLink" href="https://pandapanda6666.github.io" target="_blank" style="text-decoration:none; display:flex; align-items:center; gap:6px; flex:1; overflow:hidden;">
+                    <span style="background:#166534; color:white; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:6px; white-space:nowrap;">
+                        📢 官網公告
+                    </span>
+                    <span id="loginOfficialAnnouncementTitle" style="font-size:12px; font-weight:bold; color:#14532d; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                        載入最新大會公告中...
+                    </span>
+                </a>
+                <button type="button" onclick="window.toggleLoginOfficialAnnouncement(false)" style="background:none; border:none; color:#15803d; font-size:13px; cursor:pointer; padding:0 3px; line-height:1;" title="隱藏官網公告">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
 
         <div id="headerSection" class="text-center mb-8">
 
@@ -399,6 +417,17 @@
                 <div>
                     <label class="block text-sm font-bold text-slate-700 mb-1">聯絡電話</label>
                     <input type="tel" id="editPhone" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1" id="lblEditLang">帳號偏好語言 (系統語言設定)</label>
+                    <select id="editLanguage" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner bg-white font-bold text-green-800">
+                        <option value="zh-TW">🇹🇼 臺灣繁體中文</option>
+                        <option value="zh-HK">🇭🇰 香港繁體</option>
+                        <option value="zh-CN">🇨🇳 简体中文</option>
+                        <option value="ja">🇯🇵 日本語</option>
+                        <option value="en">🇺🇸 English</option>
+                    </select>
                 </div>
 
                 <div class="mt-4 p-4 border border-slate-200 rounded-xl bg-slate-50">
@@ -1297,11 +1326,88 @@
                 else if (isProf) title.innerText = t.titleProfile;
                 else title.innerText = t.titleLogin;
             }
+
+            // 更新官網公告多語言
+            if (window.cachedOfficialAnnouncement) {
+                const a = window.cachedOfficialAnnouncement;
+                const title = (a.titles && a.titles[lang]) ? a.titles[lang] : (a.title || 'PandaPanda 官方最新公告');
+                const titleEl = document.getElementById('loginOfficialAnnouncementTitle');
+                if (titleEl) titleEl.innerText = title;
+            }
+
+            // 更新訪客監控資訊多語言
+            if (window.renderLoginVisitorStats) window.renderLoginVisitorStats();
         };
 
-        // DOMContentLoaded 時初始化語言
+        window.renderLoginVisitorStats = function() {
+            const el = document.getElementById('visitorStats');
+            if (!el) return;
+            const stats = window.lastLoginStats || { onlineUsers: 1, totalUniqueIps: 0, totalVisits: 0 };
+            const lang = window.currentLoginLang || 'zh-TW';
+            const dict = {
+                'zh-TW': { online: '目前在線人數', unique: '總曾進入人數', visits: '總網站進入次數' },
+                'zh-HK': { online: '目前在線人數', unique: '總曾進入人數', visits: '總網站進入次數' },
+                'zh-CN': { online: '当前在线人数', unique: '历史访问人数', visits: '网站总访问量' },
+                'ja': { online: '現在オンライン人数', unique: '総訪問者数', visits: '総アクセス回数' },
+                'en': { online: 'Online Users', unique: 'Unique Visitors', visits: 'Total Visits' }
+            };
+            const t = dict[lang] || dict['zh-TW'];
+            el.innerHTML = `<span style="white-space:nowrap;"><i class="fas fa-circle text-success"></i> ${t.online}: ${stats.onlineUsers}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;"></span> <span style="white-space:nowrap;"><i class="fas fa-user"></i> ${t.unique}: ${stats.totalUniqueIps}</span> <span style="display:inline-block;width:2px;height:12px;background:#166534;margin:0 5px;opacity:0.35;"></span> <span style="white-space:nowrap;"><i class="fas fa-eye"></i> ${t.visits}: ${stats.totalVisits}</span>`;
+        };
+
+        window.loadLoginOfficialAnnouncement = async function() {
+            const isShow = localStorage.getItem('login_show_official_announcement') !== 'false';
+            const wrapper = document.getElementById('loginOfficialAnnouncementWrapper');
+            if (!wrapper) return;
+            if (!isShow) {
+                wrapper.style.display = 'none';
+                return;
+            }
+
+            const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
+            if (!sUrl) return;
+
+            try {
+                const res = await fetch(`${sUrl}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.success && data.announcement) {
+                        const a = data.announcement;
+                        window.cachedOfficialAnnouncement = a;
+                        const curLang = window.currentLoginLang || 'zh-TW';
+                        const title = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || 'PandaPanda 官方最新公告');
+                        const link = a.linkUrl || 'https://pandapanda6666.github.io';
+
+                        const titleEl = document.getElementById('loginOfficialAnnouncementTitle');
+                        const linkEl = document.getElementById('loginOfficialAnnouncementLink');
+                        if (titleEl) titleEl.innerText = title;
+                        if (linkEl) linkEl.href = link;
+                        wrapper.style.display = 'block';
+                    } else {
+                        wrapper.style.display = 'none';
+                    }
+                }
+            } catch(e) {
+                wrapper.style.display = 'none';
+            }
+        };
+
+        window.toggleLoginOfficialAnnouncement = function(forceVal) {
+            const current = localStorage.getItem('login_show_official_announcement') !== 'false';
+            const nextVal = (forceVal !== undefined) ? forceVal : !current;
+            localStorage.setItem('login_show_official_announcement', nextVal ? 'true' : 'false');
+            const wrapper = document.getElementById('loginOfficialAnnouncementWrapper');
+            if (nextVal) {
+                window.loadLoginOfficialAnnouncement();
+            } else if (wrapper) {
+                wrapper.style.display = 'none';
+            }
+        };
+
+        // DOMContentLoaded 時初始化語言與公告
         document.addEventListener('DOMContentLoaded', () => {
             changeLoginLanguage(window.currentLoginLang);
+            loadLoginOfficialAnnouncement();
         });
 
         window.handleGoogleLogin = function() { console.log('系統載入中...'); };
@@ -1546,8 +1652,8 @@
 
             
             socket.on('systemStats', (stats) => {
-                const el = document.getElementById('visitorStats');
-                if (el) el.innerHTML = `<i class="fas fa-circle text-success"></i> 在線人數: ${stats.onlineUsers} | <i class="fas fa-user"></i> 至今進入人數: ${stats.totalUniqueIps} | <i class="fas fa-eye"></i> 至今進入次數: ${stats.totalVisits}`;
+                window.lastLoginStats = stats;
+                if (window.renderLoginVisitorStats) window.renderLoginVisitorStats();
             });
 
             socket.on('loginResult', (res) => {
@@ -1557,6 +1663,12 @@
                     showMsg("登入成功！", "success");
 
                     currentUserData = res;
+
+                    if (res.preferredLanguage) {
+                        localStorage.setItem('preferred_language', res.preferredLanguage);
+                        localStorage.setItem('preferred_language_set', 'true');
+                        if (typeof changeLoginLanguage === 'function') changeLoginLanguage(res.preferredLanguage);
+                    }
 
                     localStorage.setItem('panda_auto_user', res.username);
                     localStorage.setItem('panda_auto_pass', res.password);
@@ -1712,6 +1824,12 @@ localStorage.removeItem('panda_session_token');
                     currentUserData.birthday = res.birthday;
 
                     currentUserData.email = res.email;
+                    if (res.preferredLanguage) {
+                        currentUserData.preferredLanguage = res.preferredLanguage;
+                        localStorage.setItem('preferred_language', res.preferredLanguage);
+                        localStorage.setItem('preferred_language_set', 'true');
+                        if (typeof changeLoginLanguage === 'function') changeLoginLanguage(res.preferredLanguage);
+                    }
                     if(res.isGoogle !== undefined) currentUserData.isGoogle = res.isGoogle;
 
                     updateProfileDashboard();
@@ -1908,6 +2026,9 @@ localStorage.removeItem('panda_session_token');
 
 
                 document.getElementById('editEmail').value = currentUserData.email || '';
+
+                const langSel = document.getElementById('editLanguage');
+                if (langSel) langSel.value = currentUserData.preferredLanguage || window.currentLoginLang || 'zh-TW';
 
                 
 
@@ -2445,6 +2566,7 @@ avatar: window.currentRegAvatarBase64 || ''
                 gender: document.getElementById('editGender').value,
 
                 birthday: document.getElementById('editBirthday').value,
+                preferredLanguage: document.getElementById('editLanguage') ? document.getElementById('editLanguage').value : undefined,
 
 
                 email: document.getElementById('editEmail').value.trim(),
@@ -2688,7 +2810,7 @@ window.startSecurityCheck = function() {
 </div>
 
 
-<div id="visitorStats" style="position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:12px;font-size:12px;color:#166534;font-weight:bold;z-index:9999;box-shadow:0 4px 6px rgba(0,0,0,0.1);border:1px solid #bbf7d0;"><i class="fas fa-circle text-success"></i> 在線人數: 0 | <i class="fas fa-user"></i> 至今進入人數: 0 | <i class="fas fa-eye"></i> 至今進入次數: 0</div>
+<div id="visitorStats" style="position:fixed;bottom:10px;left:50%;transform:translateX(-50%);background:transparent;padding:4px 10px;border-radius:0;font-size:12px;color:#166534;font-weight:bold;z-index:9999;box-shadow:none;border:none;white-space:nowrap;display:flex;align-items:center;gap:8px;"></div>
 </body>
 
 </html>

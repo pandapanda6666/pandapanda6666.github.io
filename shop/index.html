@@ -154,6 +154,10 @@ function showToast(title, msg) {
                 <div id="notificationMsg"></div>
             </div>
             <div class="notif-actions">
+                <button id="notif-toggle-official-btn" class="notif-btn" onclick="toggleShopOfficialNotice()" title="切換是否顯示官網公告">
+                    <i class="fas fa-globe"></i>
+                    <span id="notif-toggle-official-text">官網公告:開</span>
+                </button>
                 <button id="notif-pause-btn" class="notif-btn" onclick="toggleBroadcastPause()" title="暫停/繼續自動播放">
                     <i class="fas fa-pause" id="notif-pause-icon"></i>
                     <span id="notif-pause-text">暫停</span>
@@ -1990,8 +1994,48 @@ async function scanAndLoadFolders() {
             } else { prompt('請複製此公告連結：', shareUrl); }
         };
     
+        window.toggleShopOfficialNotice = function() {
+            const cur = localStorage.getItem('shop_show_official_announcement') !== 'false';
+            const next = !cur;
+            localStorage.setItem('shop_show_official_announcement', next ? 'true' : 'false');
+            updateShopOfficialNoticeBtnUI();
+            loadShopBroadcasts();
+        };
+
+        window.updateShopOfficialNoticeBtnUI = function() {
+            const isShow = localStorage.getItem('shop_show_official_announcement') !== 'false';
+            const txt = document.getElementById('notif-toggle-official-text');
+            if (txt) txt.innerText = isShow ? '官網公告:開' : '官網公告:關';
+        };
+
         window.siteKey = 'shop';
         async function loadShopBroadcasts() {
+            let officialItem = null;
+            const isShowOfficial = localStorage.getItem('shop_show_official_announcement') !== 'false';
+            if (isShowOfficial) {
+                const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
+                if (sUrl) {
+                    try {
+                        const rOff = await fetch(`${sUrl}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                        if (rOff.ok) {
+                            const oData = await rOff.json();
+                            if (oData && oData.success && oData.announcement) {
+                                const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+                                const a = oData.announcement;
+                                const oTitle = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || 'PandaPanda 官方最新公告');
+                                officialItem = {
+                                    id: 'official-main-shop-notice',
+                                    isOfficialSiteNotice: true,
+                                    title: oTitle,
+                                    message: `【官方網站公告】${oTitle}`,
+                                    linkUrl: a.linkUrl || 'https://pandapanda6666.github.io'
+                                };
+                            }
+                        }
+                    } catch(e) {}
+                }
+            }
+
             let gList = [];
             let sList = [];
             try {
@@ -2002,13 +2046,15 @@ async function scanAndLoadFolders() {
                 const r2 = await fetch('server_broadcast.json');
                 if (r2.ok) sList = await r2.json();
             } catch(e) {}
-            const merged = [...gList, ...sList];
+            const localBroadcasts = [...gList, ...sList];
+            const merged = officialItem ? [officialItem, ...localBroadcasts] : localBroadcasts;
             if (merged.length > 0) {
                 window.broadcasts = merged;
                 localStorage.setItem('broadcasts_shop', JSON.stringify(merged));
             } else {
                 window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_shop') || localStorage.getItem('broadcasts') || '[]');
             }
+            updateShopOfficialNoticeBtnUI();
         }
         loadShopBroadcasts();
 
@@ -2030,8 +2076,13 @@ async function scanAndLoadFolders() {
                 window.isBroadcastPaused = true;
                 const targetB = list[idx];
                 if (targetB) {
-                    msgText.innerText = targetB.message || targetB.title || '';
-                    if (labelText) labelText.innerText = `專屬公告 #${idx + 1}`;
+                    if (targetB.isOfficialSiteNotice) {
+                        if (labelText) labelText.innerText = '官網公告';
+                        msgText.innerHTML = `<a href="${targetB.linkUrl}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn"></i> ${escapeHtml(targetB.message || targetB.title)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>`;
+                    } else {
+                        msgText.innerText = targetB.message || targetB.title || '';
+                        if (labelText) labelText.innerText = `專屬公告 #${idx + 1}`;
+                    }
                     bar.style.display = 'block';
                     updateSubBroadcastPauseUI();
                     return;
@@ -2042,6 +2093,10 @@ async function scanAndLoadFolders() {
             let activeItems = [];
             for (let i = 0; i < list.length; i++) {
                 const b = list[i];
+                if (b.isOfficialSiteNotice) {
+                    activeItems.push({ item: b, index: i });
+                    continue;
+                }
                 const st = new Date(b.startTime).getTime();
                 if (b.mode === 1) {
                     const intervalMs = (b.intervalMin || 10) * 60000;
@@ -2065,8 +2120,13 @@ async function scanAndLoadFolders() {
                     const rotIdx = Math.floor(now / 8000) % activeItems.length;
                     const curr = activeItems[rotIdx];
                     window.currentBroadcastIndex = curr.index;
-                    msgText.innerText = curr.item.message || '';
-                    if (labelText) labelText.innerText = `專屬公告 #${curr.index + 1}`;
+                    if (curr.item.isOfficialSiteNotice) {
+                        if (labelText) labelText.innerText = '官網公告';
+                        msgText.innerHTML = `<a href="${curr.item.linkUrl}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn"></i> ${escapeHtml(curr.item.message || curr.item.title)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>`;
+                    } else {
+                        msgText.innerText = curr.item.message || '';
+                        if (labelText) labelText.innerText = `專屬公告 #${curr.index + 1}`;
+                    }
                 }
                 bar.style.display = 'block';
             } else {

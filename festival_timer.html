@@ -633,7 +633,8 @@
             }
         };
 
-        window.currentTimerLang = localStorage.getItem('preferred_language') || 'zh-TW';
+        const _timerUrlParams = new URLSearchParams(window.location.search);
+        window.currentTimerLang = _timerUrlParams.get('lang') || localStorage.getItem('preferred_language') || 'zh-TW';
 
         function getLocalizedHolidayName(rawName) {
             if (!rawName) return '';
@@ -806,7 +807,8 @@
                 
                 item.addEventListener('click', () => {
                     currentHoliday = holiday;
-                    holidayTitleEl.textContent = `距離 ${currentHoliday.name} 還有`;
+                    const t = timerI18n[window.currentTimerLang] || timerI18n['zh-TW'];
+                    holidayTitleEl.textContent = t.until.replace('{name}', getLocalizedHolidayName(currentHoliday.name));
                     updateTheme(currentHoliday);
                     createMainCountdownHTML();
                     updateMainCountdown();
@@ -823,7 +825,7 @@
 
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'holiday-name';
-                nameSpan.textContent = holiday.name;
+                nameSpan.textContent = getLocalizedHolidayName(holiday.name);
                 
                 holidayInfo.appendChild(colorIndicator);
                 holidayInfo.appendChild(nameSpan);
@@ -872,7 +874,9 @@
             currentHoliday = upcomingHolidays[0];
             
             if (currentHoliday) {
-                holidayTitleEl.textContent = `距離 ${currentHoliday.name} 還有`;
+                const locName = getLocalizedHolidayName(currentHoliday.name);
+                const t = timerI18n[window.currentTimerLang] || timerI18n['zh-TW'];
+                holidayTitleEl.textContent = t.until.replace('{name}', locName);
                 updateTheme(currentHoliday);
                 createMainCountdownHTML();
                 
@@ -899,7 +903,8 @@
         toggleListBtn.addEventListener('click', () => {
             const isHidden = holidayListContainer.classList.toggle('hidden');
             futureControlsEl.classList.toggle('hidden');
-            toggleListBtn.textContent = isHidden ? '查看未來節日' : '隱藏節日列表';
+            const t = timerI18n[window.currentTimerLang] || timerI18n['zh-TW'];
+            toggleListBtn.textContent = isHidden ? t.viewFuture : t.hideFuture;
             if (!isHidden) {
                 populateAndupdateHolidayList(rawHolidayDataSource, parseInt(yearSelectorEl.value));
             }
@@ -961,7 +966,9 @@
 
 
         async function initializeApp() {
-            holidayTitleEl.textContent = '正在讀取節日清單...';
+            setTimerLanguage(window.currentTimerLang);
+            const curT = timerI18n[window.currentTimerLang] || timerI18n['zh-TW'];
+            holidayTitleEl.textContent = curT.loading || '正在讀取節日清單...';
             try {
                 const { holidays: fetchedHolidays, errors: parsingErrors } = await fetchAndParseHolidays();
                 displayMessages({ errors: parsingErrors });
