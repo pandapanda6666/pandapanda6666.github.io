@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -430,10 +430,19 @@
             
             socket.on('connect', () => { 
                 setStatus("連線成功！正在驗證統一登入憑證...");
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('token')) {
+                    localStorage.setItem('panda_session_token', urlParams.get('token'));
+                    if (urlParams.has('user')) localStorage.setItem('panda_auto_user', urlParams.get('user'));
+                    history.replaceState(null, '', window.location.pathname);
+                }
+                const savedToken = localStorage.getItem('panda_session_token');
                 const savedU = localStorage.getItem('panda_auto_user');
                 const savedP = localStorage.getItem('panda_auto_pass');
 
-                if (savedP === 'GOOGLE_AUTH') {
+                if (savedToken) {
+                    socket.emit('tokenLogin', { token: savedToken });
+                } else if (savedP === 'GOOGLE_AUTH') {
                     onAuthStateChanged(auth, (user) => {
                         if (user) {
                             socket.emit('googleLogin', { email: user.email, name: user.displayName });
@@ -441,7 +450,7 @@
                             redirectToLogin();
                         }
                     });
-                } else if (savedU && savedP) {
+                } else if (savedU && savedP && savedP !== 'undefined') {
                     socket.emit('login', { username: savedU, password: savedP });
                 } else {
                     redirectToLogin();
@@ -452,6 +461,8 @@
 
             socket.on('loginResult', (res) => {
                 if(res.success && res.isAdmin) {
+                    if (res.token) localStorage.setItem('panda_session_token', res.token);
+                    if (res.username) localStorage.setItem('panda_auto_user', res.username);
                     document.getElementById('loadingView').classList.add('hidden');
                     document.getElementById('dashboardView').classList.remove('hidden');
                     document.getElementById('currentAdminName').innerText = res.username;
@@ -460,12 +471,30 @@
                     switchTab('tab_system');
                     window.fetchData();
                 } else {
+                    const savedToken = localStorage.getItem('panda_session_token');
+                    const savedU = localStorage.getItem('panda_auto_user');
+                    const savedP = localStorage.getItem('panda_auto_pass');
+                    if (savedToken) {
+                        localStorage.removeItem('panda_session_token');
+                        if (savedP === 'GOOGLE_AUTH') {
+                            if (typeof auth !== 'undefined' && typeof onAuthStateChanged !== 'undefined') {
+                                onAuthStateChanged(auth, (user) => {
+                                    if (user) socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                                    else redirectToLogin();
+                                });
+                                return;
+                            }
+                        } else if (savedU && savedP && savedP !== 'undefined') {
+                            socket.emit('login', { username: savedU, password: savedP });
+                            return;
+                        }
+                    }
                     alert(res.success ? "登入成功，但您的帳號沒有管理員權限！\n請更換管理員帳號登入。" : "登入驗證失敗或憑證已過期，請重新登入。");
-        localStorage.removeItem('panda_session_token');
-        localStorage.removeItem('panda_auto_pass');
-        localStorage.removeItem('panda_auto_user');
-        socket.emit('logout');
-        setTimeout(redirectToLogin, 500);
+                    localStorage.removeItem('panda_session_token');
+                    localStorage.removeItem('panda_auto_pass');
+                    localStorage.removeItem('panda_auto_user');
+                    socket.emit('logout');
+                    setTimeout(redirectToLogin, 500);
                 }
             });
 

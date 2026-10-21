@@ -1277,18 +1277,28 @@
 
             const regLabels = document.querySelectorAll('#registerForm label');
             regLabels.forEach(l => {
-                const txt = l.innerText.trim();
-                if (txt.includes('點擊上傳大頭貼') || txt.includes('Upload Avatar') || txt.includes('點擊上傳頭像') || txt.includes('点击上传头像') || txt.includes('アップロード')) l.childNodes[0].nodeValue = t.uploadAvatar + ' ';
-                else if (txt.includes('設定帳號') || txt.includes('Set Username') || txt.includes('设置账号') || txt.includes('アカウント名設定')) l.childNodes[0].nodeValue = t.regSetAccount + ' ';
-                else if (txt.includes('設定密碼') || txt.includes('Set Password') || txt.includes('设置密码') || txt.includes('パスワード設定')) l.childNodes[0].nodeValue = t.regSetPassword + ' ';
-                else if (txt.includes('電子郵件') || txt.includes('Email') || txt.includes('电子邮箱') || txt.includes('メール')) l.childNodes[0].nodeValue = t.emailLabel + ' ';
-                else if (txt.includes('驗證碼') || txt.includes('Verification Code') || txt.includes('验证码') || txt.includes('認証コード')) l.childNodes[0].nodeValue = t.regCodeLabel + ' ';
-                else if (txt.includes('公開暱稱') || txt.includes('Public Nickname') || txt.includes('公开昵称') || txt.includes('公開ニックネーム')) l.childNodes[0].nodeValue = t.nicknameLabel + ' ';
-                else if (txt.includes('姓氏') || txt.includes('Last Name') || txt.includes('姓')) l.childNodes[0].nodeValue = t.regLastName + ' ';
-                else if (txt.includes('名字') || txt.includes('First Name') || txt.includes('名')) l.childNodes[0].nodeValue = t.regFirstName + ' ';
-                else if (txt.includes('性別') || txt.includes('Gender') || txt.includes('性别')) l.childNodes[0].nodeValue = t.genderLabel + ' ';
-                else if (txt.includes('生日') || txt.includes('Birthday') || txt.includes('生年月日')) l.childNodes[0].nodeValue = t.birthdayLabel + ' ';
-                else if (txt.includes('聯絡電話') || txt.includes('Phone') || txt.includes('联系电话') || txt.includes('電話番号')) l.childNodes[0].nodeValue = t.phoneLabel + ' ';
+                const txt = l.innerText ? l.innerText.trim() : '';
+                let targetTxt = '';
+                if (txt.includes('點擊上傳大頭貼') || txt.includes('Upload Avatar') || txt.includes('點擊上傳頭像') || txt.includes('点击上传头像') || txt.includes('アップロード')) targetTxt = t.uploadAvatar + ' ';
+                else if (txt.includes('設定帳號') || txt.includes('Set Username') || txt.includes('设置账号') || txt.includes('アカウント名設定')) targetTxt = t.regSetAccount + ' ';
+                else if (txt.includes('設定密碼') || txt.includes('Set Password') || txt.includes('设置密码') || txt.includes('パスワード設定')) targetTxt = t.regSetPassword + ' ';
+                else if (txt.includes('電子郵件') || txt.includes('Email') || txt.includes('电子邮箱') || txt.includes('メール')) targetTxt = t.emailLabel + ' ';
+                else if (txt.includes('驗證碼') || txt.includes('Verification Code') || txt.includes('验证码') || txt.includes('認証コード')) targetTxt = t.regCodeLabel + ' ';
+                else if (txt.includes('公開暱稱') || txt.includes('Public Nickname') || txt.includes('公开昵称') || txt.includes('公開ニックネーム')) targetTxt = t.nicknameLabel + ' ';
+                else if (txt.includes('姓氏') || txt.includes('Last Name') || txt.includes('姓')) targetTxt = t.regLastName + ' ';
+                else if (txt.includes('名字') || txt.includes('First Name') || txt.includes('名')) targetTxt = t.regFirstName + ' ';
+                else if (txt.includes('性別') || txt.includes('Gender') || txt.includes('性别')) targetTxt = t.genderLabel + ' ';
+                else if (txt.includes('生日') || txt.includes('Birthday') || txt.includes('生年月日')) targetTxt = t.birthdayLabel + ' ';
+                else if (txt.includes('聯絡電話') || txt.includes('Phone') || txt.includes('联系电话') || txt.includes('電話番号')) targetTxt = t.phoneLabel + ' ';
+
+                if (targetTxt && l.childNodes && l.childNodes.length > 0) {
+                    for (let i = 0; i < l.childNodes.length; i++) {
+                        if (l.childNodes[i].nodeType === 3 && l.childNodes[i].nodeValue.trim() !== '') {
+                            l.childNodes[i].nodeValue = targetTxt;
+                            break;
+                        }
+                    }
+                }
             });
 
             const regU = document.getElementById('reg_username');
@@ -1330,9 +1340,9 @@
             // 更新官網公告多語言
             if (window.cachedOfficialAnnouncement) {
                 const a = window.cachedOfficialAnnouncement;
-                const title = (a.titles && a.titles[lang]) ? a.titles[lang] : (a.title || 'PandaPanda 官方最新公告');
+                const title = (a.titles && a.titles[lang]) ? a.titles[lang] : a.title;
                 const titleEl = document.getElementById('loginOfficialAnnouncementTitle');
-                if (titleEl) titleEl.innerText = title;
+                if (titleEl && title) titleEl.innerText = title;
             }
 
             // 更新訪客監控資訊多語言
@@ -1356,26 +1366,29 @@
         };
 
         window.loadLoginOfficialAnnouncement = async function() {
-            const isShow = localStorage.getItem('login_show_official_announcement') !== 'false';
             const wrapper = document.getElementById('loginOfficialAnnouncementWrapper');
             if (!wrapper) return;
+            const isShow = localStorage.getItem('login_show_official_announcement') !== 'false';
             if (!isShow) {
                 wrapper.style.display = 'none';
                 return;
             }
 
             const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
-            if (!sUrl) return;
+            if (!sUrl) {
+                wrapper.style.display = 'none';
+                return;
+            }
 
             try {
                 const res = await fetch(`${sUrl}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data && data.success && data.announcement) {
+                    if (data && data.success && data.announcement && data.announcement.title && data.announcement.title.trim()) {
                         const a = data.announcement;
                         window.cachedOfficialAnnouncement = a;
                         const curLang = window.currentLoginLang || 'zh-TW';
-                        const title = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || 'PandaPanda 官方最新公告');
+                        const title = (a.titles && a.titles[curLang]) ? a.titles[curLang] : a.title;
                         const link = a.linkUrl || 'https://pandapanda6666.github.io';
 
                         const titleEl = document.getElementById('loginOfficialAnnouncementTitle');
@@ -1386,6 +1399,8 @@
                     } else {
                         wrapper.style.display = 'none';
                     }
+                } else {
+                    wrapper.style.display = 'none';
                 }
             } catch(e) {
                 wrapper.style.display = 'none';
@@ -1671,7 +1686,13 @@
                     }
 
                     localStorage.setItem('panda_auto_user', res.username);
-                    localStorage.setItem('panda_auto_pass', res.password);
+                    if (res.isGoogle) {
+                        localStorage.setItem('panda_auto_pass', 'GOOGLE_AUTH');
+                    } else if (window.lastTypedPassword) {
+                        localStorage.setItem('panda_auto_pass', window.lastTypedPassword);
+                    } else if (res.password) {
+                        localStorage.setItem('panda_auto_pass', res.password);
+                    }
                     localStorage.setItem('sso_auth', 'true');
                     localStorage.setItem('sso_user', res.username || '');
                     localStorage.setItem('sso_nickname', res.nickname || res.username || '');
@@ -1723,12 +1744,36 @@
 
                     } else {
 
+                        // 若是 Token 憑證過期或失效，優先嘗試以本地儲存之密碼或 Google 授權進行自動復原，杜絕每次開啟都跳出過期
+                        if (res.tokenFailed || (res.msg && (res.msg.includes('過期') || res.msg.includes('失效') || res.msg.includes('遺失')) && localStorage.getItem('panda_session_token'))) {
+                            localStorage.removeItem('panda_session_token');
+                            const savedU = localStorage.getItem('panda_auto_user');
+                            const savedP = localStorage.getItem('panda_auto_pass');
+                            if (savedP === 'GOOGLE_AUTH') {
+                                if (typeof auth !== 'undefined' && typeof onAuthStateChanged !== 'undefined') {
+                                    const unsubscribe = onAuthStateChanged(auth, (user) => {
+                                        if (user) {
+                                            socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                                        } else {
+                                            showMsg("登入狀態已過期，請重新登入", "error");
+                                            toggleView('login');
+                                        }
+                                        unsubscribe();
+                                    });
+                                    return;
+                                }
+                            } else if (savedU && savedP && savedP !== 'undefined') {
+                                socket.emit('login', { username: savedU, password: savedP });
+                                return;
+                            }
+                        }
+
                         if (res.msg === 'user_not_found' || res.msg.includes('不存在') || res.msg.includes('密碼錯誤')) {
 
                             localStorage.removeItem('panda_auto_user');
 
                             localStorage.removeItem('panda_auto_pass');
-localStorage.removeItem('panda_session_token');
+                            localStorage.removeItem('panda_session_token');
 
                             
 
@@ -1754,15 +1799,15 @@ localStorage.removeItem('panda_session_token');
 
                             } else {
 
-                                showMsg("登入狀態已過期，請重新登入", "error");
+                                showMsg("登入失敗: " + res.msg, "error");
 
                                 toggleView('login');
 
                             }
 
                         } else {
-
-                            showMsg("登入失敗: " + res.msg, "error");
+                            localStorage.removeItem('panda_session_token');
+                            showMsg("登入狀態已過期，請重新登入", "error");
 
                             toggleView('login');
 
@@ -1944,7 +1989,7 @@ localStorage.removeItem('panda_session_token');
                         unsubscribe();
                     });
                 }
-            } else if (savedU && savedP) {
+            } else if (savedU && savedP && savedP !== 'undefined') {
                 socket.emit('login', { username: savedU, password: savedP });
             } else {
                 if (requireLogin) toggleView('login');
@@ -2274,10 +2319,12 @@ localStorage.removeItem('panda_session_token');
 
 
             const u = document.getElementById('username').value;
-
             const p = document.getElementById('password').value;
 
             if (!u || !p) return showMsg("請輸入帳號與密碼", "error");
+
+            window.lastTypedUser = u;
+            window.lastTypedPassword = p;
 
             showMsg("驗證中...", "info");
 

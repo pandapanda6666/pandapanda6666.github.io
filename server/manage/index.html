@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -233,13 +233,33 @@
                 socket.on('loginResult', (res) => {
                     if(res.success && res.isAdmin) {
                         socket.username = res.username;
+                        if (res.token) localStorage.setItem('panda_session_token', res.token);
+                        if (res.username) localStorage.setItem('panda_auto_user', res.username);
                         appendLog('[系統] 身分驗證通過！', '#22c55e');
                     } else {
+                        const savedToken = localStorage.getItem('panda_session_token');
+                        const savedU = localStorage.getItem('panda_auto_user');
+                        const savedP = localStorage.getItem('panda_auto_pass');
+                        if (savedToken) {
+                            localStorage.removeItem('panda_session_token');
+                            if (savedP === 'GOOGLE_AUTH') {
+                                if (typeof auth !== 'undefined' && typeof onAuthStateChanged !== 'undefined') {
+                                    onAuthStateChanged(auth, (user) => {
+                                        if (user) socket.emit('googleLogin', { email: user.email, name: user.displayName });
+                                        else setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1', 1500);
+                                    });
+                                    return;
+                                }
+                            } else if (savedU && savedP && savedP !== 'undefined') {
+                                socket.emit('login', { username: savedU, password: savedP });
+                                return;
+                            }
+                        }
                         appendLog('[錯誤] 身分驗證失敗或權限不足，即將跳轉登入畫面...', '#ef4444');
-        localStorage.removeItem('panda_session_token');
-        localStorage.removeItem('panda_auto_pass');
-        localStorage.removeItem('panda_auto_user');
-        setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1', 1500);
+                        localStorage.removeItem('panda_session_token');
+                        localStorage.removeItem('panda_auto_pass');
+                        localStorage.removeItem('panda_auto_user');
+                        setTimeout(() => window.location.href = 'https://pandapanda6666.github.io/login-hub/?from=' + encodeURIComponent(window.location.href) + '&require=1', 1500);
                     }
                 });
 
