@@ -226,14 +226,20 @@ def start_http_server(directory, port=8849):
                     return
             super().do_POST()
 
-    try:
-        socketserver.TCPServer.allow_reuse_address = True
-        httpd = socketserver.TCPServer(("127.0.0.1", port), Handler)
-        httpd.serve_forever()
-    except Exception as e:
-        print(f"HTTP Server error: {e}")
+    global actual_server_port
+    for p in range(port, port + 20):
+        try:
+            socketserver.TCPServer.allow_reuse_address = True
+            httpd = socketserver.TCPServer(("127.0.0.1", p), Handler)
+            actual_server_port = p
+            httpd.serve_forever()
+            break
+        except Exception as e:
+            continue
 
 # --- MAIN ---
+actual_server_port = 8849
+
 def main():
     ctypes.windll.kernel32.SetConsoleTitleW("【PandaPanda的AI日常___無人機模擬器】")
     
@@ -244,16 +250,29 @@ def main():
     
     threading.Thread(target=start_rabboni_background, daemon=True).start()
     threading.Thread(target=start_http_server, args=(exe_dir,), daemon=True).start()
+    import time
+    time.sleep(0.5)
     
     index_path = os.path.join(exe_dir, 'index.html')
     if os.path.exists(index_path):
-        window = webview.create_window(
-            'UAV Simulator (PandaPanda的AI日常)', 
-            'http://127.0.0.1:8849',
-            width=1280, 
-            height=720
-        )
-        webview.start(debug=True)
+        target_url = f'http://127.0.0.1:{actual_server_port}'
+        try:
+            window = webview.create_window(
+                'UAV Simulator (PandaPanda的AI日常)', 
+                target_url,
+                width=1280, 
+                height=720
+            )
+            webview.start()
+        except Exception as e:
+            print(f"[系統] 內嵌視窗無法啟動 ({e})，正在自動切換為預設瀏覽器開啟...")
+            import webbrowser
+            webbrowser.open(target_url)
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                pass
     else:
         print(f"找不到 {index_path}，請確定執行檔在正確的資料夾！")
 

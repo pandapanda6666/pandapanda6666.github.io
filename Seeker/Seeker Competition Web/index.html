@@ -59,20 +59,23 @@
         
         #notificationBar {
             position: fixed; top: 0; left: 0; width: 100%;
-            background: linear-gradient(135deg, #5d4037 0%, #3e2723 100%);
-            color: #fff8eb; padding: 5px 0; z-index: 9999; display: none;
-            overflow: hidden; white-space: nowrap; height: 30px; line-height: 30px;
-            border-bottom: 1px solid #8d6e63;
+            background: linear-gradient(135deg, #4e342e 0%, #2b1810 100%);
+            color: #fff8eb; z-index: 9999; display: none;
+            overflow: hidden; height: 36px; line-height: 36px;
+            border-bottom: 1.5px solid #8d6e63;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
         }
-        #notificationMsg { display: inline-block; padding-left: 100%; animation: marquee 15s linear infinite; }
-        @keyframes marquee { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
         
         .navbar {
-            flex-wrap: nowrap; white-space: nowrap; position: fixed; top: 30px; left: 0; right: 0;
+            flex-wrap: nowrap; white-space: nowrap; position: fixed; top: 0; left: 0; right: 0;
             background-color: #fcf7ec; color: #4a2c11; padding: 10px 20px;
             display: flex; justify-content: space-between; align-items: center;
             box-shadow: 0 3px 8px rgba(78, 52, 46, 0.12); z-index: 900; box-sizing: border-box;
             border-bottom: 2px solid #dfd0b5;
+            transition: top 0.25s ease;
+        }
+        body.has-notification .navbar {
+            top: 36px;
         }
         
         .nav-left { flex-wrap: nowrap; white-space: nowrap; flex-shrink: 0; display: flex; align-items: center; gap: 15px; }
@@ -108,7 +111,88 @@
         .login-btn:hover { background: linear-gradient(135deg, #6d4c41 0%, #4e342e 100%); }
         
         /* 模式切換按鈕組 */
-        .mode-selector { margin-top: 80px; display: flex; justify-content: center; padding: 15px; gap: 15px; flex-wrap: wrap; }
+        .mode-selector { margin-top: 80px; display: flex; justify-content: center; padding: 15px; gap: 15px; flex-wrap: wrap; transition: margin-top 0.25s ease; }
+        body.has-notification .mode-selector {
+            margin-top: 116px;
+        }
+
+        /* 文文盃專屬古典牛皮紙 Hero Banner 輪播元件 */
+        #seekerHeroBannerContainer {
+            position: relative;
+            width: 100%;
+            min-height: 220px;
+            background: #eddcc3;
+            border: 2px solid #bfa57c;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            overflow: hidden;
+            box-shadow: inset 0 0 30px rgba(160, 115, 60, 0.12), 0 4px 12px rgba(70, 45, 20, 0.1);
+        }
+        .seeker-hero-slide {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: scale(0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 24px 30px;
+            box-sizing: border-box;
+        }
+        .seeker-hero-slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+            position: relative;
+        }
+        .seeker-hero-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(93, 64, 55, 0.65);
+            color: #fff8eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #c9b48c;
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        .seeker-hero-nav:hover {
+            background: rgba(62, 39, 35, 0.9);
+            transform: translateY(-50%) scale(1.1);
+        }
+        .seeker-hero-dots {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 6px;
+            z-index: 20;
+        }
+        .seeker-hero-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(93, 64, 55, 0.35);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .seeker-hero-dot.active {
+            width: 22px;
+            border-radius: 10px;
+            background: #5d4037;
+        }
         .mode-btn {
             padding: 10px 26px; font-size: 17px; font-weight: bold; cursor: pointer;
             border: 1.5px solid #c9b792; background: #ebe0c8; color: #5a3818;
@@ -1079,28 +1163,20 @@
 </head>
 <body>
 
-    <!-- 跑馬燈公告列 -->
-    <div id="notificationBar">
+    <!-- 頂端官方公告通知列 (無公告時預設隱藏，絕不遮擋 navbar) -->
+    <div id="notificationBar" style="display: none;">
         <div class="notif-inner">
             <div class="notif-prefix">
-                <i class="fas fa-bullhorn"></i>
-                <span id="notificationLabel">文文盃公告</span>
+                <i class="fas fa-bullhorn" style="color: #ffe082;"></i>
+                <span id="notificationLabel" style="font-weight: bold; font-size: 13px;">官方公告</span>
             </div>
-            <div class="notif-marquee-wrapper">
-                <div id="notificationMsg"></div>
+            <div class="notif-marquee-wrapper" style="flex: 1; overflow: hidden;">
+                <div id="notificationMsg" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px;"></div>
             </div>
-            <div class="notif-actions">
-                <button id="notif-toggle-official-btn" class="notif-btn" onclick="toggleSeekerOfficialNotice()" title="切換是否顯示官網公告">
-                    <i class="fas fa-globe"></i>
-                    <span id="notif-toggle-official-text">官網公告:開</span>
-                </button>
-                <button id="notif-pause-btn" class="notif-btn" onclick="toggleBroadcastPause()" title="暫停/繼續自動播放">
-                    <i class="fas fa-pause" id="notif-pause-icon"></i>
-                    <span id="notif-pause-text">暫停</span>
-                </button>
-                <button id="notif-share-btn" class="notif-btn" onclick="shareCurrentBroadcast()" title="分享此公告">
-                    <i class="fas fa-share-alt"></i>
-                    <span>分享</span>
+            <div id="adminNoticeAction" style="display: none; flex-shrink: 0;">
+                <button type="button" onclick="openSeekerNoticeEditModal()" style="background: #ffe082; color: #3e2723; border: 1px solid #d4af37; border-radius: 15px; padding: 2px 10px; font-size: 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-edit"></i>
+                    <span>編輯公告</span>
                 </button>
             </div>
         </div>
@@ -1153,6 +1229,32 @@
 
     <!-- 頁面 1: 首頁 -->
     <div class="container" id="page-home">
+        <!-- 文文盃官方輪播橫幅 (Hero Banner) -->
+        <div id="seekerHeroBannerContainer">
+            <div id="seekerHeroSlides" style="position: relative; width: 100%; height: 100%; min-height: 220px;">
+                <div class="seeker-hero-slide active" style="background: linear-gradient(135deg, #795548 0%, #4e342e 100%); color: #fff8eb;">
+                    <div style="position: relative; z-index: 10; max-width: 800px;">
+                        <span style="background: #ffe082; color: #3e2723; font-size: 11px; font-weight: bold; padding: 3px 10px; border-radius: 12px; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 10px;">SEEKER CONTEST</span>
+                        <h1 style="font-size: 28px; font-weight: bold; margin-bottom: 8px; color: #fff8eb; text-shadow: 0 2px 4px rgba(0,0,0,0.4);" id="seekerHeroTitle">
+                            探險者文文盃寫作比賽
+                        </h1>
+                        <p style="font-size: 16px; color: #eddcc3; margin: 0; line-height: 1.6;" id="seekerHeroSubtitle">
+                            專為動物系奇幻冒險小說創作者打造的最高榮譽殿堂，展示你的奇幻大作！
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- 左右切換按鈕 -->
+            <div class="seeker-hero-nav" id="seekerHeroPrevBtn" style="left: 12px; display: none;" onclick="moveSeekerHero(-1)">
+                <i class="fas fa-chevron-left"></i>
+            </div>
+            <div class="seeker-hero-nav" id="seekerHeroNextBtn" style="right: 12px; display: none;" onclick="moveSeekerHero(1)">
+                <i class="fas fa-chevron-right"></i>
+            </div>
+            <!-- 底部圓點指示器 -->
+            <div class="seeker-hero-dots" id="seekerHeroDots"></div>
+        </div>
+
         <!-- 比賽時程公告條 -->
         <div class="contest-status-bar" id="homeContestStatusBar">
             <div>
@@ -1652,6 +1754,54 @@
 
         <div id="archiveEditionsList">
             <!-- 動態依屆數分區呈現歷屆比賽卡片與作品清單 -->
+        </div>
+    </div>
+
+    <!-- 管理員專用：官方公告線上編輯 Modal -->
+    <div id="seekerNoticeEditModal" class="modal-overlay hidden" style="z-index: 10000;">
+        <div class="modal-content" style="max-width: 580px; width: 92%; background: #fdfbf7; border: 2px solid #bfa57c; border-radius: 12px; padding: 25px; box-shadow: 0 10px 30px rgba(62, 39, 35, 0.4);">
+            <span class="close-btn" onclick="closeSeekerNoticeEditModal()" title="關閉" style="float: right; cursor: pointer; font-size: 20px; color: #8d6e63;"><i class="fas fa-times"></i></span>
+            <div style="display:flex; align-items:center; gap:10px; border-bottom:2px dashed #bfa57c; padding-bottom:12px; margin-bottom:16px;">
+                <h3 style="margin:0; color:#3e2723; font-size: 20px;"><i class="fas fa-bullhorn" style="color: #c9933b;"></i> 線上管理官方公告</h3>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; background: #f4e8d3; padding: 10px 14px; border-radius: 8px; border: 1px solid #d8c7a2;">
+                    <span style="font-weight: bold; color: #4a2c11; font-size: 14px;">公告發布狀態</span>
+                    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="seekerNoticeEnabled" checked onchange="document.getElementById('seekerNoticeStatusText').innerText = this.checked ? '發布中 (全站可見)' : '已停用 (全站隱藏)'" style="width: 18px; height: 18px; accent-color: #5d4037;">
+                        <span id="seekerNoticeStatusText" style="font-weight: bold; color: #5d4037; font-size: 14px;">發布中 (全站可見)</span>
+                    </label>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 13px; font-weight: bold; color: #5a3818; margin-bottom: 5px;">公告標題 (繁體中文 - 主要)</label>
+                    <input type="text" id="seekerNoticeTitleZhTW" placeholder="請輸入重要公告標題..." style="width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1.5px solid #cbb692; border-radius: 6px; background: #fff; font-size: 14px;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: bold; color: #7d5836; margin-bottom: 4px;">簡體中文 (選填)</label>
+                        <input type="text" id="seekerNoticeTitleZhCN" placeholder="简体中文公告..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; border: 1px solid #cbb692; border-radius: 6px; background: #fff; font-size: 12px;">
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 12px; font-weight: bold; color: #7d5836; margin-bottom: 4px;">English (選填)</label>
+                        <input type="text" id="seekerNoticeTitleEn" placeholder="Announcement in English..." style="width: 100%; box-sizing: border-box; padding: 6px 10px; border: 1px solid #cbb692; border-radius: 6px; background: #fff; font-size: 12px;">
+                    </div>
+                </div>
+                <div>
+                    <label style="display: block; font-size: 13px; font-weight: bold; color: #5a3818; margin-bottom: 5px;">點擊跳轉網址 (Link URL，選填)</label>
+                    <input type="url" id="seekerNoticeLink" placeholder="https://..." style="width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1.5px solid #cbb692; border-radius: 6px; background: #fff; font-size: 14px;">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 15px; border-top: 1.5px dashed #bfa57c;">
+                <button type="button" onclick="clearSeekerNoticeContent()" style="background: none; border: none; color: #c62828; font-weight: bold; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 4px;">
+                    <i class="fas fa-trash-alt"></i> 清空並下架公告
+                </button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closeSeekerNoticeEditModal()" style="padding: 7px 16px; border: 1.5px solid #cbb692; background: #ebe0c8; color: #5a3818; border-radius: 20px; font-weight: bold; cursor: pointer;">取消</button>
+                    <button type="button" onclick="saveSeekerNoticeContent()" style="padding: 7px 20px; border: 1.5px solid #3e2723; background: linear-gradient(135deg, #795548 0%, #5d4037 100%); color: #fff8eb; border-radius: 20px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-check"></i> 儲存並發布
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -3137,6 +3287,10 @@
 
             // 狀態橫幅重新整理
             if (typeof updateAllStatusBars === 'function') updateAllStatusBars();
+
+            // 橫幅輪播與公告語言重新整理
+            if (typeof renderSeekerHeroSlides === 'function') renderSeekerHeroSlides();
+            if (typeof loadSeekerBroadcasts === 'function') loadSeekerBroadcasts();
         };
 
         function getLangSelectOptionsHtml(curLang) {
@@ -5776,173 +5930,363 @@
             }
         };
 
-        // --- 跑馬燈廣播機制 ---
-        window.isBroadcastPaused = false;
-        window.currentBroadcastIndex = 0;
-        
-        window.toggleBroadcastPause = function() {
-            window.isBroadcastPaused = !window.isBroadcastPaused;
-            updateSubBroadcastPauseUI();
-        };
+        // =========================================================
+        // 文文盃官方公告系統 (無公告時強制隱藏並自動適配 navbar 高度，支援管理員線上修改)
+        // =========================================================
 
-        window.updateSubBroadcastPauseUI = function() {
-            const icon = document.getElementById('notif-pause-icon');
-            const text = document.getElementById('notif-pause-text');
-            const msgEl = document.getElementById('notificationMsg');
-            if (!icon || !text) return;
-            if (window.isBroadcastPaused) {
-                icon.className = 'fas fa-play';
-                text.innerText = '播放';
-                if (msgEl) msgEl.classList.add('paused');
-            } else {
-                icon.className = 'fas fa-pause';
-                text.innerText = '暫停';
-                if (msgEl) msgEl.classList.remove('paused');
-            }
-        };
-
-        window.shareCurrentBroadcast = function() {
-            const list = window.broadcasts || [];
-            if (!list || list.length === 0) { alert('目前無公告可分享！'); return; }
-            const targetIdx = (window.currentBroadcastIndex >= 0 && window.currentBroadcastIndex < list.length) ? window.currentBroadcastIndex + 1 : 1;
-            const url = new URL(window.location.href);
-            url.searchParams.set('notice', targetIdx);
-            const shareUrl = url.toString();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert('已複製公告分享連結！(第 ' + targetIdx + ' 則公告)\n' + shareUrl);
-                }).catch(() => { prompt('請複製此公告連結：', shareUrl); });
-            } else { prompt('請複製此公告連結：', shareUrl); }
-        };
-
-        window.toggleSeekerOfficialNotice = function() {
-            const cur = localStorage.getItem('seeker_show_official_announcement') !== 'false';
-            const next = !cur;
-            localStorage.setItem('seeker_show_official_announcement', next ? 'true' : 'false');
-            updateSeekerOfficialNoticeBtnUI();
-            loadMarqueeData();
-        };
-
-        window.updateSeekerOfficialNoticeBtnUI = function() {
-            const isShow = localStorage.getItem('seeker_show_official_announcement') !== 'false';
-            const txt = document.getElementById('notif-toggle-official-text');
-            if (txt) txt.innerText = isShow ? '官網公告:開' : '官網公告:關';
-        };
-
-        async function loadMarqueeData() {
-            let officialItem = null;
-            const isShowOfficial = localStorage.getItem('seeker_show_official_announcement') !== 'false';
-            if (isShowOfficial) {
-                const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
-                if (sUrl) {
-                    try {
-                        const rOff = await fetch(`${sUrl.replace(/\/$/, '')}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
-                        if (rOff.ok) {
-                            const oData = await rOff.json();
-                            if (oData && oData.success && oData.announcement) {
-                                const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
-                                const a = oData.announcement;
-                                const oTitle = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || 'PandaPanda 官方最新公告');
-                                officialItem = {
-                                    id: 'official-main-notice',
-                                    isOfficialSiteNotice: true,
-                                    title: oTitle,
-                                    message: `【官方網站公告】${oTitle}`,
-                                    linkUrl: a.linkUrl || 'https://pandapanda6666.github.io'
-                                };
-                            }
-                        }
-                    } catch(e) {}
-                }
-            }
-
-            let gList = [];
-            let sList = [];
-            try {
-                const r1 = await fetch('../../login-hub/server_broadcast.json');
-                if (r1.ok) gList = await r1.json();
-            } catch(e) {}
-            try {
-                const r2 = await fetch('server_broadcast.json');
-                if (r2.ok) sList = await r2.json();
-            } catch(e) {}
-            const localBroadcasts = [...gList, ...sList];
-            const merged = officialItem ? [officialItem, ...localBroadcasts] : localBroadcasts;
-            if (merged.length > 0) {
-                window.broadcasts = merged;
-            }
-            updateSeekerOfficialNoticeBtnUI();
+        function checkSeekerAdmin() {
+            if (window.currentUser && window.currentUser.isAdmin) return true;
+            const ssoRole = localStorage.getItem('user_role') || localStorage.getItem('sso_role');
+            const ssoUser = localStorage.getItem('sso_username') || localStorage.getItem('panda_username');
+            const ssoAdmin = localStorage.getItem('sso_isAdmin') || localStorage.getItem('sso_admin');
+            return ssoRole === 'admin' || ssoUser === 'admin' || ssoUser === 'pandapanda' || ssoAdmin === 'true';
         }
-        loadMarqueeData();
 
-        function updateSubsiteBroadcastDisplay() {
-            const bar = document.getElementById('notificationBar');
-            const msgText = document.getElementById('notificationMsg');
-            const labelText = document.getElementById('notificationLabel');
-            if (!bar || !msgText) return;
+        window.currentSeekerOfficialAnnouncement = null;
 
-            const list = window.broadcasts || [];
-            const urlParams = new URLSearchParams(window.location.search);
-            const paramNotice = urlParams.get('notice') || urlParams.get('broadcast');
+        function updateSeekerAdminNoticeBtn() {
+            const btn = document.getElementById('adminNoticeAction');
+            if (btn) {
+                btn.style.display = checkSeekerAdmin() ? 'block' : 'none';
+            }
+        }
 
-            if (paramNotice !== null && list && list.length > 0) {
-                let idx = parseInt(paramNotice, 10) - 1;
-                if (isNaN(idx) || idx < 0) idx = 0;
-                if (idx >= list.length) idx = list.length - 1;
-                window.currentBroadcastIndex = idx;
-                window.isBroadcastPaused = true;
-                const targetB = list[idx];
-                if (targetB) {
-                    if (targetB.isOfficialSiteNotice) {
-                        if (labelText) labelText.innerText = '官網公告';
-                        msgText.innerHTML = `<a href="${targetB.linkUrl}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn"></i> ${escapeHtml(targetB.message || targetB.title)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>`;
-                    } else {
-                        msgText.innerText = targetB.message || targetB.title || '';
-                        if (labelText) labelText.innerText = `文文盃公告 #${idx + 1}`;
-                    }
-                    bar.style.display = 'block';
-                    updateSubBroadcastPauseUI();
-                    return;
-                }
+        window.openSeekerNoticeEditModal = function() {
+            const modal = document.getElementById('seekerNoticeEditModal');
+            if (!modal) return;
+            const a = window.currentSeekerOfficialAnnouncement || {};
+            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+
+            document.getElementById('seekerNoticeEnabled').checked = a.enabled !== false;
+            document.getElementById('seekerNoticeStatusText').innerText = (a.enabled !== false) ? '發布中 (全站可見)' : '已停用 (全站隱藏)';
+            document.getElementById('seekerNoticeTitleZhTW').value = (a.titles && a.titles['zh-TW']) ? a.titles['zh-TW'] : (a.title || '');
+            document.getElementById('seekerNoticeTitleZhCN').value = (a.titles && a.titles['zh-CN']) ? a.titles['zh-CN'] : '';
+            document.getElementById('seekerNoticeTitleEn').value = (a.titles && a.titles['en']) ? a.titles['en'] : '';
+            document.getElementById('seekerNoticeLink').value = a.linkUrl || '';
+
+            modal.classList.remove('hidden');
+        };
+
+        window.closeSeekerNoticeEditModal = function() {
+            const modal = document.getElementById('seekerNoticeEditModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.saveSeekerNoticeContent = async function() {
+            const enabled = document.getElementById('seekerNoticeEnabled').checked;
+            const titleZhTW = document.getElementById('seekerNoticeTitleZhTW').value.trim();
+            const titleZhCN = document.getElementById('seekerNoticeTitleZhCN').value.trim();
+            const titleEn = document.getElementById('seekerNoticeTitleEn').value.trim();
+            const linkUrl = document.getElementById('seekerNoticeLink').value.trim();
+
+            if (enabled && !titleZhTW) {
+                alert('請至少填寫繁體中文公告標題！');
+                return;
             }
 
-            const now = Date.now();
-            let activeItems = [];
-            for (let i = 0; i < list.length; i++) {
-                const b = list[i];
-                if (b.isOfficialSiteNotice) {
-                    activeItems.push({ item: b, index: i });
-                    continue;
-                }
-                const st = new Date(b.startTime).getTime();
-                if (b.mode === 2) {
-                    const et = new Date(b.endTime).getTime();
-                    if (now >= st && now <= et) activeItems.push({ item: b, index: i });
+            const titles = {};
+            if (titleZhTW) titles['zh-TW'] = titleZhTW;
+            if (titleZhCN) titles['zh-CN'] = titleZhCN;
+            if (titleEn) titles['en'] = titleEn;
+
+            const announcementPayload = {
+                enabled: enabled,
+                title: titleZhTW,
+                titles: titles,
+                linkUrl: linkUrl
+            };
+
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/official-announcement/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ announcement: announcementPayload })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    alert('官方公告已儲存並全站生效！');
+                    closeSeekerNoticeEditModal();
+                    await loadSeekerBroadcasts();
                 } else {
-                    activeItems.push({ item: b, index: i });
+                    alert('儲存失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線伺服器更新失敗：' + e.message);
+            }
+        };
+
+        window.clearSeekerNoticeContent = async function() {
+            if (!confirm('確定要下架並清空目前的官方公告嗎？全站將不再顯示公告條。')) return;
+            const announcementPayload = {
+                enabled: false,
+                title: '',
+                titles: {},
+                linkUrl: ''
+            };
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            try {
+                const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/official-announcement/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ announcement: announcementPayload })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    alert('官方公告已下架並清空！');
+                    closeSeekerNoticeEditModal();
+                    await loadSeekerBroadcasts();
+                } else {
+                    alert('下架失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線伺服器更新失敗：' + e.message);
+            }
+        };
+
+        async function loadSeekerBroadcasts() {
+            const bar = document.getElementById('notificationBar');
+            const msgEl = document.getElementById('notificationMsg');
+            const labelEl = document.getElementById('notificationLabel');
+            if (!bar || !msgEl) return;
+
+            let serverAnnouncement = null;
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            if (sUrl) {
+                try {
+                    const rOff = await fetch(`${sUrl.replace(/\/$/, '')}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                    if (rOff.ok) {
+                        const oData = await rOff.json();
+                        if (oData && oData.success && oData.announcement && oData.announcement.enabled !== false) {
+                            const a = oData.announcement;
+                            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+                            const title = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || '');
+                            if (title && title.trim()) {
+                                serverAnnouncement = {
+                                    title: title.trim(),
+                                    linkUrl: a.linkUrl || '',
+                                    raw: a
+                                };
+                                window.currentSeekerOfficialAnnouncement = a;
+                            } else {
+                                window.currentSeekerOfficialAnnouncement = null;
+                            }
+                        } else {
+                            window.currentSeekerOfficialAnnouncement = null;
+                        }
+                    }
+                } catch(e) {
+                    console.warn('無法連線取得文文盃官方公告:', e);
                 }
             }
 
-            if (activeItems.length > 0) {
-                if (!window.isBroadcastPaused) {
-                    const rotIdx = Math.floor(now / 8000) % activeItems.length;
-                    const curr = activeItems[rotIdx];
-                    window.currentBroadcastIndex = curr.index;
-                    if (curr.item.isOfficialSiteNotice) {
-                        if (labelText) labelText.innerText = '官網公告';
-                        msgText.innerHTML = `<a href="${curr.item.linkUrl}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn"></i> ${escapeHtml(curr.item.message || curr.item.title)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>`;
-                    } else {
-                        msgText.innerText = curr.item.message || '';
-                        if (labelText) labelText.innerText = `文文盃公告 #${curr.index + 1}`;
-                    }
+            // 若伺服器無公告，嚴格隱藏公告條！絕對不使用假預設文字佔位！
+            if (serverAnnouncement && serverAnnouncement.title) {
+                if (labelEl) labelEl.innerText = '大會公告';
+                if (serverAnnouncement.linkUrl) {
+                    msgEl.innerHTML = `<a href="${escapeHtml(serverAnnouncement.linkUrl)}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn" style="color:#ffe082; margin-right:5px;"></i> ${escapeHtml(serverAnnouncement.title)} <i class="fas fa-external-link-alt" style="font-size:11px; margin-left:4px; opacity:0.8;"></i></a>`;
+                } else {
+                    msgEl.innerHTML = `<span style="font-weight:bold;"><i class="fas fa-bullhorn" style="color:#ffe082; margin-right:5px;"></i> ${escapeHtml(serverAnnouncement.title)}</span>`;
                 }
                 bar.style.display = 'block';
+                document.body.classList.add('has-notification');
             } else {
-                bar.style.display = 'none';
+                if (checkSeekerAdmin()) {
+                    if (labelEl) labelEl.innerText = '大會公告';
+                    msgEl.innerHTML = '<span style="font-size:12px; color:#ffe082;">目前無生效公告。點擊右側按鈕可立即發布官方公告。</span>';
+                    bar.style.display = 'block';
+                    document.body.classList.add('has-notification');
+                } else {
+                    bar.style.display = 'none';
+                    document.body.classList.remove('has-notification');
+                }
             }
-            updateSubBroadcastPauseUI();
+
+            updateSeekerAdminNoticeBtn();
         }
-        setInterval(updateSubsiteBroadcastDisplay, 1000);
+
+        // =========================================================
+        // 文文盃 Hero Banner 輪播系統
+        // =========================================================
+
+        window.seekerHeroBanners = [
+            {
+                id: 'seeker-default-1',
+                badge: 'SEEKER CONTEST',
+                title: '第一屆探險者文文盃寫作比賽',
+                subtitle: '專為動物系奇幻冒險小說創作者打造的最高榮譽殿堂，展示你的奇幻大作！',
+                titles: {
+                    'zh-TW': '第一屆探險者文文盃寫作比賽',
+                    'zh-CN': '第一届探险者文文杯写作比赛',
+                    'en': '1st Seeker Wen-Wen Cup Writing Contest'
+                },
+                subtitles: {
+                    'zh-TW': '專為動物系奇幻冒險小說創作者打造的最高榮譽殿堂，展示你的奇幻大作！',
+                    'zh-CN': '专为动物系奇幻冒险小说创作者打造的最高荣誉殿堂，展示你的奇幻大作！',
+                    'en': 'The ultimate literary arena for fantasy and adventure creators!'
+                },
+                gradient: 'linear-gradient(135deg, #795548 0%, #4e342e 100%)',
+                badgeBg: '#ffe082',
+                badgeColor: '#3e2723',
+                linkUrl: ''
+            },
+            {
+                id: 'seeker-default-2',
+                badge: 'OFFICIAL VOTING',
+                title: '大會賽事主題使用者票選進行中',
+                subtitle: '每個人的珍貴選票，都將決定本屆創作者們共同挑戰的宏大奇幻世界觀！',
+                titles: {
+                    'zh-TW': '大會賽事主題使用者票選進行中',
+                    'zh-CN': '大会赛事主题使用者票选进行中',
+                    'en': 'Contest Topic Community Voting'
+                },
+                subtitles: {
+                    'zh-TW': '每個人的珍貴選票，都將決定本屆創作者們共同挑戰的宏大奇幻世界觀！',
+                    'zh-CN': '每个人的珍贵选票，都将决定本届创作者们共同挑战的宏大奇幻世界观！',
+                    'en': 'Cast your vote to shape the next fantasy writing contest theme!'
+                },
+                gradient: 'linear-gradient(135deg, #5d4037 0%, #3e2723 100%)',
+                badgeBg: '#ffd54f',
+                badgeColor: '#3e2723',
+                linkUrl: ''
+            }
+        ];
+
+        window.currentSeekerHeroIndex = 0;
+        window.seekerHeroTimer = null;
+
+        async function initSeekerHeroBanners() {
+            const sUrl = window.serverUrl || (window.authInfo && window.authInfo.server) || localStorage.getItem('sso_server') || '';
+            if (sUrl) {
+                try {
+                    const rBanners = await fetch(`${sUrl.replace(/\/$/, '')}/api/hero-banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                    if (rBanners.ok) {
+                        const bList = await rBanners.json();
+                        if (Array.isArray(bList) && bList.length > 0) {
+                            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+                            const mapped = bList.filter(b => b.enabled !== false).map(b => ({
+                                id: b.id || Math.random(),
+                                badge: 'OFFICIAL EVENT',
+                                title: (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || '文文盃官方精選動態'),
+                                subtitle: '點擊立即深入了解文文盃官方最新賽制與活動詳情',
+                                titles: b.titles || {},
+                                imageUrl: (b.images && b.images[curLang]) ? b.images[curLang] : (b.imageUrl || b.imageBase64 || ''),
+                                gradient: 'linear-gradient(135deg, #4e342e 0%, #2b1810 100%)',
+                                badgeBg: '#ffe082',
+                                badgeColor: '#3e2723',
+                                linkUrl: b.linkUrl || ''
+                            }));
+                            if (mapped.length > 0) {
+                                window.seekerHeroBanners = [...window.seekerHeroBanners, ...mapped];
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
+            renderSeekerHeroSlides();
+            startSeekerHeroAutoPlay();
+        }
+
+        function renderSeekerHeroSlides() {
+            const slidesContainer = document.getElementById('seekerHeroSlides');
+            const dotsContainer = document.getElementById('seekerHeroDots');
+            const prevBtn = document.getElementById('seekerHeroPrevBtn');
+            const nextBtn = document.getElementById('seekerHeroNextBtn');
+            if (!slidesContainer) return;
+
+            const banners = window.seekerHeroBanners || [];
+            if (banners.length === 0) return;
+
+            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+
+            slidesContainer.innerHTML = banners.map((b, idx) => {
+                const isActive = idx === window.currentSeekerHeroIndex;
+                const title = (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || '');
+                const subtitle = (b.subtitles && b.subtitles[curLang]) ? b.subtitles[curLang] : (b.subtitle || '');
+                const safeLink = b.linkUrl ? `onclick="window.open('${escapeHtml(b.linkUrl)}', '_blank')"` : '';
+                const cursorStyle = b.linkUrl ? 'cursor: pointer;' : '';
+
+                if (b.type === 'code' || b.htmlCode || (b.htmlCodes && b.htmlCodes[curLang])) {
+                    const rawCode = (b.htmlCodes && b.htmlCodes[curLang]) || b.htmlCode || '';
+                    return `
+                        <div class="seeker-hero-slide ${isActive ? 'active' : ''}" style="position:relative; width:100%; height:100%; overflow:hidden; ${cursorStyle}" ${safeLink}>
+                            ${rawCode}
+                        </div>
+                    `;
+                }
+
+                let bgStyle = `background: ${b.gradient || 'linear-gradient(135deg, #795548, #4e342e)'}; color: #fff8eb;`;
+                let bgOverlay = '';
+                if (b.imageUrl) {
+                    bgStyle = `background-image: url('${b.imageUrl}'); background-size: cover; background-position: center; color: #fff;`;
+                    bgOverlay = '<div style="position: absolute; inset: 0; background: rgba(30, 15, 10, 0.65);"></div>';
+                }
+
+                return `
+                    <div class="seeker-hero-slide ${isActive ? 'active' : ''}" style="${bgStyle} ${cursorStyle}" ${safeLink}>
+                        ${bgOverlay}
+                        <div style="position: relative; z-index: 10; max-width: 800px;">
+                            <span style="background: ${b.badgeBg || '#ffe082'}; color: ${b.badgeColor || '#3e2723'}; font-size: 11px; font-weight: bold; padding: 3px 10px; border-radius: 12px; text-transform: uppercase; letter-spacing: 1px; display: inline-block; margin-bottom: 10px;">${b.badge || 'EVENT'}</span>
+                            <h1 style="font-size: 28px; font-weight: bold; margin-bottom: 8px; color: #fff8eb; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${escapeHtml(title)}</h1>
+                            <p style="font-size: 16px; color: #eddcc3; margin: 0; line-height: 1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">${escapeHtml(subtitle)}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (banners.length > 1) {
+                if (prevBtn) prevBtn.style.display = 'flex';
+                if (nextBtn) nextBtn.style.display = 'flex';
+                if (dotsContainer) {
+                    dotsContainer.innerHTML = banners.map((_, idx) => `
+                        <div class="seeker-hero-dot ${idx === window.currentSeekerHeroIndex ? 'active' : ''}" onclick="goToSeekerHero(${idx})"></div>
+                    `).join('');
+                }
+            } else {
+                if (prevBtn) prevBtn.style.display = 'none';
+                if (nextBtn) nextBtn.style.display = 'none';
+                if (dotsContainer) dotsContainer.innerHTML = '';
+            }
+        }
+
+        window.moveSeekerHero = function(dir) {
+            const banners = window.seekerHeroBanners || [];
+            if (banners.length <= 1) return;
+            window.currentSeekerHeroIndex = (window.currentSeekerHeroIndex + dir + banners.length) % banners.length;
+            renderSeekerHeroSlides();
+            startSeekerHeroAutoPlay();
+        };
+
+        window.goToSeekerHero = function(idx) {
+            window.currentSeekerHeroIndex = idx;
+            renderSeekerHeroSlides();
+            startSeekerHeroAutoPlay();
+        };
+
+        function startSeekerHeroAutoPlay() {
+            if (window.seekerHeroTimer) clearInterval(window.seekerHeroTimer);
+            const banners = window.seekerHeroBanners || [];
+            if (banners.length <= 1) return;
+            window.seekerHeroTimer = setInterval(() => {
+                window.moveSeekerHero(1);
+            }, 6500);
+        }
+
+        const seekerHeroBox = document.getElementById('seekerHeroBannerContainer');
+        if (seekerHeroBox) {
+            seekerHeroBox.addEventListener('mouseenter', () => { if (window.seekerHeroTimer) clearInterval(window.seekerHeroTimer); });
+            seekerHeroBox.addEventListener('mouseleave', () => { startSeekerHeroAutoPlay(); });
+        }
+
+        // 初始化公告與橫幅
+        loadSeekerBroadcasts();
+        initSeekerHeroBanners();
+
+        // 輪詢與狀態檢查 (每 15 秒更新一次公告)
+        setInterval(() => {
+            loadSeekerBroadcasts();
+            updateSeekerAdminNoticeBtn();
+        }, 15000);
 
         // --- 網址路由支援 ---
         function handleUrlRouting(pushHistory = false) {

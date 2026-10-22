@@ -36,29 +36,17 @@
         }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; } .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* 頂端公告廣播條 */
+        /* 頂端公告通知欄 (純淨通知，無多餘播放控制項，無公告時強制隱藏) */
         #notificationBar {
             position: relative;
             width: 100%;
-            background: linear-gradient(135deg, #14532d, #166534, #1b4332);
+            background: linear-gradient(135deg, #064e3b, #047857);
             color: white;
-            padding: 4px 0;
-            font-size: 0.95rem;
-            font-weight: bold;
+            font-size: 0.92rem;
+            font-weight: 600;
             z-index: 60;
             display: none;
-            overflow: hidden;
-            white-space: nowrap;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        }
-        #notificationMsg {
-            display: inline-block;
-            padding-left: 100%;
-            animation: shopMarquee 15s linear infinite;
-        }
-        @keyframes shopMarquee {
-            0% { transform: translate(0, 0); }
-            100% { transform: translate(-100%, 0); }
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
         }
 
         .notif-inner {
@@ -69,51 +57,75 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 7px 10px;
+            padding: 8px 12px;
             box-sizing: border-box;
         }
         .notif-prefix {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: rgba(0,0,0,0.25);
-            padding: 4px 10px;
+            background: rgba(0,0,0,0.28);
+            padding: 3px 10px;
             border-radius: 20px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             white-space: nowrap;
             flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.15);
         }
-        .notif-marquee-wrapper {
+        .notif-content-wrapper {
             flex: 1;
             overflow: hidden;
-            white-space: nowrap;
-            position: relative;
             display: flex;
             align-items: center;
         }
-        #notificationMsg.paused { animation-play-state: paused !important; }
-        .notif-actions {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            flex-shrink: 0;
+        #notificationMsg {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
         }
-        .notif-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.35);
-            padding: 4px 10px;
-            border-radius: 15px;
+
+        /* 商城 Hero Banner 輪播元件樣式 */
+        #shopHeroBannerContainer {
+            position: relative;
+            min-height: 240px;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .shop-hero-slide {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transform: scale(0.98);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .shop-hero-slide.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+            position: relative;
+        }
+        .shop-hero-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.4);
+            transition: all 0.25s ease;
             cursor: pointer;
-            font-size: 0.82rem;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.2s ease;
         }
-        .notif-btn:hover { background: rgba(255,255,255,0.35); transform: translateY(-1px); }
-        
+        .shop-hero-dot.active {
+            width: 24px;
+            background: #ffffff;
+            border-radius: 9999px;
+        }
 </style>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="icon" type="image/png" href="logo.png">
@@ -144,27 +156,20 @@ function showToast(title, msg) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="min-h-screen flex flex-col">
-    <div id="notificationBar">
+    <!-- 頂端官方重要公告通知欄 (無公告時預設 display: none) -->
+    <div id="notificationBar" style="display: none;">
         <div class="notif-inner">
             <div class="notif-prefix">
-                <i class="fas fa-bullhorn"></i>
-                <span id="notificationLabel">專屬公告</span>
+                <i class="fas fa-bullhorn text-yellow-300"></i>
+                <span id="notificationLabel">官方公告</span>
             </div>
-            <div class="notif-marquee-wrapper">
+            <div class="notif-content-wrapper">
                 <div id="notificationMsg"></div>
             </div>
-            <div class="notif-actions">
-                <button id="notif-toggle-official-btn" class="notif-btn" onclick="toggleShopOfficialNotice()" title="切換是否顯示官網公告">
-                    <i class="fas fa-globe"></i>
-                    <span id="notif-toggle-official-text">官網公告:開</span>
-                </button>
-                <button id="notif-pause-btn" class="notif-btn" onclick="toggleBroadcastPause()" title="暫停/繼續自動播放">
-                    <i class="fas fa-pause" id="notif-pause-icon"></i>
-                    <span id="notif-pause-text">暫停</span>
-                </button>
-                <button id="notif-share-btn" class="notif-btn" onclick="shareCurrentBroadcast()" title="分享此公告">
-                    <i class="fas fa-share-alt"></i>
-                    <span>分享</span>
+            <div id="adminNoticeAction" class="hidden">
+                <button type="button" onclick="openNoticeEditModal()" class="bg-yellow-400 hover:bg-yellow-300 text-slate-900 text-xs font-bold px-3 py-1 rounded-full shadow-sm transition flex items-center gap-1.5 cursor-pointer">
+                    <i class="fas fa-edit"></i>
+                    <span>編輯公告</span>
                 </button>
             </div>
         </div>
@@ -275,18 +280,33 @@ function showToast(title, msg) {
         <!-- 右側主內容 -->
         <main class="flex-1 min-w-0">
             
-            <!-- 促銷橫幅 -->
-            <div class="banner-gradient rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
-                <div class="relative z-10">
-                    <span class="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider mb-3 inline-block">Official Store</span>
-                    <h1 id="main-title" class="text-3xl md:text-4xl font-extrabold mb-2 drop-shadow-md">
-                        <!-- 載入中文字將由 JS 替換 -->
-                    </h1>
-                    <p id="main-subtitle" class="text-green-50 text-lg max-w-xl opacity-90"></p>
+            <!-- 商城官方輪播橫幅 (Hero Banner) -->
+            <div id="shopHeroBannerContainer" class="rounded-2xl mb-8 text-white shadow-lg relative overflow-hidden bg-slate-900 group" style="min-height: 220px;">
+                <!-- 輪播投影片列表 -->
+                <div id="shopHeroSlides" class="relative w-full h-full min-h-[220px]">
+                    <div class="shop-hero-slide active banner-gradient p-8 flex flex-col justify-center relative w-full h-full">
+                        <div class="relative z-10 max-w-2xl">
+                            <span class="bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider mb-3 inline-block">Official Store</span>
+                            <h1 id="main-title" class="text-3xl md:text-4xl font-extrabold mb-2 drop-shadow-md">
+                                胖達商城 PandaPanda Shop
+                            </h1>
+                            <p id="main-subtitle" class="text-green-50 text-lg opacity-90">提供最優質的自製數位工具、遊戲專案與會員獨家好康</p>
+                        </div>
+                        <div class="absolute -bottom-10 -right-10 w-48 h-48 bg-white opacity-10 rounded-full pointer-events-none"></div>
+                        <div class="absolute -top-10 right-20 w-32 h-32 bg-white opacity-10 rounded-full pointer-events-none"></div>
+                    </div>
                 </div>
-                <!-- 裝飾用背景圈圈 -->
-                <div class="absolute -bottom-10 -right-10 w-48 h-48 bg-white opacity-10 rounded-full"></div>
-                <div class="absolute -top-10 right-20 w-32 h-32 bg-white opacity-10 rounded-full"></div>
+
+                <!-- 左右切換箭頭 -->
+                <button type="button" id="shopHeroPrevBtn" onclick="moveShopHero(-1)" class="shop-hero-nav-btn hidden left-3 absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition z-20 cursor-pointer shadow-md">
+                    <i class="fas fa-chevron-left text-sm"></i>
+                </button>
+                <button type="button" id="shopHeroNextBtn" onclick="moveShopHero(1)" class="shop-hero-nav-btn hidden right-3 absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-sm transition z-20 cursor-pointer shadow-md">
+                    <i class="fas fa-chevron-right text-sm"></i>
+                </button>
+
+                <!-- 底部圓點指示器 -->
+                <div id="shopHeroDots" class="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20"></div>
             </div>
 
             <!-- 商品列表區塊 -->
@@ -546,6 +566,10 @@ function selectSort(val, text) {
                 const term = searchInput ? searchInput.value.toLowerCase().trim() : '';
                 applyFiltersAndSort(term, window.currentSortVal || 'default');
             }
+
+            // 同步更新橫幅輪播與公告語言
+            if (typeof renderShopHeroSlides === 'function') renderShopHeroSlides();
+            if (typeof loadShopBroadcasts === 'function') loadShopBroadcasts();
         };
         const pandaImgUrl = "./logo.png";
         
@@ -1947,195 +1971,442 @@ async function scanAndLoadFolders() {
             <div id="historyContainer" class="p-6 max-h-[60vh] overflow-y-auto space-y-4">
                 <!-- History items will go here -->
             </div>
+    </div>
+
+    <!-- 管理員公告編輯 Modal -->
+    <div id="noticeEditModal" class="hidden fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 text-gray-800 relative">
+            <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-bullhorn text-green-600"></i>
+                    線上管理官方公告
+                </h3>
+                <button type="button" onclick="closeNoticeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="mt-4 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">公告啟用狀態</label>
+                    <div class="flex items-center gap-3">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="editNoticeEnabled" class="sr-only peer" checked onchange="document.getElementById('editNoticeStatusText').innerText = this.checked ? '發布中 (全站可見)' : '已停用 (全站隱藏)'">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                            <span id="editNoticeStatusText" class="ml-3 text-sm font-medium text-gray-900">發布中 (全站可見)</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">公告標題 (繁體中文 - 主要)</label>
+                    <input type="text" id="editNoticeTitleZhTW" placeholder="請輸入重要公告標題..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">簡體中文 (選填)</label>
+                        <input type="text" id="editNoticeTitleZhCN" placeholder="简体中文公告..." class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1">English (選填)</label>
+                        <input type="text" id="editNoticeTitleEn" placeholder="Announcement in English..." class="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">點擊跳轉網址 (Link URL，選填)</label>
+                    <input type="url" id="editNoticeLink" placeholder="https://..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none text-sm">
+                </div>
+            </div>
+            <div class="mt-6 flex justify-between items-center pt-3 border-t border-gray-100">
+                <button type="button" onclick="clearNoticeContent()" class="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-1 cursor-pointer">
+                    <i class="fas fa-trash-alt"></i>
+                    清空並關閉公告
+                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="closeNoticeEditModal()" class="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 text-sm font-medium cursor-pointer">取消</button>
+                    <button type="button" onclick="saveNoticeContent()" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                        <i class="fas fa-check"></i>
+                        儲存並全站生效
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
 <script>
-        // --- 跑馬燈與公告廣播 (官網 + 商城專屬) ---
-        
-        window.isBroadcastPaused = false;
-        window.currentBroadcastIndex = 0;
-        const _subUrlParams = new URLSearchParams(window.location.search);
-        const _subParamNotice = _subUrlParams.get('notice') || _subUrlParams.get('broadcast') || _subUrlParams.get('announcement');
-        if (_subParamNotice !== null) { window.isBroadcastPaused = true; }
+        // =========================================================
+        // 商城官方公告系統 (純淨無雜項，無公告時強制隱藏，支援管理員線上修改)
+        // =========================================================
 
-        window.toggleBroadcastPause = function() {
-            window.isBroadcastPaused = !window.isBroadcastPaused;
-            updateSubBroadcastPauseUI();
-        };
-
-        window.updateSubBroadcastPauseUI = function() {
-            const icon = document.getElementById('notif-pause-icon');
-            const text = document.getElementById('notif-pause-text');
-            const msgEl = document.getElementById('notificationMsg');
-            if (!icon || !text) return;
-            if (window.isBroadcastPaused) {
-                icon.className = 'fas fa-play';
-                text.innerText = '播放';
-                if (msgEl) msgEl.classList.add('paused');
-            } else {
-                icon.className = 'fas fa-pause';
-                text.innerText = '暫停';
-                if (msgEl) msgEl.classList.remove('paused');
-            }
-        };
-
-        window.shareCurrentBroadcast = function() {
-            const list = window.broadcasts || [];
-            if (!list || list.length === 0) { alert('目前無公告可分享！'); return; }
-            const targetIdx = (window.currentBroadcastIndex >= 0 && window.currentBroadcastIndex < list.length) ? window.currentBroadcastIndex + 1 : 1;
-            const url = new URL(window.location.href);
-            url.searchParams.set('notice', targetIdx);
-            const shareUrl = url.toString();
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareUrl).then(() => {
-                    alert('已複製公告分享連結！(第 ' + targetIdx + ' 則公告)\n' + shareUrl);
-                }).catch(() => { prompt('請複製此公告連結：', shareUrl); });
-            } else { prompt('請複製此公告連結：', shareUrl); }
-        };
-    
-        window.toggleShopOfficialNotice = function() {
-            const cur = localStorage.getItem('shop_show_official_announcement') !== 'false';
-            const next = !cur;
-            localStorage.setItem('shop_show_official_announcement', next ? 'true' : 'false');
-            updateShopOfficialNoticeBtnUI();
-            loadShopBroadcasts();
-        };
-
-        window.updateShopOfficialNoticeBtnUI = function() {
-            const isShow = localStorage.getItem('shop_show_official_announcement') !== 'false';
-            const txt = document.getElementById('notif-toggle-official-text');
-            if (txt) txt.innerText = isShow ? '官網公告:開' : '官網公告:關';
-        };
-
-        window.siteKey = 'shop';
-        async function loadShopBroadcasts() {
-            let officialItem = null;
-            const isShowOfficial = localStorage.getItem('shop_show_official_announcement') !== 'false';
-            if (isShowOfficial) {
-                const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
-                if (sUrl) {
-                    try {
-                        const rOff = await fetch(`${sUrl}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
-                        if (rOff.ok) {
-                            const oData = await rOff.json();
-                            if (oData && oData.success && oData.announcement) {
-                                const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
-                                const a = oData.announcement;
-                                const oTitle = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || 'PandaPanda 官方最新公告');
-                                officialItem = {
-                                    id: 'official-main-shop-notice',
-                                    isOfficialSiteNotice: true,
-                                    title: oTitle,
-                                    message: `【官方網站公告】${oTitle}`,
-                                    linkUrl: a.linkUrl || 'https://pandapanda6666.github.io'
-                                };
-                            }
-                        }
-                    } catch(e) {}
+        function checkIsAdminUser() {
+            if (window.currentUser) {
+                if (window.currentUser.isAdmin || window.currentUser.role === 'admin' || window.currentUser.username === 'admin' || window.currentUser.username === 'pandapanda') {
+                    return true;
                 }
             }
-
-            let gList = [];
-            let sList = [];
-            try {
-                const r1 = await fetch('../login-hub/server_broadcast.json');
-                if (r1.ok) gList = await r1.json();
-            } catch(e) {}
-            try {
-                const r2 = await fetch('server_broadcast.json');
-                if (r2.ok) sList = await r2.json();
-            } catch(e) {}
-            const localBroadcasts = [...gList, ...sList];
-            const merged = officialItem ? [officialItem, ...localBroadcasts] : localBroadcasts;
-            if (merged.length > 0) {
-                window.broadcasts = merged;
-                localStorage.setItem('broadcasts_shop', JSON.stringify(merged));
-            } else {
-                window.broadcasts = JSON.parse(localStorage.getItem('broadcasts_shop') || localStorage.getItem('broadcasts') || '[]');
-            }
-            updateShopOfficialNoticeBtnUI();
+            const ssoRole = localStorage.getItem('user_role') || localStorage.getItem('sso_role');
+            const ssoUser = localStorage.getItem('sso_username') || localStorage.getItem('panda_username');
+            const ssoAdmin = localStorage.getItem('sso_isAdmin') || localStorage.getItem('sso_admin');
+            return ssoRole === 'admin' || ssoUser === 'admin' || ssoUser === 'pandapanda' || ssoAdmin === 'true';
         }
-        loadShopBroadcasts();
 
-        function updateSubsiteBroadcastDisplay() {
-            const bar = document.getElementById('notificationBar');
-            const msgText = document.getElementById('notificationMsg');
-            const labelText = document.getElementById('notificationLabel');
-            if (!bar || !msgText) return;
+        window.currentOfficialAnnouncement = null;
 
-            const list = window.broadcasts || JSON.parse(localStorage.getItem('broadcasts_shop') || '[]');
-            const urlParams = new URLSearchParams(window.location.search);
-            const paramNotice = urlParams.get('notice') || urlParams.get('broadcast') || urlParams.get('announcement');
-
-            if (paramNotice !== null && list && list.length > 0) {
-                let idx = parseInt(paramNotice, 10) - 1;
-                if (isNaN(idx) || idx < 0) idx = 0;
-                if (idx >= list.length) idx = list.length - 1;
-                window.currentBroadcastIndex = idx;
-                window.isBroadcastPaused = true;
-                const targetB = list[idx];
-                if (targetB) {
-                    if (targetB.isOfficialSiteNotice) {
-                        if (labelText) labelText.innerText = '官網公告';
-                        msgText.innerHTML = `<a href="${targetB.linkUrl}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn"></i> ${escapeHtml(targetB.message || targetB.title)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>`;
-                    } else {
-                        msgText.innerText = targetB.message || targetB.title || '';
-                        if (labelText) labelText.innerText = `專屬公告 #${idx + 1}`;
-                    }
-                    bar.style.display = 'block';
-                    updateSubBroadcastPauseUI();
-                    return;
-                }
-            }
-
-            const now = Date.now();
-            let activeItems = [];
-            for (let i = 0; i < list.length; i++) {
-                const b = list[i];
-                if (b.isOfficialSiteNotice) {
-                    activeItems.push({ item: b, index: i });
-                    continue;
-                }
-                const st = new Date(b.startTime).getTime();
-                if (b.mode === 1) {
-                    const intervalMs = (b.intervalMin || 10) * 60000;
-                    const end = st + (((b.repeatCount || 1) - 1) * intervalMs) + 60000;
-                    if (now >= st && now <= end) {
-                        const elapsed = now - st;
-                        if (elapsed % intervalMs < 60000) activeItems.push({ item: b, index: i });
-                    }
-                } else if (b.mode === 2) {
-                    const et = new Date(b.endTime).getTime();
-                    if (now >= st && now <= et) activeItems.push({ item: b, index: i });
+        function updateAdminNoticeButtonVisibility() {
+            const btn = document.getElementById('adminNoticeAction');
+            if (btn) {
+                if (checkIsAdminUser()) {
+                    btn.classList.remove('hidden');
                 } else {
-                    activeItems.push({ item: b, index: i });
+                    btn.classList.add('hidden');
+                }
+            }
+        }
+
+        window.openNoticeEditModal = function() {
+            const modal = document.getElementById('noticeEditModal');
+            if (!modal) return;
+            const a = window.currentOfficialAnnouncement || {};
+            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+            
+            document.getElementById('editNoticeEnabled').checked = a.enabled !== false;
+            document.getElementById('editNoticeStatusText').innerText = (a.enabled !== false) ? '發布中 (全站可見)' : '已停用 (全站隱藏)';
+            document.getElementById('editNoticeTitleZhTW').value = (a.titles && a.titles['zh-TW']) ? a.titles['zh-TW'] : (a.title || '');
+            document.getElementById('editNoticeTitleZhCN').value = (a.titles && a.titles['zh-CN']) ? a.titles['zh-CN'] : '';
+            document.getElementById('editNoticeTitleEn').value = (a.titles && a.titles['en']) ? a.titles['en'] : '';
+            document.getElementById('editNoticeLink').value = a.linkUrl || '';
+
+            modal.classList.remove('hidden');
+        };
+
+        window.closeNoticeEditModal = function() {
+            const modal = document.getElementById('noticeEditModal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.saveNoticeContent = async function() {
+            const enabled = document.getElementById('editNoticeEnabled').checked;
+            const titleZhTW = document.getElementById('editNoticeTitleZhTW').value.trim();
+            const titleZhCN = document.getElementById('editNoticeTitleZhCN').value.trim();
+            const titleEn = document.getElementById('editNoticeTitleEn').value.trim();
+            const linkUrl = document.getElementById('editNoticeLink').value.trim();
+
+            if (enabled && !titleZhTW) {
+                alert('請至少填寫繁體中文公告標題！');
+                return;
+            }
+
+            const titles = {};
+            if (titleZhTW) titles['zh-TW'] = titleZhTW;
+            if (titleZhCN) titles['zh-CN'] = titleZhCN;
+            if (titleEn) titles['en'] = titleEn;
+
+            const announcementPayload = {
+                enabled: enabled,
+                title: titleZhTW,
+                titles: titles,
+                linkUrl: linkUrl
+            };
+
+            const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
+            try {
+                const res = await fetch(`${sUrl}/api/official-announcement/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ announcement: announcementPayload })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('公告更新成功', '官方公告已儲存並全站生效！');
+                    closeNoticeEditModal();
+                    await loadShopBroadcasts();
+                } else {
+                    alert('儲存失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線伺服器更新失敗：' + e.message);
+            }
+        };
+
+        window.clearNoticeContent = async function() {
+            if (!confirm('確定要下架並清空目前的官方公告嗎？全站將不再顯示公告條。')) return;
+            const announcementPayload = {
+                enabled: false,
+                title: '',
+                titles: {},
+                linkUrl: ''
+            };
+            const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
+            try {
+                const res = await fetch(`${sUrl}/api/official-announcement/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+                    body: JSON.stringify({ announcement: announcementPayload })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showToast('公告已下架', '官方公告已清空並下架！');
+                    closeNoticeEditModal();
+                    await loadShopBroadcasts();
+                } else {
+                    alert('下架失敗：' + (result.error || '未知錯誤'));
+                }
+            } catch(e) {
+                alert('連線伺服器更新失敗：' + e.message);
+            }
+        };
+
+        async function loadShopBroadcasts() {
+            const bar = document.getElementById('notificationBar');
+            const msgEl = document.getElementById('notificationMsg');
+            const labelEl = document.getElementById('notificationLabel');
+            if (!bar || !msgEl) return;
+
+            let serverAnnouncement = null;
+            const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
+            if (sUrl) {
+                try {
+                    const rOff = await fetch(`${sUrl}/api/official-announcement`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                    if (rOff.ok) {
+                        const oData = await rOff.json();
+                        if (oData && oData.success && oData.announcement && oData.announcement.enabled !== false) {
+                            const a = oData.announcement;
+                            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+                            const title = (a.titles && a.titles[curLang]) ? a.titles[curLang] : (a.title || '');
+                            if (title && title.trim()) {
+                                serverAnnouncement = {
+                                    title: title.trim(),
+                                    linkUrl: a.linkUrl || '',
+                                    raw: a
+                                };
+                                window.currentOfficialAnnouncement = a;
+                            } else {
+                                window.currentOfficialAnnouncement = null;
+                            }
+                        } else {
+                            window.currentOfficialAnnouncement = null;
+                        }
+                    }
+                } catch(e) {
+                    console.warn('無法連線取得最新官方公告:', e);
                 }
             }
 
-            window.currentActiveBroadcasts = activeItems;
-
-            if (activeItems.length > 0) {
-                if (!window.isBroadcastPaused) {
-                    const rotIdx = Math.floor(now / 8000) % activeItems.length;
-                    const curr = activeItems[rotIdx];
-                    window.currentBroadcastIndex = curr.index;
-                    if (curr.item.isOfficialSiteNotice) {
-                        if (labelText) labelText.innerText = '官網公告';
-                        msgText.innerHTML = `<a href="${curr.item.linkUrl}" target="_blank" style="color:inherit; text-decoration:underline; font-weight:bold;"><i class="fas fa-bullhorn"></i> ${escapeHtml(curr.item.message || curr.item.title)} <i class="fas fa-external-link-alt" style="font-size:10px;"></i></a>`;
-                    } else {
-                        msgText.innerText = curr.item.message || '';
-                        if (labelText) labelText.innerText = `專屬公告 #${curr.index + 1}`;
-                    }
+            // 若伺服器無公告，嚴格隱藏公告條！絕對不使用假預設文字佔位！
+            if (serverAnnouncement && serverAnnouncement.title) {
+                if (labelEl) labelEl.innerText = '官方公告';
+                if (serverAnnouncement.linkUrl) {
+                    msgEl.innerHTML = `<a href="${escapeHtml(serverAnnouncement.linkUrl)}" target="_blank" class="hover:underline flex items-center gap-1.5"><i class="fas fa-bullhorn text-xs opacity-80"></i> <span>${escapeHtml(serverAnnouncement.title)}</span> <i class="fas fa-external-link-alt text-[10px] opacity-75"></i></a>`;
+                } else {
+                    msgEl.innerHTML = `<span class="flex items-center gap-1.5"><i class="fas fa-bullhorn text-xs opacity-80"></i> <span>${escapeHtml(serverAnnouncement.title)}</span></span>`;
                 }
                 bar.style.display = 'block';
             } else {
-                bar.style.display = 'none';
+                // 如果目前是管理員，而且目前無公告，允許在公告欄或控制項看到快速發布
+                if (checkIsAdminUser()) {
+                    if (labelEl) labelEl.innerText = '公告管理';
+                    msgEl.innerHTML = '<span class="text-xs text-green-200">目前無生效公告。點擊右側按鈕可立即發布官方公告。</span>';
+                    bar.style.display = 'block';
+                } else {
+                    bar.style.display = 'none';
+                }
             }
-            updateSubBroadcastPauseUI();
+
+            updateAdminNoticeButtonVisibility();
         }
 
-        setInterval(updateSubsiteBroadcastDisplay, 1000);
+        // =========================================================
+        // 商城 Hero Banner 橫幅輪播系統
+        // =========================================================
+
+        window.shopHeroBanners = [
+            {
+                id: 'shop-default-1',
+                theme: 'Official Store',
+                title: '胖達商城 PandaPanda Shop',
+                subtitle: '提供最優質的自製數位工具、遊戲專案與會員獨家好康',
+                titles: {
+                    'zh-TW': '胖達商城 PandaPanda Shop',
+                    'zh-CN': '胖达商城 PandaPanda Shop',
+                    'en': 'PandaPanda Shop Official'
+                },
+                subtitles: {
+                    'zh-TW': '提供最優質的自製數位工具、遊戲專案與會員獨家好康',
+                    'zh-CN': '提供最优质的自制数字工具、游戏项目与会员独家福利',
+                    'en': 'Best creative digital tools, game projects & exclusive rewards'
+                },
+                gradient: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+                badge: 'OFFICIAL STORE',
+                badgeColor: 'bg-yellow-400 text-yellow-900',
+                linkUrl: ''
+            },
+            {
+                id: 'shop-default-2',
+                theme: 'Member Rewards',
+                title: '每日簽到天天領 P 幣',
+                subtitle: '登入會員即可免費領取 P 幣，兌換精選限定數位商品與外觀！',
+                titles: {
+                    'zh-TW': '每日簽到天天領 P 幣',
+                    'zh-CN': '每日签到天天领 P 币',
+                    'en': 'Daily Login & Free P-Coins'
+                },
+                subtitles: {
+                    'zh-TW': '登入會員即可免費領取 P 幣，兌換精選限定數位商品與外觀！',
+                    'zh-CN': '登录会员即可免费领取 P 币，兑换精选限定数字商品与外观！',
+                    'en': 'Log in daily to claim free P-Coins for digital goods and perks!'
+                },
+                gradient: 'linear-gradient(135deg, #0ea5e9 0%, #1e3a8a 100%)',
+                badge: 'EXCLUSIVE PERK',
+                badgeColor: 'bg-blue-300 text-blue-900',
+                linkUrl: ''
+            }
+        ];
+
+        window.currentShopHeroIndex = 0;
+        window.shopHeroTimer = null;
+
+        async function initShopHeroBanners() {
+            const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
+            if (sUrl) {
+                try {
+                    const rBanners = await fetch(`${sUrl}/api/hero-banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                    if (rBanners.ok) {
+                        const bList = await rBanners.json();
+                        if (Array.isArray(bList) && bList.length > 0) {
+                            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+                            const mapped = bList.filter(b => b.enabled !== false).map(b => ({
+                                id: b.id || Math.random(),
+                                theme: b.title || '最新動態',
+                                title: (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || 'PandaPanda 官方最新動態'),
+                                subtitle: '點擊深入了解官方精選項目與最新精彩內容',
+                                titles: b.titles || {},
+                                imageUrl: (b.images && b.images[curLang]) ? b.images[curLang] : (b.imageUrl || b.imageBase64 || ''),
+                                gradient: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                                badge: 'FEATURED',
+                                badgeColor: 'bg-emerald-400 text-emerald-950',
+                                linkUrl: b.linkUrl || ''
+                            }));
+                            if (mapped.length > 0) {
+                                window.shopHeroBanners = [...window.shopHeroBanners, ...mapped];
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }
+            renderShopHeroSlides();
+            startShopHeroAutoPlay();
+        }
+
+        function renderShopHeroSlides() {
+            const slidesContainer = document.getElementById('shopHeroSlides');
+            const dotsContainer = document.getElementById('shopHeroDots');
+            const prevBtn = document.getElementById('shopHeroPrevBtn');
+            const nextBtn = document.getElementById('shopHeroNextBtn');
+            if (!slidesContainer) return;
+
+            const banners = window.shopHeroBanners || [];
+            if (banners.length === 0) return;
+
+            const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
+
+            slidesContainer.innerHTML = banners.map((b, idx) => {
+                const isActive = idx === window.currentShopHeroIndex;
+                const title = (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || '');
+                const subtitle = (b.subtitles && b.subtitles[curLang]) ? b.subtitles[curLang] : (b.subtitle || '');
+                const safeLink = b.linkUrl ? `onclick="window.open('${escapeHtml(b.linkUrl)}', '_blank')"` : '';
+                const cursorClass = b.linkUrl ? 'cursor-pointer hover:opacity-95' : '';
+
+                if (b.type === 'code' || b.htmlCode || (b.htmlCodes && b.htmlCodes[curLang])) {
+                    const rawCode = (b.htmlCodes && b.htmlCodes[curLang]) || b.htmlCode || '';
+                    return `
+                        <div class="shop-hero-slide ${isActive ? 'active' : ''} ${cursorClass}" style="position:relative; width:100%; height:100%; overflow:hidden;" ${safeLink}>
+                            ${rawCode}
+                        </div>
+                    `;
+                }
+
+                let bgStyle = `background: ${b.gradient || 'linear-gradient(135deg, #10b981, #047857)'};`;
+                let bgOverlay = '';
+                if (b.imageUrl) {
+                    bgStyle = `background-image: url('${b.imageUrl}'); background-size: cover; background-position: center;`;
+                    bgOverlay = '<div class="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"></div>';
+                }
+
+                return `
+                    <div class="shop-hero-slide ${isActive ? 'active' : ''} ${cursorClass}" style="${bgStyle}" ${safeLink}>
+                        ${bgOverlay}
+                        <div class="relative z-10 max-w-2xl">
+                            <span class="${b.badgeColor || 'bg-yellow-400 text-yellow-900'} text-xs font-bold px-2 py-1 rounded uppercase tracking-wider mb-3 inline-block shadow-sm">${b.badge || 'STORE'}</span>
+                            <h1 class="text-3xl md:text-4xl font-extrabold mb-2 drop-shadow-md text-white">${escapeHtml(title)}</h1>
+                            <p class="text-white/90 text-lg opacity-90 drop-shadow">${escapeHtml(subtitle)}</p>
+                        </div>
+                        <div class="absolute -bottom-10 -right-10 w-48 h-48 bg-white opacity-10 rounded-full pointer-events-none"></div>
+                        <div class="absolute -top-10 right-20 w-32 h-32 bg-white opacity-10 rounded-full pointer-events-none"></div>
+                    </div>
+                `;
+            }).join('');
+
+            if (banners.length > 1) {
+                if (prevBtn) prevBtn.classList.remove('hidden');
+                if (nextBtn) nextBtn.classList.remove('hidden');
+                if (dotsContainer) {
+                    dotsContainer.innerHTML = banners.map((_, idx) => `
+                        <div class="shop-hero-dot ${idx === window.currentShopHeroIndex ? 'active' : ''}" onclick="goToShopHero(${idx})"></div>
+                    `).join('');
+                }
+            } else {
+                if (prevBtn) prevBtn.classList.add('hidden');
+                if (nextBtn) nextBtn.classList.add('hidden');
+                if (dotsContainer) dotsContainer.innerHTML = '';
+            }
+        }
+
+        window.moveShopHero = function(dir) {
+            const banners = window.shopHeroBanners || [];
+            if (banners.length <= 1) return;
+            window.currentShopHeroIndex = (window.currentShopHeroIndex + dir + banners.length) % banners.length;
+            renderShopHeroSlides();
+            startShopHeroAutoPlay();
+        };
+
+        window.goToShopHero = function(idx) {
+            window.currentShopHeroIndex = idx;
+            renderShopHeroSlides();
+            startShopHeroAutoPlay();
+        };
+
+        function startShopHeroAutoPlay() {
+            if (window.shopHeroTimer) clearInterval(window.shopHeroTimer);
+            const banners = window.shopHeroBanners || [];
+            if (banners.length <= 1) return;
+            window.shopHeroTimer = setInterval(() => {
+                window.moveShopHero(1);
+            }, 6000);
+        }
+
+        const heroBox = document.getElementById('shopHeroBannerContainer');
+        if (heroBox) {
+            heroBox.addEventListener('mouseenter', () => { if (window.shopHeroTimer) clearInterval(window.shopHeroTimer); });
+            heroBox.addEventListener('mouseleave', () => { startShopHeroAutoPlay(); });
+        }
+
+        // 初始化公告與橫幅
+        loadShopBroadcasts();
+        initShopHeroBanners();
+
+        // 監聽 Socket.io 廣播事件即時更新
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.socket) {
+                window.socket.on('officialAnnouncementUpdated', () => {
+                    loadShopBroadcasts();
+                });
+                window.socket.on('heroBannersUpdated', () => {
+                    initShopHeroBanners();
+                });
+            }
+        });
+
+        // 輪詢與狀態檢查 (每 15 秒更新一次公告)
+        setInterval(() => {
+            loadShopBroadcasts();
+            updateAdminNoticeButtonVisibility();
+        }, 15000);
 </script>
 </body>
 </html>

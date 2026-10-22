@@ -1063,32 +1063,123 @@
             <span style="font-size:12px; color:#666;">支援自訂排序、固定編號、排程開關</span>
         </div>
 
-        <!-- 🤖 AI 伺服器背景自動生成橫幅控制面板 (伺服器端計算，背景運行) -->
-        <div id="aiBannerServerGeneratorCard" style="background:linear-gradient(135deg, #f0fdf4, #e8f5e9); border:1.5px solid #86efac; border-radius:10px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-                <span style="font-weight:bold; color:#14532d; font-size:13px;">
-                    <i class="fas fa-robot" style="color:#16a34a;"></i> 🤖 AI 伺服器背景自動生成橫幅 (在伺服器運算，即時推播進度)
-                </span>
-                <span style="font-size:11px; color:#166534; background:#dcfce7; padding:2px 8px; border-radius:12px; font-weight:bold;">
-                    ⚡ 異步背景執行 • 自動翻譯 5 國語言
-                </span>
+        <!-- 🤖 AI 橫幅創作對話工作室 (AI Banner Creator Studio) -->
+        <div id="aiBannerStudioContainer" style="background:#0f172a; color:#f8fafc; border-radius:12px; border:1.5px solid #334155; margin-bottom:16px; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.35);">
+            <!-- Studio Header & Toggle -->
+            <div style="background:#1e293b; padding:10px 16px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:15px; font-weight:bold; color:#38bdf8; display:flex; align-items:center; gap:6px;">
+                        <i class="fas fa-robot"></i> 🤖 AI 橫幅創作對話工作室
+                    </span>
+                    <span style="font-size:11px; background:#0369a1; color:#e0f2fe; padding:2px 8px; border-radius:12px; font-weight:bold;">
+                        對話式創作 • 即時預覽 • 自由無拘
+                    </span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <button type="button" onclick="toggleAiStudioCollapse()" id="aiStudioCollapseBtn" style="background:#334155; color:#cbd5e1; border:none; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;">
+                        <i class="fas fa-chevron-up"></i> 收合/展開
+                    </button>
+                </div>
             </div>
-            <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:8px; align-items:center;">
-                <input type="text" id="ai-banner-theme-input" placeholder="輸入橫幅主題 (例：探險者寫作大賽正式開打！)" style="padding:6px 10px; border-radius:6px; border:1px solid #bbf7d0; font-size:12px; outline:none; font-weight:bold;">
-                <select id="ai-banner-type-select" style="padding:6px 8px; border-radius:6px; border:1px solid #bbf7d0; font-size:12px; background:white; font-weight:bold; color:#166534;">
-                    <option value="image">🎨 生成圖片 (插畫母版)</option>
-                    <option value="code">💻 用程式碼 (動態視覺)</option>
-                </select>
-                <select id="ai-banner-source-lang-select" style="padding:6px 8px; border-radius:6px; border:1px solid #bbf7d0; font-size:12px; background:white; font-weight:bold; color:#166534;">
-                    <option value="zh-TW" selected>🇹🇼 臺灣繁體 (原文)</option>
-                    <option value="zh-HK">🇭🇰 香港繁體 (原文)</option>
-                    <option value="zh-CN">🇨🇳 簡體中文 (原文)</option>
-                    <option value="ja">🇯🇵 日本語 (原文)</option>
-                    <option value="en">🇺🇸 English (原文)</option>
-                </select>
-                <button type="button" onclick="startAiBannerServerTask()" style="background:#15803d; color:white; border:none; padding:6px 14px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; white-space:nowrap; box-shadow:0 2px 6px rgba(21,128,61,0.25);">
-                    <i class="fas fa-magic"></i> 🚀 開始生成
-                </button>
+
+            <!-- Studio Content Body -->
+            <div id="aiStudioBody" style="display:block; padding:12px 14px;">
+                <!-- Top Toolbar: Mode Switch & Original Lang Selection -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px; background:#1e293b; padding:8px 12px; border-radius:8px; border:1px solid #334155;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:12px; font-weight:bold; color:#94a3b8;">創作模式：</span>
+                        <div style="display:inline-flex; background:#0f172a; padding:3px; border-radius:8px; border:1px solid #475569;">
+                            <button type="button" id="aiStudioModeCodeBtn" onclick="switchAiStudioMode('code')" style="background:#0284c7; color:#fff; border:none; padding:5px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                <i class="fas fa-code"></i> 💻 HTML 程式碼 (無限制動態特效)
+                            </button>
+                            <button type="button" id="aiStudioModeImageBtn" onclick="switchAiStudioMode('image')" style="background:transparent; color:#94a3b8; border:none; padding:5px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                <i class="fas fa-paint-brush"></i> 🎨 生成海報圖片 (AI 高清繪圖)
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:12px; font-weight:bold; color:#94a3b8;">原文語言：</span>
+                        <select id="aiStudioSourceLang" style="background:#0f172a; color:#f8fafc; border:1px solid #475569; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold;">
+                            <option value="zh-TW" selected>🇹🇼 臺灣繁體 (原文)</option>
+                            <option value="zh-HK">🇭🇰 香港繁體 (原文)</option>
+                            <option value="zh-CN">🇨🇳 簡體中文 (原文)</option>
+                            <option value="ja">🇯🇵 日本語 (原文)</option>
+                            <option value="en">🇺🇸 English (原文)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 2-Column Layout: Left Preview Canvas (1200x400 responsive) & Right Chat Interface -->
+                <div style="display:grid; grid-template-columns: 1fr 360px; gap:12px; align-items:start;">
+                    <!-- Left: Live Interactive Preview -->
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <span style="font-size:12px; font-weight:bold; color:#38bdf8; display:flex; align-items:center; gap:5px;">
+                                <i class="fas fa-eye"></i> 即時預覽效果 (1200×400)
+                            </span>
+                            <!-- 5 Language preview tabs -->
+                            <div id="aiStudioPreviewLangTabs" style="display:flex; gap:4px;">
+                                <button type="button" class="ai-studio-lang-tab" onclick="switchAiStudioPreviewLang('zh-TW')" style="background:#0284c7; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🇹🇼 繁中</button>
+                                <button type="button" class="ai-studio-lang-tab" onclick="switchAiStudioPreviewLang('zh-HK')" style="background:#334155; color:#cbd5e1; border:none; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🇭🇰 港繁</button>
+                                <button type="button" class="ai-studio-lang-tab" onclick="switchAiStudioPreviewLang('zh-CN')" style="background:#334155; color:#cbd5e1; border:none; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🇨🇳 簡中</button>
+                                <button type="button" class="ai-studio-lang-tab" onclick="switchAiStudioPreviewLang('ja')" style="background:#334155; color:#cbd5e1; border:none; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🇯🇵 日語</button>
+                                <button type="button" class="ai-studio-lang-tab" onclick="switchAiStudioPreviewLang('en')" style="background:#334155; color:#cbd5e1; border:none; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">🇺🇸 英語</button>
+                            </div>
+                        </div>
+
+                        <!-- Preview Display Box (Aspect Ratio 3:1) -->
+                        <div id="aiStudioPreviewContainer" style="width:100%; aspect-ratio: 3 / 1; min-height: 190px; background:#020617; border-radius:10px; border:1.5px solid #334155; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+                            <div id="aiStudioPreviewEmptyPlaceholder" style="text-align:center; color:#64748b; padding:16px;">
+                                <i class="fas fa-wand-magic-sparkles" style="font-size:32px; margin-bottom:8px; color:#475569;"></i>
+                                <div style="font-size:13px; font-weight:bold;">尚未生成橫幅</div>
+                                <div style="font-size:11px; color:#475569; margin-top:4px;">請在右側對話框輸入您的想法或點擊靈感標籤開始！</div>
+                            </div>
+                            <div id="aiStudioPreviewContent" style="display:none; width:100%; height:100%; position:relative;"></div>
+                        </div>
+
+                        <!-- Bottom Action Row -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                            <div id="aiStudioStatusInfo" style="font-size:11px; color:#94a3b8;">
+                                💡 提示：可隨時在右側對話進行微調（如「顏色改金色」、「文字改成最新通知」）。
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button type="button" onclick="clearAiStudioBanner()" style="background:#475569; color:#f8fafc; border:none; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:bold; cursor:pointer;">
+                                    <i class="fas fa-redo"></i> 重置
+                                </button>
+                                <button type="button" id="aiStudioApplyBtn" onclick="applyAiStudioBannerToHeroList()" disabled style="background:#15803d; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:12px; font-weight:bold; cursor:not-allowed; opacity:0.6; box-shadow:0 2px 6px rgba(21,128,61,0.3);">
+                                    <i class="fas fa-check-circle"></i> 📥 套用此橫幅至清單
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Interactive Chat Interface -->
+                    <div style="display:flex; flex-direction:column; background:#1e293b; border-radius:10px; border:1px solid #334155; height:310px; overflow:hidden;">
+                        <!-- Chat Messages History -->
+                        <div id="aiStudioChatHistory" style="flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; font-size:12px;">
+                            <div style="background:#0f172a; color:#cbd5e1; padding:8px 10px; border-radius:8px; border:1px solid #334155;">
+                                <span style="color:#38bdf8; font-weight:bold;"><i class="fas fa-robot"></i> AI 設計師：</span>
+                                您好！我是您的橫幅專屬 AI 設計師。請告訴我您想創作什麼主題的橫幅，我可以自由用 HTML/CSS 寫出豐富動態特效，也能為您繪製高解析海報插畫！
+                            </div>
+                        </div>
+
+                        <!-- Quick Inspiration Tags -->
+                        <div style="padding:6px 8px; background:#0f172a; border-top:1px solid #334155; display:flex; gap:4px; overflow-x:auto; white-space:nowrap;">
+                            <button type="button" onclick="sendAiStudioPrompt('製作一個文文盃寫作大賽古典金黑宣傳橫幅，帶有羽毛筆和光粒子特效')" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:2px 7px; border-radius:12px; font-size:10px; cursor:pointer;">🏆 文文盃</button>
+                            <button type="button" onclick="sendAiStudioPrompt('製作賽博朋克未來科技風格橫幅，有霓虹藍光掃描線與程式碼元素')" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:2px 7px; border-radius:12px; font-size:10px; cursor:pointer;">⚡ 賽博科技</button>
+                            <button type="button" onclick="sendAiStudioPrompt('製作春季慶典盛大活動橫幅，紅金喜慶配色與流光徽章')" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:2px 7px; border-radius:12px; font-size:10px; cursor:pointer;">🏮 春節慶典</button>
+                            <button type="button" onclick="sendAiStudioPrompt('製作全站限時特賣促銷橫幅，熱情粉紫漸層與搶眼立即選購按鈕')" style="background:#1e293b; color:#cbd5e1; border:1px solid #475569; padding:2px 7px; border-radius:12px; font-size:10px; cursor:pointer;">🔥 限時特賣</button>
+                        </div>
+
+                        <!-- Chat Input Row -->
+                        <div style="padding:8px; background:#1e293b; border-top:1px solid #334155; display:flex; gap:6px;">
+                            <input type="text" id="aiStudioChatInput" placeholder="描述您的需求 (按 Enter 發送)..." style="flex:1; background:#0f172a; color:#fff; border:1px solid #475569; border-radius:6px; padding:6px 10px; font-size:12px; outline:none;" onkeydown="if(event.key === 'Enter') sendAiStudioChat()">
+                            <button type="button" id="aiStudioSendBtn" onclick="sendAiStudioChat()" style="background:#0284c7; color:#fff; border:none; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                                <i class="fas fa-paper-plane"></i> 發送
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -3016,6 +3107,17 @@ function renderHeroData(initial = false) {
         const titleText = (b.titles && b.titles[curLang]) ? b.titles[curLang] : ((b.titles && b.titles['zh-TW']) ? b.titles['zh-TW'] : (b.title || ''));
         const safeLink = b.linkUrl ? b.linkUrl.replace(/'/g, "\\'") : '';
         const safeTitle = (typeof window.escapeHtml === 'function') ? window.escapeHtml(titleText) : (titleText || '');
+
+        // 支援自由 HTML 程式碼橫幅 (由 AI 自行發揮，不受固定模板限制)
+        if (b.type === 'code' || b.htmlCode || (b.htmlCodes && b.htmlCodes[curLang])) {
+            const rawCode = (b.htmlCodes && b.htmlCodes[curLang]) || b.htmlCode || '';
+            return `
+            <div class="hero-slide hero-slide-code" onclick="if('${safeLink}') window.open('${safeLink}', '_blank')" style="position:relative; width:100%; height:100%; overflow:hidden;">
+                ${rawCode}
+            </div>
+            `;
+        }
+
         return `
         <div class="hero-slide" onclick="if('${safeLink}') window.open('${safeLink}', '_blank')">
             <img id="hero-img-${i}" src="" alt="${safeTitle}">
@@ -3025,6 +3127,7 @@ function renderHeroData(initial = false) {
     }).join('');
     
     activeBanners.forEach((b, i) => {
+        if (b.type === 'code' || b.htmlCode || (b.htmlCodes && b.htmlCodes[curLang])) return;
         const imgUrl = (b.images && b.images[curLang]) ? b.images[curLang] : ((b.images && b.images['zh-TW']) ? b.images['zh-TW'] : (b.imageUrl || b.imageBase64 || ''));
         const imgEl = document.getElementById(`hero-img-${i}`);
         if (imgEl && imgUrl) {
@@ -3905,6 +4008,284 @@ window.clearLangImage = function(btn, langKey) {
     if (fileInput) fileInput.value = '';
 };
 
+// --- 🤖 AI 橫幅創作對話工作室 (AI Banner Studio) 前端互動核心 ---
+window.currentStudioBanner = null;
+window.currentStudioPreviewLang = 'zh-TW';
+window.studioChatHistory = [];
+window.currentStudioMode = 'code';
+
+window.toggleAiStudioCollapse = function() {
+    const body = document.getElementById('aiStudioBody');
+    const btn = document.getElementById('aiStudioCollapseBtn');
+    if (!body) return;
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        if (btn) btn.innerHTML = '<i class="fas fa-chevron-up"></i> 收合';
+    } else {
+        body.style.display = 'none';
+        if (btn) btn.innerHTML = '<i class="fas fa-chevron-down"></i> 展開';
+    }
+};
+
+window.switchAiStudioMode = function(mode) {
+    window.currentStudioMode = mode;
+    const codeBtn = document.getElementById('aiStudioModeCodeBtn');
+    const imgBtn = document.getElementById('aiStudioModeImageBtn');
+    if (codeBtn && imgBtn) {
+        if (mode === 'code') {
+            codeBtn.style.background = '#0284c7';
+            codeBtn.style.color = '#fff';
+            imgBtn.style.background = 'transparent';
+            imgBtn.style.color = '#94a3b8';
+        } else {
+            imgBtn.style.background = '#0284c7';
+            imgBtn.style.color = '#fff';
+            codeBtn.style.background = 'transparent';
+            codeBtn.style.color = '#94a3b8';
+        }
+    }
+    const statusInfo = document.getElementById('aiStudioStatusInfo');
+    if (statusInfo) {
+        statusInfo.innerHTML = mode === 'code' 
+            ? '💡 目前模式：<b>HTML 程式碼橫幅</b> (由 AI 自由發揮 CSS 動畫、粒子與排版，無模板限制)'
+            : '💡 目前模式：<b>高解析海報圖片</b> (由 AI 創作主題插畫海報母版)';
+    }
+};
+
+window.switchAiStudioPreviewLang = function(langKey) {
+    window.currentStudioPreviewLang = langKey || 'zh-TW';
+    const tabs = document.querySelectorAll('#aiStudioPreviewLangTabs .ai-studio-lang-tab');
+    tabs.forEach(tab => {
+        const text = tab.getAttribute('onclick') || '';
+        if (text.includes(`'${window.currentStudioPreviewLang}'`)) {
+            tab.style.background = '#0284c7';
+            tab.style.color = '#fff';
+        } else {
+            tab.style.background = '#334155';
+            tab.style.color = '#cbd5e1';
+        }
+    });
+    window.renderStudioPreview();
+};
+
+window.renderStudioPreview = function() {
+    const emptyBox = document.getElementById('aiStudioPreviewEmptyPlaceholder');
+    const contentBox = document.getElementById('aiStudioPreviewContent');
+    const applyBtn = document.getElementById('aiStudioApplyBtn');
+    if (!emptyBox || !contentBox) return;
+
+    if (!window.currentStudioBanner) {
+        emptyBox.style.display = 'block';
+        contentBox.style.display = 'none';
+        contentBox.innerHTML = '';
+        if (applyBtn) {
+            applyBtn.disabled = true;
+            applyBtn.style.cursor = 'not-allowed';
+            applyBtn.style.opacity = '0.6';
+        }
+        return;
+    }
+
+    emptyBox.style.display = 'none';
+    contentBox.style.display = 'block';
+    if (applyBtn) {
+        applyBtn.disabled = false;
+        applyBtn.style.cursor = 'pointer';
+        applyBtn.style.opacity = '1';
+    }
+
+    const curLang = window.currentStudioPreviewLang || 'zh-TW';
+    const b = window.currentStudioBanner;
+
+    if (b.type === 'code') {
+        const rawCode = (b.htmlCodes && b.htmlCodes[curLang]) || b.htmlCode || '';
+        contentBox.innerHTML = `
+        <div style="width:100%; height:100%; overflow:hidden; position:relative;">
+            ${rawCode}
+        </div>
+        `;
+    } else {
+        const imgUrl = (b.images && b.images[curLang]) || b.imageUrl || '';
+        const titleText = (b.titles && b.titles[curLang]) || b.title || '';
+        contentBox.innerHTML = `
+        <div style="width:100%; height:100%; position:relative; overflow:hidden;">
+            <img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover;" alt="${escapeHtml(titleText)}">
+            <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent, rgba(0,0,0,0.8)); padding:16px 20px;">
+                <div style="color:#ffffff; font-size:20px; font-weight:bold; text-shadow:0 2px 8px rgba(0,0,0,0.8);">${escapeHtml(titleText)}</div>
+            </div>
+        </div>
+        `;
+    }
+};
+
+window.clearAiStudioBanner = function() {
+    window.currentStudioBanner = null;
+    window.studioChatHistory = [];
+    window.renderStudioPreview();
+    const chatHist = document.getElementById('aiStudioChatHistory');
+    if (chatHist) {
+        chatHist.innerHTML = `
+        <div style="background:#0f172a; color:#cbd5e1; padding:8px 10px; border-radius:8px; border:1px solid #334155;">
+            <span style="color:#38bdf8; font-weight:bold;"><i class="fas fa-robot"></i> AI 設計師：</span>
+            已為您清空畫布！請告訴我下一個主題靈感，立即為您從零創作！
+        </div>
+        `;
+    }
+};
+
+window.sendAiStudioPrompt = function(promptText) {
+    const input = document.getElementById('aiStudioChatInput');
+    if (input) {
+        input.value = promptText;
+        window.sendAiStudioChat();
+    }
+};
+
+window.sendAiStudioChat = async function() {
+    const input = document.getElementById('aiStudioChatInput');
+    const sendBtn = document.getElementById('aiStudioSendBtn');
+    const chatHist = document.getElementById('aiStudioChatHistory');
+    if (!input || !chatHist) return;
+
+    const userMsg = input.value.trim();
+    if (!userMsg) return;
+
+    input.value = '';
+
+    // 加入使用者氣泡
+    const userBubble = document.createElement('div');
+    userBubble.style.cssText = 'background:#0369a1; color:#fff; padding:8px 10px; border-radius:8px; align-self:flex-end; max-width:85%; word-break:break-word; margin-left:auto;';
+    userBubble.innerHTML = `<span style="font-weight:bold;">您：</span> ${escapeHtml(userMsg)}`;
+    chatHist.appendChild(userBubble);
+    chatHist.scrollTop = chatHist.scrollHeight;
+
+    // 加入 AI 等待氣泡
+    const loadingBubble = document.createElement('div');
+    loadingBubble.id = 'aiStudioLoadingBubble';
+    loadingBubble.style.cssText = 'background:#0f172a; color:#cbd5e1; padding:8px 10px; border-radius:8px; border:1px solid #334155;';
+    loadingBubble.innerHTML = `<span style="color:#38bdf8; font-weight:bold;"><i class="fas fa-spinner fa-spin"></i> AI 設計師：</span> 正在發揮創意生成「${window.currentStudioMode === 'code' ? '自由 HTML 程式碼' : '海報插畫'}」與 5 國語言文案...`;
+    chatHist.appendChild(loadingBubble);
+    chatHist.scrollTop = chatHist.scrollHeight;
+
+    if (sendBtn) sendBtn.disabled = true;
+
+    const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : localStorage.getItem('sso_server');
+    if (!sUrl) {
+        if (loadingBubble) loadingBubble.remove();
+        alert('尚未連線至伺服器！');
+        if (sendBtn) sendBtn.disabled = false;
+        return;
+    }
+
+    const srcLang = document.getElementById('aiStudioSourceLang')?.value || 'zh-TW';
+
+    try {
+        const res = await fetch(`${sUrl.replace(/\/$/, '')}/api/ai-banner/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '69420' },
+            body: JSON.stringify({
+                message: userMsg,
+                history: window.studioChatHistory,
+                mode: window.currentStudioMode,
+                sourceLang: srcLang,
+                currentBanner: window.currentStudioBanner
+            })
+        });
+
+        if (loadingBubble) loadingBubble.remove();
+
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success && data.banner) {
+                window.currentStudioBanner = data.banner;
+                window.studioChatHistory.push({ role: 'user', content: userMsg });
+                window.studioChatHistory.push({ role: 'assistant', content: data.replyText || '橫幅已生成！' });
+
+                // 加入 AI 回應氣泡
+                const aiBubble = document.createElement('div');
+                aiBubble.style.cssText = 'background:#0f172a; color:#cbd5e1; padding:8px 10px; border-radius:8px; border:1px solid #334155;';
+                aiBubble.innerHTML = `<span style="color:#38bdf8; font-weight:bold;"><i class="fas fa-robot"></i> AI 設計師：</span> ${escapeHtml(data.replyText || '橫幅已生成！')}`;
+                chatHist.appendChild(aiBubble);
+                chatHist.scrollTop = chatHist.scrollHeight;
+
+                window.renderStudioPreview();
+            } else {
+                throw new Error(data.error || '生成失敗');
+            }
+        } else {
+            throw new Error('伺服器連線異常 (' + res.status + ')');
+        }
+    } catch(err) {
+        if (loadingBubble) loadingBubble.remove();
+        const errBubble = document.createElement('div');
+        errBubble.style.cssText = 'background:#450a0a; color:#fca5a5; padding:8px 10px; border-radius:8px; border:1px solid #ef4444;';
+        errBubble.innerHTML = `<span style="font-weight:bold;">⚠️ 錯誤：</span> ${escapeHtml(err.message)}`;
+        chatHist.appendChild(errBubble);
+        chatHist.scrollTop = chatHist.scrollHeight;
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
+    }
+};
+
+window.applyAiStudioBannerToHeroList = function() {
+    if (!window.currentStudioBanner) return;
+
+    addHeroRow();
+    const rows = document.querySelectorAll('.hero-admin-row');
+    const newRow = rows[rows.length - 1];
+    if (!newRow) return;
+
+    const b = window.currentStudioBanner;
+    const langs = ['zh-TW', 'zh-HK', 'zh-CN', 'ja', 'en'];
+
+    // 填寫 5 國語言標題
+    langs.forEach(lKey => {
+        const tInput = newRow.querySelector(`.b-title-${lKey}`);
+        if (tInput && b.titles && b.titles[lKey]) {
+            tInput.value = b.titles[lKey];
+        }
+    });
+    if (newRow.querySelector('.b-title') && b.title) {
+        newRow.querySelector('.b-title').value = b.title;
+    }
+
+    // 填寫橫幅類型與內容
+    const typeEl = newRow.querySelector('.b-type');
+    if (typeEl) typeEl.value = b.type;
+
+    if (b.type === 'code') {
+        const htmlEl = newRow.querySelector('.b-html-code');
+        if (htmlEl) htmlEl.value = b.htmlCode || '';
+        const htmlCodesEl = newRow.querySelector('.b-html-codes');
+        if (htmlCodesEl) htmlCodesEl.value = JSON.stringify(b.htmlCodes || {});
+        
+        // 在 UI 標記這是一則代碼橫幅
+        const badge = document.createElement('span');
+        badge.className = 'code-banner-badge';
+        badge.style.cssText = 'background:#0284c7; color:#fff; font-size:11px; padding:2px 8px; border-radius:12px; font-weight:bold; margin-left:8px;';
+        badge.innerHTML = '<i class="fas fa-code"></i> HTML 程式碼橫幅';
+        newRow.querySelector('.hero-admin-row > div:first-child')?.appendChild(badge);
+    } else {
+        // 圖片橫幅
+        langs.forEach(lKey => {
+            const imgVal = (b.images && b.images[lKey]) || b.imageUrl || '';
+            const imgHidden = newRow.querySelector(`.b-img-${lKey}`);
+            if (imgHidden) imgHidden.value = imgVal;
+            const imgPrev = newRow.querySelector(`.b-img-preview-${lKey}`);
+            if (imgPrev) imgPrev.src = imgVal;
+        });
+        if (newRow.querySelector('.b-img')) {
+            newRow.querySelector('.b-img').value = b.imageUrl || (b.images && b.images['zh-TW']) || '';
+        }
+    }
+
+    newRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    newRow.style.boxShadow = '0 0 0 3px #16a34a';
+    setTimeout(() => { newRow.style.boxShadow = ''; }, 2500);
+
+    alert('🎉 已成功將 AI 創作的橫幅套用至清單！\n請記得點擊下方「儲存設定」永久儲存生效。');
+};
+
 function renderBannerAdminList() {
     const list = document.getElementById('heroList');
     list.innerHTML = bannersData.map((b, i) => {
@@ -3934,6 +4315,7 @@ function renderBannerAdminList() {
                         <input type="checkbox" class="b-enabled" ${isEn ? 'checked' : ''} onchange="toggleHeroRowEnabled(this)">
                         <span>${isEn ? '🟢 啟用中' : '⚪ 已隱藏'}</span>
                     </label>
+                    ${(b.type === 'code' || b.htmlCode) ? `<span class="code-banner-badge" style="background:#0284c7; color:#fff; font-size:11px; padding:2px 8px; border-radius:12px; font-weight:bold;"><i class="fas fa-code"></i> HTML 程式碼</span>` : ''}
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
                     <button type="button" onclick="previewBannerFullRow(this)" class="quick-time-btn" style="background:#0284c7; color:white; font-size:11px; font-weight:bold;" title="開啟此橫幅大圖實景預覽"><i class="fas fa-eye"></i> 實景預覽</button>
@@ -3995,6 +4377,9 @@ function renderBannerAdminList() {
                 </div>
 
                 <!-- 通用隱藏欄位與點擊連結 -->
+                <input type="hidden" class="b-type" value="${b.type || (b.htmlCode ? 'code' : 'image')}">
+                <textarea class="b-html-code" style="display:none;">${escapeHtml(b.htmlCode || '')}</textarea>
+                <textarea class="b-html-codes" style="display:none;">${escapeHtml(JSON.stringify(b.htmlCodes || {}))}</textarea>
                 <input type="hidden" class="b-img" value="${b.imageBase64 || b.imageUrl || (images && images['zh-TW']) || ''}">
                 <input type="hidden" class="b-title" value="${titles['zh-TW'] || b.title || ''}">
                 <div style="display:flex; align-items:center; gap:6px;">
@@ -4230,6 +4615,9 @@ function addHeroRow() {
                 `).join('')}
             </div>
 
+            <input type="hidden" class="b-type" value="image">
+            <textarea class="b-html-code" style="display:none;"></textarea>
+            <textarea class="b-html-codes" style="display:none;">{}</textarea>
             <input type="hidden" class="b-img" value="">
             <input type="hidden" class="b-title" value="">
             <div style="display:flex; align-items:center; gap:6px;">
@@ -4410,10 +4798,20 @@ async function saveHeroData() {
         };
 
         const primaryImg = imgTW || imgHK || imgCN || imgJA || imgEN || '';
+        const bType = row.querySelector('.b-type')?.value || (row.querySelector('.b-html-code')?.value ? 'code' : 'image');
+        const bHtmlCode = row.querySelector('.b-html-code')?.value || '';
+        let bHtmlCodes = {};
+        try {
+            const rawJson = row.querySelector('.b-html-codes')?.value;
+            if (rawJson) bHtmlCodes = JSON.parse(rawJson);
+        } catch(e){}
 
         return {
             id: (idInput && idInput.value.trim()) ? idInput.value.trim() : String(idx + 1),
             enabled: enabledCb ? enabledCb.checked : true,
+            type: bType,
+            htmlCode: bHtmlCode,
+            htmlCodes: bHtmlCodes,
             scheduleMode: schedSel ? schedSel.value : 'none',
             startTime: startInput ? startInput.value : '',
             endTime: endInput ? endInput.value : '',
@@ -4434,7 +4832,7 @@ async function saveHeroData() {
             titles,
             images
         };
-    }).filter(b => b.imageUrl || b.imageBase64 || (b.images && Object.values(b.images).some(x => !!x)));
+    }).filter(b => b.type === 'code' || b.htmlCode || b.imageUrl || b.imageBase64 || (b.images && Object.values(b.images).some(x => !!x)));
     
     const sUrl = (window.authInfo && window.authInfo.server) ? window.authInfo.server : localStorage.getItem('sso_server');
     if (!sUrl) {
