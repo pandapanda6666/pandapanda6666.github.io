@@ -2198,14 +2198,7 @@ async function scanAndLoadFolders() {
                 }
                 bar.style.display = 'block';
             } else {
-                // 如果目前是管理員，而且目前無公告，允許在公告欄或控制項看到快速發布
-                if (checkIsAdminUser()) {
-                    if (labelEl) labelEl.innerText = '公告管理';
-                    msgEl.innerHTML = '<span class="text-xs text-green-200">目前無生效公告。點擊右側按鈕可立即發布官方公告。</span>';
-                    bar.style.display = 'block';
-                } else {
-                    bar.style.display = 'none';
-                }
+                bar.style.display = 'none';
             }
 
             updateAdminNoticeButtonVisibility();
@@ -2265,25 +2258,36 @@ async function scanAndLoadFolders() {
             const sUrl = (window.currentServerUrl || localStorage.getItem('sso_server') || '').replace(/\/$/, '');
             if (sUrl) {
                 try {
-                    const rBanners = await fetch(`${sUrl}/api/hero-banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
+                    const rBanners = await fetch(`${sUrl}/api/banners`, { headers: { 'ngrok-skip-browser-warning': '69420' } });
                     if (rBanners.ok) {
-                        const bList = await rBanners.json();
+                        const resData = await rBanners.json();
+                        const bList = Array.isArray(resData) ? resData : (resData.banners || []);
                         if (Array.isArray(bList) && bList.length > 0) {
                             const curLang = localStorage.getItem('preferred_language') || 'zh-TW';
-                            const mapped = bList.filter(b => b.enabled !== false).map(b => ({
-                                id: b.id || Math.random(),
-                                theme: b.title || '最新動態',
-                                title: (b.titles && b.titles[curLang]) ? b.titles[curLang] : (b.title || 'PandaPanda 官方最新動態'),
-                                subtitle: '點擊深入了解官方精選項目與最新精彩內容',
-                                titles: b.titles || {},
-                                imageUrl: (b.images && b.images[curLang]) ? b.images[curLang] : (b.imageUrl || b.imageBase64 || ''),
-                                gradient: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-                                badge: 'FEATURED',
-                                badgeColor: 'bg-emerald-400 text-emerald-950',
-                                linkUrl: b.linkUrl || ''
-                            }));
+                            const mapped = bList.filter(b => b.enabled !== false).map(b => {
+                                const srcLang = b.sourceLang || 'zh-TW';
+                                let rawImg = (b.images && b.images[curLang]) ? b.images[curLang] : '';
+                                if (!rawImg) {
+                                    rawImg = (b.images && b.images[srcLang]) ? b.images[srcLang] : (b.imageUrl || b.imageBase64 || '');
+                                }
+                                if (rawImg && !rawImg.startsWith('http') && !rawImg.startsWith('data:')) {
+                                    rawImg = sUrl + (rawImg.startsWith('/') ? '' : '/') + rawImg;
+                                }
+                                return {
+                                    id: b.id || Math.random(),
+                                    theme: b.title || '最新動態',
+                                    title: (b.titles && b.titles[curLang]) ? b.titles[curLang] : ((b.titles && b.titles[srcLang]) ? b.titles[srcLang] : (b.title || 'PandaPanda 官方最新動態')),
+                                    subtitle: '點擊深入了解官方精選項目與最新精彩內容',
+                                    titles: b.titles || {},
+                                    imageUrl: rawImg,
+                                    gradient: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+                                    badge: 'FEATURED',
+                                    badgeColor: 'bg-emerald-400 text-emerald-950',
+                                    linkUrl: b.linkUrl || ''
+                                };
+                            });
                             if (mapped.length > 0) {
-                                window.shopHeroBanners = [...window.shopHeroBanners, ...mapped];
+                                window.shopHeroBanners = mapped;
                             }
                         }
                     }
