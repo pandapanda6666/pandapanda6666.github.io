@@ -1,0 +1,18 @@
+window.__REMOTE_UAV_VERSION__ = {
+  "version": "4.021",
+  "changelog": "1. 官方安裝程式新增「目標作業系統」選擇功能，可自由選擇 Windows 7、Windows 8/8.1 或 Windows 10/11。\n2. 自動依系統版本動態配置最佳化啟動環境、TLS 1.2 與外置瀏覽器備援機制。\n3. 解除機型選擇與首頁綁定，機庫支援專屬 3D 展廳預覽與攝影機自適應縮放。",
+  "files": [
+    "index.html",
+    "version.json",
+    "version.js",
+    "super_combined_main.py",
+    "drone_blueprints.js",
+    "drone_configs.js",
+    "hx115_model.js",
+    "rabboni.js",
+    "app.ico",
+    "logo.png",
+    "啟動模擬器.bat",
+    "PandaPanda_UAV_Simulator.exe"
+  ]
+};
