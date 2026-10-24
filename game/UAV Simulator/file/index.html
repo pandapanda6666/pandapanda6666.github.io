@@ -1501,7 +1501,7 @@
         function selectDrone(id) {
             currentDroneId = id;
             renderActiveDrones();
-            if (currentPage === 'page-B') setTimeout(() => navigateTo('page-A'), 200);
+            // Unbound: stay in hangar page-B for preview
             const drone = activeDrones.find(d => d.id === id);
             
             maxTilt = (drone.tilt * Math.PI) / 180;
@@ -1777,19 +1777,32 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                   window.particles = [];
               }
         
+        
+        function getDroneBoundingRadius() {
+            if (typeof droneGroup === 'undefined' || !droneGroup) return 0.15;
+            try {
+                const box = new THREE.Box3().setFromObject(droneGroup);
+                if (!box.isEmpty()) {
+                    const sphere = new THREE.Sphere();
+                    box.getBoundingSphere(sphere);
+                    return Math.max(sphere.radius, 0.06);
+                }
+            } catch(e) {}
+            return 0.15;
+        }
+
         window.droneVelocity = new THREE.Vector3(0,0,0);
         window.physicsLastTime = performance.now();
         function animate() {
             if (!window.droneVelocity) return;
             
-            // 首頁展示模式 (Cover Showcase Mode)
+            // 首頁展示模式 (Cover Showcase Mode) - 攝影機依無人機體積自適應縮放
             if (currentPage === 'page-A') {
                 if (typeof droneGroup !== 'undefined') {
-                    droneGroup.position.set(0, 0, 0); // 漂浮在空中
-                    droneGroup.position.set(0, 0, 0); // 漂浮在空中
-                    droneGroup.rotation.y = -0.1; // 修正攝影機本身的斜視角，達成完美的 45 度立體側前視角
-                    droneGroup.rotation.x = 0.1 + Math.sin(Date.now()*0.001) * 0.05; // X 軸呼吸起伏保留
-                    droneGroup.rotation.z = Math.cos(Date.now()*0.0013) * 0.1; // Z 軸左右微搖保留
+                    droneGroup.position.set(0, 0, 0);
+                    droneGroup.rotation.y = -0.1;
+                    droneGroup.rotation.x = 0.1 + Math.sin(Date.now()*0.001) * 0.05;
+                    droneGroup.rotation.z = Math.cos(Date.now()*0.0013) * 0.1;
                     
                     if (typeof propellers !== 'undefined') {
                         propellers.forEach((p, idx) => {
@@ -1798,13 +1811,40 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     }
                 }
                 if (typeof camera !== 'undefined') {
-                    // 漂亮的攝影機角度
-                    camera.position.lerp(new THREE.Vector3(-0.12, 0.08, -0.15), 0.05);
-                    camera.lookAt(0.12, 0.04, 0);
+                    const r = getDroneBoundingRadius();
+                    const dir = new THREE.Vector3(-0.7, 0.48, -0.9).normalize();
+                    const targetCamPos = dir.clone().multiplyScalar(r * 2.8);
+                    camera.position.lerp(targetCamPos, 0.05);
+                    camera.lookAt(0, r * 0.15, 0);
                 }
                 if (typeof renderer !== 'undefined') renderer.render(scene, camera);
                 requestAnimationFrame(animate);
-                return; // 直接返回，不執行下方的任何物理與鍵盤控制
+                return;
+            }
+
+            // 機庫展示模式 (Hangar Showcase Mode) - 獨立 3D 展廳預覽，依機型自適應縮放並自動平滑旋轉
+            if (currentPage === 'page-B') {
+                if (typeof droneGroup !== 'undefined') {
+                    const r = getDroneBoundingRadius();
+                    droneGroup.position.set(r * 0.45, 0, 0); // 居中偏右避開機庫列表
+                    droneGroup.rotation.y += 0.012; // 平滑轉台自轉
+                    droneGroup.rotation.x = 0.12;  // 微傾視角展示全機細節
+                    droneGroup.rotation.z = 0;
+                    if (typeof propellers !== 'undefined') {
+                        propellers.forEach((p, idx) => {
+                            p.rotation.y += 0.3 * (idx % 2 === 0 ? 1 : -1);
+                        });
+                    }
+                }
+                if (typeof camera !== 'undefined') {
+                    const r = getDroneBoundingRadius();
+                    const camDist = r * 3.4;
+                    camera.position.lerp(new THREE.Vector3(r * 0.45, camDist * 0.4, camDist), 0.1);
+                    camera.lookAt(r * 0.45, 0, 0);
+                }
+                if (typeof renderer !== 'undefined') renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+                return;
             }
 
             const nowTime = performance.now();
@@ -2515,7 +2555,10 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                                 : new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ').y;
                             let qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), droneYaw);
                             // 相機理想位置：位於無人機後方 1.8m，上方 0.75m (開闊舒適追尾視角，絕不貼地或穿地)
-                            let offset = new THREE.Vector3(0, 0.75, 1.8).applyQuaternion(qYaw);
+                            const r = getDroneBoundingRadius();
+                            let followDist = Math.max(1.5, r * 8.0);
+                            let followHeight = Math.max(0.6, r * 3.2);
+                            let offset = new THREE.Vector3(0, followHeight, followDist).applyQuaternion(qYaw);
                             let targetCamPos = droneGroup.position.clone().add(offset);
                             if (targetCamPos.y < -0.7) targetCamPos.y = -0.7; // 保持開闊地面視距
                             
@@ -3177,15 +3220,52 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.018';
+        const CURRENT_VERSION = 'v4.020';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
-            const url = 'https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/version.json?t=' + Date.now();
-            try {
-                const resp = await fetch(url);
-                if (!resp.ok) throw new Error('HTTP ' + resp.status);
-                const data = await resp.json();
+            const mirrors = [
+                'https://pandapanda6666.github.io/game/UAV%20Simulator/file/version.json?t=' + Date.now(),
+                'https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/version.json?t=' + Date.now(),
+                'https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/version.json?t=' + Date.now()
+            ];
+
+            let data = null;
+            for (const url of mirrors) {
+                try {
+                    const resp = await fetch(url);
+                    if (resp.ok) {
+                        data = await resp.json();
+                        if (data && data.version) break;
+                    }
+                } catch (err) {
+                    // Try next mirror
+                }
+            }
+
+            // JSONP 保底機制 (當本地 file:/// 或 CORS 限制阻擋 fetch 時)
+            if (!data) {
+                try {
+                    data = await new Promise((resolve) => {
+                        window.__REMOTE_UAV_VERSION__ = null;
+                        const script = document.createElement('script');
+                        script.src = 'https://pandapanda6666.github.io/game/UAV%20Simulator/file/version.js?t=' + Date.now();
+                        script.onload = () => {
+                            const res = window.__REMOTE_UAV_VERSION__;
+                            try { document.head.removeChild(script); } catch(e){}
+                            resolve(res || null);
+                        };
+                        script.onerror = () => {
+                            try { document.head.removeChild(script); } catch(e){}
+                            resolve(null);
+                        };
+                        document.head.appendChild(script);
+                        setTimeout(() => resolve(window.__REMOTE_UAV_VERSION__ || null), 4000);
+                    });
+                } catch(e) {}
+            }
+
+            if (data && data.version) {
                 latestRemoteVersionInfo = data;
                 const remoteVer = (data.version || '').trim();
                 const currentClean = CURRENT_VERSION.replace('v', '').trim();
@@ -3208,7 +3288,7 @@ renderer.render(scene, camera);
                         alert(`目前已是最新版本 (${CURRENT_VERSION})！`);
                     }
                 }
-            } catch (e) {
+            } else {
                 if (isManual) {
                     alert('檢查更新失敗，請檢查網路連線或稍後再試。');
                 }
@@ -3338,11 +3418,206 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.018</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.020</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
 </audio>
+
+
+<!-- ========================================== -->
+<!-- 原始偵錯視窗 (Original Debug HUD Panel)     -->
+<!-- ========================================== -->
+<div id="original-debug-panel" style="display:none; position:fixed; top:12px; right:12px; width:430px; max-height:86vh; background:rgba(10,14,24,0.92); border:1px solid #00e5ff; border-radius:10px; box-shadow:0 0 25px rgba(0,229,255,0.4); z-index:999999; color:#fff; font-family:Consolas, 'Courier New', monospace; font-size:12px; backdrop-filter:blur(6px); display:none; flex-direction:column; overflow:hidden;">
+    <div style="background:#131c2e; padding:8px 12px; border-bottom:1px solid #00e5ff; display:flex; justify-content:space-between; align-items:center; user-select:none;">
+        <span style="font-weight:bold; color:#00e5ff; font-size:13px;">🛠️ PandaPanda 原始偵錯系統 [F12]</span>
+        <div style="display:flex; gap:8px;">
+            <button onclick="clearDebugLogs()" style="background:#223; color:#aaa; border:1px solid #446; border-radius:4px; padding:2px 6px; font-size:11px; cursor:pointer;">清空日誌</button>
+            <button onclick="toggleOriginalDebugPanel()" style="background:#900; color:#fff; border:none; border-radius:4px; padding:2px 8px; font-size:12px; cursor:pointer;">✕</button>
+        </div>
+    </div>
+    <div style="padding:10px 14px; overflow-y:auto; flex:1; max-height:65vh;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:10px; background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; border:1px solid #223a50;">
+            <div>⚡ FPS: <span id="dbg-fps" style="color:#00ff88; font-weight:bold;">60</span></div>
+            <div>⏱️ Frame: <span id="dbg-dt" style="color:#00e5ff;">16.6ms</span></div>
+            <div>📍 頁面: <span id="dbg-page" style="color:#ffcc00;">page-A</span></div>
+            <div>🛸 機型: <span id="dbg-drone" style="color:#00e5ff;">hx115</span></div>
+            <div>📏 體積半徑: <span id="dbg-radius" style="color:#ff88ff;">0.12m</span></div>
+            <div>🎮 控制模式: <span id="dbg-ctrl" style="color:#aaa;">美國手</span></div>
+            <div>🕹️ 視角模式: <span id="dbg-view" style="color:#00e5ff;">第三人稱</span></div>
+            <div>🌀 滯空模式: <span id="dbg-hover" style="color:#aaa;">關閉</span></div>
+        </div>
+        
+        <div style="margin-bottom:8px; background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; border:1px solid #223a50;">
+            <div style="color:#00e5ff; font-weight:bold; margin-bottom:4px;">🧭 空間坐標與速度 (Kinematics)</div>
+            <div>Position: <span id="dbg-pos" style="color:#eee;">X:0.00 Y:0.00 Z:0.00</span></div>
+            <div>Rotation: <span id="dbg-rot" style="color:#eee;">P:0.0° R:0.0° Y:0.0°</span></div>
+            <div>Velocity: <span id="dbg-vel" style="color:#00ff88;">0.00 m/s (0.0 km/h)</span></div>
+            <div>Throttle: <span id="dbg-thr" style="color:#ffcc00;">0%</span></div>
+        </div>
+
+        <div style="margin-bottom:8px; background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; border:1px solid #223a50;">
+            <div style="color:#00e5ff; font-weight:bold; margin-bottom:4px;">🧱 Rabboni 智慧體感狀態</div>
+            <div>連線狀態: <span id="dbg-rab-status" style="color:#888;">未連線</span></div>
+            <div>感測器 Acc: <span id="dbg-rab-acc" style="color:#aaa;">X:0.0 Y:0.0 Z:0.0</span></div>
+            <div>感測器 Gyr: <span id="dbg-rab-gyr" style="color:#aaa;">X:0.0 Y:0.0 Z:0.0</span></div>
+        </div>
+
+        <div style="color:#00e5ff; font-weight:bold; margin-bottom:4px;">📜 即時 Console 日誌 (Logs)</div>
+        <div id="dbg-console-logs" style="background:#050810; border:1px solid #1a2838; border-radius:4px; height:120px; overflow-y:auto; padding:6px; font-size:11px; color:#bbb; word-break:break-all;"></div>
+    </div>
+    <div style="padding:6px 10px; background:#0d1420; border-top:1px solid #1a2838; display:flex; gap:6px;">
+        <input type="text" id="dbg-eval-input" placeholder="輸入 JS 指令 (例如: droneGroup.position.y += 1)" style="flex:1; background:#050810; border:1px solid #334; border-radius:4px; color:#fff; padding:4px 8px; font-size:11px;" onkeydown="if(event.key==='Enter') executeDebugCommand();" />
+        <button onclick="executeDebugCommand()" style="background:#00e5ff; color:#000; font-weight:bold; border:none; border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer;">執行</button>
+    </div>
+</div>
+
+
+<script>
+    // ==========================================
+    // 原始偵錯系統邏輯 (Original Debug HUD Controller)
+    // ==========================================
+    let isDebugPanelVisible = false;
+    function toggleOriginalDebugPanel() {
+        const panel = document.getElementById('original-debug-panel');
+        if (!panel) return;
+        isDebugPanelVisible = !isDebugPanelVisible;
+        panel.style.display = isDebugPanelVisible ? 'flex' : 'none';
+    }
+
+    function clearDebugLogs() {
+        const logsEl = document.getElementById('dbg-console-logs');
+        if (logsEl) logsEl.innerHTML = '';
+    }
+
+    function logToDebugPanel(type, text) {
+        const logsEl = document.getElementById('dbg-console-logs');
+        if (!logsEl) return;
+        const color = type === 'error' ? '#ff4d4f' : (type === 'warn' ? '#faad14' : '#88d4d6');
+        const line = document.createElement('div');
+        line.style.color = color;
+        line.style.lineHeight = '1.3';
+        line.style.marginBottom = '2px';
+        const timeStr = new Date().toTimeString().split(' ')[0];
+        line.innerText = `[${timeStr}] ${text}`;
+        logsEl.appendChild(line);
+        logsEl.scrollTop = logsEl.scrollHeight;
+    }
+
+    // 劫持 Console 輸出至偵錯面板
+    (function() {
+        const _log = console.log;
+        const _warn = console.warn;
+        const _error = console.error;
+        console.log = function(...args) {
+            _log.apply(console, args);
+            try { logToDebugPanel('info', args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')); } catch(e){}
+        };
+        console.warn = function(...args) {
+            _warn.apply(console, args);
+            try { logToDebugPanel('warn', args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')); } catch(e){}
+        };
+        console.error = function(...args) {
+            _error.apply(console, args);
+            try { logToDebugPanel('error', args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')); } catch(e){}
+        };
+    })();
+
+    function executeDebugCommand() {
+        const input = document.getElementById('dbg-eval-input');
+        if (!input || !input.value.trim()) return;
+        const cmd = input.value.trim();
+        input.value = '';
+        logToDebugPanel('info', `> ${cmd}`);
+        try {
+            const res = eval(cmd);
+            logToDebugPanel('info', `< ${res}`);
+        } catch(err) {
+            logToDebugPanel('error', `Error: ${err.message}`);
+        }
+    }
+
+    // F12 按鍵全局監聽：雙開原始偵錯視窗與瀏覽器 DevTools
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'F12' || e.keyCode === 123) {
+            toggleOriginalDebugPanel();
+            // 不阻擋預設事件 (不調用 e.preventDefault())，讓 WebView2 / 瀏覽器原生 DevTools 同時開啟！
+        }
+    });
+
+    // 實時刷新偵錯 HUD 數據
+    let dbgLastTime = performance.now();
+    let dbgFrameCount = 0;
+    setInterval(() => {
+        if (!isDebugPanelVisible) return;
+        try {
+            const now = performance.now();
+            const elapsed = (now - dbgLastTime) / 1000;
+            const fps = Math.round(dbgFrameCount / elapsed);
+            dbgFrameCount = 0;
+            dbgLastTime = now;
+
+            const elFps = document.getElementById('dbg-fps');
+            if (elFps) elFps.innerText = isFinite(fps) ? fps : 60;
+
+            const elPage = document.getElementById('dbg-page');
+            if (elPage && typeof currentPage !== 'undefined') elPage.innerText = currentPage;
+
+            const elDrone = document.getElementById('dbg-drone');
+            if (elDrone && typeof currentDroneId !== 'undefined') elDrone.innerText = currentDroneId;
+
+            const elRadius = document.getElementById('dbg-radius');
+            if (elRadius && typeof getDroneBoundingRadius === 'function') elRadius.innerText = getDroneBoundingRadius().toFixed(2) + 'm';
+
+            const elCtrl = document.getElementById('dbg-ctrl');
+            if (elCtrl && typeof controlMode !== 'undefined') elCtrl.innerText = controlMode === 'american' ? '美國手' : '日本手';
+
+            const elView = document.getElementById('dbg-view');
+            if (elView && typeof isFPV !== 'undefined') elView.innerText = isFPV ? 'FPV 第一人稱' : '第三人稱追尾';
+
+            const elHover = document.getElementById('dbg-hover');
+            if (elHover && typeof isHoverMode !== 'undefined') elHover.innerText = isHoverMode ? '啟用中' : '關閉';
+
+            if (typeof droneGroup !== 'undefined' && droneGroup) {
+                const p = droneGroup.position;
+                const r = droneGroup.rotation;
+                const elPos = document.getElementById('dbg-pos');
+                if (elPos) elPos.innerText = `X:${p.x.toFixed(2)} Y:${p.y.toFixed(2)} Z:${p.z.toFixed(2)}`;
+                const elRot = document.getElementById('dbg-rot');
+                if (elRot) elRot.innerText = `P:${(r.x*180/Math.PI).toFixed(1)}° R:${(r.z*180/Math.PI).toFixed(1)}° Y:${(r.y*180/Math.PI).toFixed(1)}°`;
+            }
+
+            if (typeof window.droneVelocity !== 'undefined') {
+                const vel = window.droneVelocity;
+                const speed = vel.length();
+                const kmh = speed * 3.6;
+                const elVel = document.getElementById('dbg-vel');
+                if (elVel) elVel.innerText = `${speed.toFixed(2)} m/s (${kmh.toFixed(1)} km/h)`;
+            }
+
+            const elThr = document.getElementById('dbg-thr');
+            if (elThr && typeof globalThrottleVal !== 'undefined') elThr.innerText = `${Math.round(globalThrottleVal * 100)}%`;
+
+            const elRabStatus = document.getElementById('dbg-rab-status');
+            if (elRabStatus) {
+                const connected = (typeof window.isRabboniConnected !== 'undefined') && window.isRabboniConnected;
+                elRabStatus.innerText = connected ? '已連線 (Active)' : '未連線 (Idle)';
+                elRabStatus.style.color = connected ? '#00ff88' : '#888';
+            }
+        } catch(e) {}
+    }, 200);
+
+    // 每一幀累積 frame count
+    (function hookRAF() {
+        const _raf = window.requestAnimationFrame;
+        window.requestAnimationFrame = function(cb) {
+            return _raf(function(ts) {
+                dbgFrameCount++;
+                cb(ts);
+            });
+        };
+    })();
+</script>
 
 </body>
 </html>

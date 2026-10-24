@@ -1,5 +1,16 @@
+import urllib.parse
+import time
 import os
 import sys
+import ctypes
+
+# 立即隱藏空白黑控制台視窗
+try:
+    hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+    if hwnd:
+        ctypes.windll.user32.ShowWindow(hwnd, 0)
+except Exception:
+    pass
 import threading
 import asyncio
 import webview
@@ -263,7 +274,7 @@ def main():
                 width=1280, 
                 height=720
             )
-            webview.start()
+            webview.start(debug=True)
         except Exception as e:
             print(f"[系統] 內嵌視窗無法啟動 ({e})，正在自動切換為預設瀏覽器開啟...")
             import webbrowser
