@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PandaPanda Google 遠端桌面 軟體版 (Chrome Remote Desktop Client)</title>
+    <link rel="icon" type="image/png" href="file/logo.png">
+    <link rel="shortcut icon" href="file/app.ico">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at center, #141c2c 0%, #0a0e17 100%);
+            color: white;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .main-logo {
+            width: 140px;
+            height: 140px;
+            border-radius: 28px;
+            box-shadow: 0 10px 35px rgba(0, 110, 255, 0.45);
+            margin-bottom: 22px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .main-logo:hover {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 15px 45px rgba(0, 140, 255, 0.65);
+        }
+        .main-title {
+            font-size: 44px;
+            margin-bottom: 12px;
+            font-weight: 900;
+            color: #00E5FF;
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.6);
+            letter-spacing: 2px;
+            line-height: 1.15;
+        }
+        .version-badge {
+            display: inline-block;
+            background: rgba(0, 229, 255, 0.12);
+            border: 1px solid rgba(0, 229, 255, 0.6);
+            color: #00E5FF;
+            padding: 5px 18px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-bottom: 22px;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        .desc {
+            font-size: 17px;
+            color: #d0dcfa;
+            margin-bottom: 35px;
+            max-width: 680px;
+            line-height: 1.65;
+        }
+        .primary-cta {
+            margin-bottom: 40px;
+        }
+        .download-btn {
+            padding: 16px 42px;
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #00E5FF 0%, #0088cc 100%);
+            color: #0a0e17;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 30px rgba(0, 229, 255, 0.45);
+            transition: all 0.25s ease;
+            text-decoration: none;
+        }
+        .download-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(0, 229, 255, 0.75);
+            color: #ffffff;
+        }
+        .download-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+        .note {
+            font-size: 13.5px;
+            color: #7d8ea8;
+            margin-top: 15px;
+        }
+
+        /* Version Selection Section */
+        .version-section {
+            width: 100%;
+            max-width: 900px;
+            margin: 15px 0 35px 0;
+            background: rgba(20, 28, 44, 0.6);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            border-radius: 18px;
+            padding: 30px 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+        .section-title {
+            font-size: 22px;
+            color: #ffffff;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .section-subtitle {
+            font-size: 14px;
+            color: #8c9fb8;
+            margin-bottom: 25px;
+        }
+        .version-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+            text-align: left;
+        }
+        .version-card {
+            background: rgba(13, 19, 32, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+        .version-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 229, 255, 0.5);
+            box-shadow: 0 8px 25px rgba(0, 229, 255, 0.15);
+        }
+        .version-card.highlight {
+            border-color: rgba(0, 229, 255, 0.4);
+            background: rgba(16, 26, 45, 0.9);
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00E5FF;
+        }
+        .card-tag {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(0, 229, 255, 0.15);
+            color: #00E5FF;
+            font-weight: 600;
+        }
+        .card-desc {
+            font-size: 13.5px;
+            color: #b5c4db;
+            line-height: 1.55;
+            margin-bottom: 18px;
+            flex-grow: 1;
+        }
+        .card-specs {
+            font-size: 12px;
+            color: #6d7f99;
+            margin-bottom: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 10px;
+        }
+        .card-btn {
+            display: block;
+            text-align: center;
+            padding: 11px 18px;
+            font-size: 14.5px;
+            font-weight: bold;
+            color: #ffffff;
+            background: rgba(0, 229, 255, 0.15);
+            border: 1px solid rgba(0, 229, 255, 0.5);
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .card-btn:hover {
+            background: #00E5FF;
+            color: #0a0e17;
+            box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4);
+        }
+        .card-btn.secondary {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #c0d0e6;
+        }
+        .card-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        /* Features */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            width: 100%;
+            max-width: 900px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+        .feature-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .feature-title {
+            font-size: 15px;
+            font-weight: bold;
+            color: #00E5FF;
+            margin-bottom: 6px;
+        }
+        .feature-desc {
+            font-size: 13px;
+            color: #92a4bd;
+            line-height: 1.45;
+        }
+
+        .web-link {
+            margin-top: 20px;
+            font-size: 15px;
+            color: #9cb0d0;
+        }
+        .web-link a {
+            color: #00E5FF;
+            text-decoration: none;
+            border-bottom: 1px dashed #00E5FF;
+            padding-bottom: 2px;
+            transition: color 0.2s;
+        }
+        .web-link a:hover {
+            color: #ffffff;
+            border-bottom-style: solid;
+        }
+        .footer {
+            margin-top: 45px;
+            color: #4a5870;
+            font-size: 13px;
+        }
+        .footer a {
+            color: #00E5FF;
+            text-decoration: none;
+        }
+    </style>
+    <script src="../custom_ui.js"></script>
+</head>
+<body>
+    <img src="file/logo.png" class="main-logo" alt="PandaPanda Google 遠端桌面 Logo">
+    <div class="main-title">PandaPanda<br>Google 遠端桌面 軟體版</div>
+    <div class="version-badge">最新版本 v1.47 官方正式版 | Windows 7 / 8 / 10 / 11 全相容</div>
+    
+    <div class="desc">
+        突破瀏覽器框架限制，專為遠端連線打造的高效能桌面獨立客戶端。<br>
+        具備全域快捷鍵無縫穿透（複製、剪下、貼上、Ctrl+Tab等）、多螢幕智慧切換、自動全螢幕適配與乾淨無殘留的獨立運行架構。
+    </div>
+
+    <!-- Primary Action: Smart Installer -->
+    <div class="primary-cta">
+        <a href="file/GoogleRemoteDesktop_Setup.exe" download="GoogleRemoteDesktop_Setup.exe" class="download-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            下載智慧安裝精靈 (.exe)
+        </a>
+        <div class="note">
+            💡 支援 Windows 7 / 8 / 10 / 11 系統，具備智慧系統偵測，自動選取最適版本並建立桌面捷徑。
+        </div>
+    </div>
+
+    <!-- Version Selection Cards -->
+    <div class="version-section">
+        <div class="section-title">選擇下載獨立免安裝或特定系統版本</div>
+        <div class="section-subtitle">可依照您的電腦作業系統需求，直接下載對應版本的獨立執行檔：</div>
+
+        <div class="version-grid">
+            <!-- Win 10/11 Version -->
+            <div class="version-card highlight">
+                <div>
+                    <div class="card-header">
+                        <span class="card-title">Windows 10 / 11 旗艦版</span>
+                        <span class="card-tag">v1.46 推薦</span>
+                    </div>
+                    <div class="card-desc">
+                        針對 Windows 10 與 Windows 11 原生 64 位元優化。提供極速渲染效能、最流暢的快捷鍵穿透機制與高解析度多螢幕支援。
+                    </div>
+                </div>
+                <div>
+                    <div class="card-specs">適用系統: Windows 10 / 11 (64-bit) | 檔案大小: 約 37 MB</div>
+                    <a href="file/GoogleRemoteDesktop_v1.46_Win10_11.exe" download="GoogleRemoteDesktop_v1.46_Win10_11.exe" class="card-btn">
+                        下載 Win10 / 11 專用版 (.exe)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Win 7/8 Compatible Version -->
+            <div class="version-card">
+                <div>
+                    <div class="card-header">
+                        <span class="card-title">Windows 7 / 8 全相容版</span>
+                        <span class="card-tag">v1.47 相容</span>
+                    </div>
+                    <div class="card-desc">
+                        專為 Windows 7、8、8.1 深度優化，全面消除新版 Windows API 依賴。內建環境相容性智慧自我檢測，穩定長效。
+                    </div>
+                </div>
+                <div>
+                    <div class="card-specs">適用系統: Windows 7 / 8 / 10 / 11 | 檔案大小: 約 14 MB</div>
+                    <a href="file/GoogleRemoteDesktop_v1.47_Win7_8_10_11.exe" download="GoogleRemoteDesktop_v1.47_Win7_8_10_11.exe" class="card-btn">
+                        下載 Win7 / 8 全相容版 (.exe)
+                    </a>
+                </div>
+            </div>
+
+            <!-- Win 7 Runtime Package -->
+            <div class="version-card">
+                <div>
+                    <div class="card-header">
+                        <span class="card-title">Windows 7 核心環境包</span>
+                        <span class="card-tag">微軟官方</span>
+                    </div>
+                    <div class="card-desc">
+                        微軟官方 Edge WebView2 執行階段安裝程式。若在 Windows 7 上執行提示缺少 WebView2，請先安裝此組件。
+                    </div>
+                </div>
+                <div>
+                    <div class="card-specs">組件名稱: WebView2 Runtime Setup | 檔案大小: 約 1.8 MB</div>
+                    <a href="file/MicrosoftEdgeWebview2Setup.exe" download="MicrosoftEdgeWebview2Setup.exe" class="card-btn secondary">
+                        下載 WebView2 安裝程式 (.exe)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feature Highlights -->
+    <div class="features-grid">
+        <div class="feature-item">
+            <div class="feature-title">⚡ 全域快捷鍵穿透</div>
+            <div class="feature-desc">支援 Ctrl+C 複製、Ctrl+V 貼上、Ctrl+X 剪下，以及多種系統快捷鍵，無縫如同本機操作。</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">🖥️ 智慧全螢幕管理</div>
+            <div class="feature-desc">按鈕智慧自適應隱藏與還原，支援快捷鍵快速進入/退出全螢幕，連線體驗更加沉浸。</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">🔒 乾淨無個資殘留</div>
+            <div class="feature-desc">本軟體完全開源純淨，不含任何預設 Google 帳戶或遠端電腦憑證，初次啟動可自由綁定。</div>
+        </div>
+        <div class="feature-item">
+            <div class="feature-title">📦 雙核心跨世代引擎</div>
+            <div class="feature-desc">同時相容舊世代 Windows 7/8 與新世代 Windows 10/11，無論老舊主機或現代筆電皆可暢通無阻。</div>
+        </div>
+    </div>
+
+    <div class="web-link">
+        不想下載？直接在瀏覽器使用：<a href="https://remotedesktop.google.com/access" target="_blank">開啟 Google 遠端桌面官方網頁</a>
+    </div>
+    
+    <div class="footer">
+        版權所有 © 2026 <a href="https://pandapanda6666.github.io" target="_blank">PandaPanda的AI日常</a> All Rights Reserved.
+    </div>
+</body>
+</html>
