@@ -164,7 +164,7 @@ function initRabboniWS() {
                 if (container) {
                     let msg = document.createElement('div');
                     msg.style.color = '#4CAF50';
-                    msg.innerText = '✅ 已成功連線至: ' + data.name;
+                    msg.innerText = '[成功] 已連線至: ' + data.name;
                     container.appendChild(msg);
                 }
                 if (!rabboniDevices[data.name]) {
@@ -176,7 +176,7 @@ function initRabboniWS() {
                 if (container) {
                     let msg = document.createElement('div');
                     msg.style.color = '#f44336';
-                    msg.innerText = '🔴 已斷線: ' + data.name;
+                    msg.innerText = '[斷開] 已斷線: ' + data.name;
                     container.appendChild(msg);
                 }
                 if (rabboniDevices[data.name]) {
@@ -201,10 +201,10 @@ function initRabboniWS() {
                 btn.innerText = '掃描中...';
                 btn.disabled = true;
             }
-            if (res) res.innerHTML = '<span style="color:#00E5FF;">正在透過桌面中介伺服器掃描 Rabboni...<br><span style="color:#FFB300;">⚠️ 提示：請按一下 Rabboni 右邊按鍵，並確保正面綠燈閃爍一下以喚醒藍牙廣播！</span></span>';
+            if (res) res.innerHTML = '<span style="color:#00E5FF;">正在透過桌面中介伺服器掃描 Rabboni...<br><span style="color:#FFB300;">[提示] 請按一下 Rabboni 右邊按鍵，並確保正面綠燈閃爍一下以喚醒藍牙廣播！</span></span>';
             rabboniSocket.send(JSON.stringify({cmd: 'scan'}));
         } else {
-            let msg = "💡 提示：桌面端中介伺服器未啟動。\n\n• 若您在 Chrome / Edge 瀏覽器（HTTPS 安全連線），請直接點擊【🌐 網頁版藍牙直連 (免外部程式)】即可免軟體連線！\n• 若需使用桌面中介，請先啟動「啟動模擬器.bat」或執行桌面版主程式。";
+            let msg = "[提示] 桌面端中介伺服器未啟動。\n\n• 若您在 Chrome / Edge 瀏覽器（HTTPS 安全連線），請直接點擊【網頁版藍牙直連】即可免軟體連線！\n• 若需使用桌面中介，請先啟動「啟動模擬器.bat」或執行桌面版主程式。";
             if (res) res.innerHTML = `<span style="color:#FFB300;">${msg.replace(/\n/g, '<br>')}</span>`;
             alert(msg);
         }
@@ -221,14 +221,14 @@ initRabboniWS();
 async function connectRabboniWebBluetooth() {
     let res = document.getElementById('r-scan-results');
     if (!navigator.bluetooth) {
-        let msg = "⚠️ 您的瀏覽器不支援 Web Bluetooth，或當前正在使用 file:/// 本地檔案開啟。\n\n提示：請使用 Google Chrome 或 Microsoft Edge，並於線上網頁版 (https://...) 執行；若在本地離線環境，請執行桌面版主程式。";
+        let msg = "[提示] 您的瀏覽器不支援 Web Bluetooth，或當前正在使用 file:/// 本地檔案開啟。\n\n提示：請使用 Google Chrome 或 Microsoft Edge，並於線上網頁版 (https://...) 執行；若在本地離線環境，請執行桌面版主程式。";
         if (res) res.innerHTML = `<span style="color:#f44336;">${msg.replace(/\n/g, '<br>')}</span>`;
         alert(msg);
         return;
     }
 
     if (res) {
-        res.innerHTML = '<span style="color:#FFB300;">⚠️ 請按一下 Rabboni 右邊按鍵，並確保正面綠燈閃爍一下！正在呼叫瀏覽器配對視窗...</span>';
+        res.innerHTML = '<span style="color:#FFB300;">[提示] 請按一下 Rabboni 右邊按鍵，並確保正面綠燈閃爍一下！正在呼叫瀏覽器配對視窗...</span>';
     }
 
     try {
@@ -303,7 +303,7 @@ async function connectRabboniWebBluetooth() {
                 updateRabboniDropdowns();
                 updateControllerStatusHud();
             }
-            if (res) res.innerHTML = `<span style="color:#f44336;">🔴 裝置 ${devName} 已斷開藍牙連線</span>`;
+            if (res) res.innerHTML = `<span style="color:#f44336;">[已斷線] 裝置 ${devName}</span>`;
         });
 
         if (!rabboniDevices[devName]) {
@@ -311,7 +311,7 @@ async function connectRabboniWebBluetooth() {
             updateRabboniDropdowns();
         }
         updateControllerStatusHud();
-        if (res) res.innerHTML = `<span style="color:#4CAF50; font-weight:bold;">✅ 網頁原生藍牙成功連線: ${devName}！</span>`;
+        if (res) res.innerHTML = `<span style="color:#4CAF50; font-weight:bold;">[已連線] 網頁原生藍牙成功連線: ${devName}！</span>`;
     } catch (err) {
         if (err.name !== 'NotFoundError') {
             console.error('Web Bluetooth error:', err);
@@ -379,15 +379,15 @@ function updateRabboniDropdowns() {
     
     let baseOptions = '<option value="">-- 無 (使用鍵盤) --</option>';
     if (hasGamepad) {
-        baseOptions += '<option value="SWITCH">🎮 Switch 搖桿 (藍牙連線)</option>';
+        baseOptions += '<option value="SWITCH">[Switch] 搖桿 (藍牙連線)</option>';
     }
     
     selA.innerHTML = baseOptions;
     selB.innerHTML = baseOptions;
     
     devices.forEach(d => {
-        selA.innerHTML += `<option value="${d}">📡 Rabboni: ${d}</option>`;
-        selB.innerHTML += `<option value="${d}">📡 Rabboni: ${d}</option>`;
+        selA.innerHTML += `<option value="${d}">[Rabboni] ${d}</option>`;
+        selB.innerHTML += `<option value="${d}">[Rabboni] ${d}</option>`;
     });
     
     if (hasGamepad && valA === 'SWITCH') selA.value = 'SWITCH';
@@ -417,17 +417,17 @@ function updateControllerStatusHud() {
     const gp = getSwitchGamepad();
     if (elSwitch) {
         if (gp && gp.connected) {
-            elSwitch.innerHTML = `<span style="color:#00E5FF; font-weight:bold;">🟢 Switch 搖桿已連線:</span> <span style="color:#fff;">${gp.id.substring(0, 28)}...</span> <span style="color:#aaa; font-size:11px;">(已支援雙類比搖桿 & ZR/ZL 特技翻滾)</span>`;
+            elSwitch.innerHTML = `<span style="color:#00E5FF; font-weight:bold;"><span class="status-dot status-dot-green"></span>Switch 搖桿已連線:</span> <span style="color:#fff;">${gp.id.substring(0, 28)}...</span> <span style="color:#aaa; font-size:11px;">(已支援雙類比搖桿 & ZR/ZL 特技翻滾)</span>`;
         } else {
-            elSwitch.innerHTML = `<span style="color:#888;">⚪ Switch 搖桿未連線</span> <span style="font-size:11px; color:#aaa;">(配對後按任意鍵即可喚醒)</span>`;
+            elSwitch.innerHTML = `<span style="color:#888;"><span class="status-dot status-dot-gray"></span>Switch 搖桿未連線</span> <span style="font-size:11px; color:#aaa;">(配對後按任意鍵即可喚醒)</span>`;
         }
     }
     if (elRabboni) {
         const devs = Object.keys(rabboniDevices);
         if (devs.length > 0) {
-            elRabboni.innerHTML = `<span style="color:#4CAF50; font-weight:bold;">🟢 Rabboni 體感裝置已連線 (${devs.length} 台):</span> <span style="color:#fff;">${devs.join(', ')}</span>`;
+            elRabboni.innerHTML = `<span style="color:#4CAF50; font-weight:bold;"><span class="status-dot status-dot-green"></span>Rabboni 體感裝置已連線 (${devs.length} 台):</span> <span style="color:#fff;">${devs.join(', ')}</span>`;
         } else {
-            elRabboni.innerHTML = `<span style="color:#888;">⚪ Rabboni 體感裝置未連線</span>`;
+            elRabboni.innerHTML = `<span style="color:#888;"><span class="status-dot status-dot-gray"></span>Rabboni 體感裝置未連線</span>`;
         }
     }
 }
@@ -443,7 +443,7 @@ function handleFlipStickChange() {
         flipSel.value = alt;
         if (controlConfig.flip) controlConfig.flip.stick = alt;
         if (typeof showAlert === 'function') {
-            showAlert(`⚠️ 規則限制：1.B (前後傾斜定速) 已指派給「搖桿 ${pitchStick}」，翻滾動作不可設定在同一裝置！已自動切換為「搖桿 ${alt}」。`);
+            showAlert(`[規則限制] 1.B (前後傾斜定速) 已指派給「搖桿 ${pitchStick}」，翻滾動作不可設定在同一裝置！已自動切換為「搖桿 ${alt}」。`);
         }
     } else {
         if (controlConfig.flip) controlConfig.flip.stick = flipSel.value;
