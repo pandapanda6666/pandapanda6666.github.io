@@ -410,7 +410,7 @@
                         </div>
                         <div style="margin-bottom:20px; border-top:1px solid #444; padding-top:20px; margin-top:20px;">
                             <label style="color:#ddd; margin-right:15px; font-size:18px;">背景音樂 (BGM):</label>
-                            <button onclick="let b=document.getElementById('bgm-player'); if(b.paused){b.play();this.innerText='⏸ 暫停音樂';}else{b.pause();this.innerText='▶ 播放音樂';}" style="padding:10px 20px; background:#E91E63; color:white; border:none; border-radius:4px; cursor:pointer; font-size:16px;">▶ 播放音樂</button>
+                            <button onclick="let b=document.getElementById('bgm-player'); if(b.paused){b.play();this.innerText='<svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg> 暫停音樂';}else{b.pause();this.innerText='▶ 播放音樂';}" style="padding:10px 20px; background:#E91E63; color:white; border:none; border-radius:4px; cursor:pointer; font-size:16px;">▶ 播放音樂</button>
                         </div>
 
                     </div>
@@ -1884,6 +1884,13 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                 return;
             }
 
+            // 選擇地圖與設定模式 (Map Selection & Settings Mode) - 僅維持渲染，不啟動背景飛行物理
+            if (currentPage === 'page-C' || currentPage === 'page-E') {
+                if (typeof renderer !== 'undefined') renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+                return;
+            }
+
             const nowTime = performance.now();
             const dt = Math.min((nowTime - (window.physicsLastTime || nowTime)) / 1000, 0.05);
             window.physicsLastTime = nowTime;
@@ -2241,7 +2248,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                     let restitution = THREE.MathUtils.clamp(droneEla * 0.9, 0.05, 0.85); // 機身柔軟度 / 反彈係數
                     let normalCrashThresh = 4.0 + droneEla * 12.0; // 柔軟度越低越易碎，越高越耐撞
                     let upsideCrashThresh = 1.5 + droneEla * 6.0;
-                    let droneRadius = 0.10; // 無人機精緻碰撞防護半徑 (緊密貼合 2.5~3 吋機體，絕不產生過度膨脹氣泡)
+                    let droneRadius = 0.11; // 無人機精緻碰撞防護半徑 (完全匹配 -1.39m 著陸基底，徹底杜絕物理浮動)
                     let subDrag = Math.pow(0.985, 1.0 / numSubsteps);
 
                     for (let step = 0; step < numSubsteps; step++) {
@@ -2259,7 +2266,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                         let colFraction = 1.0;
 
                         // 1. 地面連續碰撞檢測 (Ground Plane at Y = -1.5)
-                        let groundY = -1.5 + droneRadius;
+                        let groundY = -1.39; // 物理著陸基準點完全統一為 -1.39m
                         if (targetPos.y < groundY) {
                             let dy = targetPos.y - curPos.y;
                             let frac = 0.0;
@@ -2560,13 +2567,17 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                     }
 
                     window.isHittingBoundary = hitBound;
-                    if (typeof updateBoundaryGlitch === 'function') {
-                        updateBoundaryGlitch(hitBound);
-                    }
+                    try {
+                        if (typeof updateBoundaryGlitch === 'function') {
+                            updateBoundaryGlitch(hitBound);
+                        }
+                    } catch (e) {}
                 } else {
-                    if (typeof updateBoundaryGlitch === 'function') {
-                        updateBoundaryGlitch(false);
-                    }
+                    try {
+                        if (typeof updateBoundaryGlitch === 'function') {
+                            updateBoundaryGlitch(false);
+                        }
+                    } catch (e) {}
                 }
 
                 if (!isFPV) {
@@ -2918,6 +2929,8 @@ renderer.render(scene, camera);
     </div>
 
     <script>
+        var boundaryGlitchCanvas = null;
+        var bgCtx = null;
         currentPage = 'page-A';
         // Initial map build on load
         buildMap();
@@ -3333,8 +3346,8 @@ renderer.render(scene, camera);
         // ==========================================
         // 賽道邊界雜訊反饋 (Boundary Static Noise FX)
         // ==========================================
-        let boundaryGlitchCanvas = null;
-        let bgCtx = null;
+        var boundaryGlitchCanvas = null;
+        var bgCtx = null;
         function initBoundaryGlitch() {
             boundaryGlitchCanvas = document.getElementById('boundary-glitch-canvas');
             if (!boundaryGlitchCanvas) return;
@@ -3344,8 +3357,9 @@ renderer.render(scene, camera);
         }
 
         function updateBoundaryGlitch(isHit) {
-            if (!boundaryGlitchCanvas) initBoundaryGlitch();
-            if (!boundaryGlitchCanvas || !bgCtx) return;
+            try {
+                if (!boundaryGlitchCanvas) initBoundaryGlitch();
+                if (!boundaryGlitchCanvas || !bgCtx) return;
             if (isHit) {
                 boundaryGlitchCanvas.style.opacity = '0.38';
                 const w = boundaryGlitchCanvas.width;
@@ -3375,6 +3389,7 @@ renderer.render(scene, camera);
                     bgCtx.clearRect(0, 0, boundaryGlitchCanvas.width, boundaryGlitchCanvas.height);
                 }
             }
+            } catch (e) {}
         }
 
         // ==========================================
@@ -3613,7 +3628,7 @@ renderer.render(scene, camera);
     <div style="padding:10px 14px; overflow-y:auto; flex:1; max-height:65vh;">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:10px; background:rgba(0,0,0,0.3); padding:8px; border-radius:6px; border:1px solid #223a50;">
             <div><svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; stroke:#00ff88;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>FPS: <span id="dbg-fps" style="color:#00ff88; font-weight:bold;">60</span></div>
-            <div>⏱️ Frame: <span id="dbg-dt" style="color:#00e5ff;">16.6ms</span></div>
+            <div><svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; stroke:#00e5ff;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> Frame: <span id="dbg-dt" style="color:#00e5ff;">16.6ms</span></div>
             <div><svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; stroke:#ffcc00;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>頁面: <span id="dbg-page" style="color:#ffcc00;">page-A</span></div>
             <div><svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; stroke:#00e5ff;"><circle cx="12" cy="12" r="3"></circle><line x1="3" y1="3" x2="9" y2="9"></line><line x1="21" y1="3" x2="15" y2="9"></line><line x1="3" y1="21" x2="9" y2="15"></line><line x1="21" y1="21" x2="15" y2="15"></line></svg>機型: <span id="dbg-drone" style="color:#00e5ff;">hx115</span></div>
             <div><svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px; stroke:#ff88ff;"><path d="M2 12h20M6 12v-3M10 12v-2M14 12v-3M18 12v-2"></path></svg>體積半徑: <span id="dbg-radius" style="color:#ff88ff;">0.12m</span></div>
