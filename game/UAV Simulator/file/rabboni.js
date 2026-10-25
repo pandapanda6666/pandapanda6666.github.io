@@ -328,10 +328,10 @@ window.connectRabboniWebBluetooth = connectRabboniWebBluetooth;
 // 4. 油門: A. 定速 (fixed), B. 根據角度來控制速度 (angle)
 // 1.B: 翻滾動作 (flip) 不可與 1.B 設定同一裝置 (具有獨立靈敏度)
 let controlConfig = {
-    pitch:  { stick: 'A', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 1. X 軸
-    yaw:    { stick: 'B', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 2. Y 軸
-    roll:   { stick: 'A', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 3. Z 軸
-    thrust: { stick: 'B', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 4. 油門
+    pitch:  { stick: 'B', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 1. X 軸
+    yaw:    { stick: 'A', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 2. Y 軸
+    roll:   { stick: 'B', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 3. Z 軸
+    thrust: { stick: 'A', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 4. 油門
     flip:   { stick: 'B', sens: 1.0 } // 1.B 翻滾
 };
 
@@ -596,23 +596,39 @@ function getStickValue(axis) {
             angleDeg = Math.abs(rabboni.pitch);
         }
     } 
-    // C. 鍵盤保底輸入源
+    // C. 鍵盤保底輸入源 (直接依據美國手/日本手標準佈局映射，確保鍵盤操作百分之百精確無誤)
     else {
         let modeUS = (typeof controlMode !== 'undefined') ? (controlMode === 'american') : true;
-        let keysMap = modeUS ? { 
-            A: { up: keys.w, down: keys.s, left: keys.a, right: keys.d }, 
-            B: { up: keys.up, down: keys.down, left: keys.left, right: keys.right } 
-        } : { 
-            A: { up: keys.up, down: keys.down, left: keys.left, right: keys.right }, 
-            B: { up: keys.w, down: keys.s, left: keys.a, right: keys.d } 
-        };
-        
-        if (axis === 'pitch' || axis === 'thrust') {
-            if (keysMap[stickName] && keysMap[stickName].up) sourceVal += 1.0;
-            if (keysMap[stickName] && keysMap[stickName].down) sourceVal -= 1.0;
+        if (modeUS) {
+            // 美國手 (Mode 2): 左手 (W/S=油門, A/D=偏航) | 右手 (Up/Down=俯仰, Left/Right=橫滾)
+            if (axis === 'thrust') {
+                if (keys.w) sourceVal += 1.0;
+                if (keys.s) sourceVal -= 1.0;
+            } else if (axis === 'yaw') {
+                if (keys.a) sourceVal -= 1.0;
+                if (keys.d) sourceVal += 1.0;
+            } else if (axis === 'pitch') {
+                if (keys.up) sourceVal += 1.0;
+                if (keys.down) sourceVal -= 1.0;
+            } else if (axis === 'roll') {
+                if (keys.left) sourceVal -= 1.0;
+                if (keys.right) sourceVal += 1.0;
+            }
         } else {
-            if (keysMap[stickName] && keysMap[stickName].left) sourceVal -= 1.0;
-            if (keysMap[stickName] && keysMap[stickName].right) sourceVal += 1.0;
+            // 日本手 (Mode 1): 右手 (Up/Down=油門, Left/Right=橫滾) | 左手 (W/S=俯仰, A/D=偏航)
+            if (axis === 'thrust') {
+                if (keys.up) sourceVal += 1.0;
+                if (keys.down) sourceVal -= 1.0;
+            } else if (axis === 'yaw') {
+                if (keys.left) sourceVal -= 1.0;
+                if (keys.right) sourceVal += 1.0;
+            } else if (axis === 'pitch') {
+                if (keys.w) sourceVal += 1.0;
+                if (keys.s) sourceVal -= 1.0;
+            } else if (axis === 'roll') {
+                if (keys.a) sourceVal -= 1.0;
+                if (keys.d) sourceVal += 1.0;
+            }
         }
         angleDeg = sourceVal * 30.0;
     }
@@ -624,18 +640,18 @@ function getStickValue(axis) {
     // --- 4. 油門 (Thrust / Throttle) 運算模式 ---
     if (axis === 'thrust') {
         if (config.mode === 'fixed') {
-            // A. 定速模式：當油門觸發時輸出固定速度 (定速升降)
-            if (sourceVal > 0.1 || Math.abs(angleDeg) > fixedThreshold) {
-                outVal = 0.65 * sens;
-            } else if (sourceVal < -0.1) {
+            // A. 定速模式：觸發即給予全額定速油門 (保證按 W 鍵直接起飛，定速升降)
+            if (sourceVal > 0.05 || Math.abs(angleDeg) > fixedThreshold) {
+                outVal = 1.0 * sens;
+            } else if (sourceVal < -0.05) {
                 outVal = 0.0;
             } else {
                 outVal = 0.0;
             }
         } else {
-            // B. 根據角度來控制速度模式：傾角越大速度越快 (動態線性調速)
-            let normalizedAngle = Math.min(Math.max(Math.abs(angleDeg) / 30.0, 0), 1.5);
-            if (sourceVal < -0.1) {
+            // B. 根據角度來控制速度模式：傾角越大速度越快 (動態調速)
+            let normalizedAngle = targetDeviceName ? Math.min(Math.max(Math.abs(angleDeg) / 30.0, 0), 1.5) : Math.max(sourceVal, 0);
+            if (sourceVal < -0.05) {
                 outVal = 0.0;
             } else {
                 outVal = normalizedAngle * sens;

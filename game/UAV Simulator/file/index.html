@@ -1858,12 +1858,9 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     }
                 }
                 if (typeof camera !== 'undefined') {
-                    // 基準半徑 rBase = 0.08m (標準微型機)，距離維持近景 0.208m 大特寫
-                    const r = (typeof getDroneBoundingRadius === 'function') ? getDroneBoundingRadius() : 0.08;
-                    const scaleFactor = Math.max(1.0, r / 0.08);
-                    const targetCamPos = new THREE.Vector3(-0.12 * scaleFactor, 0.08 * scaleFactor, -0.15 * scaleFactor);
-                    camera.position.lerp(targetCamPos, 0.05);
-                    camera.lookAt(0.12 * scaleFactor, 0.04 * scaleFactor, 0);
+                    // 100% 還原 v4.014 黃金比例近景大特寫 (絕不縮小)
+                    camera.position.lerp(new THREE.Vector3(-0.12, 0.08, -0.15), 0.05);
+                    camera.lookAt(0.12, 0.04, 0);
                 }
                 if (typeof renderer !== 'undefined') renderer.render(scene, camera);
                 requestAnimationFrame(animate);
@@ -2482,32 +2479,40 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                         }
 
                         if (hasCollision) {
-                            // 前進到精確接觸點，並預留微小安全間距推離表面
+                            // 前進到精確接觸點
                             let advanceDist = targetPos.clone().sub(curPos).multiplyScalar(colFraction);
                             droneGroup.position.copy(curPos.clone().add(advanceDist));
-                            droneGroup.position.add(colNormal.clone().multiplyScalar(0.005));
 
                             let vn = window.droneVelocity.dot(colNormal);
-                            if (vn < 0) {
-                                let j = -(1.0 + restitution) * vn;
-                                // 法向彈射衝量
-                                window.droneVelocity.add(colNormal.clone().multiplyScalar(j));
+                            // 靜止接觸地面檢測 (Resting Contact): 當法向朝上且垂直衝擊小於 0.25 m/s 時，直接吸收動能並穩定貼地，徹底消除 300Hz 微震動
+                            if (colNormal.y > 0.7 && Math.abs(vn) < 0.25) {
+                                window.droneVelocity.y = 0;
+                                droneGroup.position.y = groundY;
+                                window.droneVelocity.x *= 0.85; // 地面切向靜摩擦
+                                window.droneVelocity.z *= 0.85;
+                            } else {
+                                droneGroup.position.add(colNormal.clone().multiplyScalar(0.002));
+                                if (vn < 0) {
+                                    let j = -(1.0 + restitution) * vn;
+                                    // 法向彈射衝量
+                                    window.droneVelocity.add(colNormal.clone().multiplyScalar(j));
 
-                                // 切向滑動摩擦
-                                let vt = window.droneVelocity.clone().sub(colNormal.clone().multiplyScalar(window.droneVelocity.dot(colNormal)));
-                                window.droneVelocity.sub(vt.multiplyScalar(0.12));
+                                    // 切向滑動摩擦
+                                    let vt = window.droneVelocity.clone().sub(colNormal.clone().multiplyScalar(window.droneVelocity.dot(colNormal)));
+                                    window.droneVelocity.sub(vt.multiplyScalar(0.12));
 
-                                // 旋轉阻尼
-                                if (window.droneAngularVel) {
-                                    window.droneAngularVel.multiplyScalar(0.85);
-                                }
+                                    // 旋轉阻尼
+                                    if (window.droneAngularVel) {
+                                        window.droneAngularVel.multiplyScalar(0.85);
+                                    }
 
-                                // 脆弱度炸機檢測
-                                let upVec = new THREE.Vector3(0, 1, 0).applyQuaternion(droneGroup.quaternion);
-                                let isUpsideDown = upVec.y < 0.5;
-                                if (Math.abs(j) > normalCrashThresh || (isUpsideDown && Math.abs(j) > upsideCrashThresh)) {
-                                    if (typeof triggerCrash === 'function') triggerCrash(colHitMesh || droneGroup);
-                                    break;
+                                    // 脆弱度炸機檢測
+                                    let upVec = new THREE.Vector3(0, 1, 0).applyQuaternion(droneGroup.quaternion);
+                                    let isUpsideDown = upVec.y < 0.5;
+                                    if (Math.abs(j) > normalCrashThresh || (isUpsideDown && Math.abs(j) > upsideCrashThresh)) {
+                                        if (typeof triggerCrash === 'function') triggerCrash(colHitMesh || droneGroup);
+                                        break;
+                                    }
                                 }
                             }
                         } else {
@@ -2944,14 +2949,10 @@ renderer.render(scene, camera);
                 }
             }
 
-            // Toggle shared UI
+            // Toggle shared UI (僅在 page-D 實機飛行時顯示 HUD 與控制按鈕)
             let sharedUi = document.getElementById('shared-ui');
             if (sharedUi) {
-                if (pageId === 'page-B' || pageId === 'page-D') {
-                    sharedUi.style.display = 'block';
-                } else {
-                    sharedUi.style.display = 'none';
-                }
+                sharedUi.style.display = (pageId === 'page-D') ? 'block' : 'none';
             }
             
             // Toggle Grid and Scene visibility based on page
@@ -2964,20 +2965,18 @@ renderer.render(scene, camera);
             
             // 頁面專屬相機與模型視角佈局 (完全解耦首頁與機庫)
             if (pageId === 'page-A') {
-                // 首頁封面大特寫 (Hero Showcase View)
+                // 首頁封面大特寫 (Hero Showcase View - 100% 還原 v4.014 黃金特寫)
                 if (typeof controls !== 'undefined') controls.enabled = false;
                 if (typeof droneGroup !== 'undefined') {
                     droneGroup.position.set(0, 0, 0);
                     droneGroup.rotation.set(0.1, -0.1, 0);
                 }
                 if (typeof camera !== 'undefined') {
-                    const r = (typeof getDroneBoundingRadius === 'function') ? getDroneBoundingRadius() : 0.08;
-                    const scaleFactor = Math.max(1.0, r / 0.08);
-                    camera.position.set(-0.12 * scaleFactor, 0.08 * scaleFactor, -0.15 * scaleFactor);
-                    camera.lookAt(0.12 * scaleFactor, 0.04 * scaleFactor, 0);
+                    camera.position.set(-0.12, 0.08, -0.15);
+                    camera.lookAt(0.12, 0.04, 0);
                 }
             } else if (pageId === 'page-B') {
-                // 機庫 3D 展台檢視模式 (Hangar Free-Orbit 3D View)
+                // 機庫 3D 展台檢視模式 (Hangar Free-Orbit 3D View) - 支援滑鼠 360 度自由旋轉，絕不每幀覆蓋強制轉回
                 if (typeof droneGroup !== 'undefined') {
                     droneGroup.position.set(0.35, 0, 0); // 居中偏右展台
                     droneGroup.rotation.set(0.12, -0.5, 0); // 初始微側斜姿態
@@ -2988,14 +2987,12 @@ renderer.render(scene, camera);
                     controls.dampingFactor = 0.08;
                     controls.maxPolarAngle = Math.PI; // 解除仰視限制，可 360 度任意視角觀察底盤與全機
                     controls.minPolarAngle = 0;
-                    controls.minDistance = 0.12;      // 允許滾輪近距離放大觀察細節
-                    controls.maxDistance = 3.5;
+                    controls.minDistance = 0.15;      // 允許滾輪近距離放大觀察細節
+                    controls.maxDistance = 2.5;
                     controls.target.set(0.35, 0, 0);  // 對焦中心為無人機
                 }
                 if (typeof camera !== 'undefined') {
-                    const r = (typeof getDroneBoundingRadius === 'function') ? getDroneBoundingRadius() : 0.08;
-                    const viewDist = Math.max(0.40, r * 2.8);
-                    camera.position.set(0.35, viewDist * 0.35, viewDist);
+                    camera.position.set(0.35, 0.20, 0.55);
                     camera.lookAt(0.35, 0, 0);
                     if (typeof controls !== 'undefined') controls.update();
                 }
@@ -3383,7 +3380,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.026';
+        const CURRENT_VERSION = 'v4.027';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3595,7 +3592,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.023</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.027</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
