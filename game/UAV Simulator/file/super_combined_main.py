@@ -334,7 +334,7 @@ def main():
         target_url = f'http://127.0.0.1:{actual_server_port}'
         try:
             window = webview.create_window(
-                'UAV Simulator (PandaPanda的AI日常)', 
+                '【PandaPanda的AI日常___無人機模擬器】', 
                 target_url,
                 width=1280, 
                 height=720

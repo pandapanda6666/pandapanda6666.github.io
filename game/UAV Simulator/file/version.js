@@ -13,6 +13,7 @@ window.__REMOTE_UAV_VERSION__ = {
     "app.ico",
     "logo.png",
     "啟動模擬器.bat",
-    "PandaPanda_UAV_Simulator.exe"
+    "PandaPanda_UAV_Simulator.exe",
+    "Panda_UAV v4.026.exe"
   ]
 };
