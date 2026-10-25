@@ -1,6 +1,6 @@
 window.__REMOTE_UAV_VERSION__ = {
-  "version": "4.024",
-  "changelog": "1. 參考 ChromeRemoteDesktop 全新升級官方下載體驗頁面，提供 Windows 10/11 旗艦版與 Windows 7/8 相容版雙平臺專屬下載卡片。\n2. 全面構建並提供 Win10/11 專屬安裝檔、Win7/8 專屬安裝檔與智慧通用安裝檔。\n3. 升級應急批次檔安裝精靈，全面整合作業系統相容性自動檢測與桌面捷徑引導。",
+  "version": "4.026",
+  "changelog": "1. 新增 Rabboni 網頁原生 Web Bluetooth 直連：免安裝任何外部軟體，Chrome / Edge 瀏覽器於 HTTPS 網頁版直接配對 Rabboni。\n2. 增設連線明確導引：標示 Rabboni「按右邊按鍵並確保綠燈閃一下」喚醒提示，並提供 Switch 搖桿 3 步驟藍牙配對指南。\n3. 支援雙引擎藍牙架構（網頁原生 Web BLE vs 桌面本地 Python 中介 WebSocket 伺服器）。\n4. 支援 Switch 搖桿雙類比操作與 ZR/ZL 翻滾，4 軸控制體系全新升級，徹底修復開始遊玩地面穿透卡死。",
   "files": [
     "index.html",
     "version.json",

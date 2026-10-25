@@ -201,27 +201,91 @@ def start_http_server(directory, port=8849):
         def log_message(self, format, *args):
             pass
 
+        def do_GET(self):
+            if self.path.startswith('/api/check_update'):
+                try:
+                    import urllib.request
+                    import urllib.parse
+                    import time
+                    mirrors = [
+                        "https://pandapanda6666.github.io/game/UAV%20Simulator/file/version.json",
+                        "https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/version.json",
+                        "https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/version.json"
+                    ]
+                    v_data = None
+                    for m in mirrors:
+                        try:
+                            req = urllib.request.Request(m + f"?t={int(time.time()*1000)}", headers={'User-Agent': 'Mozilla/5.0 PandaPandaUAV/4.0'})
+                            with urllib.request.urlopen(req, timeout=6) as resp:
+                                v_data = json.loads(resp.read().decode('utf-8'))
+                                if v_data and v_data.get("version"):
+                                    break
+                        except Exception:
+                            continue
+                    
+                    if v_data:
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'application/json')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(json.dumps(v_data).encode('utf-8'))
+                        return
+                    else:
+                        raise Exception("無法從任何鏡像伺服器取得版本資料")
+                except Exception as e:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode('utf-8'))
+                    return
+            super().do_GET()
+
         def do_POST(self):
             if self.path == '/api/update':
                 try:
                     import urllib.request
-                    raw_base = "https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/"
-                    req = urllib.request.Request(raw_base + "version.json", headers={'User-Agent': 'Mozilla/5.0'})
-                    with urllib.request.urlopen(req, timeout=10) as resp:
-                        v_data = json.loads(resp.read().decode('utf-8'))
+                    import urllib.parse
+                    import time
+                    mirrors = [
+                        "https://pandapanda6666.github.io/game/UAV%20Simulator/file/",
+                        "https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/",
+                        "https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/"
+                    ]
+                    v_data = None
+                    chosen_mirror = mirrors[0]
+                    for m in mirrors:
+                        try:
+                            req = urllib.request.Request(m + f"version.json?t={int(time.time()*1000)}", headers={'User-Agent': 'Mozilla/5.0 PandaPandaUAV/4.0'})
+                            with urllib.request.urlopen(req, timeout=6) as resp:
+                                v_data = json.loads(resp.read().decode('utf-8'))
+                                if v_data and v_data.get("version"):
+                                    chosen_mirror = m
+                                    break
+                        except Exception:
+                            continue
+
+                    if not v_data:
+                        raise Exception("無法從任何更新伺服器取得版本清單")
 
                     files_to_update = v_data.get("files", ["index.html", "version.json"])
                     for f in files_to_update:
-                        try:
-                            f_url = raw_base + f
-                            f_req = urllib.request.Request(f_url, headers={'User-Agent': 'Mozilla/5.0'})
-                            with urllib.request.urlopen(f_req, timeout=15) as f_resp:
-                                content = f_resp.read()
-                            dest = os.path.join(directory, f)
-                            with open(dest, 'wb') as out_f:
-                                out_f.write(content)
-                        except Exception as file_err:
-                            print(f"Update error for {f}: {file_err}")
+                        downloaded = False
+                        for m in [chosen_mirror] + [x for x in mirrors if x != chosen_mirror]:
+                            try:
+                                f_url = m + urllib.parse.quote(f)
+                                f_req = urllib.request.Request(f_url, headers={'User-Agent': 'Mozilla/5.0 PandaPandaUAV/4.0'})
+                                with urllib.request.urlopen(f_req, timeout=15) as f_resp:
+                                    content = f_resp.read()
+                                dest = os.path.join(directory, f)
+                                with open(dest, 'wb') as out_f:
+                                    out_f.write(content)
+                                downloaded = True
+                                break
+                            except Exception:
+                                continue
+                        if not downloaded and f == "index.html":
+                            raise Exception("核心 index.html 下載失敗，請檢查網路連線")
 
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
@@ -232,6 +296,7 @@ def start_http_server(directory, port=8849):
                 except Exception as e:
                     self.send_response(500)
                     self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
                     self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode('utf-8'))
                     return

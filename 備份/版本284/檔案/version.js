@@ -1,0 +1,18 @@
+window.__REMOTE_UAV_VERSION__ = {
+  "version": "4.026",
+  "changelog": "1. 新增 Rabboni 網頁原生 Web Bluetooth 直連：免安裝任何外部軟體，Chrome / Edge 瀏覽器於 HTTPS 網頁版直接配對 Rabboni。\n2. 增設連線明確導引：標示 Rabboni「按右邊按鍵並確保綠燈閃一下」喚醒提示，並提供 Switch 搖桿 3 步驟藍牙配對指南。\n3. 支援雙引擎藍牙架構（網頁原生 Web BLE vs 桌面本地 Python 中介 WebSocket 伺服器）。\n4. 支援 Switch 搖桿雙類比操作與 ZR/ZL 翻滾，4 軸控制體系全新升級，徹底修復開始遊玩地面穿透卡死。",
+  "files": [
+    "index.html",
+    "version.json",
+    "version.js",
+    "super_combined_main.py",
+    "drone_blueprints.js",
+    "drone_configs.js",
+    "hx115_model.js",
+    "rabboni.js",
+    "app.ico",
+    "logo.png",
+    "啟動模擬器.bat",
+    "PandaPanda_UAV_Simulator.exe"
+  ]
+};

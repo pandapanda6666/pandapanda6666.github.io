@@ -1951,8 +1951,9 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
             
 
             
-            if (flipState === 0 && typeof isRabboniTriggerPressed === 'function' && isRabboniTriggerPressed() && currentPage === 'page-D' && !window.droneCrashed) {
-                flipState = 1; flipProgress = 0;
+            let trigFlip = (typeof pollFlipTriggers === 'function') ? pollFlipTriggers() : ((typeof isRabboniTriggerPressed === 'function' && isRabboniTriggerPressed()) ? 1 : 0);
+            if (flipState === 0 && trigFlip !== 0 && currentPage === 'page-D' && !window.droneCrashed) {
+                flipState = trigFlip; flipProgress = 0;
             }
 
             if (currentPage === 'page-D') {
@@ -1965,8 +1966,9 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                 window.droneYawAngle -= inputYaw * maxYaw * dt * 30.0; // 放大 30 倍，達到真實穿越機 300~450 度/秒的轉向速率 
                 
                 if (flipState !== 0) {
-                    // Flipping! Apply local roll rotation
-                    let flipRate = 12.0;
+                    // Flipping! Apply local roll rotation with configurable sensitivity
+                    let flipSens = (typeof controlConfig !== 'undefined' && controlConfig.flip && controlConfig.flip.sens) ? controlConfig.flip.sens : 1.0;
+                    let flipRate = 12.0 * flipSens;
                     droneGroup.rotateZ(flipState * flipRate * dt);
                     flipProgress += flipRate * dt;
                     if (flipProgress >= Math.PI * 2) {
@@ -2593,13 +2595,13 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
 
             if (window.droneVelocity && window.droneAngularVel && typeof droneGroup !== 'undefined') {
 
-                if (window.droneVelocity.lengthSq() < 0.05 && window.droneAngularVel.lengthSq() < 0.05 && Math.abs(droneGroup.position.y - (-1.45)) < 0.1) {
+                if (window.droneVelocity.lengthSq() < 0.05 && window.droneAngularVel.lengthSq() < 0.05 && Math.abs(droneGroup.position.y - (-1.39)) < 0.1) {
 
                     window.droneVelocity.set(0,0,0);
 
                     window.droneAngularVel.set(0,0,0);
 
-                    droneGroup.position.y = -1.45;
+                    droneGroup.position.y = -1.39;
         // Auto-level when resting to avoid looking like a tilted statue
         let restE = new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ');
         restE.x *= 0.9;
@@ -2611,7 +2613,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
 
             if (currentPage !== 'page-D') {
                 if (typeof droneGroup !== 'undefined') {
-                    droneGroup.position.set(0, -1.45, 0);
+                    droneGroup.position.set(0, -1.39, 0);
                     if (!isFPV) controls.target.set(0, 0, 0);
                 }
             }
@@ -2643,65 +2645,160 @@ renderer.render(scene, camera);
 
 
     <div id="rabboni-modal" class="modal-overlay" style="display:none;">
-        <div class="modal-content" style="width:580px; max-width:90vw;">
-            <div class="modal-header"><span>Rabboni 控制器設定</span><div><button onclick="resetAll設定()" style="margin-right:15px; padding:4px 8px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">重置所有設定</button><span class="close-btn" onclick="document.getElementById('rabboni-modal').style.display='none'">&times;</span></div>
-              
-              <div style="margin-bottom:15px; padding:10px; background:rgba(33, 150, 243, 0.1); border-radius:8px; border:1px solid #2196F3;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                      <span style="font-weight:bold; color:#2196F3;">📡 藍牙裝置掃描 (BLE)</span>
-                      <button id="r-scan-btn" onclick="startRabboniScan()" style="padding:5px 15px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer;">開始尋找</button>
-                  </div>
-                  <div id="r-scan-results" style="max-height:100px; overflow-y:auto; font-size:12px; color:#ccc;">
-                      尚未掃描。請點擊「開始尋找」。
-                  </div>
-              </div>
+        <div class="modal-content" style="width:680px; max-width:92vw;">
+            <div class="modal-header">
+                <span style="font-size:20px; font-weight:bold; color:#00E5FF;">🎮 控制器與操控設定 (Switch / Rabboni / 鍵盤)</span>
+                <div>
+                    <button onclick="resetAll設定()" style="margin-right:15px; padding:4px 10px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">重置所有設定</button>
+                    <span class="close-btn" onclick="document.getElementById('rabboni-modal').style.display='none'">&times;</span>
+                </div>
+            </div>
 
+            <!-- 裝置即時狀態面板 -->
+            <div style="margin-bottom:15px; padding:12px; background:rgba(0, 229, 255, 0.08); border-radius:8px; border:1px solid rgba(0, 229, 255, 0.4);">
+                <!-- Switch 搖桿連線指南與狀態 -->
+                <div style="background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; margin-bottom:10px; border:1px solid rgba(255,255,255,0.06);">
+                    <div id="status-switch-gamepad" style="font-size:13px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">
+                        <span style="color:#888;">⚪ Switch 搖桿未連線</span> <span style="font-size:11px; color:#aaa;">(配對後按任意鍵即可喚醒)</span>
+                    </div>
+                    <div style="font-size:11.5px; color:#aaa; line-height:1.5; background:rgba(255,255,255,0.03); padding:6px 8px; border-radius:4px;">
+                        <span style="color:#00E5FF; font-weight:bold;">🎮 Switch 搖桿連線方法：</span><br>
+                        1. <strong>進入配對</strong>：Joy-Con 長按滑軌側邊圓鈕（或 Pro 手把長按頂部配對鈕）3 秒，直到 4 顆綠燈跑馬燈閃爍。<br>
+                        2. <strong>電腦配對</strong>：開啟 Windows「設定」>「藍牙與其他裝置」>「新增裝置」，選取 Joy-Con 或 Pro Controller 配對。<br>
+                        3. <strong>喚醒控制</strong>：配對成功回到此網頁，隨便按一下手把任意鍵或推動搖桿，瀏覽器即可自動連線啟用！
+                    </div>
+                </div>
+
+                <!-- Rabboni 體感裝置連線與操作引導 -->
+                <div style="background:rgba(0,0,0,0.3); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.06);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                        <div id="status-rabboni-ble" style="font-size:13px;">
+                            <span style="color:#888;">⚪ Rabboni 體感裝置未連線</span>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button id="r-webble-btn" onclick="connectRabboniWebBluetooth()" style="padding:5px 12px; background:#00E5FF; color:#000; font-weight:bold; border:none; border-radius:4px; cursor:pointer; font-size:12px;" title="Chrome/Edge 網頁版直接透過瀏覽器原生藍牙連線，不需執行任何背景程式">🌐 網頁原生藍牙直連 (免外部軟體)</button>
+                            <button id="r-scan-btn" onclick="startRabboniScan()" style="padding:5px 12px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:12px;" title="需啟動桌面版背景中介軟體 (ws://localhost:50500)">💻 本地伺服器掃描 (桌面版)</button>
+                        </div>
+                    </div>
+                    <div style="font-size:11.5px; color:#FFB300; background:rgba(255,179,0,0.1); border:1px solid rgba(255,179,0,0.3); padding:6px 8px; border-radius:4px; line-height:1.4;">
+                        ⚠️ <strong>Rabboni 連線重要提示：</strong>連線前請<strong>按一下 Rabboni 右邊按鍵</strong>，並確保<strong>正面綠燈閃爍一下</strong>以喚醒藍牙廣播！<br>
+                        <span style="color:#aaa; font-size:11px;">• 純網頁版 (Chrome/Edge 且為 HTTPS，如 GitHub Pages) 可直接點「網頁原生藍牙直連」免裝中介軟體。<br>• 桌面安裝版或離線環境請點「本地伺服器掃描」。</span>
+                    </div>
+                    <div id="r-scan-results" style="max-height:80px; overflow-y:auto; font-size:11.5px; color:#aaa; margin-top:6px;"></div>
+                </div>
+            </div>
+
+            <!-- 左右搖桿裝置分配 -->
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px 14px; border-radius:8px; gap:15px;">
+                <div style="flex:1;">
+                    <label style="display:block; font-size:12.5px; font-weight:bold; margin-bottom:5px; color:#00E5FF;">🕹️ 搖桿 A (左) 綁定裝置</label>
+                    <select id="r-device-a" onchange="updateRabboniSelection()" style="width:100%; padding:6px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;"><option value="">-- 無 (使用鍵盤) --</option></select>
+                </div>
+                <div style="flex:1;">
+                    <label style="display:block; font-size:12.5px; font-weight:bold; margin-bottom:5px; color:#FFB300;">🕹️ 搖桿 B (右) 綁定裝置</label>
+                    <select id="r-device-b" onchange="updateRabboniSelection()" style="width:100%; padding:6px; background:#222; color:#fff; border:1px solid #555; border-radius:4px;"><option value="">-- 無 (使用鍵盤) --</option></select>
+                </div>
             </div>
             
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px; background:rgba(255,255,255,0.05); padding:10px; border-radius:8px;">
-                <div style="width:48%;">
-                    <label style="display:block; font-size:12px; margin-bottom:5px; color:#2196F3;">搖桿 A (左) 綁定裝置</label>
-                    <select id="r-device-a" onchange="updateRabboniSelection()" style="width:100%; padding:5px;"><option value="">-- 無 (使用鍵盤) --</option></select>
-                </div>
-                <div style="width:48%;">
-                    <label style="display:block; font-size:12px; margin-bottom:5px; color:#9C27B0;">搖桿 B (右) 綁定裝置</label>
-                    <select id="r-device-b" onchange="updateRabboniSelection()" style="width:100%; padding:5px;"><option value="">-- 無 (使用鍵盤) --</option></select>
-                </div>
-            </div>
-            
+            <!-- 軸向與操控模式設定表格 -->
             <table style="width:100%; text-align:left; border-collapse:collapse;" id="rabboni-table">
-                <tr style="border-bottom:1px solid #555;"><th>控制項</th><th>搖桿分配</th><th>控制方式</th><th style="text-align:center;">反向</th><th>靈敏度</th></tr>
-                <tr>
-                    <td>前後傾斜 (Pitch)</td>
-                    <td><select id="r-pitch-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
-                    <td><select id="r-pitch-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">同步 Rabboni 角度</option></select></td>
-                    <td style="text-align:center;"><input type="checkbox" id="r-pitch-inv" onchange="updateRabboniConf()"></td>
-                    <td><input type="range" id="r-pitch-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
+                <tr style="border-bottom:1px solid #555; font-size:13px; color:#00E5FF;">
+                    <th style="padding:6px 4px;">控制軸向</th>
+                    <th style="padding:6px 4px;">搖桿分配</th>
+                    <th style="padding:6px 4px;">控制方式</th>
+                    <th style="padding:6px 4px; text-align:center;">固定的角度</th>
+                    <th style="padding:6px 4px; text-align:center;">反向</th>
+                    <th style="padding:6px 4px;">靈敏度</th>
                 </tr>
-                <tr>
-                    <td>左右傾斜 (Roll)</td>
-                    <td><select id="r-roll-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
-                    <td><select id="r-roll-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">同步 Rabboni 角度</option></select></td>
-                    <td style="text-align:center;"><input type="checkbox" id="r-roll-inv" onchange="updateRabboniConf()"></td>
-                    <td><input type="range" id="r-roll-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
+                <!-- 1. X 軸轉動 (Pitch) -->
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 4px; font-weight:bold;">1. X 軸轉動 (前後傾斜)</td>
+                    <td style="padding:6px 4px;"><select id="r-pitch-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
+                    <td style="padding:6px 4px;">
+                        <select id="r-pitch-mode" onchange="updateRabboniConf()">
+                            <option value="sync" selected>A. 同步角度</option>
+                            <option value="fixed">B. 定速</option>
+                        </select>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;">
+                        <input type="number" id="r-pitch-angle" min="5" max="60" step="1" value="15" style="width:48px; display:none; background:#222; color:#fff; border:1px solid #555; text-align:center;" onchange="updateRabboniConf()">
+                        <span id="r-pitch-angle-unit" style="display:none; font-size:12px;">°</span>
+                        <span id="r-pitch-angle-na" style="color:#666; font-size:12px;">-</span>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;"><input type="checkbox" id="r-pitch-inv" onchange="updateRabboniConf()"></td>
+                    <td style="padding:6px 4px;"><input type="range" id="r-pitch-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"><span id="r-pitch-sens-val" style="font-size:11px; margin-left:4px;">1.0</span></td>
                 </tr>
-                <tr>
-                    <td>升降 (Thrust)</td>
-                    <td><select id="r-thrust-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
-                    <td><select id="r-thrust-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">Rabboni Z軸加速度</option></select></td>
-                    <td style="text-align:center;"><input type="checkbox" id="r-thrust-inv" onchange="updateRabboniConf()"></td>
-                    <td><input type="range" id="r-thrust-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
+                <!-- 2. Y 軸轉動 (Yaw) -->
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 4px; font-weight:bold;">2. Y 軸轉動 (左右旋轉)</td>
+                    <td style="padding:6px 4px;"><select id="r-yaw-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
+                    <td style="padding:6px 4px;">
+                        <select id="r-yaw-mode" onchange="updateRabboniConf()">
+                            <option value="sync">A. 同步角度</option>
+                            <option value="fixed" selected>B. 定速</option>
+                        </select>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;">
+                        <input type="number" id="r-yaw-angle" min="5" max="60" step="1" value="15" style="width:48px; background:#222; color:#fff; border:1px solid #555; text-align:center;" onchange="updateRabboniConf()">
+                        <span id="r-yaw-angle-unit" style="font-size:12px;">°</span>
+                        <span id="r-yaw-angle-na" style="display:none; color:#666; font-size:12px;">-</span>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;"><input type="checkbox" id="r-yaw-inv" onchange="updateRabboniConf()"></td>
+                    <td style="padding:6px 4px;"><input type="range" id="r-yaw-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"><span id="r-yaw-sens-val" style="font-size:11px; margin-left:4px;">1.0</span></td>
                 </tr>
-                <tr>
-                    <td>左右旋轉 (Yaw)</td>
-                    <td><select id="r-yaw-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
-                    <td><select id="r-yaw-mode" onchange="updateRabboniConf()"><option value="fixed" selected>定速 (角度閥值)</option><option value="sync">同步 Z軸旋轉</option></select></td>
-                    <td style="text-align:center;"><input type="checkbox" id="r-yaw-inv" onchange="updateRabboniConf()"></td>
-                    <td><input type="range" id="r-yaw-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"></td>
+                <!-- 3. Z 軸轉動 (Roll) -->
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 4px; font-weight:bold;">3. Z 軸轉動 (左右傾斜)</td>
+                    <td style="padding:6px 4px;"><select id="r-roll-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
+                    <td style="padding:6px 4px;">
+                        <select id="r-roll-mode" onchange="updateRabboniConf()">
+                            <option value="sync" selected>A. 同步角度</option>
+                            <option value="fixed">B. 定速</option>
+                        </select>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;">
+                        <input type="number" id="r-roll-angle" min="5" max="60" step="1" value="15" style="width:48px; display:none; background:#222; color:#fff; border:1px solid #555; text-align:center;" onchange="updateRabboniConf()">
+                        <span id="r-roll-angle-unit" style="display:none; font-size:12px;">°</span>
+                        <span id="r-roll-angle-na" style="color:#666; font-size:12px;">-</span>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;"><input type="checkbox" id="r-roll-inv" onchange="updateRabboniConf()"></td>
+                    <td style="padding:6px 4px;"><input type="range" id="r-roll-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"><span id="r-roll-sens-val" style="font-size:11px; margin-left:4px;">1.0</span></td>
+                </tr>
+                <!-- 4. 油門 (Thrust) -->
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                    <td style="padding:6px 4px; font-weight:bold;">4. 油門 (升降推力)</td>
+                    <td style="padding:6px 4px;"><select id="r-thrust-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
+                    <td style="padding:6px 4px;">
+                        <select id="r-thrust-mode" onchange="updateRabboniConf()">
+                            <option value="fixed" selected>A. 定速</option>
+                            <option value="angle">B. 根據角度控制速度</option>
+                        </select>
+                    </td>
+                    <td style="padding:6px 4px; text-align:center;"><span style="color:#666; font-size:12px;">-</span></td>
+                    <td style="padding:6px 4px; text-align:center;"><input type="checkbox" id="r-thrust-inv" onchange="updateRabboniConf()"></td>
+                    <td style="padding:6px 4px;"><input type="range" id="r-thrust-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"><span id="r-thrust-sens-val" style="font-size:11px; margin-left:4px;">1.0</span></td>
+                </tr>
+                <!-- 1.B 翻滾動作 (Flip) -->
+                <tr id="row-flip" style="background:rgba(0, 229, 255, 0.08); display:none;">
+                    <td style="padding:6px 4px; color:#00E5FF; font-weight:bold;">🔀 翻滾 (1.B 專用動作)</td>
+                    <td style="padding:6px 4px;">
+                        <select id="r-flip-stick" onchange="handleFlipStickChange()">
+                            <option value="B" selected>搖桿 B (不可同 1.B)</option>
+                            <option value="A">搖桿 A (不可同 1.B)</option>
+                        </select>
+                    </td>
+                    <td style="padding:6px 4px;"><span style="color:#aaa; font-size:12px;">Switch ZR/ZL 或 觸發鍵</span></td>
+                    <td style="padding:6px 4px; text-align:center;"><span style="color:#666; font-size:12px;">-</span></td>
+                    <td style="padding:6px 4px; text-align:center;"><span style="color:#666; font-size:12px;">-</span></td>
+                    <td style="padding:6px 4px;"><input type="range" id="r-flip-sens" min="0.1" max="5.0" step="0.1" value="1.0" onchange="updateRabboniConf()"><span id="r-flip-sens-val" style="font-size:11px; margin-left:4px;">1.0</span></td>
                 </tr>
             </table>
             
-            <p style="font-size:12px; color:#aaa; margin-top:10px; line-height: 1.4;">搖桿 A 預設對應鍵盤 W/A/S/D；搖桿 B 預設對應鍵盤 上/下/左/右。如果連上 Rabboni，將覆蓋鍵盤輸入。</p>
+            <p style="font-size:12px; color:#aaa; margin-top:12px; line-height: 1.5;">
+                💡 <b>操控說明：</b><br>
+                ・支援 <b>Switch 控制器 (藍牙)</b>：左/右類比搖桿對應搖桿 A/B；<b>ZR</b> 觸發右翻滾，<b>ZL</b> 觸發左翻滾。<br>
+                ・1.B (定速模式) 啟用時將自動解鎖「翻滾」動作，且翻滾裝置不可與 1.B 設為同一裝置。
+            </p>
         </div>
     </div>
 
@@ -2960,7 +3057,7 @@ renderer.render(scene, camera);
 
             // 2. 空間坐標、姿態四元數、偏航角、線速度與角速度全部徹底歸零
             if (typeof droneGroup !== 'undefined') {
-                droneGroup.position.set(0, -1.45, 0);
+                droneGroup.position.set(0, -1.39, 0);
                 droneGroup.rotation.set(0, 0, 0, 'YXZ');
                 droneGroup.quaternion.identity();
             }
@@ -2996,7 +3093,7 @@ renderer.render(scene, camera);
             if (typeof updateBoundaryGlitch === 'function') updateBoundaryGlitch(false);
 
             // 4. 攝影機跟隨歷史與 OrbitControls 目標完全歸零，防止瞬移跳動
-            window.lastDronePos = new THREE.Vector3(0, -1.45, 0);
+            window.lastDronePos = new THREE.Vector3(0, -1.39, 0);
             window.lastDroneYaw = 0;
             fpvYaw = 0;
             fpvPitch = 0;
@@ -3007,7 +3104,7 @@ renderer.render(scene, camera);
                     controls.reset();
                     camera.rotation.set(0, 0, 0, 'XYZ');
                     camera.position.set(0, 0, 3.5);
-                    controls.target.set(0, -1.45, 0);
+                    controls.target.set(0, -1.39, 0);
                     controls.update();
                 } else if (isFPV && typeof resetFPVCamera === 'function') {
                     resetFPVCamera();
@@ -3091,8 +3188,10 @@ renderer.render(scene, camera);
         }
         
         function triggerCrash(hitMesh) {
-              if (currentDroneId === 'soccer') return; // Soccer drones bounce, they don't break!
-            if(window.droneCrashed) return;
+            if (currentDroneId === 'soccer') return; // Soccer drones bounce, they don't break!
+            if (window.droneCrashed) return;
+            // 地面待機防呆：當油門極低或處於初始起飛地面時，絕不觸發炸機卡死
+            if ((typeof globalThrottleVal !== 'undefined' && globalThrottleVal < 0.05) && (typeof droneGroup !== 'undefined' && droneGroup.position.y < -1.35)) return;
             window.droneCrashed = true;
             if (typeof gameTimerInterval !== 'undefined' && gameTimerInterval) clearInterval(gameTimerInterval);
             gameTimerRunning = false;
@@ -3250,26 +3349,40 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.023';
+        const CURRENT_VERSION = 'v4.026';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
-            const mirrors = [
-                'https://pandapanda6666.github.io/game/UAV%20Simulator/file/version.json?t=' + Date.now(),
-                'https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/version.json?t=' + Date.now(),
-                'https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/version.json?t=' + Date.now()
-            ];
-
             let data = null;
-            for (const url of mirrors) {
-                try {
-                    const resp = await fetch(url);
-                    if (resp.ok) {
-                        data = await resp.json();
-                        if (data && data.version) break;
+
+            // 優先嘗試本機桌面版 Python 後端檢測 (徹底消除任何 CORS 或 file:/// 限制)
+            try {
+                const localResp = await fetch('/api/check_update?t=' + Date.now());
+                if (localResp.ok) {
+                    const localData = await localResp.json();
+                    if (localData && localData.version) {
+                        data = localData;
                     }
-                } catch (err) {
-                    // Try next mirror
+                }
+            } catch(e) {}
+
+            if (!data) {
+                const mirrors = [
+                    'https://pandapanda6666.github.io/game/UAV%20Simulator/file/version.json?t=' + Date.now(),
+                    'https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/version.json?t=' + Date.now(),
+                    'https://raw.githubusercontent.com/PandaPanda6666/PandaPanda6666.github.io/main/game/UAV%20Simulator/file/version.json?t=' + Date.now()
+                ];
+
+                for (const url of mirrors) {
+                    try {
+                        const resp = await fetch(url);
+                        if (resp.ok) {
+                            data = await resp.json();
+                            if (data && data.version) break;
+                        }
+                    } catch (err) {
+                        // Try next mirror
+                    }
                 }
             }
 
