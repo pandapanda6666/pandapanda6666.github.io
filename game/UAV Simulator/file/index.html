@@ -1501,7 +1501,14 @@
         function selectDrone(id) {
             currentDroneId = id;
             renderActiveDrones();
-            // Unbound: stay in hangar page-B for preview
+            // 在機庫選機型時保持在展台位置，絕對不跳回首頁
+            if (currentPage === 'page-B' && typeof droneGroup !== 'undefined') {
+                droneGroup.position.set(0.35, 0, 0);
+                if (typeof controls !== 'undefined') {
+                    controls.target.set(0.35, 0, 0);
+                    controls.update();
+                }
+            }
             const drone = activeDrones.find(d => d.id === id);
             
             maxTilt = (drone.tilt * Math.PI) / 180;
@@ -1601,6 +1608,11 @@
                 );
             } else {
                 buildProceduralDrone(drone.modelStr || drone.id);
+            }
+            if (currentPage === 'page-B' && typeof droneGroup !== 'undefined') {
+                droneGroup.position.set(0.35, 0, 0);
+            } else if (currentPage === 'page-A' && typeof droneGroup !== 'undefined') {
+                droneGroup.position.set(0, 0, 0);
             }
         }
 
@@ -1796,8 +1808,9 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
         function animate() {
             if (!window.droneVelocity) return;
             
-            // 首頁展示模式 (Cover Showcase Mode) - 攝影機依無人機體積自適應縮放
+            // 首頁展示模式 (Cover Hero Showcase) - 巨大震撼封面特寫，還原黃金近景視角
             if (currentPage === 'page-A') {
+                if (typeof controls !== 'undefined') controls.enabled = false;
                 if (typeof droneGroup !== 'undefined') {
                     droneGroup.position.set(0, 0, 0);
                     droneGroup.rotation.y = -0.1;
@@ -1811,37 +1824,30 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     }
                 }
                 if (typeof camera !== 'undefined') {
-                    const r = getDroneBoundingRadius();
-                    const dir = new THREE.Vector3(-0.7, 0.48, -0.9).normalize();
-                    const targetCamPos = dir.clone().multiplyScalar(r * 2.8);
+                    // 基準半徑 rBase = 0.08m (標準微型機)，距離維持近景 0.208m 大特寫
+                    const r = (typeof getDroneBoundingRadius === 'function') ? getDroneBoundingRadius() : 0.08;
+                    const scaleFactor = Math.max(1.0, r / 0.08);
+                    const targetCamPos = new THREE.Vector3(-0.12 * scaleFactor, 0.08 * scaleFactor, -0.15 * scaleFactor);
                     camera.position.lerp(targetCamPos, 0.05);
-                    camera.lookAt(0, r * 0.15, 0);
+                    camera.lookAt(0.12 * scaleFactor, 0.04 * scaleFactor, 0);
                 }
                 if (typeof renderer !== 'undefined') renderer.render(scene, camera);
                 requestAnimationFrame(animate);
                 return;
             }
 
-            // 機庫展示模式 (Hangar Showcase Mode) - 獨立 3D 展廳預覽，依機型自適應縮放並自動平滑旋轉
+            // 機庫 3D 展台檢視模式 (Hangar Free-Orbit 3D View) - 支援滑鼠 360 度自由旋轉，絕不每幀覆蓋強制轉回
             if (currentPage === 'page-B') {
-                if (typeof droneGroup !== 'undefined') {
-                    const r = getDroneBoundingRadius();
-                    droneGroup.position.set(r * 0.45, 0, 0); // 居中偏右避開機庫列表
-                    droneGroup.rotation.y += 0.012; // 平滑轉台自轉
-                    droneGroup.rotation.x = 0.12;  // 微傾視角展示全機細節
-                    droneGroup.rotation.z = 0;
-                    if (typeof propellers !== 'undefined') {
-                        propellers.forEach((p, idx) => {
-                            p.rotation.y += 0.3 * (idx % 2 === 0 ? 1 : -1);
-                        });
-                    }
+                if (typeof controls !== 'undefined') {
+                    controls.enabled = true;
+                    controls.update(); // 平滑響應滑鼠左鍵旋轉、滾輪拉近拉遠
                 }
-                if (typeof camera !== 'undefined') {
-                    const r = getDroneBoundingRadius();
-                    const camDist = r * 3.4;
-                    camera.position.lerp(new THREE.Vector3(r * 0.45, camDist * 0.4, camDist), 0.1);
-                    camera.lookAt(r * 0.45, 0, 0);
+                if (typeof propellers !== 'undefined') {
+                    propellers.forEach((p, idx) => {
+                        p.rotation.y += 0.15 * (idx % 2 === 0 ? 1 : -1);
+                    });
                 }
+                // 核心關鍵：絕對不要每幀執行 camera.position.lerp 與 droneGroup.rotation 覆蓋！
                 if (typeof renderer !== 'undefined') renderer.render(scene, camera);
                 requestAnimationFrame(animate);
                 return;
@@ -2805,14 +2811,8 @@ renderer.render(scene, camera);
                         scene.add(camera);
                     }
                 }
-                if (typeof camera !== 'undefined' && typeof controls !== 'undefined') {
-                    camera.position.set(0, 0, 3.5);
-                    controls.target.copy(droneGroup.position);
-                    controls.update();
-                }
             }
 
-            
             // Toggle shared UI
             let sharedUi = document.getElementById('shared-ui');
             if (sharedUi) {
@@ -2825,12 +2825,56 @@ renderer.render(scene, camera);
             
             // Toggle Grid and Scene visibility based on page
             if (typeof gridHelper !== 'undefined') gridHelper.visible = (pageId === 'page-D');
-              if (typeof ground !== 'undefined') ground.visible = (pageId === 'page-D');
-              if (typeof mapGroup !== 'undefined') mapGroup.visible = (pageId === 'page-D');
-              if (typeof scene !== 'undefined') scene.background = (pageId === 'page-A' || pageId === 'page-B' || pageId === 'page-C' || pageId === 'page-D') ? new THREE.Color(0x87CEEB) : new THREE.Color(0x222222);
+            if (typeof ground !== 'undefined') ground.visible = (pageId === 'page-D');
+            if (typeof mapGroup !== 'undefined') mapGroup.visible = (pageId === 'page-D');
+            if (typeof scene !== 'undefined') scene.background = (pageId === 'page-A' || pageId === 'page-B' || pageId === 'page-C' || pageId === 'page-D') ? new THREE.Color(0x87CEEB) : new THREE.Color(0x222222);
             
             currentPage = pageId;
             
+            // 頁面專屬相機與模型視角佈局 (完全解耦首頁與機庫)
+            if (pageId === 'page-A') {
+                // 首頁封面大特寫 (Hero Showcase View)
+                if (typeof controls !== 'undefined') controls.enabled = false;
+                if (typeof droneGroup !== 'undefined') {
+                    droneGroup.position.set(0, 0, 0);
+                    droneGroup.rotation.set(0.1, -0.1, 0);
+                }
+                if (typeof camera !== 'undefined') {
+                    const r = (typeof getDroneBoundingRadius === 'function') ? getDroneBoundingRadius() : 0.08;
+                    const scaleFactor = Math.max(1.0, r / 0.08);
+                    camera.position.set(-0.12 * scaleFactor, 0.08 * scaleFactor, -0.15 * scaleFactor);
+                    camera.lookAt(0.12 * scaleFactor, 0.04 * scaleFactor, 0);
+                }
+            } else if (pageId === 'page-B') {
+                // 機庫 3D 展台檢視模式 (Hangar Free-Orbit 3D View)
+                if (typeof droneGroup !== 'undefined') {
+                    droneGroup.position.set(0.35, 0, 0); // 居中偏右展台
+                    droneGroup.rotation.set(0.12, -0.5, 0); // 初始微側斜姿態
+                }
+                if (typeof controls !== 'undefined') {
+                    controls.enabled = true;
+                    controls.enableDamping = true;
+                    controls.dampingFactor = 0.08;
+                    controls.maxPolarAngle = Math.PI; // 解除仰視限制，可 360 度任意視角觀察底盤與全機
+                    controls.minPolarAngle = 0;
+                    controls.minDistance = 0.12;      // 允許滾輪近距離放大觀察細節
+                    controls.maxDistance = 3.5;
+                    controls.target.set(0.35, 0, 0);  // 對焦中心為無人機
+                }
+                if (typeof camera !== 'undefined') {
+                    const r = (typeof getDroneBoundingRadius === 'function') ? getDroneBoundingRadius() : 0.08;
+                    const viewDist = Math.max(0.40, r * 2.8);
+                    camera.position.set(0.35, viewDist * 0.35, viewDist);
+                    camera.lookAt(0.35, 0, 0);
+                    if (typeof controls !== 'undefined') controls.update();
+                }
+            } else if (pageId === 'page-D') {
+                if (typeof controls !== 'undefined') {
+                    controls.maxPolarAngle = Math.PI / 2 - 0.05;
+                }
+                initGamePhysics();
+            }
+
             // Move Rabboni settings modal contents to Page E
             if (pageId === 'page-E') {
                 const modal = document.getElementById('rabboni-modal');
@@ -2843,20 +2887,6 @@ renderer.render(scene, camera);
                     }
                 }
             }
-            
-            // Reset physical position if entering page D
-            if (pageId === 'page-D') {
-                initGamePhysics();
-            }
-              // Reset drone rotation when entering drone selection to avoid leftover showcase rotation
-              if (pageId === 'page-B' && typeof droneGroup !== 'undefined') {
-                  droneGroup.position.set(0, -1.45, 0);
-                  droneGroup.rotation.set(0, 0, 0);
-                  if (typeof camera !== 'undefined') {
-                      camera.position.set(0, 0, 3);
-                      camera.lookAt(0, -1.45, 0);
-                  }
-              }
         }
         
         function resumeGame() {
@@ -3220,7 +3250,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.022';
+        const CURRENT_VERSION = 'v4.023';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3418,7 +3448,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.022</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.023</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
