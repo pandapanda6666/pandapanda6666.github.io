@@ -339,10 +339,7 @@
         /* 練習模式 RWD 佈局 */
         
         @media (max-width: 768px) {
-            .practice-main-layout {
-                flex-direction: column;
-                align-items: center;
-            }
+            
             .option-column {
                 display: grid !important;
                 grid-template-columns: 1fr 1fr;
@@ -436,13 +433,105 @@
             font-size: 1em !important;
         }
 
-        /* 平板與手機 RWD (擴大到 1024px) */
-        @media (max-width: 1024px) {
-            .practice-main-layout {
-                flex-direction: column !important;
-                align-items: center !important;
-                gap: 5px !important;
+        /* 練習模式：上方長條扁平題目欄 */
+        .question-bar {
+            width: 100% !important;
+            max-width: 900px !important;
+            height: 72px !important;
+            margin: 0 auto 10px auto !important;
+            perspective: 1000px;
+            cursor: default;
+        }
+        .question-bar-front, .question-bar-back {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 15px !important;
+            border-radius: 12px !important;
+            padding: 5px 20px !important;
+            box-sizing: border-box !important;
+        }
+        .question-bar-front {
+            background: linear-gradient(135deg, #1976D2, #1565C0) !important;
+            color: white !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+        }
+        .question-bar-back {
+            background: linear-gradient(135deg, #f57c00, #e65100) !important;
+            color: white !important;
+            transform: rotateY(180deg) !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+        }
+        .question-bar .word {
+            font-size: 2.6em !important;
+            font-weight: bold !important;
+            margin: 0 !important;
+            color: white !important;
+            line-height: 1 !important;
+        }
+        .question-bar .translation {
+            font-size: 2.2em !important;
+            font-weight: bold !important;
+            margin: 0 !important;
+            color: white !important;
+            line-height: 1 !important;
+        }
+        .speak-btn-bar {
+            background-color: rgba(255, 255, 255, 0.25);
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            color: white;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: 0.2s;
+            flex-shrink: 0;
+            margin: 0 !important;
+        }
+        .speak-btn-bar:hover {
+            background-color: rgba(255, 255, 255, 0.45);
+            transform: scale(1.08);
+        }
+
+        /* 手機與平板適應 */
+        @media (max-width: 768px) {
+            .question-bar {
+                height: 60px !important;
+                margin-bottom: 8px !important;
             }
+            .question-bar .word {
+                font-size: 2em !important;
+            }
+            .question-bar .translation {
+                font-size: 1.8em !important;
+            }
+            .speak-btn-bar {
+                width: 38px !important;
+                height: 38px !important;
+            }
+            .mc-btn {
+                height: 54px !important;
+                min-height: 50px !important;
+            }
+            .mc-btn div {
+                font-size: 1.3em !important;
+            }
+        }
+        @media (max-width: 480px) {
+            .question-bar .word {
+                font-size: 1.7em !important;
+            }
+            .mc-btn div {
+                font-size: 1.1em !important;
+            }
+        }
             .option-column {
                 display: grid !important;
                 grid-template-columns: 1fr 1fr !important;
@@ -508,7 +597,8 @@
             <span class="material-symbols-outlined" style="vertical-align: middle;">history</span> 歷史版本：
             <select onchange="if(this.value) window.location.href='?v='+this.value" style="padding: 5px; border-radius: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; font-size: 14px;">
                 <option value="">選擇版本...</option>
-                <option value="28">版本 28 (最新)</option>
+                <option value="29">版本 29 (最新)</option>
+                <option value="28">版本 28</option>
                 <option value="27">版本 27</option>
                 <option value="26">版本 26</option>
                 <option value="25">版本 25</option>
@@ -636,39 +726,38 @@
             <button onclick="quitPracticeGame()" style="position: absolute; top: 15px; right: 15px; background-color: #d32f2f; color: white; border-radius: 8px; font-weight: bold; font-size: 1em; padding: 8px 15px; z-index: 10;"><span class="material-symbols-outlined">logout</span> 提前結束</button>
 
             <div id="flashcardContainer">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 auto 10px auto; width: 100%; max-width: 800px; padding: 0 10px;">
+                <!-- 上方資訊條：自動發音、進度、跳過、計時 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 auto 8px auto; width: 100%; max-width: 900px; padding: 0 10px;">
                     <label class="checkbox-label" style="margin: 0; font-size: 0.9em;">
                         <input type="checkbox" id="autoSpeakFlashcard" checked> 自動發音 <span class="material-symbols-outlined" style="font-size: 1.2em;">volume_up</span>
                     </label>
-                    <div id="practiceTimer" style="font-size: 2em; font-weight: bold; color: #64b5f6; margin: 0;">0.00 秒</div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span id="cardProgress" style="font-size: 1.1em; font-weight: bold; color: #ffb74d;">1 / 1</span>
+                        <button onclick="nextCard(true)" style="background-color: #555; padding: 4px 12px; font-size: 0.85em; border-radius: 12px; margin: 0;"><span class="material-symbols-outlined" style="font-size: 1em;">skip_next</span> 跳過</button>
+                        <div id="practiceTimer" style="font-size: 1.6em; font-weight: bold; color: #64b5f6; margin: 0;">0.00 秒</div>
+                    </div>
                 </div>
                 
-                <div class="practice-main-layout" style="display: flex; justify-content: space-between; align-items: stretch; gap: 10px; width: 100%;">
-                    <!-- 左側選項 -->
-                    <div id="leftOptions" class="option-column"></div>
-                    
-                    <!-- 中間卡片 -->
-                    <div style="flex: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <div class="card" id="flashcard" style="margin: 0 auto; cursor: default;">
-                            <div class="card-inner">
-                                <div class="card-front">
-                                    <div class="word" id="cardWord"></div>
-                                    <button class="speak-btn" onclick="event.stopPropagation(); speakWordObj(practiceWords[currentIndex])" title="聽發音"><span class="material-symbols-outlined">volume_up</span></button>
-                                </div>
-                                <div class="card-back">
-                                    <!-- 題目只有英文無詞性和圖片，翻面僅顯示中文解答 -->
-                                    <div class="translation" id="cardTranslation" style="font-size: 2.2em; font-weight: bold;"></div>
-                                </div>
-                            </div>
+                <!-- 題目：上面一長條扁扁的，正常大小題目 + 播放音效按鈕 -->
+                <div class="card question-bar" id="flashcard">
+                    <div class="card-inner">
+                        <div class="card-front question-bar-front">
+                            <span class="word" id="cardWord"></span>
+                            <button class="speak-btn-bar" onclick="event.stopPropagation(); speakWordObj(practiceWords[currentIndex])" title="聽發音"><span class="material-symbols-outlined">volume_up</span></button>
                         </div>
-                        <div class="controls" style="margin-top: 5px; margin-bottom: 15px;">
-                            <button onclick="nextCard(true)" style="background-color: #9E9E9E; padding: 5px 15px; font-size: 0.9em; border-radius: 15px;"><span class="material-symbols-outlined">skip_next</span> 跳過這題</button>
-                            <span id="cardProgress" style="font-size: 1.2em; font-weight: bold; color: #555;">1 / 1</span>
+                        <div class="card-back question-bar-back">
+                            <!-- 翻面顯示正確中文解答 -->
+                            <span class="translation" id="cardTranslation"></span>
                         </div>
                     </div>
-                    
+                </div>
+
+                <!-- 下方選項：左右兩欄各 5 個，整齊排列 -->
+                <div class="practice-options-wrapper" style="display: flex; justify-content: space-between; gap: 10px; width: 100%; max-width: 900px; margin: 0 auto;">
+                    <!-- 左側選項 -->
+                    <div id="leftOptions" class="option-column" style="flex: 1; display: flex; flex-direction: column; gap: 8px;"></div>
                     <!-- 右側選項 -->
-                    <div id="rightOptions" class="option-column"></div>
+                    <div id="rightOptions" class="option-column" style="flex: 1; display: flex; flex-direction: column; gap: 8px;"></div>
                 </div>
             </div>
         </div>
@@ -1465,7 +1554,7 @@
                 btn.style.position = 'relative';
                 btn.style.padding = '0';
                 btn.style.overflow = 'hidden';
-                btn.style.height = '80px'; // 再縮小高度避免需要滾動
+                btn.style.height = '62px'; // 再縮小高度避免需要滾動
                 btn.style.display = 'flex';
                 btn.style.alignItems = 'center';
                 btn.style.justifyContent = 'center';
