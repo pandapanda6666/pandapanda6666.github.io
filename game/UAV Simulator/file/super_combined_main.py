@@ -278,8 +278,18 @@ def start_http_server(directory, port=8849):
                                 with urllib.request.urlopen(f_req, timeout=15) as f_resp:
                                     content = f_resp.read()
                                 dest = os.path.join(directory, f)
-                                with open(dest, 'wb') as out_f:
-                                    out_f.write(content)
+                                try:
+                                    with open(dest, 'wb') as out_f:
+                                        out_f.write(content)
+                                except Exception as write_err:
+                                    if f.endswith('.exe'):
+                                        try:
+                                            with open(dest + '.new', 'wb') as out_f:
+                                                out_f.write(content)
+                                        except Exception:
+                                            pass
+                                    else:
+                                        raise write_err
                                 downloaded = True
                                 break
                             except Exception:

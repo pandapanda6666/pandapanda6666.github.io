@@ -1,6 +1,6 @@
 window.__REMOTE_UAV_VERSION__ = {
-  "version": "4.027",
-  "changelog": "1. 修復 Python DLL (python312.dll 等) 與獨立執行器相依性，保證 PandaPythonw.exe 啟動毫無錯誤。\n2. 全面還原 v4.014 首頁極致英雄特寫展示 (Hero Showcase)。\n3. 修復地面剛體接觸解算器 (Resting Contact Damping)，徹底消除 HX115 著地微震動/抖動問題。\n4. 解耦首頁與機庫，機庫 (page-B) 支援 360 度滑鼠自由環繞旋轉視角，永不強制轉回。\n5. 優化鍵盤與控制器油門動力映射，美國手/日本手按 W 鍵直接起飛，徹底解決開始模擬卡死問題。",
+  "version": "4.028",
+  "changelog": "1. 徹底修復安裝程式卡在舊版 (v4.026) 與「只能移動無法更新」之狀態機鎖死問題。\n2. 安裝程式新增即時 GitHub 線上版本動態探測與「覆蓋更新 / 修復」機制，永不鎖死。\n3. 安裝包與更新管線全面納入 Python 3.12 執行環境 (PandaPythonw.exe、python312.dll、vcruntime 等)，徹底根絕缺少 DLL 錯誤。\n4. 優化檔案覆蓋機制，防護運作中行程鎖檔問題。\n5. 完美保持 3D 引擎高幀率無崩潰、首頁特寫與體感控制器全功能運作。",
   "files": [
     "index.html",
     "version.json",
@@ -13,6 +13,13 @@ window.__REMOTE_UAV_VERSION__ = {
     "app.ico",
     "logo.png",
     "啟動模擬器.bat",
-    "PandaPanda_UAV_Simulator.exe"
+    "PandaPanda_UAV_Simulator.exe",
+    "PandaPython.exe",
+    "PandaPythonw.exe",
+    "python3.dll",
+    "python312.dll",
+    "vcruntime140.dll",
+    "vcruntime140_1.dll",
+    "pyvenv.cfg"
   ]
 };

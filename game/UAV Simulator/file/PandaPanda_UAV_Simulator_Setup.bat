@@ -46,7 +46,7 @@ $grpVersion.Location = New-Object System.Drawing.Point(30, 85)
 $grpVersion.Size = New-Object System.Drawing.Size(544, 160)
 
 $rbWin10 = New-Object System.Windows.Forms.RadioButton
-$rbWin10.Text = "🌟 Windows 10 / 11 旗艦版 (v4.024) [推薦 Win10/11 使用者]"
+$rbWin10.Text = "Windows 10 / 11 旗艦版 (v4.028) [推薦 Win10/11 使用者]"
 $rbWin10.Font = New-Object System.Drawing.Font("Microsoft JhengHei", 9.5, [System.Drawing.FontStyle]::Bold)
 $rbWin10.ForeColor = [System.Drawing.Color]::White
 $rbWin10.Location = New-Object System.Drawing.Point(16, 26)
@@ -62,7 +62,7 @@ $lblWin10Desc.Size = New-Object System.Drawing.Size(490, 20)
 $grpVersion.Controls.Add($lblWin10Desc)
 
 $rbWin7 = New-Object System.Windows.Forms.RadioButton
-$rbWin7.Text = "🛡️ Windows 7 / 8 相容版 (v4.024) [推薦 Win7/8 使用者]"
+$rbWin7.Text = "Windows 7 / 8 相容版 (v4.028) [推薦 Win7/8 使用者]"
 $rbWin7.Font = New-Object System.Drawing.Font("Microsoft JhengHei", 9.5, [System.Drawing.FontStyle]::Bold)
 $rbWin7.ForeColor = [System.Drawing.Color]::White
 $rbWin7.Location = New-Object System.Drawing.Point(16, 78)
@@ -87,11 +87,11 @@ $grpVersion.Controls.Add($lblDetectHint)
 $os = [Environment]::OSVersion
 if ($os.Version.Major -eq 6) {
     $rbWin7.Checked = $true
-    $lblDetectHint.Text = "💡 系統檢測：偵測到 Windows 7/8 系統，已自動選取「Windows 7/8 相容版」！"
+    $lblDetectHint.Text = "系統檢測：偵測到 Windows 7/8 系統，已自動選取「Windows 7/8 相容版」！"
     $lblDetectHint.ForeColor = [System.Drawing.Color]::FromArgb(255, 200, 80)
 } else {
     $rbWin10.Checked = $true
-    $lblDetectHint.Text = "💡 系統檢測：偵測到 Windows 10/11 系統，已自動選取「Windows 10/11 旗艦版」！"
+    $lblDetectHint.Text = "系統檢測：偵測到 Windows 10/11 系統，已自動選取「Windows 10/11 旗艦版」！"
     $lblDetectHint.ForeColor = [System.Drawing.Color]::FromArgb(100, 230, 150)
 }
 $form.Controls.Add($grpVersion)
@@ -148,7 +148,7 @@ $form.Controls.Add($chkShortcut)
 
 # Progress Bar & Status
 $lblStatus = New-Object System.Windows.Forms.Label
-$lblStatus.Text = "準備就緒，請點擊「🚀 開始安裝」。"
+$lblStatus.Text = "準備就緒，請點擊「開始安裝」。"
 $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(0, 229, 255)
 $lblStatus.Location = New-Object System.Drawing.Point(30, 360)
 $lblStatus.Size = New-Object System.Drawing.Size(544, 22)
@@ -164,7 +164,7 @@ $form.Controls.Add($progressBar)
 
 # Action Buttons
 $btnInstall = New-Object System.Windows.Forms.Button
-$btnInstall.Text = "🚀 開始安裝"
+$btnInstall.Text = "開始安裝"
 $btnInstall.Font = New-Object System.Drawing.Font("Microsoft JhengHei", 10.5, [System.Drawing.FontStyle]::Bold)
 $btnInstall.Location = New-Object System.Drawing.Point(300, 440)
 $btnInstall.Size = New-Object System.Drawing.Size(150, 42)
@@ -240,7 +240,14 @@ $btnInstall.Add_Click({
             "app.ico",
             "logo.png",
             "啟動模擬器.bat",
-            "PandaPanda_UAV_Simulator.exe"
+            "PandaPanda_UAV_Simulator.exe",
+            "PandaPython.exe",
+            "PandaPythonw.exe",
+            "python3.dll",
+            "python312.dll",
+            "vcruntime140.dll",
+            "vcruntime140_1.dll",
+            "pyvenv.cfg"
         )
 
         $baseUrls = @(
@@ -321,9 +328,9 @@ $btnInstall.Add_Click({
 
         $progressBar.Value = 100
         $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(100, 230, 150)
-        $lblStatus.Text = "🎉 安裝成功！已在桌面建立「PandaPanda 無人機模擬器」捷徑！"
+        $lblStatus.Text = "安裝成功！已在桌面建立「PandaPanda 無人機模擬器」捷徑！"
         
-        $btnInstall.Text = "🎮 立即啟動"
+        $btnInstall.Text = "立即啟動"
         $btnInstall.BackColor = [System.Drawing.Color]::FromArgb(76, 175, 80)
         $btnInstall.ForeColor = [System.Drawing.Color]::White
         $btnInstall.Enabled = $true
