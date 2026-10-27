@@ -1478,6 +1478,19 @@
                 
                 propGroup.userData = { blades: blades, blur: blurMesh };
                 propellers.push(propGroup);
+
+                // 4支著陸支架 (Landing Skid under arm)
+                const legG = new THREE.Group();
+                legG.name = 'proc_landing_leg';
+                const legH = 0.045 * s;
+                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.005*s, 0.006*s, legH, 12), new THREE.MeshStandardMaterial({color: 0x181818, roughness: 0.7}));
+                strut.position.copy(motorPos); strut.position.y -= legH / 2;
+                legG.add(strut);
+                const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.01*s, 0.012*s, 0.008*s, 12), new THREE.MeshStandardMaterial({color: 0x0a0a0a, roughness: 0.9}));
+                foot.position.copy(motorPos); foot.position.y -= (legH + 0.004*s);
+                legG.add(foot);
+                armGroup.add(legG);
+
                 droneGroup.add(armGroup);
             }
 
@@ -1619,9 +1632,13 @@
                       if (meshData.position) mesh.position.set(meshData.position[0], meshData.position[1], meshData.position[2]);
                     
                     let name = meshData.name.toLowerCase();
+                    if (name.includes('antenna')) {
+                        mesh.visible = false; // 隱藏舊版頭頂小紅點天線
+                        return;
+                    }
                     if (name.includes('frame') || name.includes('board') || name.includes('stator') || name.includes('standoff') || name.includes('strap') || name.includes('wire')) {
                         groups['frame'].add(mesh);
-                    } else if (name.includes('canopy') || name.includes('lens') || name.includes('camera') || name.includes('antenna')) {
+                    } else if (name.includes('canopy') || name.includes('lens') || name.includes('camera')) {
                         groups['canopy'].add(mesh);
                     } else if (name.includes('batt')) {
                         groups['batt'].add(mesh);
@@ -1630,6 +1647,66 @@
                         container.add(mesh);
                     }
                 });
+                // === 1. 正統 FPV 棒棒糖天線 (Lollipop Antenna - 如圖2: 斜向後方黑天線桿 + 紅色圓球頭) ===
+                const lollipopGroup = new THREE.Group();
+                lollipopGroup.name = 'lollipop_antenna';
+                lollipopGroup.position.set(0, 0.022, 0.015);
+                lollipopGroup.rotation.x = -Math.PI / 4; // 45度斜向後方
+
+                const antStemGeo = new THREE.CylinderGeometry(0.002, 0.0025, 0.038, 12);
+                antStemGeo.translate(0, 0.019, 0);
+                const antStemMat = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.6 });
+                const antStem = new THREE.Mesh(antStemGeo, antStemMat);
+                lollipopGroup.add(antStem);
+
+                const antCollarGeo = new THREE.CylinderGeometry(0.0055, 0.0055, 0.006, 16);
+                const antHeadMat = new THREE.MeshStandardMaterial({ color: 0xdd1111, roughness: 0.25, metalness: 0.1 });
+                const antCollar = new THREE.Mesh(antCollarGeo, antHeadMat);
+                antCollar.position.y = 0.038;
+                lollipopGroup.add(antCollar);
+
+                const antCapGeo = new THREE.SphereGeometry(0.0085, 16, 16);
+                const antCap = new THREE.Mesh(antCapGeo, antHeadMat);
+                antCap.position.y = 0.043;
+                lollipopGroup.add(antCap);
+
+                const antRingGeo = new THREE.TorusGeometry(0.0087, 0.001, 8, 24);
+                antRingGeo.rotateX(Math.PI / 2);
+                const antRing = new THREE.Mesh(antRingGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                antRing.position.y = 0.043;
+                lollipopGroup.add(antRing);
+
+                groups['canopy'].add(lollipopGroup);
+
+                // === 2. 四支著陸起落支架 (如圖2: 4個機臂馬達下方垂直朝下支架與橡膠腳墊) ===
+                const legCoords = [
+                    [0.04, 0.04],
+                    [-0.04, 0.04],
+                    [-0.04, -0.04],
+                    [0.04, -0.04]
+                ];
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.6, metalness: 0.3 });
+                const footMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 });
+                legCoords.forEach((coord, idx) => {
+                    const legG = new THREE.Group();
+                    legG.name = 'landing_leg_' + idx;
+                    legG.userData.breakableGroup = true;
+                    legG.position.set(coord[0], 0.003, coord[1]);
+
+                    const legH = 0.027; // 延伸至 y = -0.024 (世界座標 -0.048m，完全支撐地面 -1.50m)
+                    const strutG = new THREE.CylinderGeometry(0.0022, 0.0028, legH, 10);
+                    strutG.translate(0, -legH / 2, 0);
+                    const strutM = new THREE.Mesh(strutG, legMat);
+                    legG.add(strutM);
+
+                    const footG = new THREE.CylinderGeometry(0.0055, 0.0065, 0.004, 12);
+                    footG.translate(0, -legH - 0.002, 0);
+                    const footM = new THREE.Mesh(footG, footMat);
+                    legG.add(footM);
+
+                    groups['frame'].add(legG);
+                });
+
                 setupLoadedModel(container, true);
                 droneGroup.add(container);
                 window.droneCollisionRadius = 0.05;
@@ -1898,14 +1975,28 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
 
             requestAnimationFrame(animate);
             
+            // Screen Shake
+            if (window.cameraShakeTime > 0 && typeof camera !== 'undefined') {
+                window.cameraShakeTime -= dt;
+                let intensity = (window.cameraShakeIntensity || 0.1) * (window.cameraShakeTime / 0.45);
+                camera.position.x += (Math.random() - 0.5) * intensity;
+                camera.position.y += (Math.random() - 0.5) * intensity;
+                camera.position.z += (Math.random() - 0.5) * intensity;
+            }
+
             // Particle Update Loop
             if (window.particles) {
                 for (let i = window.particles.length - 1; i >= 0; i--) {
                     let p = window.particles[i];
                     p.life -= dt;
                     if (p.life <= 0) {
-                        scene.remove(p.mesh);
+                        if (p.isLight && p.light) scene.remove(p.light);
+                        else if (p.mesh) scene.remove(p.mesh);
                         window.particles.splice(i, 1);
+                        continue;
+                    }
+                    if (p.isLight && p.light) {
+                        p.light.intensity = (p.life / p.maxLife) * (p.initIntensity || 10);
                         continue;
                     }
                     p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
@@ -1915,7 +2006,11 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     p.mesh.rotation.x += p.rotSpeed.x * dt;
                     p.mesh.rotation.y += p.rotSpeed.y * dt;
                     p.mesh.rotation.z += p.rotSpeed.z * dt;
-                    if (p.mesh.material.opacity !== undefined) {
+                    if (p.mesh.position.y < -1.49) {
+                        p.mesh.position.y = -1.49;
+                        p.vel.y = -p.vel.y * 0.4;
+                    }
+                    if (p.mesh.material && p.mesh.material.opacity !== undefined) {
                         p.mesh.material.opacity = p.life / p.maxLife;
                     }
                 }
@@ -1952,13 +2047,29 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     bp.mesh.position.add(bp.vel.clone().multiplyScalar(0.016));
                     bp.mesh.rotateOnAxis(bp.rotVec, bp.rotSpeed * 0.016);
                     
-                    if (bp.mesh.position.y < -1.5 + 0.05) {
-                        bp.mesh.position.y = -1.5 + 0.05;
-                        bp.vel.y *= -0.5; // bounce
-                        bp.vel.x *= 0.8; // friction
-                        bp.vel.z *= 0.8;
-                        bp.rotSpeed *= 0.8;
+                    // 嚴禁解體零件穿模！地表嚴格位於 y = -1.50
+                    let partR = bp.radius || 0.035;
+                    let groundLimit = -1.50 + partR;
+                    if (bp.mesh.position.y <= groundLimit) {
+                        bp.mesh.position.y = groundLimit;
+                        if (bp.vel.y < 0) {
+                            bp.vel.y = -bp.vel.y * 0.35; // 彈跳衰減
+                        }
+                        bp.vel.x *= 0.72; // 地表摩擦力
+                        bp.vel.z *= 0.72;
+                        bp.rotSpeed *= 0.65;
+                        if (Math.abs(bp.vel.y) < 0.08 && Math.hypot(bp.vel.x, bp.vel.z) < 0.1) {
+                            bp.vel.set(0, 0, 0);
+                            bp.rotSpeed = 0;
+                            // 靜止時平貼草皮
+                            if (bp.mesh.name && bp.mesh.name.includes('prop')) {
+                                bp.mesh.rotation.x = 0;
+                            }
+                        }
                     }
+                    // 邊界防出界
+                    bp.mesh.position.x = THREE.MathUtils.clamp(bp.mesh.position.x, -28.0, 35.0);
+                    bp.mesh.position.z = THREE.MathUtils.clamp(bp.mesh.position.z, -130.0, 12.0);
                 });
                 // DO NOT RETURN. We must reach renderer.render() at the bottom!
             }
@@ -2018,7 +2129,7 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                 } else {
                     // Angle Mode (Auto-level)
                     // Ground tilt prevention (if on ground and low throttle, force level)
-                    if (droneGroup.position.y < -1.35 && (inputThrottle < 0.2)) {
+                    if (droneGroup.position.y < -1.42 && (inputThrottle < 0.2)) {
                         targetPitch = 0;
                         targetRoll = 0;
                     }
@@ -2116,6 +2227,11 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
             
             
             
+            // 地面螺旋槳觸地檢測與起落架支撐 (防螺旋槳穿地、螺旋槳打地噴飛)
+            if (currentPage === 'page-D' && typeof droneGroup !== 'undefined' && !window.droneCrashed) {
+                checkGroundAndPropellersContact();
+            }
+
             // SPA Specific Logic
             if (currentPage === 'page-D' && !window.droneCrashed) {
                 
@@ -2143,7 +2259,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                     let right = new THREE.Vector3(1, 0, 0).applyQuaternion(droneGroup.quaternion);
                     right.y = 0; right.normalize();
                     // 只有在離開地面或是給予足夠油門時，才允許 Hover 模式產生水平推力
-                    if (droneGroup.position.y > -1.35 || globalThrottleVal > 0.1) {
+                    if (droneGroup.position.y > -1.42 || globalThrottleVal > 0.1) {
                         thrustVec.add(fwd.multiplyScalar(inputPitch * hoverHorizThrust));
                         thrustVec.add(right.multiplyScalar(inputRoll * hoverHorizThrust));
                     }
@@ -2248,14 +2364,17 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                     let restitution = THREE.MathUtils.clamp(droneEla * 0.9, 0.05, 0.85); // 機身柔軟度 / 反彈係數
                     let normalCrashThresh = 4.0 + droneEla * 12.0; // 柔軟度越低越易碎，越高越耐撞
                     let upsideCrashThresh = 1.5 + droneEla * 6.0;
-                    let droneRadius = 0.11; // 無人機精緻碰撞防護半徑 (完全匹配 -1.39m 著陸基底，徹底杜絕物理浮動)
-                    let subDrag = Math.pow(0.985, 1.0 / numSubsteps);
-
+                    let droneRadius = 0.045; // 精準中心幾何半徑
                     for (let step = 0; step < numSubsteps; step++) {
                         if (window.droneCrashed) break;
 
-                        // 子步微積分阻力
-                        window.droneVelocity.multiplyScalar(subDrag);
+                        // 真實空氣動力學二次阻力 (Quadratic Drag: F_d = 0.5 * rho * Cd * A * v^2)
+                        // 放開油門時自由下墜迅速自然，不再飄飄的如同降落傘！
+                        let cSpeed = window.droneVelocity.length();
+                        if (cSpeed > 0.05) {
+                            let dragFactor = Math.min(cSpeed * 0.5, 0.014 * cSpeed * cSpeed * subDt);
+                            window.droneVelocity.sub(window.droneVelocity.clone().normalize().multiplyScalar(dragFactor));
+                        }
 
                         let curPos = droneGroup.position.clone();
                         let targetPos = curPos.clone().add(window.droneVelocity.clone().multiplyScalar(subDt));
@@ -2266,7 +2385,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                         let colFraction = 1.0;
 
                         // 1. 地面連續碰撞檢測 (Ground Plane at Y = -1.5)
-                        let groundY = -1.39; // 物理著陸基準點完全統一為 -1.39m
+                        let groundY = -1.452; // 物理著陸基準點完全統一為 -1.39m
                         if (targetPos.y < groundY) {
                             let dy = targetPos.y - curPos.y;
                             let frac = 0.0;
@@ -2645,13 +2764,13 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
 
             if (window.droneVelocity && window.droneAngularVel && typeof droneGroup !== 'undefined') {
 
-                if (window.droneVelocity.lengthSq() < 0.05 && window.droneAngularVel.lengthSq() < 0.05 && Math.abs(droneGroup.position.y - (-1.39)) < 0.1) {
+                if (window.droneVelocity.lengthSq() < 0.05 && window.droneAngularVel.lengthSq() < 0.05 && Math.abs(droneGroup.position.y - (-1.452)) < 0.1) {
 
                     window.droneVelocity.set(0,0,0);
 
                     window.droneAngularVel.set(0,0,0);
 
-                    droneGroup.position.y = -1.39;
+                    droneGroup.position.y = -1.452;
         // Auto-level when resting to avoid looking like a tilted statue
         let restE = new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ');
         restE.x *= 0.9;
@@ -2663,7 +2782,7 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
 
             if (currentPage !== 'page-D') {
                 if (typeof droneGroup !== 'undefined') {
-                    droneGroup.position.set(0, -1.39, 0);
+                    droneGroup.position.set(0, -1.452, 0);
                     if (!isFPV) controls.target.set(0, 0, 0);
                 }
             }
@@ -3101,7 +3220,7 @@ renderer.render(scene, camera);
 
             // 2. 空間坐標、姿態四元數、偏航角、線速度與角速度全部徹底歸零
             if (typeof droneGroup !== 'undefined') {
-                droneGroup.position.set(0, -1.39, 0);
+                droneGroup.position.set(0, -1.452, 0);
                 droneGroup.rotation.set(0, 0, 0, 'YXZ');
                 droneGroup.quaternion.identity();
             }
@@ -3121,11 +3240,13 @@ renderer.render(scene, camera);
 
             // 3. 炸機與碎片清理
             window.droneCrashed = false;
+            let banner = document.getElementById('crash-hud-banner');
+            if (banner) banner.style.display = 'none';
             if (window.brokenParts && window.brokenParts.length > 0) {
                 window.brokenParts.forEach(bp => scene.remove(bp.mesh));
                 window.brokenParts = [];
-                if (typeof selectDrone === 'function') selectDrone(currentDroneId);
             }
+            if (typeof selectDrone === 'function') selectDrone(currentDroneId);
             if (window.particles) {
                 window.particles.forEach(p => scene.remove(p.mesh));
                 window.particles = [];
@@ -3137,7 +3258,7 @@ renderer.render(scene, camera);
             if (typeof updateBoundaryGlitch === 'function') updateBoundaryGlitch(false);
 
             // 4. 攝影機跟隨歷史與 OrbitControls 目標完全歸零，防止瞬移跳動
-            window.lastDronePos = new THREE.Vector3(0, -1.39, 0);
+            window.lastDronePos = new THREE.Vector3(0, -1.452, 0);
             window.lastDroneYaw = 0;
             fpvYaw = 0;
             fpvPitch = 0;
@@ -3148,7 +3269,7 @@ renderer.render(scene, camera);
                     controls.reset();
                     camera.rotation.set(0, 0, 0, 'XYZ');
                     camera.position.set(0, 0, 3.5);
-                    controls.target.set(0, -1.39, 0);
+                    controls.target.set(0, -1.452, 0);
                     controls.update();
                 } else if (isFPV && typeof resetFPVCamera === 'function') {
                     resetFPVCamera();
@@ -3173,148 +3294,322 @@ renderer.render(scene, camera);
         }
         
         window.particles = [];
-        function createExplosion(pos) {
-            if(!window.particles) window.particles = [];
-            
-            // Sparks
-            const sparkGeo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
-            const sparkMat = new THREE.MeshBasicMaterial({color: 0xffff00});
-            for(let i=0; i<40; i++) {
-                let mesh = new THREE.Mesh(sparkGeo, sparkMat);
-                mesh.position.copy(pos);
-                scene.add(mesh);
-                window.particles.push({
-                    mesh: mesh,
-                    vel: new THREE.Vector3((Math.random()-0.5)*20, Math.random()*15, (Math.random()-0.5)*20),
-                    gravity: 15.0,
-                    drag: 0.98,
-                    grow: 0.95,
-                    rotSpeed: new THREE.Vector3(Math.random()*10, Math.random()*10, Math.random()*10),
-                    life: 0.8 + Math.random()*0.4, maxLife: 1.2
-                });
-            }
-            
-            // Explosion Fire
-            const fireGeo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-            const fireMat = new THREE.MeshBasicMaterial({color: 0xff5500, transparent: true, opacity: 1.0});
-            for(let i=0; i<15; i++) {
-                let mesh = new THREE.Mesh(fireGeo, fireMat);
-                mesh.position.copy(pos);
-                scene.add(mesh);
-                window.particles.push({
-                    mesh: mesh,
-                    vel: new THREE.Vector3((Math.random()-0.5)*8, Math.random()*8, (Math.random()-0.5)*8),
-                    gravity: -3.0, 
-                    drag: 0.85,
-                    grow: 1.08,
-                    rotSpeed: new THREE.Vector3(Math.random()*2, Math.random()*2, Math.random()*2),
-                    life: 0.4 + Math.random()*0.3, maxLife: 0.7
+        window.cameraShakeTime = 0;
+        window.cameraShakeIntensity = 0;
+
+        // 螺旋槳噴飛函數 (Propeller Ejection)
+        function ejectPropeller(prop, idx, worldPos, launchVel) {
+            if (!prop || prop.userData.isEjected) return;
+            prop.userData.isEjected = true;
+            prop.visible = false;
+
+            if (!window.brokenParts) window.brokenParts = [];
+
+            // 複製一個實體螺旋槳在世界中飛行
+            let propClone = prop.clone();
+            propClone.visible = true;
+            propClone.position.copy(worldPos);
+            propClone.quaternion.copy(prop.getWorldQuaternion(new THREE.Quaternion()));
+            scene.add(propClone);
+
+            let v = launchVel || new THREE.Vector3((Math.random()-0.5)*8, 3.5 + Math.random()*4, (Math.random()-0.5)*8);
+            if (window.droneVelocity) v.add(window.droneVelocity.clone().multiplyScalar(0.7));
+
+            window.brokenParts.push({
+                mesh: propClone,
+                vel: v,
+                rotVec: new THREE.Vector3(0, 1, 0),
+                rotSpeed: 45 + Math.random() * 30,
+                radius: 0.04
+            });
+
+            // 噴射火花
+            createSparkBurst(worldPos, 15);
+        }
+
+        // 著陸防穿模與螺旋槳打地檢測
+        function checkGroundAndPropellersContact() {
+            if (!droneGroup || window.droneCrashed) return;
+
+            // 1. 檢查 4 隻螺旋槳
+            if (typeof propellers !== 'undefined' && propellers && propellers.length > 0) {
+                propellers.forEach((p, idx) => {
+                    if (p.userData && p.userData.isEjected) return;
+                    let pw = p.getWorldPosition(new THREE.Vector3());
+                    if (pw.y <= -1.485) {
+                        let pen = -1.485 - pw.y;
+                        droneGroup.position.y += pen * 0.8;
+
+                        let isMoving = (typeof globalTotalSpeed !== 'undefined' && globalTotalSpeed > 0.12) || 
+                                       (window.droneVelocity && window.droneVelocity.lengthSq() > 0.25) ||
+                                       (Math.abs(droneGroup.rotation.x) > 0.2 || Math.abs(droneGroup.rotation.z) > 0.2);
+
+                        if (isMoving) {
+                            let launchV = new THREE.Vector3((Math.random()-0.5)*6, 3.0 + Math.random()*3, (Math.random()-0.5)*6);
+                            ejectPropeller(p, idx, pw, launchV);
+                        }
+                    }
                 });
             }
 
-            // Explosion Smoke
-            const smokeGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-            const smokeMat = new THREE.MeshLambertMaterial({color: 0x333333, transparent: true, opacity: 0.8});
-            for(let i=0; i<20; i++) {
-                let mesh = new THREE.Mesh(smokeGeo, smokeMat);
-                mesh.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*2, Math.random()*2, (Math.random()-0.5)*2));
-                scene.add(mesh);
+            // 2. 檢查 4 隻起落架支架腳墊 (Foot Pads) 地面接觸，提供真實四點支撐
+            if (droneGroup.position.y < -1.40) {
+                const footOffsets = [
+                    new THREE.Vector3( 0.08, -0.048,  0.08),
+                    new THREE.Vector3(-0.08, -0.048,  0.08),
+                    new THREE.Vector3(-0.08, -0.048, -0.08),
+                    new THREE.Vector3( 0.08, -0.048, -0.08)
+                ];
+                let maxPen = 0;
+                footOffsets.forEach(fo => {
+                    let fw = droneGroup.localToWorld(fo.clone());
+                    if (fw.y < -1.50) {
+                        let p = -1.50 - fw.y;
+                        if (p > maxPen) maxPen = p;
+                    }
+                });
+                if (maxPen > 0) {
+                    droneGroup.position.y += maxPen;
+                    if (window.droneVelocity && window.droneVelocity.y < 0) {
+                        window.droneVelocity.y = 0;
+                        window.droneVelocity.x *= 0.82;
+                        window.droneVelocity.z *= 0.82;
+                    }
+                    if (typeof globalThrottleVal !== 'undefined' && globalThrottleVal < 0.1) {
+                        let curE = new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ');
+                        curE.x *= 0.88;
+                        curE.z *= 0.88;
+                        droneGroup.quaternion.setFromEuler(curE);
+                    }
+                }
+            }
+        }
+
+        function createSparkBurst(pos, count) {
+            if(!window.particles) window.particles = [];
+            const sparkGeo = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+            const sparkMat = new THREE.MeshBasicMaterial({color: 0xffea00});
+            for(let i=0; i<count; i++) {
+                let m = new THREE.Mesh(sparkGeo, sparkMat);
+                m.position.copy(pos);
+                scene.add(m);
+                let angle = Math.random() * Math.PI * 2;
+                let spd = 4 + Math.random() * 8;
                 window.particles.push({
-                    mesh: mesh,
-                    vel: new THREE.Vector3((Math.random()-0.5)*4, 2 + Math.random()*4, (Math.random()-0.5)*4),
-                    gravity: -1.0, 
-                    drag: 0.92,
-                    grow: 1.03,
-                    rotSpeed: new THREE.Vector3(Math.random(), Math.random(), Math.random()),
-                    life: 1.0 + Math.random(), maxLife: 2.0
+                    mesh: m,
+                    vel: new THREE.Vector3(Math.cos(angle)*spd, 2 + Math.random()*5, Math.sin(angle)*spd),
+                    gravity: 14.0,
+                    drag: 0.96,
+                    grow: 0.95,
+                    rotSpeed: new THREE.Vector3(Math.random()*15, Math.random()*15, Math.random()*15),
+                    life: 0.4 + Math.random()*0.4,
+                    maxLife: 0.8
                 });
             }
         }
+
+        // 震撼級大爆炸特效 (Epic Explosion FX: 光球、震波、閃光、大量煙霧與火花)
+        function createEpicExplosion(pos, isHuge) {
+            if (!window.particles) window.particles = [];
+
+            // 1. 動態爆炸高亮光源 (PointLight Flash)
+            const flashLight = new THREE.PointLight(0xff9900, isHuge ? 16 : 9, 25);
+            flashLight.position.copy(pos);
+            scene.add(flashLight);
+            window.particles.push({
+                light: flashLight,
+                isLight: true,
+                initIntensity: isHuge ? 16 : 9,
+                life: 0.35,
+                maxLife: 0.35
+            });
+
+            // 2. 核心膨脹火球 (Expanding Fireball Sphere)
+            const fireGeo = new THREE.SphereGeometry(0.2, 16, 16);
+            const fireMat = new THREE.MeshBasicMaterial({
+                color: isHuge ? 0xff4400 : 0xff7700,
+                transparent: true,
+                opacity: 0.95,
+                blending: THREE.AdditiveBlending
+            });
+            const fireball = new THREE.Mesh(fireGeo, fireMat);
+            fireball.position.copy(pos);
+            scene.add(fireball);
+            window.particles.push({
+                mesh: fireball,
+                vel: new THREE.Vector3(0, 0.3, 0),
+                gravity: 0,
+                drag: 0.92,
+                grow: isHuge ? 1.13 : 1.09,
+                rotSpeed: new THREE.Vector3(0.5, 0.5, 0.5),
+                life: 0.45,
+                maxLife: 0.45
+            });
+
+            // 3. 地表衝擊波光環 (Ground Shockwave Ring)
+            const ringGeo = new THREE.RingGeometry(0.1, 0.35, 32);
+            ringGeo.rotateX(-Math.PI / 2);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.85,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+            });
+            const shockwave = new THREE.Mesh(ringGeo, ringMat);
+            shockwave.position.set(pos.x, -1.49, pos.z);
+            scene.add(shockwave);
+            window.particles.push({
+                mesh: shockwave,
+                vel: new THREE.Vector3(0, 0, 0),
+                gravity: 0,
+                drag: 1.0,
+                grow: isHuge ? 1.16 : 1.11,
+                rotSpeed: new THREE.Vector3(0, 0, 0),
+                life: 0.35,
+                maxLife: 0.35
+            });
+
+            // 4. 高速火花碎片 (High-Velocity Sparks)
+            const sparkCount = isHuge ? 50 : 30;
+            createSparkBurst(pos, sparkCount);
+
+            // 5. 滾滾黑煙 (Billowing Volumetric Black Smoke)
+            const smokeCount = isHuge ? 30 : 18;
+            const smokeGeo = new THREE.DodecahedronGeometry(0.18, 1);
+            for (let i = 0; i < smokeCount; i++) {
+                let smokeMat = new THREE.MeshLambertMaterial({
+                    color: Math.random() < 0.4 ? 0x222222 : 0x111111,
+                    transparent: true,
+                    opacity: 0.85
+                });
+                let sm = new THREE.Mesh(smokeGeo, smokeMat);
+                sm.position.copy(pos).add(new THREE.Vector3((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.2, (Math.random()-0.5)*0.4));
+                scene.add(sm);
+                window.particles.push({
+                    mesh: sm,
+                    vel: new THREE.Vector3((Math.random()-0.5)*2.5, 1.2 + Math.random()*3.5, (Math.random()-0.5)*2.5),
+                    gravity: -1.2,
+                    drag: 0.94,
+                    grow: 1.04,
+                    rotSpeed: new THREE.Vector3((Math.random()-0.5)*2, (Math.random()-0.5)*2, (Math.random()-0.5)*2),
+                    life: 1.2 + Math.random() * 1.0,
+                    maxLife: 2.2
+                });
+            }
+
+            // 6. 螢幕震動 (Camera Shake)
+            window.cameraShakeTime = isHuge ? 0.45 : 0.28;
+            window.cameraShakeIntensity = isHuge ? 0.20 : 0.10;
+        }
+
+        function createExplosion(pos) {
+            createEpicExplosion(pos, true);
+        }
         
-        function triggerCrash(hitMesh) {
-            if (currentDroneId === 'soccer') return; // Soccer drones bounce, they don't break!
+        function triggerCrash(hitMesh, impactSpeed) {
+            if (currentDroneId === 'soccer') return;
             if (window.droneCrashed) return;
-            // 地面待機防呆：當油門極低或處於初始起飛地面時，絕不觸發炸機卡死
-            if ((typeof globalThrottleVal !== 'undefined' && globalThrottleVal < 0.05) && (typeof droneGroup !== 'undefined' && droneGroup.position.y < -1.35)) return;
+            // 地面低油門待機時不誤判炸機
+            if ((typeof globalThrottleVal !== 'undefined' && globalThrottleVal < 0.05) && (typeof droneGroup !== 'undefined' && droneGroup.position.y < -1.42)) return;
+            
             window.droneCrashed = true;
             if (typeof gameTimerInterval !== 'undefined' && gameTimerInterval) clearInterval(gameTimerInterval);
             gameTimerRunning = false;
             window.brokenParts = [];
             let partsToBreak = [];
-            
-            
-              droneGroup.children.slice().forEach(child => {
-                  if (child === camera) return;
-                  if (child.userData.breakableGroup || child.isMesh) {
-                      partsToBreak.push(child);
-                  } else {
-                      child.traverse(subChild => {
-                          if (subChild.isMesh && subChild !== camera) {
-                              let isCamChild = false;
-                              subChild.traverseAncestors(a => { if (a === camera) isCamChild = true; });
-                              if (!isCamChild) { partsToBreak.push(subChild); }
-                          }
-                      });
-                  }
-              });
-              partsToBreak.forEach(part => {
-                let worldPos = new THREE.Vector3();
-                  let worldQuat = new THREE.Quaternion();
-                  let worldScale = new THREE.Vector3();
-                  part.matrixWorld.decompose(worldPos, worldQuat, worldScale);
-                  scene.add(part);
-                  part.position.copy(worldPos);
-                  part.quaternion.copy(worldQuat);
-                  part.scale.copy(worldScale);
-                
-                                  // Real Physics Kinematics: V_part = V_cm + Omega x r_part
-                  let scatterVel = window.droneVelocity ? window.droneVelocity.clone() : new THREE.Vector3();
-                  let omegaWorld = new THREE.Vector3();
-                  if (window.droneAngularVel) {
-                      omegaWorld.copy(window.droneAngularVel).applyQuaternion(droneGroup.quaternion);
-                  }
-                  
-                  // Vector from Center of Mass to Part
-                  let r_part = worldPos.clone().sub(droneGroup.position);
-                  
-                  // V_tangential = Omega x r_part
-                  let v_tangential = omegaWorld.clone().cross(r_part);
-                  scatterVel.add(v_tangential);
-                  
-                  // Deterministic structural strain release (pushes outward from center)
-                  let outwardForce = r_part.clone();
-                  if (outwardForce.lengthSq() > 0) {
-                      scatterVel.add(outwardForce.normalize().multiplyScalar(2.0)); // 2.0 m/s outward pop
-                  }
-                  
-                  let rotSpeed = omegaWorld.length();
-                  let rotVec = rotSpeed > 0.0001 ? omegaWorld.clone().normalize() : new THREE.Vector3(0,1,0);
-                  
-                  if (part.name && part.name.toLowerCase().includes('prop')) {
-                      rotVec.set(0, 1, 0).applyQuaternion(part.quaternion);
-                      rotSpeed += 30; // Props keep their angular momentum
-                  }
-                  
-                  window.brokenParts.push({
-                      mesh: part,
-                      vel: scatterVel,
-                      rotVec: rotVec,
-                      rotSpeed: rotSpeed
-                  });
-            });
-            
-            // EXPLOSION ONLY IF BATTERY IS HIT
+
+            // 判斷是否撞擊電池或高速撞擊 (觸發大爆炸)
             let isBatteryHit = false;
             if (hitMesh) {
-                // If it's a child mesh of the battery group or the battery itself
                 if (hitMesh.name && hitMesh.name.toLowerCase().includes('batt')) isBatteryHit = true;
                 if (hitMesh.parent && hitMesh.parent.name && hitMesh.parent.name.toLowerCase().includes('batt')) isBatteryHit = true;
             }
-            if (isBatteryHit) {
-                if (typeof createExplosion === 'function') {
-                    createExplosion(droneGroup.position.clone());
+            let spd = impactSpeed || (window.droneVelocity ? window.droneVelocity.length() : 5.0);
+
+            // 蒐集所有獨立可解體組件
+            droneGroup.children.slice().forEach(child => {
+                if (child === camera) return;
+                if (child.userData.breakableGroup || child.isMesh) {
+                    partsToBreak.push(child);
+                } else {
+                    child.traverse(subChild => {
+                        if (subChild.isMesh && subChild !== camera) {
+                            let isCamChild = false;
+                            subChild.traverseAncestors(a => { if (a === camera) isCamChild = true; });
+                            if (!isCamChild) partsToBreak.push(subChild);
+                        }
+                    });
                 }
+            });
+
+            partsToBreak.forEach(part => {
+                let worldPos = new THREE.Vector3();
+                let worldQuat = new THREE.Quaternion();
+                let worldScale = new THREE.Vector3();
+                part.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+                scene.add(part);
+                part.position.copy(worldPos);
+                part.quaternion.copy(worldQuat);
+                part.scale.copy(worldScale);
+
+                let scatterVel = window.droneVelocity ? window.droneVelocity.clone() : new THREE.Vector3();
+                let omegaWorld = new THREE.Vector3();
+                if (window.droneAngularVel) {
+                    omegaWorld.copy(window.droneAngularVel).applyQuaternion(droneGroup.quaternion);
+                }
+                let r_part = worldPos.clone().sub(droneGroup.position);
+                let v_tangential = omegaWorld.clone().cross(r_part);
+                scatterVel.add(v_tangential);
+
+                let outwardForce = r_part.clone();
+                if (outwardForce.lengthSq() > 0) {
+                    scatterVel.add(outwardForce.normalize().multiplyScalar(2.5 + Math.random()*3.5));
+                }
+
+                let rotSpeed = omegaWorld.length() + Math.random()*20;
+                let rotVec = rotSpeed > 0.0001 ? omegaWorld.clone().normalize() : new THREE.Vector3(0,1,0);
+                if (part.name && part.name.toLowerCase().includes('prop')) {
+                    rotVec.set(0, 1, 0).applyQuaternion(part.quaternion);
+                    rotSpeed += 40;
+                }
+
+                window.brokenParts.push({
+                    mesh: part,
+                    vel: scatterVel,
+                    rotVec: rotVec,
+                    rotSpeed: rotSpeed,
+                    radius: 0.04
+                });
+            });
+
+            // 觸發大爆炸或撞擊特效
+            createEpicExplosion(droneGroup.position.clone(), isBatteryHit || spd >= 6.0);
+
+            // 顯示墜毀 HUD 提示
+            let banner = document.getElementById('crash-hud-banner');
+            if (!banner) {
+                banner = document.createElement('div');
+                banner.id = 'crash-hud-banner';
+                banner.style.position = 'fixed';
+                banner.style.top = '22%';
+                banner.style.left = '50%';
+                banner.style.transform = 'translateX(-50%)';
+                banner.style.background = 'rgba(210, 20, 20, 0.88)';
+                banner.style.color = '#ffffff';
+                banner.style.padding = '14px 30px';
+                banner.style.borderRadius = '8px';
+                banner.style.fontSize = '18px';
+                banner.style.fontWeight = 'bold';
+                banner.style.border = '2px solid #ff4444';
+                banner.style.boxShadow = '0 0 30px rgba(255, 0, 0, 0.6)';
+                banner.style.zIndex = '99999';
+                banner.style.textAlign = 'center';
+                banner.style.pointerEvents = 'none';
+                banner.innerHTML = '💥 無人機已撞擊解體墜毀！<br><span style="font-size:14px; font-weight:normal; color:#ffdcdc;">請按鍵盤【R】鍵或下方按鈕重新起飛</span>';
+                document.body.appendChild(banner);
             }
+            banner.style.display = 'block';
             
             if (typeof isFPV !== 'undefined' && isFPV) {
                 // FPV FREEZE FRAME
@@ -3395,7 +3690,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.029';
+        const CURRENT_VERSION = 'v4.030';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3607,7 +3902,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.029</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.030</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
