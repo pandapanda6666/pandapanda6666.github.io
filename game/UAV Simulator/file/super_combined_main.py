@@ -3,6 +3,7 @@ import time
 import os
 import sys
 import ctypes
+import subprocess
 
 # 立即隱藏空白黑控制台視窗
 try:
@@ -11,17 +12,6 @@ try:
         ctypes.windll.user32.ShowWindow(hwnd, 0)
 except Exception:
     pass
-import threading
-import asyncio
-import webview
-import http.server
-import socketserver
-import ctypes
-import traceback
-import struct
-import json
-import math
-import subprocess
 
 def install_module(module_name):
     print(f"正在安裝缺失模組: {module_name}...")
@@ -31,16 +21,40 @@ def install_module(module_name):
         pass
 
 try:
+    import webview
+except ImportError:
+    install_module("pywebview")
+    try:
+        import webview
+    except Exception:
+        webview = None
+
+try:
     from bleak import BleakScanner, BleakClient
 except ImportError:
     install_module("bleak")
-    from bleak import BleakScanner, BleakClient
+    try:
+        from bleak import BleakScanner, BleakClient
+    except Exception:
+        BleakScanner, BleakClient = None, None
 
 try:
     import websockets
 except ImportError:
     install_module("websockets")
-    import websockets
+    try:
+        import websockets
+    except Exception:
+        websockets = None
+
+import threading
+import asyncio
+import http.server
+import socketserver
+import traceback
+import struct
+import json
+import math
 
 # --- RABBONI SERVER LOGIC ---
 SCAN_TIMEOUT = 15
