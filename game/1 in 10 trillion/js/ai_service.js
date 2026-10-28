@@ -270,6 +270,7 @@ ${modeGuide}
 1. 輸出 STRICT JSON：
 {
   "title": "${chapterTitleFixed}",
+  "dilemma": "簡要描述眼前發生的突發危機或關鍵情境（約 30~50 字，例如：刺鼻的陌生獸味自下風處逼近，對方面露森冷獠牙低吼著封堵了去路！）",
   "narrative": "小說正文內容",
   "allowCustom": true,
   "customPromptHint": "自訂自主行動（例如：發出試探性低鳴並緩步繞行）",
@@ -304,6 +305,7 @@ ${modeGuide}
           : parsed.narrative;
         return {
           title: chapterTitleFixed,
+          dilemma: parsed.dilemma || "",
           narrative: cleanNarrative,
           allowCustom: parsed.allowCustom !== undefined ? parsed.allowCustom : true,
           customPromptHint: parsed.customPromptHint || "自訂你的自主行動策略...",
@@ -320,6 +322,7 @@ ${modeGuide}
       : fallback.narrative;
     return {
       title: chapterTitleFixed,
+      dilemma: fallback.dilemma || "",
       narrative: cleanFallback,
       allowCustom: true,
       customPromptHint: "自訂你想採取的自主行動策略...",

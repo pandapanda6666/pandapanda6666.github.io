@@ -143,6 +143,8 @@
     el.novelLoadingOverlay = document.getElementById("novelLoadingOverlay");
     el.novelLoadingTitle = document.getElementById("novelLoadingTitle");
     el.novelLoadingDesc = document.getElementById("novelLoadingDesc");
+    el.bookPageRight = document.getElementById("bookPageRight");
+    el.bookPageLeft = document.getElementById("bookPageLeft");
     el.headerChapterRight = document.getElementById("headerChapterRight");
     el.headerChapterLeft = document.getElementById("headerChapterLeft");
     el.pageContentRight = document.getElementById("pageContentRight");
@@ -151,6 +153,8 @@
     el.pageNumLeft = document.getElementById("pageNumLeft");
 
     el.choiceContainer = document.getElementById("choiceContainer");
+    el.choiceIncidentText = document.getElementById("choiceIncidentText");
+    el.choiceChapterBadge = document.getElementById("choiceChapterBadge");
     el.choicePromptText = document.getElementById("choicePromptText");
     el.choiceButtonsGrid = document.getElementById("choiceButtonsGrid");
     el.customChoiceWrap = document.getElementById("customChoiceWrap");
@@ -359,9 +363,31 @@
       el.readingModeToggleBtn.addEventListener("click", toggleReadingMode);
     }
 
-    // 書本翻頁按鈕
+    // 書本翻頁按鈕與點擊頁面翻頁支援
     el.prevPageBtn.addEventListener("click", turnPagePrev);
     el.nextPageBtn.addEventListener("click", turnPageNext);
+
+    if (el.bookPageRight) {
+      el.bookPageRight.addEventListener("click", () => {
+        if (window.getSelection && window.getSelection().toString()) return;
+        turnPagePrev();
+      });
+    }
+    if (el.bookPageLeft) {
+      el.bookPageLeft.addEventListener("click", () => {
+        if (window.getSelection && window.getSelection().toString()) return;
+        turnPageNext();
+      });
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) return;
+      if (e.key === "ArrowLeft") {
+        turnPageNext();
+      } else if (e.key === "ArrowRight") {
+        turnPagePrev();
+      }
+    });
 
     // 前往追思館按鈕
     el.goToMemorialBtn.addEventListener("click", showMemorialHall);
@@ -676,59 +702,61 @@
     prefetchUpcomingMilestone(2);
   }
 
-  // 雙頁紙本小說分頁系統 (依實體紙本書規格滿版排版，首行縮排兩字，始終雙頁對開)
+  // 雙頁紙本小說分頁系統 (貓戰士平裝本開本規格，首行縮排兩字，兩頁接續對開)
   function rePaginateBook(targetSpread = null) {
     const rawText = state.fullNovelText || "";
     if (!rawText.trim()) {
-      state.bookPages = [["（尚無篇章紀錄）"], [""]];
+      state.bookPages = [
+        { chapterTitle: "第一章", paragraphs: [{ text: "（尚無篇章紀錄）", isContinuation: false }] },
+        { chapterTitle: "第一章", paragraphs: [] }
+      ];
       renderBookSpread();
       return;
     }
 
-    // 利用自然段落智慧切分器，確保每段均具備標點與縮排
-    const paragraphs = window.DestinyEngine
-      ? window.DestinyEngine.splitIntoNaturalParagraphs(rawText)
-      : rawText.split(/\n+/).map(p => p.trim()).filter(Boolean);
+    // 解析所有章節區塊
+    // 格式如：【第一章】\n正文...\n\n【第二章】\n正文...
+    const rawChapters = [];
+    const blocks = rawText.split(/(?=【第[零一二三四五六七八九十百]+章】)/);
 
-    const cleanParas = [];
-    paragraphs.forEach(p => {
-      const trimmed = p.trim();
+    blocks.forEach(block => {
+      const trimmed = block.trim();
       if (!trimmed) return;
-      if (/^【第[零一二三四五六七八九十百]+章】$/.test(trimmed)) {
-        state.currentChapterTitle = trimmed.replace(/【|】/g, "");
-        return;
+      const match = trimmed.match(/^【(第[零一二三四五六七八九十百]+章)】\s*([\s\S]*)$/);
+      if (match) {
+        rawChapters.push({
+          title: match[1],
+          body: match[2].trim()
+        });
+      } else {
+        rawChapters.push({
+          title: state.currentChapterTitle || "第一章",
+          body: trimmed
+        });
       }
-      cleanParas.push(trimmed);
     });
-
-    // 紙本書單頁容量預算 (使每頁適中雅緻，約 220~280 字元)
-    const PAGE_BUDGET = 260;
 
     const pages = [];
-    let curParas = [];
-    let curChars = 0;
 
-    cleanParas.forEach(p => {
-      if (curChars + p.length > PAGE_BUDGET && curParas.length > 0) {
-        pages.push(curParas);
-        curParas = [p];
-        curChars = p.length;
-      } else {
-        curParas.push(p);
-        curChars += p.length;
-      }
+    // 對每個章節進行「雙頁接續排版」
+    rawChapters.forEach(chap => {
+      const chapPages = splitChapterIntoBalancedPages(chap.title, chap.body);
+      chapPages.forEach(p => pages.push(p));
     });
 
-    if (curParas.length > 0) {
-      pages.push(curParas);
-    }
-
-    // 確保偶數頁對開 (雙頁閱讀)
+    // 確保總頁數為偶數，符合雙頁對開規格
     if (pages.length % 2 !== 0) {
-      pages.push([""]);
+      const lastPage = pages[pages.length - 1];
+      pages.push({
+        chapterTitle: lastPage ? lastPage.chapterTitle : "第一章",
+        paragraphs: []
+      });
     }
 
-    state.bookPages = pages.length > 0 ? pages : [[""], [""]];
+    state.bookPages = pages.length > 0 ? pages : [
+      { chapterTitle: "第一章", paragraphs: [{ text: "（尚無篇章紀錄）", isContinuation: false }] },
+      { chapterTitle: "第一章", paragraphs: [] }
+    ];
 
     if (targetSpread !== null) {
       state.currentSpreadIndex = Math.floor(Math.min(targetSpread, Math.max(0, state.bookPages.length - 1)) / 2) * 2;
@@ -740,34 +768,198 @@
     renderBookSpread();
   }
 
-  // 渲染雙頁面 (紙本書版心規格：右頁在右、左頁在左，兩頁始終同時呈現)
+  // 將單一章節拆分成接續的雙頁面（貓戰士規格：右頁先讀、左頁接續，雙頁內容連貫不中斷）
+  function splitChapterIntoBalancedPages(chapterTitle, narrative) {
+    const rawParas = window.DestinyEngine && window.DestinyEngine.splitIntoNaturalParagraphs
+      ? window.DestinyEngine.splitIntoNaturalParagraphs(narrative)
+      : narrative.split(/\n+/).map(p => p.trim()).filter(Boolean);
+
+    // 過濾可能混入的章節標題標籤
+    const paras = rawParas.filter(p => !/^【第[零一二三四五六七八九十百]+章】$/.test(p.trim()));
+
+    if (paras.length === 0) {
+      return [
+        { chapterTitle, paragraphs: [{ text: "...", isContinuation: false }] },
+        { chapterTitle, paragraphs: [] }
+      ];
+    }
+
+    // 單頁容量字數預算：約 130~170 字元（對應直排約 8-9 行）
+    if (paras.length === 1) {
+      const text = paras[0];
+      if (text.length <= 150) {
+        // 短單段：於中間標點符號處切分，前半右頁、後半左頁接續
+        const half = Math.floor(text.length / 2);
+        let splitIdx = -1;
+        let minDiff = 999;
+        const puncts = ['。', '！', '？', '；', '，'];
+        puncts.forEach(p => {
+          let idx = text.indexOf(p);
+          while (idx !== -1) {
+            let diff = Math.abs(idx - half);
+            if (diff < minDiff && idx >= 25 && idx <= text.length - 25) {
+              minDiff = diff;
+              splitIdx = idx + 1;
+            }
+            idx = text.indexOf(p, idx + 1);
+          }
+        });
+        if (splitIdx === -1) splitIdx = half;
+        return [
+          {
+            chapterTitle,
+            paragraphs: [{ text: text.slice(0, splitIdx).trim(), isContinuation: false }]
+          },
+          {
+            chapterTitle,
+            paragraphs: [{ text: text.slice(splitIdx).trim(), isContinuation: true }]
+          }
+        ];
+      } else {
+        const splitIdx = findBestSentenceSplit(text, 140);
+        return [
+          {
+            chapterTitle,
+            paragraphs: [{ text: text.slice(0, splitIdx).trim(), isContinuation: false }]
+          },
+          {
+            chapterTitle,
+            paragraphs: [{ text: text.slice(splitIdx).trim(), isContinuation: true }]
+          }
+        ];
+      }
+    }
+
+    if (paras.length === 2) {
+      // 兩段式（標準規格）：第一段在右頁，第二段在左頁，完美雙頁連貫對開！
+      return [
+        {
+          chapterTitle,
+          paragraphs: [{ text: paras[0], isContinuation: false }]
+        },
+        {
+          chapterTitle,
+          paragraphs: [{ text: paras[1], isContinuation: false }]
+        }
+      ];
+    }
+
+    if (paras.length === 3) {
+      // 三段式：前 1 段或 2 段在右頁，剩餘在左頁
+      const len01 = paras[0].length + paras[1].length;
+      if (len01 <= 170) {
+        return [
+          {
+            chapterTitle,
+            paragraphs: [
+              { text: paras[0], isContinuation: false },
+              { text: paras[1], isContinuation: false }
+            ]
+          },
+          {
+            chapterTitle,
+            paragraphs: [{ text: paras[2], isContinuation: false }]
+          }
+        ];
+      } else {
+        return [
+          {
+            chapterTitle,
+            paragraphs: [{ text: paras[0], isContinuation: false }]
+          },
+          {
+            chapterTitle,
+            paragraphs: [
+              { text: paras[1], isContinuation: false },
+              { text: paras[2], isContinuation: false }
+            ]
+          }
+        ];
+      }
+    }
+
+    // 4 段以上：按頁面容量均勻流動
+    const pages = [];
+    let curParas = [];
+    let curLen = 0;
+
+    paras.forEach(p => {
+      if (curLen + p.length > 170 && curParas.length > 0) {
+        pages.push({ chapterTitle, paragraphs: curParas });
+        curParas = [{ text: p, isContinuation: false }];
+        curLen = p.length;
+      } else {
+        curParas.push({ text: p, isContinuation: false });
+        curLen += p.length;
+      }
+    });
+
+    if (curParas.length > 0) {
+      pages.push({ chapterTitle, paragraphs: curParas });
+    }
+
+    if (pages.length % 2 !== 0) {
+      pages.push({ chapterTitle, paragraphs: [] });
+    }
+
+    return pages;
+  }
+
+  function findBestSentenceSplit(text, targetLen) {
+    const puncts = ['。', '！', '？', '；'];
+    let best = -1;
+    let minDiff = 999;
+    puncts.forEach(p => {
+      let idx = text.indexOf(p);
+      while (idx !== -1) {
+        let diff = Math.abs(idx - targetLen);
+        if (diff < minDiff && idx >= 40 && idx <= text.length - 40) {
+          minDiff = diff;
+          best = idx + 1;
+        }
+        idx = text.indexOf(p, idx + 1);
+      }
+    });
+    return best !== -1 ? best : Math.min(targetLen, text.length);
+  }
+
+  // 渲染雙頁面 (紙本書版心規格：右頁在右、左頁在左，兩頁始終同時呈現且內容接續)
   function renderBookSpread() {
     const total = state.bookPages.length;
     const rIdx = state.currentSpreadIndex;
     const lIdx = state.currentSpreadIndex + 1;
 
-    const rParas = state.bookPages[rIdx] || [];
-    const lParas = (lIdx < total) ? state.bookPages[lIdx] : [];
+    const rPage = state.bookPages[rIdx] || { chapterTitle: "第一章", paragraphs: [] };
+    const lPage = (lIdx < total) ? state.bookPages[lIdx] : { chapterTitle: rPage.chapterTitle, paragraphs: [] };
 
     // 渲染右頁 (文字直排，右頁優先)
-    el.pageContentRight.innerHTML = rParas.map(p => p.trim() ? `<p class="novel-para">${escapeHtml(p)}</p>` : "").join("");
-    // 渲染左頁
-    el.pageContentLeft.innerHTML = lParas.map(p => p.trim() ? `<p class="novel-para">${escapeHtml(p)}</p>` : "").join("");
+    el.pageContentRight.innerHTML = rPage.paragraphs.map(p =>
+      p.text.trim() ? `<p class="novel-para ${p.isContinuation ? 'para-continuation' : ''}">${escapeHtml(p.text)}</p>` : ""
+    ).join("");
+
+    // 渲染左頁 (接續右頁內容)
+    el.pageContentLeft.innerHTML = lPage.paragraphs.map(p =>
+      p.text.trim() ? `<p class="novel-para ${p.isContinuation ? 'para-continuation' : ''}">${escapeHtml(p.text)}</p>` : ""
+    ).join("");
 
     // 漢字頁碼 (壹, 貳, 參...)
-    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸", "拾柒", "拾捌", "拾玖", "貳拾", "貳拾壹", "貳拾貳", "貳拾參", "貳拾肆", "貳拾伍", "貳拾陸", "貳拾柒", "貳拾捌", "貳拾玖", "參拾"];
-    
+    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸", "拾柒", "拾捌", "拾玖", "貳拾", "貳拾壹", "貳拾貳", "貳拾參", "貳拾肆", "貳拾伍", "貳拾陸", "貳拾柒", "貳拾捌", "貳拾玖", "參拾", "參拾壹", "參拾貳", "參拾參", "參拾肆", "參拾伍"];
+
     // 頁數顯示規範：右頁右下角、左頁左下角
     el.pageNumRight.textContent = rIdx < total ? `第 ${numToChinese[rIdx] || (rIdx + 1)} 頁` : "";
-    el.pageNumLeft.textContent = (lIdx < total && lParas.length > 0) ? `第 ${numToChinese[lIdx] || (lIdx + 1)} 頁` : "";
+    el.pageNumLeft.textContent = lIdx < total && lPage.paragraphs.length > 0 ? `第 ${numToChinese[lIdx] || (lIdx + 1)} 頁` : "";
 
-    // 書眉章節更新 (嚴格為「第N章」)
-    if (el.headerChapterRight) el.headerChapterRight.textContent = state.currentChapterTitle || "第一章";
-    if (el.headerChapterLeft) el.headerChapterLeft.textContent = state.currentChapterTitle || "第一章";
-    el.novelChapterTitle.textContent = state.currentChapterTitle || "第一章";
+    // 書眉章節更新：嚴格只顯示「第一章」、「第二章」... 絕對禁止十兆分之一
+    if (el.headerChapterRight) el.headerChapterRight.textContent = rPage.chapterTitle || "第一章";
+    if (el.headerChapterLeft) el.headerChapterLeft.textContent = lPage.chapterTitle || rPage.chapterTitle || "第一章";
+    el.novelChapterTitle.textContent = rPage.chapterTitle || "第一章";
 
     // 頁碼導航指示器
-    el.bookPageIndicator.textContent = `第 ${rIdx + 1}–${Math.min(lIdx + 1, Math.max(1, total))} 頁 / 共 ${Math.max(1, total)} 頁`;
+    const rNum = numToChinese[rIdx] || (rIdx + 1);
+    const lNum = numToChinese[Math.min(lIdx, total - 1)] || Math.min(lIdx + 1, total);
+    const totalNum = numToChinese[Math.max(1, total) - 1] || Math.max(1, total);
+    el.bookPageIndicator.textContent = `第 ${rNum}–${lNum} 頁 / 全書共 ${totalNum} 頁`;
+
     el.prevPageBtn.disabled = (rIdx <= 0);
     el.nextPageBtn.disabled = (rIdx + 2 >= total);
   }
@@ -785,7 +977,6 @@
       state.currentSpreadIndex = state.currentSpreadIndex + 2;
       renderBookSpread();
       saveGameState();
-      // 提前預判：若已接近當前末頁，主動觸發下一章提前預先生成
       if (state.currentSpreadIndex + 2 >= state.bookPages.length) {
         prefetchUpcomingMilestone();
       }
@@ -1134,6 +1325,23 @@
   function pauseGameForChoice(chapter) {
     setPauseState(true);
 
+    // 填充突發情境敘述，讓玩家明確知道發生了什麼危機事件
+    let incidentText = (chapter && chapter.dilemma) ? chapter.dilemma.trim() : "";
+    if (!incidentText && chapter && chapter.narrative) {
+      const paras = chapter.narrative.split(/\n+/).map(p => p.trim()).filter(Boolean);
+      incidentText = paras[paras.length - 1] || "";
+    }
+    if (!incidentText) {
+      incidentText = "你在命運的荒野中面臨生死去向的重大時刻，情勢緊迫，你的每一步都將決定未來的生存軌跡。";
+    }
+
+    if (el.choiceIncidentText) {
+      el.choiceIncidentText.textContent = incidentText;
+    }
+    if (el.choiceChapterBadge) {
+      el.choiceChapterBadge.textContent = state.currentChapterTitle || (chapter && chapter.title) || "當前危機";
+    }
+
     el.choiceContainer.style.display = "block";
     el.choiceButtonsGrid.innerHTML = "";
 
@@ -1162,6 +1370,9 @@
         el.customChoiceInput.placeholder = chapter.customPromptHint || "輸入你想採取的自主行動策略...";
       }
     }
+
+    // 輕柔滾動至可視區域，確保上方小說與下方抉擇卡片皆完整可見，不遮擋小說
+    el.choiceContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
     saveGameState();
   }
@@ -1393,7 +1604,7 @@
         chapterTitle: chapterTitleFixed,
         deathNarrative: s.isHuman
           ? `在${state.currentAge}歲這一年，因${life.deathCause}，病房的窗櫺外是夕陽溫暖的光芒。監護儀的波動漸漸舒緩，親人的手掌傳來熟悉的溫度。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
-          : `【面對${life.deathCause}的終局】刺骨的寒意侵入四肢，劇烈的喘息在冷空氣中化作白霧。視線中的古木與山稜逐漸模糊化為柔和的微光，骨骼間的劇痛奇蹟般地平復，取而代之的是如春日溪流般的寧靜。你緩緩伏下身軀，任由最後一口吐息融入狂風，靈魂奔向了群星與先祖的遼闊獵場。`,
+          : `刺骨的寒意侵入四肢，劇烈的喘息在冷空氣中化作白霧。視線中的古木與山稜逐漸模糊化為柔和的微光，骨骼間的劇痛奇蹟般地平復，取而代之的是如春日溪流般的寧靜。你緩緩伏下身軀，任由最後一口吐息融入狂風，靈魂奔向了群星與先祖的遼闊獵場。`,
         eulogy: s.isHuman
           ? `生命在文明的浪潮中劃下了休止符。你在這片大地上留下的足跡、親情與愛意，已經真實地溫暖過這個世界。安息吧，歸於星河。`
           : `風吹過荒原，帶走了最後一道足跡。你以無畏的野性與忠誠活過這僅有一次的荒野旅程。在星族的永恆獵場中，繼續自由奔跑吧。`

@@ -1010,12 +1010,15 @@ body {
 .book-spread-container {
   display: flex;
   flex-direction: row-reverse; /* 右頁在右、左頁在左，直排文字由右至左流動 */
-  min-height: 540px;
-  height: 540px;
-  background: #FAF7F0; /* 經典米黃道林紙色澤 */
+  max-width: 660px;
+  width: 100%;
+  height: 440px;
+  min-height: 440px;
+  margin: 0 auto 14px auto;
+  background: #FAF7EE; /* 經典米黃道林紙色澤 */
   border: 1px solid #DFD5C6;
-  border-radius: var(--radius-md);
-  box-shadow: inset 0 0 50px rgba(120, 95, 60, 0.08), 0 8px 24px rgba(0,0,0,0.08);
+  border-radius: 6px;
+  box-shadow: inset 0 0 40px rgba(120, 95, 60, 0.08), 0 8px 24px rgba(0,0,0,0.08);
   position: relative;
   overflow: hidden;
 }
@@ -1028,7 +1031,7 @@ body.theme-dark .book-spread-container {
 
 /* 中縫裝訂書脊立體摺痕陰影 */
 .book-spine-divider {
-  width: 18px;
+  width: 16px;
   background: linear-gradient(to right, rgba(0,0,0,0.05), rgba(0,0,0,0.22), rgba(0,0,0,0.05));
   flex-shrink: 0;
   height: 100%;
@@ -1043,10 +1046,10 @@ body.theme-dark .book-spine-divider {
 /* 紙本書單頁 (雙頁始終左右展開，各佔 50%) */
 .book-page {
   flex: 1 1 50% !important;
-  width: calc(50% - 9px) !important;
-  max-width: calc(50% - 9px) !important;
+  width: calc(50% - 8px) !important;
+  max-width: calc(50% - 8px) !important;
   height: 100% !important;
-  padding: 26px 24px 34px 24px;
+  padding: 22px 20px 28px 20px;
   box-sizing: border-box;
   writing-mode: vertical-rl !important;
   text-orientation: upright !important;
@@ -1054,6 +1057,7 @@ body.theme-dark .book-spine-divider {
   position: relative;
   overflow: hidden;
   user-select: text;
+  cursor: pointer;
 }
 
 .book-page-right {
@@ -1064,11 +1068,24 @@ body.theme-dark .book-spine-divider {
   border-right: 1px solid rgba(0,0,0,0.05);
 }
 
+/* 書頂章節名抬頭 (只有 第一章、第二章... 嚴格禁止十兆分之一) */
+.page-header-line {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 11px;
+  color: #7D7365;
+  opacity: 0.85;
+  margin-left: 1.0em;
+  letter-spacing: 2px;
+  writing-mode: vertical-rl !important;
+  pointer-events: none;
+}
+
 /* 書本版心本文容器 (Paper Novel Body) */
 .paper-novel-body {
   display: block;
   width: 100%;
-  height: calc(100% - 24px);
+  height: calc(100% - 22px);
   overflow: hidden;
 }
 
@@ -1076,15 +1093,21 @@ body.theme-dark .book-spine-divider {
 .novel-para {
   text-indent: 2em;
   font-family: "Noto Serif TC", "Songti TC", "Source Han Serif TC", "BiauKai", "MingLiU", serif;
-  font-size: 0.94rem;
-  line-height: 2.0;
+  font-size: 0.92rem;
+  line-height: 1.95;
   letter-spacing: 1.2px;
   color: #262422;
   text-align: justify;
   text-justify: inter-ideograph;
   word-break: break-all;
-  margin: 0 0 0 1.2em; /* 直排中 margin-left 為段落/分欄間距！ */
+  margin: 0 0 0 1.0em; /* 直排中 margin-left 為段落/分欄間距！ */
   display: block;
+}
+
+/* 跨頁接續段落：首行不縮排，無段落左外距，文字自然連貫 */
+.novel-para.para-continuation {
+  text-indent: 0 !important;
+  margin-left: 0 !important;
 }
 
 body.theme-dark .novel-para {
@@ -1183,12 +1206,14 @@ body.theme-dark .page-num-tag {
   }
 
   .book-spread-container {
-    height: 480px !important;
-    min-height: 480px !important;
+    height: 320px !important;
+    min-height: 320px !important;
+    max-width: 100% !important;
+    margin-bottom: 10px !important;
   }
 
   .book-page {
-    padding: 18px 12px 28px 12px !important;
+    padding: 16px 12px 24px 12px !important;
   }
 
   .book-page-left {
@@ -1205,15 +1230,15 @@ body.theme-dark .page-num-tag {
   }
 
   .novel-para {
-    font-size: 0.86rem !important;
-    line-height: 1.85 !important;
-    letter-spacing: 0.8px !important;
-    margin: 0 0 0 0.8em !important;
+    font-size: 0.82rem !important;
+    line-height: 1.8 !important;
+    letter-spacing: 0.6px !important;
+    margin: 0 0 0 0.7em !important;
   }
 
   .page-num-tag {
     font-size: 10px !important;
-    bottom: 8px !important;
+    bottom: 6px !important;
   }
 
   .book-page-right .page-num-tag {
@@ -1260,24 +1285,77 @@ body.theme-dark .page-num-tag {
   padding-right: 8px;
 }
 
-/* 半互動抉擇卡片 */
+/* 抉擇面板：緊湊精緻，不遮擋上方小說 */
 .choice-container {
-  background: var(--bg-color);
+  background: var(--bg-card);
   border: 1.5px solid var(--accent-burgundy);
   border-radius: var(--radius-md);
-  padding: 16px;
-  margin-top: 16px;
+  padding: 14px 16px;
+  margin-top: 14px;
   animation: fadeIn 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-.choice-prompt {
+.choice-incident-card {
+  background: rgba(140, 29, 60, 0.06);
+  border: 1px solid rgba(140, 29, 60, 0.18);
+  border-left: 4px solid var(--accent-burgundy);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+
+body.theme-dark .choice-incident-card {
+  background: rgba(140, 29, 60, 0.15);
+  border-color: rgba(140, 29, 60, 0.3);
+}
+
+.incident-badge-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.incident-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent-burgundy);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.incident-chapter-tag {
+  font-family: var(--font-serif);
+  font-size: 11px;
+  background: var(--accent-burgundy);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.incident-text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin: 0;
+}
+
+.choice-prompt-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 700;
-  font-size: 13.5px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.choice-prompt-bar i {
   color: var(--accent-burgundy);
-  margin-bottom: 12px;
 }
 
 .choice-buttons-grid {
