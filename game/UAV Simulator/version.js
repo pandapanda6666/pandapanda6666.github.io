@@ -1,0 +1,3 @@
+// Auto-generated version metadata
+window.UAV_VERSION = "v4.031";
+window.UAV_CHANGELOG = "重構全套飛行控制與撞擊判定：預設日本手 (Mode 1)、修復下鍵油門誤升、地面靜摩擦力防止原地打轉、螺旋槳噴飛失衡墜毀、高空摔地粉身碎骨與劇烈爆炸、地面路障還原 3D 交通錐、俐落機臂起落柱、安裝程式無網址列獨立應用程式視窗啟動。";

@@ -46,7 +46,7 @@ $grpVersion.Location = New-Object System.Drawing.Point(30, 85)
 $grpVersion.Size = New-Object System.Drawing.Size(544, 160)
 
 $rbWin10 = New-Object System.Windows.Forms.RadioButton
-$rbWin10.Text = "Windows 10 / 11 旗艦版 (v4.030) [推薦 Win10/11 使用者]"
+$rbWin10.Text = "Windows 10 / 11 旗艦版 (v4.031) [推薦 Win10/11 使用者]"
 $rbWin10.Font = New-Object System.Drawing.Font("Microsoft JhengHei", 9.5, [System.Drawing.FontStyle]::Bold)
 $rbWin10.ForeColor = [System.Drawing.Color]::White
 $rbWin10.Location = New-Object System.Drawing.Point(16, 26)
@@ -62,7 +62,7 @@ $lblWin10Desc.Size = New-Object System.Drawing.Size(490, 20)
 $grpVersion.Controls.Add($lblWin10Desc)
 
 $rbWin7 = New-Object System.Windows.Forms.RadioButton
-$rbWin7.Text = "Windows 7 / 8 相容版 (v4.030) [推薦 Win7/8 使用者]"
+$rbWin7.Text = "Windows 7 / 8 相容版 (v4.031) [推薦 Win7/8 使用者]"
 $rbWin7.Font = New-Object System.Drawing.Font("Microsoft JhengHei", 9.5, [System.Drawing.FontStyle]::Bold)
 $rbWin7.ForeColor = [System.Drawing.Color]::White
 $rbWin7.Location = New-Object System.Drawing.Point(16, 78)

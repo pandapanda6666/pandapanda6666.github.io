@@ -598,7 +598,7 @@ function getStickValue(axis) {
     } 
     // C. 鍵盤保底輸入源 (直接依據美國手/日本手標準佈局映射，確保鍵盤操作百分之百精確無誤)
     else {
-        let modeUS = (typeof controlMode !== 'undefined') ? (controlMode === 'american') : true;
+        let modeUS = (typeof controlMode !== 'undefined') ? (controlMode === 'american') : false;
         if (modeUS) {
             // 美國手 (Mode 2): 左手 (W/S=油門, A/D=偏航) | 右手 (Up/Down=俯仰, Left/Right=橫滾)
             if (axis === 'thrust') {
@@ -620,14 +620,14 @@ function getStickValue(axis) {
                 if (keys.up) sourceVal += 1.0;
                 if (keys.down) sourceVal -= 1.0;
             } else if (axis === 'yaw') {
-                if (keys.left) sourceVal -= 1.0;
-                if (keys.right) sourceVal += 1.0;
+                if (keys.a) sourceVal -= 1.0;
+                if (keys.d) sourceVal += 1.0;
             } else if (axis === 'pitch') {
                 if (keys.w) sourceVal += 1.0;
                 if (keys.s) sourceVal -= 1.0;
             } else if (axis === 'roll') {
-                if (keys.a) sourceVal -= 1.0;
-                if (keys.d) sourceVal += 1.0;
+                if (keys.left) sourceVal -= 1.0;
+                if (keys.right) sourceVal += 1.0;
             }
         }
         angleDeg = sourceVal * 30.0;
@@ -639,23 +639,20 @@ function getStickValue(axis) {
 
     // --- 4. 油門 (Thrust / Throttle) 運算模式 ---
     if (axis === 'thrust') {
-        if (config.mode === 'fixed') {
-            // A. 定速模式：觸發即給予全額定速油門 (保證按 W 鍵直接起飛，定速升降)
-            if (sourceVal > 0.05 || Math.abs(angleDeg) > fixedThreshold) {
+        // 下鍵、S鍵或無正向油門時，油門強制歸零！絕對不會往上飛！
+        if (sourceVal <= 0.05 && (!targetDeviceName || angleDeg <= fixedThreshold)) {
+            outVal = 0.0;
+        } else if (config.mode === 'fixed') {
+            // A. 定速模式：只有正向推動或向上傾斜超過閾值才給予油門
+            if (sourceVal > 0.05 || (targetDeviceName && angleDeg > fixedThreshold)) {
                 outVal = 1.0 * sens;
-            } else if (sourceVal < -0.05) {
-                outVal = 0.0;
             } else {
                 outVal = 0.0;
             }
         } else {
-            // B. 根據角度來控制速度模式：傾角越大速度越快 (動態調速)
-            let normalizedAngle = targetDeviceName ? Math.min(Math.max(Math.abs(angleDeg) / 30.0, 0), 1.5) : Math.max(sourceVal, 0);
-            if (sourceVal < -0.05) {
-                outVal = 0.0;
-            } else {
-                outVal = normalizedAngle * sens;
-            }
+            // B. 根據角度來控制速度模式 (負值強制歸零)
+            let normalizedAngle = targetDeviceName ? Math.min(Math.max(angleDeg / 30.0, 0), 1.5) : Math.max(sourceVal, 0);
+            outVal = normalizedAngle * sens;
         }
     } 
     // --- 1.X, 2.Y, 3.Z 軸旋轉運算模式 ---

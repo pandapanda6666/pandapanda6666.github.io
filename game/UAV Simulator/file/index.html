@@ -182,7 +182,7 @@
         <button id="ledBtn" style="display:none; background-color: #FF5722;" onclick="toggleLED()">切換燈光顏色 [L]</button>
         <button id="audioBtn" style="display:none;">開啟引擎音效 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> (點擊啟用)</button>
         <button id="rabboniBtn" style="display:none;" onclick="document.getElementById('rabboni-modal').style.display='flex'" style="background-color:#009688;">Rabboni 遙控器設定 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-left:5px;"><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></button>
-        <button id="modeSwitchBtn">目前模式：美國手</button>
+        <button id="modeSwitchBtn">目前模式：日本手</button>
         <div class="instructions" id="instructionsText">
             [美國手 操作說明]<br>
             上下鍵：油門 (螺旋槳加速)<br>
@@ -845,7 +845,7 @@
                     // 7. 最終切向衝線段 (Gate 5 -> Finish Gate: (0, 0.5, -10))
                     [12.0, -25.0], [8.0, -20.0], [4.5, -15.0], [1.5, -12.0]
                 ];
-                centerTrackWaypoints.forEach(pt => createWaypointDisc(pt[0], pt[1]));
+                centerTrackWaypoints.forEach(pt => createTrafficCone(pt[0], pt[1], 0.95));
 
                 // === 賽道力場邊界網 (Boundary Forcefield Cyber Fence) ===
                 createBoundaryFence(-28.0, 35.0, -130.0, 12.0, 22.0);
@@ -901,28 +901,35 @@
         
         function createTrafficCone(x, z, scale = 1.0) {
             let group = new THREE.Group();
-            const baseMat = new THREE.MeshLambertMaterial({ color: 0xFF4500 });
+            const orangeMat = new THREE.MeshLambertMaterial({ color: 0xFF4A00 });
             const whiteMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x181818 });
             
-            // 底座 (薄方形，標記 isGuideRing = true 避免底座邊角卡機)
-            const baseGeo = new THREE.BoxGeometry(0.45 * scale, 0.05 * scale, 0.45 * scale);
-            const base = new THREE.Mesh(baseGeo, baseMat);
-            base.position.set(0, 0.025 * scale, 0);
+            // 1. 厚實防滑橡膠底座 (黑色方塊)
+            const baseGeo = new THREE.BoxGeometry(0.42 * scale, 0.04 * scale, 0.42 * scale);
+            const base = new THREE.Mesh(baseGeo, darkMat);
+            base.position.set(0, 0.02 * scale, 0);
             base.isGuideRing = true;
             group.add(base);
 
-            // 圓錐主體 (精緻圓錐幾何體，由物理引擎以真圓錐半徑檢測，絕非立方體)
-            const coneGeo = new THREE.CylinderGeometry(0.04 * scale, 0.22 * scale, 0.7 * scale, 16);
-            const cone = new THREE.Mesh(coneGeo, baseMat);
-            cone.position.set(0, 0.35 * scale, 0);
+            // 2. 橘色立體圓錐錐身 (高 0.7m，立體挺拔，絕非地毯)
+            const coneGeo = new THREE.CylinderGeometry(0.035 * scale, 0.20 * scale, 0.68 * scale, 24);
+            const cone = new THREE.Mesh(coneGeo, orangeMat);
+            cone.position.set(0, 0.36 * scale, 0);
             group.add(cone);
 
-            // 白色反光條
-            const bandGeo = new THREE.CylinderGeometry(0.09 * scale, 0.15 * scale, 0.22 * scale, 16);
-            const band = new THREE.Mesh(bandGeo, whiteMat);
-            band.position.set(0, 0.38 * scale, 0);
-            band.isGuideRing = true;
-            group.add(band);
+            // 3. 雙層白色反光識別環
+            const bandGeo1 = new THREE.CylinderGeometry(0.088 * scale, 0.13 * scale, 0.14 * scale, 24);
+            const band1 = new THREE.Mesh(bandGeo1, whiteMat);
+            band1.position.set(0, 0.42 * scale, 0);
+            band1.isGuideRing = true;
+            group.add(band1);
+
+            const bandGeo2 = new THREE.CylinderGeometry(0.145 * scale, 0.175 * scale, 0.10 * scale, 24);
+            const band2 = new THREE.Mesh(bandGeo2, whiteMat);
+            band2.position.set(0, 0.24 * scale, 0);
+            band2.isGuideRing = true;
+            group.add(band2);
 
             group.position.set(x, -1.5, z);
             mapGroup.add(group);
@@ -1479,16 +1486,13 @@
                 propGroup.userData = { blades: blades, blur: blurMesh };
                 propellers.push(propGroup);
 
-                // 4支著陸支架 (Landing Skid under arm)
+                // 4支專屬馬達垂直起落支撐柱 (如圖2: 直筒俐落碳纖維/TPU柱，嚴禁展示架寬底座)
                 const legG = new THREE.Group();
                 legG.name = 'proc_landing_leg';
                 const legH = 0.045 * s;
-                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.005*s, 0.006*s, legH, 12), new THREE.MeshStandardMaterial({color: 0x181818, roughness: 0.7}));
+                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.004*s, 0.004*s, legH, 12), new THREE.MeshStandardMaterial({color: 0x181818, roughness: 0.8}));
                 strut.position.copy(motorPos); strut.position.y -= legH / 2;
                 legG.add(strut);
-                const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.01*s, 0.012*s, 0.008*s, 12), new THREE.MeshStandardMaterial({color: 0x0a0a0a, roughness: 0.9}));
-                foot.position.copy(motorPos); foot.position.y -= (legH + 0.004*s);
-                legG.add(foot);
                 armGroup.add(legG);
 
                 droneGroup.add(armGroup);
@@ -1678,31 +1682,25 @@
 
                 groups['canopy'].add(lollipopGroup);
 
-                // === 2. 四支著陸起落支架 (如圖2: 4個機臂馬達下方垂直朝下支架與橡膠腳墊) ===
+                // === 2. 四支專屬馬達起落腳墊 (如圖2: 4個機臂馬達正下方一體式垂直支撐腳，杜絕展示架形狀) ===
                 const legCoords = [
                     [0.04, 0.04],
                     [-0.04, 0.04],
                     [-0.04, -0.04],
                     [0.04, -0.04]
                 ];
-                const legMat = new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.6, metalness: 0.3 });
-                const footMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.9 });
+                const legMat = new THREE.MeshStandardMaterial({ color: 0x1c1c1c, roughness: 0.8 });
                 legCoords.forEach((coord, idx) => {
                     const legG = new THREE.Group();
                     legG.name = 'landing_leg_' + idx;
                     legG.userData.breakableGroup = true;
-                    legG.position.set(coord[0], 0.003, coord[1]);
+                    legG.position.set(coord[0], 0.002, coord[1]);
 
-                    const legH = 0.027; // 延伸至 y = -0.024 (世界座標 -0.048m，完全支撐地面 -1.50m)
-                    const strutG = new THREE.CylinderGeometry(0.0022, 0.0028, legH, 10);
+                    const legH = 0.030; // 俐落垂直圓柱腳墊，精確頂地
+                    const strutG = new THREE.CylinderGeometry(0.0025, 0.0025, legH, 12);
                     strutG.translate(0, -legH / 2, 0);
                     const strutM = new THREE.Mesh(strutG, legMat);
                     legG.add(strutM);
-
-                    const footG = new THREE.CylinderGeometry(0.0055, 0.0065, 0.004, 12);
-                    footG.translate(0, -legH - 0.002, 0);
-                    const footM = new THREE.Mesh(footG, footMat);
-                    legG.add(footM);
 
                     groups['frame'].add(legG);
                 });
@@ -1815,7 +1813,7 @@
         });
 
         let flipState = 0; let flipProgress = 0;
-                    let controlMode = 'american';
+                    let controlMode = 'japanese';
           try {
               const savedMode = localStorage.getItem('uav_controlMode');
               if (savedMode) controlMode = savedMode;
@@ -1856,15 +1854,21 @@ const key = e.key ? e.key.toLowerCase() : '';
 
         const modeSwitchBtn = document.getElementById('modeSwitchBtn');
         const instructionsText = document.getElementById('instructionsText');
-        modeSwitchBtn.addEventListener('click', () => {
-            if (controlMode === 'american') {
-                controlMode = 'japanese'; modeSwitchBtn.textContent = '目前模式：日本手';
-                instructionsText.innerHTML = `[日本手 操作說明]<br>W S 鍵：油門<br>A D 鍵：水平轉動<br>上下鍵：前後傾斜<br>左右鍵：左右傾斜<br>Q E 鍵：特技翻滾<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
+        function updateControlInstructionsUI() {
+            if (controlMode === 'japanese') {
+                modeSwitchBtn.textContent = '目前模式：日本手';
+                instructionsText.innerHTML = `[日本手 Mode 1 操作說明]<br>上下鍵：油門升降 (上=升, 下=降)<br>左右鍵：副翼橫滾 (左傾/右傾)<br>W S 鍵：俯仰前後 (W=前傾俯衝, S=後仰抬頭)<br>A D 鍵：水平偏航 (A=左轉, D=右轉)<br>Q E 鍵：特技翻滾<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
             } else {
-                controlMode = 'american'; modeSwitchBtn.textContent = '目前模式：美國手';
-                instructionsText.innerHTML = `[美國手 操作說明]<br>上下鍵：油門<br>左右鍵：水平轉動<br>W S 鍵：前後傾斜<br>A D 鍵：左右傾斜<br>Q E 鍵：特技翻滾<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
+                modeSwitchBtn.textContent = '目前模式：美國手';
+                instructionsText.innerHTML = `[美國手 Mode 2 操作說明]<br>W S 鍵：油門升降 (W=升, S=降)<br>A D 鍵：水平偏航 (A=左轉, D=右轉)<br>上下鍵：俯仰前後 (上=前傾俯衝, 下=後仰抬頭)<br>左右鍵：副翼橫滾 (左傾/右傾)<br>Q E 鍵：特技翻滾<br><br>[滑鼠操作]<br>左鍵拖曳：旋轉視角<br>滾輪：放大縮小`;
             }
+        }
+        modeSwitchBtn.addEventListener('click', () => {
+            controlMode = (controlMode === 'american') ? 'japanese' : 'american';
+            try { localStorage.setItem('uav_controlMode', controlMode); } catch(e){}
+            updateControlInstructionsUI();
         });
+        updateControlInstructionsUI();
 
         let fpvYaw = 0, fpvPitch = 0, isFpvDragging = false;
 let globalTotalSpeed = 0, globalThrottleVal = 0;
@@ -2111,8 +2115,12 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     window.droneYawAngle = new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ').y;
                 }
                 
+                // 地面靜摩擦力：在地面待機且無起飛油門時，禁止水平原地打轉！
+                if (droneGroup.position.y <= -1.43 && globalThrottleVal < 0.25) {
+                    inputYaw = 0;
+                }
                 // Integrate Yaw Rate (Acro style yaw)
-                window.droneYawAngle -= inputYaw * maxYaw * dt * 30.0; // 放大 30 倍，達到真實穿越機 300~450 度/秒的轉向速率 
+                window.droneYawAngle -= inputYaw * maxYaw * dt * 30.0; 
                 
                 if (flipState !== 0) {
                     // Flipping! Apply local roll rotation with configurable sensitivity
@@ -2128,8 +2136,8 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     }
                 } else {
                     // Angle Mode (Auto-level)
-                    // Ground tilt prevention (if on ground and low throttle, force level)
-                    if (droneGroup.position.y < -1.42 && (inputThrottle < 0.2)) {
+                    // 地面回正：在地面待機時，四腳起落架穩貼草皮，姿態強制回正，杜絕斜著停在地上
+                    if (droneGroup.position.y <= -1.43 && window.droneVelocity.length() < 0.8) {
                         targetPitch = 0;
                         targetRoll = 0;
                     }
@@ -2239,6 +2247,32 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                 let gravityVal = 9.8;
                 let maxThrust = gravityVal * thrMultiplier * 3.5; // Realistic thrust-to-weight ratio 
                 let currentThrust = globalThrottleVal * maxThrust;
+
+                // 螺旋槳噴飛檢測：螺旋槳若噴飛則失去升力與控制，不可正常飛行！
+                let intactProps = propellers.filter(p => p && !p.userData.isEjected).length;
+                if (intactProps < 4 || window.droneCrashed) {
+                    if (intactProps === 0 || window.droneCrashed) {
+                        currentThrust = 0;
+                    } else {
+                        // 缺少螺旋槳：嚴重失衡，產生劇烈翻滾偏航並迅速墜地
+                        currentThrust *= (intactProps / 4.0) * 0.15;
+                        window.droneYawAngle += (4 - intactProps) * 18.0 * dt;
+                        targetRoll += (intactProps % 2 === 0 ? 0.9 : -0.9);
+                    }
+                }
+
+                // 螺旋槳噴飛檢測：螺旋槳若噴飛則失去升力與控制，不可正常飛行！
+                let intactProps = propellers.filter(p => p && !p.userData.isEjected).length;
+                if (intactProps < 4 || window.droneCrashed) {
+                    if (intactProps === 0 || window.droneCrashed) {
+                        currentThrust = 0;
+                    } else {
+                        // 缺少螺旋槳：嚴重失衡，產生劇烈翻滾偏航並迅速墜地
+                        currentThrust *= (intactProps / 4.0) * 0.15;
+                        window.droneYawAngle += (4 - intactProps) * 18.0 * dt;
+                        targetRoll += (intactProps % 2 === 0 ? 0.9 : -0.9);
+                    }
+                }
                 if (globalThrottleVal > 0.05 && !gameTimerRunning && !window.droneCrashed) {
                     startGameTimer();
                 }
@@ -2635,8 +2669,9 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                                     // 脆弱度炸機檢測
                                     let upVec = new THREE.Vector3(0, 1, 0).applyQuaternion(droneGroup.quaternion);
                                     let isUpsideDown = upVec.y < 0.5;
-                                    if (Math.abs(j) > normalCrashThresh || (isUpsideDown && Math.abs(j) > upsideCrashThresh)) {
-                                        if (typeof triggerCrash === 'function') triggerCrash(colHitMesh || droneGroup);
+                                    let hitSpd = window.droneVelocity.length();
+                                    if (hitSpd > 3.2 || Math.abs(j) > normalCrashThresh || (isUpsideDown && (Math.abs(j) > upsideCrashThresh || hitSpd > 1.8))) {
+                                        if (typeof triggerCrash === 'function') triggerCrash(colHitMesh || droneGroup, hitSpd);
                                         break;
                                     }
                                 }
@@ -3510,8 +3545,11 @@ renderer.render(scene, camera);
         function triggerCrash(hitMesh, impactSpeed) {
             if (currentDroneId === 'soccer') return;
             if (window.droneCrashed) return;
-            // 地面低油門待機時不誤判炸機
-            if ((typeof globalThrottleVal !== 'undefined' && globalThrottleVal < 0.05) && (typeof droneGroup !== 'undefined' && droneGroup.position.y < -1.42)) return;
+            // 只有在地面極微小速度平放 (速度 < 1.8 m/s) 時才略過；從 100 公尺高速下墜絕不放過，直接粉身碎骨！
+            let curVSpd = (window.droneVelocity ? window.droneVelocity.length() : 0);
+            if (curVSpd < 1.8 && (!window.droneVelocity || Math.abs(window.droneVelocity.y) < 1.2) && (typeof droneGroup !== 'undefined' && droneGroup.position.y <= -1.43)) {
+                return;
+            }
             
             window.droneCrashed = true;
             if (typeof gameTimerInterval !== 'undefined' && gameTimerInterval) clearInterval(gameTimerInterval);
@@ -3690,7 +3728,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.030';
+        const CURRENT_VERSION = 'v4.031';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3902,7 +3940,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.030</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.031</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
