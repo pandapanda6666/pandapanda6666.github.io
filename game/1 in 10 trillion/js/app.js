@@ -23,6 +23,7 @@
     selectedPool: "all",
     selectedAuthor: "erinhunter", // erinhunter, shenshixi, 或自訂物件 { name: "..." }
     contentMode: "normal",        // normal (普通), full (完整), compact (精簡)
+    experienceMode: "story",      // story (故事模式/深層情感), realism (現實模式/客觀生態)
     currentLife: null,
     currentAge: 0,
     currentSeasonIdx: 0,
@@ -72,6 +73,8 @@
 
     el.contentModeGroup = document.getElementById("contentModeGroup");
     el.modeHintText = document.getElementById("modeHintText");
+    el.experienceModeGroup = document.getElementById("experienceModeGroup");
+    el.experienceHintText = document.getElementById("experienceHintText");
     el.authorGroup = document.getElementById("authorGroup");
     el.authorHintText = document.getElementById("authorHintText");
     el.addCustomAuthorBtn = document.getElementById("addCustomAuthorBtn");
@@ -87,6 +90,7 @@
     el.certCard = document.getElementById("certCard");
     el.certCharName = document.getElementById("certCharName");
     el.certMultiNames = document.getElementById("certMultiNames");
+    el.certExpBadge = document.getElementById("certExpBadge");
     el.beginLifeBtn = document.getElementById("beginLifeBtn");
     el.reRollBtn = document.getElementById("reRollBtn");
 
@@ -107,6 +111,7 @@
     el.dashName = document.getElementById("dashName");
     el.dashMultiNames = document.getElementById("dashMultiNames");
     el.dashSpecies = document.getElementById("dashSpecies");
+    el.dashExpBadge = document.getElementById("dashExpBadge");
     el.dashRank = document.getElementById("dashRank");
     el.dashBiome = document.getElementById("dashBiome");
     el.dashCurrency = document.getElementById("dashCurrency");
@@ -213,6 +218,20 @@
           state.contentMode = btn.dataset.mode;
           updateModeHint(state.contentMode);
           restartSimulationTimer();
+          saveGameState();
+        });
+      });
+    }
+
+    // 生命體驗維度選擇 (故事模式 vs 現實模式)
+    if (el.experienceModeGroup) {
+      el.experienceModeGroup.querySelectorAll(".seg-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          el.experienceModeGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.experienceMode = btn.dataset.exp || "story";
+          updateExperienceHint(state.experienceMode);
+          updateDashboardUI();
           saveGameState();
         });
       });
@@ -450,6 +469,15 @@
     }
   }
 
+  function updateExperienceHint(expMode) {
+    if (!el.experienceHintText) return;
+    if (expMode === "realism") {
+      el.experienceHintText.textContent = "現實模式：遵循大自然客觀殘酷的生態生存法則，冷靜寫實記錄物種在荒野中的客觀掙扎與本能反應。";
+    } else {
+      el.experienceHintText.textContent = "故事模式：故意加深對角色與同伴的情感描摹，身歷其境，使每一次抉擇與離別產生強烈共鳴。";
+    }
+  }
+
   // 切換直排/橫排閱讀模式
   function toggleReadingMode() {
     state.isHorizontalReading = !state.isHorizontalReading;
@@ -521,7 +549,8 @@
     el.aiBar.style.display = "block";
     const pipelineConfig = {
       author: state.selectedAuthor,
-      contentMode: state.contentMode
+      contentMode: state.contentMode,
+      experienceMode: state.experienceMode
     };
 
     const lifeData = await window.AiService.generateLifePipeline(chosenSpecies, pipelineConfig, (pct, msg) => {
@@ -561,6 +590,15 @@
 
     document.querySelector(".cert-species-cn").textContent = s.name;
     document.querySelector(".cert-species-sci").textContent = `(${s.scientificName})`;
+    if (el.certExpBadge) {
+      if (state.experienceMode === "realism") {
+        el.certExpBadge.className = "cert-exp-badge realism-tag";
+        el.certExpBadge.innerHTML = '<i class="fas fa-mountain-sun"></i> 客觀生態';
+      } else {
+        el.certExpBadge.className = "cert-exp-badge";
+        el.certExpBadge.innerHTML = '<i class="fas fa-heart"></i> 故事體驗';
+      }
+    }
     document.getElementById("certSerialNo").textContent = `NO. 10T-${Math.floor(10000 + Math.random() * 90000)}`;
 
     const iconEl = document.getElementById("certAvatarIcon");
@@ -1014,7 +1052,8 @@
         nextIdx,
         playerContext,
         state.selectedAuthor,
-        state.contentMode
+        state.contentMode,
+        state.experienceMode
       );
 
       if (aiChapter) {
@@ -1282,7 +1321,8 @@
             chapterIdx,
             playerContext,
             state.selectedAuthor,
-            state.contentMode
+            state.contentMode,
+            state.experienceMode
           );
         } catch (err) {
           console.warn("AI 章節生成備援", err);
@@ -1419,7 +1459,8 @@
       choice.text,
       chapter,
       playerContext,
-      state.selectedAuthor
+      state.selectedAuthor,
+      state.experienceMode
     );
 
     state.fullNovelText += `\n\n【抉擇：${choice.text}】\n${followupText}`;
@@ -1508,6 +1549,15 @@
     renderMultiNameTags(el.dashMultiNames, life.names);
 
     el.dashSpecies.textContent = s.name;
+    if (el.dashExpBadge) {
+      if (state.experienceMode === "realism") {
+        el.dashExpBadge.className = "id-exp-tag realism-tag";
+        el.dashExpBadge.innerHTML = '<i class="fas fa-mountain-sun"></i> 客觀生態';
+      } else {
+        el.dashExpBadge.className = "id-exp-tag";
+        el.dashExpBadge.innerHTML = '<i class="fas fa-heart"></i> 故事沉浸';
+      }
+    }
     const currentStage = window.DestinyEngine.getStageForAge(s, state.currentAge);
     el.dashRank.textContent = currentStage ? currentStage.name : "荒野行者";
     el.dashBiome.textContent = s.isHuman ? life.countryData.name : life.biome.name;
@@ -1590,7 +1640,8 @@
         life.biome,
         life.countryData,
         { choicesCount: state.choicesMadeCount, recentChoices: state.recentChoices },
-        state.selectedAuthor
+        state.selectedAuthor,
+        state.experienceMode
       );
     } catch (e) {
       console.warn("死亡章節生成異常：", e);
@@ -1647,6 +1698,10 @@
     document.getElementById("memoDeathCause").textContent = life.deathCause;
     document.getElementById("memoPercentile").textContent = `${life.survivalPercentile}% 的同族生靈`;
     document.getElementById("memoChoicesCount").textContent = `${state.choicesMadeCount} 次關鍵抉擇`;
+    const expModeEl = document.getElementById("memoExpMode");
+    if (expModeEl) {
+      expModeEl.textContent = state.experienceMode === "realism" ? "現實模式 (客觀生態)" : "故事模式 (深層情感)";
+    }
     document.getElementById("memoEulogyText").textContent = state.eulogy;
 
     saveGameState("dead");
@@ -1669,6 +1724,7 @@
       life: state.currentLife,
       selectedAuthor: state.selectedAuthor,
       contentMode: state.contentMode,
+      experienceMode: state.experienceMode,
       currentAge: state.currentAge,
       currentSeasonIdx: state.currentSeasonIdx,
       isPaused: state.isPaused,
@@ -1707,6 +1763,7 @@
       state.currentLife = data.life;
       state.selectedAuthor = data.selectedAuthor || "erinhunter";
       state.contentMode = data.contentMode || "normal";
+      state.experienceMode = data.experienceMode || "story";
       state.currentAge = data.currentAge || 0;
       state.currentSeasonIdx = data.currentSeasonIdx || 0;
       state.isPaused = true;
@@ -1728,6 +1785,13 @@
 
       updateModeHint(state.contentMode);
       updateAuthorHint(state.selectedAuthor);
+      updateExperienceHint(state.experienceMode);
+
+      if (el.experienceModeGroup) {
+        el.experienceModeGroup.querySelectorAll(".seg-btn").forEach(btn => {
+          btn.classList.toggle("active", btn.dataset.exp === state.experienceMode);
+        });
+      }
 
       el.introSec.style.display = "none";
       el.rollSec.style.display = "none";

@@ -146,6 +146,17 @@ window.AiService = {
     return `【普通模式】：採用小說適時省略筆觸（約 160~200 字繁體中文）。聚焦關鍵重大生存衝突與心理張力，過渡階段適時精要概括。`;
   },
 
+  getExperienceDirective(expMode = "story") {
+    if (expMode === "realism") {
+      return `【現實模式 (客觀生態生存)】：請秉持大自然冷峻客觀的生態法則。強調野性本能、生理能量代謝、環境物理阻抗與適者生存的殘酷機率，以冷靜寫實的筆觸記錄物種在嚴苛環境中的客觀掙扎，不做過度擬人化或抒情修飾。`;
+    }
+    // 預設故事模式 story
+    return `【故事模式 (深度情感共鳴與身歷其境)】：★極為重要核心指令★ 
+本次體驗著重於深度情感共鳴！請故意加深讀者對主角及其同伴、母親、兄弟姊妹的心靈羈絆與情感投入。
+用充滿溫度、細膩且身歷其境的第一人稱感官視角，深刻刻畫呼吸的溫度、對巢穴與同袍的依戀、面對飢寒時的心理獨白、脆弱時渴望被保護的依賴，以及對失去與孤獨的深刻恐懼。
+讓玩家彷彿靈魂注入這個生靈軀體，身歷其境體驗這份生命的歡欣與苦楚，使後續面臨的危機、抉擇以及生離死別帶來震撼心靈的強烈情感衝擊！`;
+  },
+
   /**
    * 0. 生態與命運生成管線 (含進度回呼)
    */
@@ -162,9 +173,10 @@ window.AiService = {
 
     const author = config.author || "erinhunter";
     const mode = config.contentMode || "normal";
+    const expMode = config.experienceMode || "story";
 
     try {
-      const opening = await this.generateOpeningChapter(species, life.name, life.biome, life.countryData, author, mode);
+      const opening = await this.generateOpeningChapter(species, life.name, life.biome, life.countryData, author, mode, expMode);
       if (opening && opening.title && opening.narrative) {
         if (life.storyTimeline && life.storyTimeline.length > 0) {
           life.storyTimeline[0].title = opening.title;
@@ -186,10 +198,11 @@ window.AiService = {
    * 1. 即時生成：開篇第一章小說 (Opening Chapter)
    * 篇名嚴格規定只能是「第一章」，不可有副標題
    */
-  async generateOpeningChapter(species, name, biome, countryData, author = "erinhunter", mode = "normal") {
+  async generateOpeningChapter(species, name, biome, countryData, author = "erinhunter", mode = "normal", expMode = "story") {
     const isHuman = species.isHuman;
     const authorGuide = this.getAuthorDirective(author);
     const modeGuide = this.getModeDirective(mode);
+    const expGuide = this.getExperienceDirective(expMode);
     const charNameDisp = name ? `名為「${name}」` : "（尚無人類或同族命名，單純作為這片天地的一員）";
 
     const prompt = `【角色資訊】：
@@ -200,6 +213,7 @@ window.AiService = {
 【風格要求】：
 ${authorGuide}
 ${modeGuide}
+${expGuide}
 
 【重要規範】：
 1. 輸出 STRICT JSON：{"title": "第一章", "narrative": "正文內容"}。
@@ -229,7 +243,7 @@ ${modeGuide}
     }
 
     const dynamicNarrative = window.DestinyEngine
-      ? window.DestinyEngine.generateChapterOneNarrative(species, name, biome, countryData, author, mode)
+      ? window.DestinyEngine.generateChapterOneNarrative(species, name, biome, countryData, author, mode, expMode)
       : (isHuman
           ? `在${countryData ? countryData.name : '這片土地'}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次學步跌倒的疼痛構成。\n\n小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
           : `在${biome ? biome.name : '荒野'}的晨曦微光中，初生的軀體感受到了微風帶來的草葉氣味與同伴微弱的心跳。\n\n雙眸在黑暗中悄然睜開，天地萬物在眼前無邊延展，純粹的野性力量就此啟幕。`);
@@ -244,13 +258,14 @@ ${modeGuide}
    * 2. 即時生成：成長章節與半互動抉擇 (Milestone Chapter & Choices)
    * 篇名嚴格規定只能是「第N章」，不可有副標題
    */
-  async generateMilestoneChapter(species, name, age, stats, biome, countryData, chapterIdx, playerContext = {}, author = "erinhunter", mode = "normal") {
+  async generateMilestoneChapter(species, name, age, stats, biome, countryData, chapterIdx, playerContext = {}, author = "erinhunter", mode = "normal", expMode = "story") {
     const isHuman = species.isHuman;
     const focus = playerContext.activeFocus || "日常";
     const history = (playerContext.recentChoices || []).join("、") || "初涉荒野";
     const companionsAlive = playerContext.companionsAliveCount !== undefined ? playerContext.companionsAliveCount : 4;
     const authorGuide = this.getAuthorDirective(author);
     const modeGuide = this.getModeDirective(mode);
+    const expGuide = this.getExperienceDirective(expMode);
     const chapterTitleFixed = this.formatChapterTitle(chapterIdx);
     const charNameDisp = name ? `名為「${name}」` : "（尚無固定命名）";
 
@@ -265,6 +280,7 @@ ${modeGuide}
 【文學風格與模式】：
 ${authorGuide}
 ${modeGuide}
+${expGuide}
 
 【核心準則與規範】：
 1. 輸出 STRICT JSON：
@@ -316,7 +332,7 @@ ${modeGuide}
       console.warn("即時章節生成異常，啟用動態備援：", e);
     }
 
-    const fallback = window.DestinyEngine.pickDynamicScenario(species, name, age, biome, countryData, chapterIdx);
+    const fallback = window.DestinyEngine.pickDynamicScenario(species, name, age, biome, countryData, chapterIdx, expMode);
     const cleanFallback = window.DestinyEngine
       ? window.DestinyEngine.splitIntoNaturalParagraphs(fallback.narrative).join("\n\n")
       : fallback.narrative;
@@ -333,14 +349,16 @@ ${modeGuide}
   /**
    * 3. 即時生成：抉擇後的冒險後續 (Choice Aftermath)
    */
-  async generateChoiceFollowup(species, name, choiceText, chapterContext = {}, playerContext = {}, author = "erinhunter") {
+  async generateChoiceFollowup(species, name, choiceText, chapterContext = {}, playerContext = {}, author = "erinhunter", expMode = "story") {
     const isHuman = species.isHuman;
     const authorGuide = this.getAuthorDirective(author);
+    const expGuide = this.getExperienceDirective(expMode);
     const charNameDisp = name ? `「${name}」` : "你";
 
     const prompt = `角色 ${charNameDisp} 在面臨轉折時作出了自主行動抉擇：「${choiceText}」。
 當前情境：${species.name} 在 ${isHuman ? "人類社會" : "荒野"} 生存
 ${authorGuide}
+${expGuide}
 
 請撰寫約 110~150 字繁體中文小說段落，生動描寫這項自主決策在自然環境中引發的即時連鎖反應、對手或環境的真實反饋與心理震撼。
 規範：破除刻板印象，無過度血腥，不含任何說明標籤。`;
@@ -358,31 +376,35 @@ ${authorGuide}
       console.warn("抉擇後續生成異常，使用備援：", e);
     }
 
-    return `你在本能與獨立決心驅使下採取了行動：「${choiceText}」。筋骨的酸痛伴隨著急促的喘息，大自然給予了難以預料的反饋，你在天地間留下了屬於自己意志的鮮明印記。`;
+    return expMode === "story"
+      ? `你在滿懷牽絆與獨立決心驅使下採取了行動：「${choiceText}」。心跳狂亂地撞擊胸膛，眼角瞥見身後同伴擔憂的目光，大自然給予了難以預料的反饋，你在這片土地上留下了飽含熱血與意志的深刻印記。`
+      : `你在本能驅使下採取了生存行動：「${choiceText}」。筋骨的酸痛伴隨著急促的喘息，大自然給予了難以預料的冷酷反饋，你在天地間留下了生存搏殺的客觀痕跡。`;
   },
 
   // 相容別名
-  async expandChapterWithAi(chapter, choice, species, name = "") {
-    return this.generateChoiceFollowup(species, name, choice.text, chapter);
+  async expandChapterWithAi(chapter, choice, species, name = "", expMode = "story") {
+    return this.generateChoiceFollowup(species, name, choice.text, chapter, {}, "erinhunter", expMode);
   },
 
   /**
    * 4. 即時生成：終章與死亡過程小說 (Death Narrative & Process)
    * 篇名嚴格規定只能是「第N章」，不可有副標題
    */
-  async generateDeathChapter(species, name, finalAge, deathCause, biome, countryData, fullContext = {}, author = "erinhunter") {
+  async generateDeathChapter(species, name, finalAge, deathCause, biome, countryData, fullContext = {}, author = "erinhunter", expMode = "story") {
     const isHuman = species.isHuman;
     const authorGuide = this.getAuthorDirective(author);
+    const expGuide = this.getExperienceDirective(expMode);
     const finalChapIdx = (fullContext.choicesCount || 3) + 2;
     const chapterTitleFixed = this.formatChapterTitle(finalChapIdx);
     const charNameDisp = name ? `「${name}」` : "這隻生靈";
 
     const prompt = `角色 ${charNameDisp}（物種：${species.name}）在 ${finalAge} ${species.unit} 之際，因「${deathCause}」走向生命終暮。
 ${authorGuide}
+${expGuide}
 
 要求：
-1. 最終章小說（約 180-230 字）：詳細描繪面對此終局的真實搏鬥、呼吸漸緩、感官退潮與安詳歸宿的過程。務必分成 2 到 3 個自然段落（以 \\n\\n 分隔）。
-2. 荒野追思館悼詞（約 80-100 字）：致敬其作為獨立個體的唯一荒野足跡。
+1. 最終章小說（約 180-230 字）：詳細描繪面對此終局的真實搏鬥、呼吸漸緩、感官退潮與安詳歸宿的過程。若為故事模式，請刻畫對這段生命的情感依戀、與同伴親族的告別回憶，讓讀者身歷其境感受到悲愴而動人的強烈情感震撼；若為現實模式，則以客觀冷峻的生物機能停擺與自然分解描摹。務必分成 2 到 3 個自然段落（以 \\n\\n 分隔）。
+2. 荒野追思館悼詞（約 80-100 字）：致敬其作為獨立個體的唯一生命足跡。
 3. STRICT JSON：
 {
   "chapterTitle": "${chapterTitleFixed}",

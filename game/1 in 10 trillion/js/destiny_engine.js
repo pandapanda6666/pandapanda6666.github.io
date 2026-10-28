@@ -65,6 +65,7 @@ window.DestinyEngine = {
       names,
       biome,
       countryData,
+      experienceMode: config.experienceMode || "story",
       maxPossibleAge: lifeDeathPlan.finalAge,
       deathCause: lifeDeathPlan.deathCause,
       survivalPercentile: lifeDeathPlan.survivalPercentile,
@@ -359,7 +360,8 @@ window.DestinyEngine = {
         chapterIndex: idx + 1,
         stepIndex: idx,
         author: config.author || "erinhunter",
-        mode: config.contentMode || "normal"
+        mode: config.contentMode || "normal",
+        experienceMode: config.experienceMode || "story"
       });
 
       chapters.push(chapter);
@@ -416,7 +418,7 @@ window.DestinyEngine = {
   /**
    * 根據物種、棲地、作家與模式動態生成第一章開篇小說（嚴格分成 2-3 段落）
    */
-  generateChapterOneNarrative(species, name, biome, countryData, author = "erinhunter", mode = "normal") {
+  generateChapterOneNarrative(species, name, biome, countryData, author = "erinhunter", mode = "normal", expMode = "story") {
     const isHuman = species.isHuman;
     const sId = species.id;
     const bName = biome ? biome.name : "未知生境";
@@ -471,26 +473,31 @@ window.DestinyEngine = {
    * 物種專屬章節生成器（篇名嚴格規定只能是「第一章」、「第二章」…不可有標題）
    */
   generateUniqueChapter(params) {
-    const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex, author, mode } = params;
+    const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex, author, mode, experienceMode } = params;
+    const expMode = experienceMode || "story";
     const isHuman = species.isHuman;
     const title = this.formatChapterTitle(chapterIndex);
 
     // 開篇第一章 (誕生與幼年探索)
     if (chapterIndex === 1) {
-      const narrative = this.generateChapterOneNarrative(species, name, biome, countryData, author, mode);
+      const narrative = this.generateChapterOneNarrative(species, name, biome, countryData, author, mode, expMode);
       return { age, title, narrative, choices: null };
     }
 
     // 終幕章節 (生命回歸)
     if (isLast) {
       const narrative = isHuman
-        ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData ? countryData.name : ''}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意。\n\n回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
-        : `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與平靜。\n\n沒有恐懼，也沒有慌亂，耳邊彷彿迴盪起年少時狂奔的呼嘯聲。你緩緩伏下身軀，將下顎貼在冰涼的泥土上，任由最後一口吐息化作微風，奔向群星與先祖的古老獵場。`;
+        ? (expMode === "story"
+            ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData ? countryData.name : ''}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意與不捨的淚水。\n\n回顧這一生走過的坎坷、歡笑與深情羈絆，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
+            : `在${countryData ? countryData.name : ''}，監護儀數值逐漸衰退，生理機能隨衰老停止運轉，生命走向平靜終局。`)
+        : (expMode === "story"
+            ? `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與溫柔。\n\n耳邊彷彿迴盪起年少時手足相依偎的呢喃與母親的低鳴。你緩緩伏下身軀，任由最後一口溫熱吐息化作微風，帶著一生濃烈的記憶奔向群星與先祖的古老獵場。`
+            : `刺骨寒風穿透衰老的皮毛，體溫漸降，呼吸止歇於凍土之上，軀體回歸大自然的物質循環。`);
       return { age, title, narrative, choices: null };
     }
 
     // 中間章節：依據物種分類與年齡階段抽選情境
-    const scenario = this.pickDynamicScenario(species, name, age, biome, countryData, stepIndex);
+    const scenario = this.pickDynamicScenario(species, name, age, biome, countryData, stepIndex, expMode);
     return {
       age,
       title,
@@ -503,7 +510,7 @@ window.DestinyEngine = {
   /**
    * 根據物種與生命週期挑選獨特情境
    */
-  pickDynamicScenario(species, name, age, biome, countryData, stepIndex) {
+  pickDynamicScenario(species, name, age, biome, countryData, stepIndex, expMode = "story") {
     const isHuman = species.isHuman;
 
     // 1. 人類情境庫
