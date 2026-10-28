@@ -149,6 +149,35 @@ window.AiService = {
     };
   },
 
+  formatChapterTitle(index) {
+    const chNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
+                    "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+                    "二十一", "二十二", "二十三", "二十四", "二十五", "二十六", "二十七", "二十八", "二十九", "三十"];
+    return "第" + (chNums[index] || index) + "章";
+  },
+
+  getAuthorDirective(author = "erinhunter") {
+    if (typeof author === "object" && author.name) {
+      return `請參照作家「${author.name}」的經典文學筆觸與哲思世界觀，深刻刻畫生靈的命運波瀾。`;
+    }
+    if (author === "shenshixi") {
+      return `請以中國動物小說大王「沈石溪」風格撰寫：注重殘酷自然的生存法則與深邃的個體心理剖析，展現生命的高貴、掙扎、權力角逐與自主意志抉擇，充滿哲理與命運張力。`;
+    }
+    // 預設 erinhunter
+    return `請以「艾琳·杭特（Erin Hunter）」經典風格撰寫：10+ 半馬賽克少年文學，從純粹動物感官出發（氣味、被毛豎立、爪尖扣地、先祖群星與荒野本能），戰鬥緊湊且著重同袍牽絆。`;
+  },
+
+  getModeDirective(mode = "normal") {
+    if (mode === "full") {
+      return `【完整模式】：事無巨細、極致細膩的小說描寫（約 260~320 字繁體中文）。把時間徹底放慢，將當下每分每秒的氣味變化、肌肉微顫、風向偏移、瞳孔縮放與內心深層思緒一字不漏地詳細展開。`;
+    }
+    if (mode === "compact") {
+      return `【精簡模式】：採用原版《八十億分之一》風格的客觀事件陳述（約 40~70 字繁體中文）。精簡凝練，直接記錄當下的生態年表與狀態，不作冗長鋪陳。`;
+    }
+    // 普通 normal
+    return `【普通模式】：採用小說適時省略筆觸（約 160~200 字繁體中文）。聚焦關鍵重大生存衝突與心理張力，過渡階段適時精要概括。`;
+  },
+
   /**
    * 0. 生態與命運生成管線 (含進度回呼)
    */
@@ -161,10 +190,13 @@ window.AiService = {
     if (progressCb) progressCb(45, "AI 去重引擎運算中：剪除瑣碎重複，提煉命運分歧點...");
     await new Promise(r => setTimeout(r, 120));
 
-    if (progressCb) progressCb(75, "艾琳·杭特小說模型呼叫中：編織初生微光與第一章感官小說...");
+    if (progressCb) progressCb(75, "文學小說模型呼叫中：編織初生微光與第一章感官小說...");
+
+    const author = config.author || "erinhunter";
+    const mode = config.contentMode || "normal";
 
     try {
-      const opening = await this.generateOpeningChapter(species, life.name, life.biome, life.countryData);
+      const opening = await this.generateOpeningChapter(species, life.name, life.biome, life.countryData, author, mode);
       if (opening && opening.title && opening.narrative) {
         if (life.storyTimeline && life.storyTimeline.length > 0) {
           life.storyTimeline[0].title = opening.title;
@@ -183,102 +215,153 @@ window.AiService = {
   },
 
   /**
-   * 2. 即時生成：成長章節與半互動抉擇 (Milestone Chapter & Choices)
-   * 接收完整的玩家資訊 (焦點、當前狀態、存活夥伴等)，並可回傳畫面控制 (statChange, sceneMood, feedEvent)
+   * 1. 即時生成：開篇第一章小說 (Opening Chapter)
+   * 篇名嚴格規定只能是「第一章」，不可有副標題
    */
-  async generateMilestoneChapter(species, name, age, stats, biome, countryData, chapterIdx, playerContext = {}) {
+  async generateOpeningChapter(species, name, biome, countryData, author = "erinhunter", mode = "normal") {
     const isHuman = species.isHuman;
-    const focus = playerContext.activeFocus || "日常";
-    const history = (playerContext.recentChoices || []).join("、") || "初涉荒野";
-    const companionsAlive = playerContext.companionsAliveCount !== undefined ? playerContext.companionsAliveCount : 4;
+    const authorGuide = this.getAuthorDirective(author);
+    const modeGuide = this.getModeDirective(mode);
+    const charNameDisp = name ? `名為「${name}」` : "（尚無人類或同族命名，單純作為這片天地的一員）";
 
-    const prompt = isHuman
-      ? `角色資訊：
-- 姓名：${name}
-- 年齡：${age} 歲 (居住於 ${countryData.name})
-- 當前生活重心：${focus}
-- 當前資產與狀態：儲蓄約 ${stats.resource || 0}，體魄 ${stats.health}/100，精力 ${stats.energy}/100，知識 ${stats.instinct}/100，社交 ${stats.social}/100
-- 過往抉擇履歷：${history}
+    const prompt = `【角色資訊】：
+- 物種：${species.name}（${species.scientificName}）
+- 個體：${charNameDisp}
+- 出生地：${isHuman ? countryData.name : biome.name}
 
-請為此角色即時撰寫第 ${chapterIdx} 章小說與重大分歧抉擇。
-輸出 STRICT JSON：
-{
-  "title": "章節標題 (4-8字)",
-  "narrative": "約 160-200 字的小說情境描寫（面臨重大生活轉折或生存挑戰，注重心理壓力與選擇張力）",
-  "sceneMood": "tense 或 calm 或 crisis",
-  "choices": [
-    {
-      "text": "抉擇選項A (例如：全心投入高壓海外拓荒專案)",
-      "impact": "影響描述 (例如：收入暴增但身心透支)",
-      "statChange": {"resource": 30000, "health": -10, "instinct": 10}
-    },
-    {
-      "text": "抉擇選項B (例如：固守平衡生活陪伴親友)",
-      "impact": "影響描述 (例如：身心穩定，社交羈絆提升)",
-      "statChange": {"health": 8, "social": 12, "resource": 2000}
-    }
-  ]
-}`
-      : `角色資訊：
-- 個體：野生「${species.name}」名為「${name}」
-- 年齡：${age} ${species.unit} (生長於原生棲地：${biome.name})
-- 當前生活重心：${focus}
-- 生存狀態：體魄 ${stats.health}/100，飽足精力 ${stats.energy}/100，野性直覺 ${stats.instinct}/100，族群羈絆 ${stats.social}/100
-- 同秒降生夥伴尚存活數：${companionsAlive} 位
-- 過往抉擇履歷：${history}
+【風格要求】：
+${authorGuide}
+${modeGuide}
 
-請以艾琳·杭特《貓戰士》10+ 半馬賽克風格，為其撰寫第 ${chapterIdx} 章冒險章節與生死抉擇。
-輸出 STRICT JSON：
-{
-  "title": "章節標題 (例如：覆雪溪谷的暗影 / 邊界的入侵爪痕)",
-  "narrative": "約 160-200 字艾琳·杭特純感官小說描繪（風向氣味、肌肉緊繃、爪尖扣地、天敵威脅或暴雪覓食，維持 10+ 少年勇士文學緊張感，無過度血腥撕裂，無任何元說明標籤）",
-  "sceneMood": "danger 或 stealth 或 blizzard 或 hunt",
-  "choices": [
-    {
-      "text": "應對決策A (例如：亮齒迎擊守護族群邊界)",
-      "impact": "影響概述",
-      "statChange": {"health": -8, "energy": -12, "instinct": 14, "social": 10}
-    },
-    {
-      "text": "應對決策B (例如：壓低身形借陰影隱蔽迂迴)",
-      "impact": "影響概述",
-      "statChange": {"energy": -6, "instinct": 12}
-    }
-  ]
-}`;
+【重要規範】：
+1. 輸出 STRICT JSON：{"title": "第一章", "narrative": "正文內容"}。
+2. 篇名必須嚴格為「第一章」，絕對禁止添加任何副標題、冒號或附屬標籤！
+3. 破除物種刻板套路：每個個體都是具備自主意志與獨特性格的生命。
+4. 正文中嚴禁出現任何「【某某式描繪】」之類的說明標籤。`;
 
     try {
       const messages = [
-        { role: "system", content: "你是一位頂級艾琳·杭特荒野小說家與遊戲系統主理人。請一律使用繁體中文，且只輸出合法 JSON 物件。" },
+        { role: "system", content: "你是一位頂級小說家與自然生態文學大師。請一律使用繁體中文，且只輸出合法 JSON 物件。" },
         { role: "user", content: prompt }
       ];
       const raw = await this.callLlm(messages, true);
       const parsed = JSON.parse(raw);
-      if (parsed.title && parsed.narrative && Array.isArray(parsed.choices)) {
-        return parsed;
+      if (parsed.narrative) {
+        return {
+          title: "第一章",
+          narrative: parsed.narrative
+        };
       }
     } catch (e) {
-      console.warn("即時章節生成異常，啟用動態情境備援：", e);
+      console.warn("即時開篇生成異常，啟用動態備援：", e);
     }
 
-    return window.DestinyEngine.pickDynamicScenario(species, name, age, biome, countryData, chapterIdx);
+    return {
+      title: "第一章",
+      narrative: isHuman
+        ? `在${countryData.name}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次學步跌倒的疼痛構成。小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
+        : `初春的寒氣刺痛了稚嫩的鼻頭。你跟隨著手足跌跌撞撞地探出巢穴，迎面而來的是高聳入雲的古木與無邊無際的灰色天幕。松針與融雪在腳爪下發出細微的碎裂聲，荒野用第一陣冷風向你宣告了生存的嚴苛與廣闊。`
+    };
+  },
+
+  /**
+   * 2. 即時生成：成長章節與半互動抉擇 (Milestone Chapter & Choices)
+   * 篇名嚴格規定只能是「第N章」，不可有副標題
+   */
+  async generateMilestoneChapter(species, name, age, stats, biome, countryData, chapterIdx, playerContext = {}, author = "erinhunter", mode = "normal") {
+    const isHuman = species.isHuman;
+    const focus = playerContext.activeFocus || "日常";
+    const history = (playerContext.recentChoices || []).join("、") || "初涉荒野";
+    const companionsAlive = playerContext.companionsAliveCount !== undefined ? playerContext.companionsAliveCount : 4;
+    const authorGuide = this.getAuthorDirective(author);
+    const modeGuide = this.getModeDirective(mode);
+    const chapterTitleFixed = this.formatChapterTitle(chapterIdx);
+    const charNameDisp = name ? `名為「${name}」` : "（尚無固定命名）";
+
+    const prompt = `【角色狀態】：
+- 物種：${species.name}，${charNameDisp}
+- 年齡：${age} ${species.unit} (生活於 ${isHuman ? countryData.name : biome.name})
+- 生活重心：${focus}
+- 生存指標：體魄 ${stats.health}/100，精力 ${stats.energy}/100，智識/直覺 ${stats.instinct}/100，羈絆 ${stats.social}/100${isHuman ? `，資產 ${stats.resource}` : ''}
+- 同儕存活：${companionsAlive} 位
+- 過往抉擇履歷：${history}
+
+【文學風格與模式】：
+${authorGuide}
+${modeGuide}
+
+【核心準則與規範】：
+1. 輸出 STRICT JSON：
+{
+  "title": "${chapterTitleFixed}",
+  "narrative": "小說正文內容",
+  "allowCustom": true,
+  "customPromptHint": "自訂自主行動（例如：發出試探性低鳴並緩步繞行）",
+  "choices": [
+    {
+      "text": "應對決策A",
+      "impact": "影響概述",
+      "statChange": {"health": -8, "energy": -10, "instinct": 12}
+    },
+    {
+      "text": "應對決策B",
+      "impact": "影響概述",
+      "statChange": {"social": 12, "energy": -5}
+    }
+  ]
+}
+2. 篇名只能是「${chapterTitleFixed}」，嚴格禁止添加任何冒號或副標題！
+3. 嚴禁任何生物決定論！絕無「公棕熊必殺幼崽」或「某物種必定殘暴」等死板套路。每個生靈都有獨立性格、當下情緒與自主意志。
+4. 可以包含 0~3 個預設選項，並保留 allowCustom: true 讓使用者自由輸入特殊應對。`;
+
+    try {
+      const messages = [
+        { role: "system", content: "你是一位頂級小說家與自然生態文學大師。請一律使用繁體中文，且只輸出合法 JSON 物件。" },
+        { role: "user", content: prompt }
+      ];
+      const raw = await this.callLlm(messages, true);
+      const parsed = JSON.parse(raw);
+      if (parsed.narrative) {
+        return {
+          title: chapterTitleFixed,
+          narrative: parsed.narrative,
+          allowCustom: parsed.allowCustom !== undefined ? parsed.allowCustom : true,
+          customPromptHint: parsed.customPromptHint || "自訂你的自主行動策略...",
+          choices: Array.isArray(parsed.choices) ? parsed.choices : []
+        };
+      }
+    } catch (e) {
+      console.warn("即時章節生成異常，啟用動態備援：", e);
+    }
+
+    const fallback = window.DestinyEngine.pickDynamicScenario(species, name, age, biome, countryData, chapterIdx);
+    return {
+      title: chapterTitleFixed,
+      narrative: fallback.narrative,
+      allowCustom: true,
+      customPromptHint: "自訂你想採取的自主行動策略...",
+      choices: fallback.choices || []
+    };
   },
 
   /**
    * 3. 即時生成：抉擇後的冒險後續 (Choice Aftermath)
-   * 支援 AI 控制畫面：回傳後續小說、數值反饋、氣氛變化
    */
-  async generateChoiceFollowup(species, name, choiceText, chapterContext = {}, playerContext = {}) {
+  async generateChoiceFollowup(species, name, choiceText, chapterContext = {}, playerContext = {}, author = "erinhunter") {
     const isHuman = species.isHuman;
-    const prompt = isHuman
-      ? `角色「${name}」在生活轉折中作出了抉擇：「${choiceText}」。
-當前背景：${chapterContext.title || "命運分水嶺"}
-請撰寫約 110~140 字繁體中文，描繪這項決定帶來的實際後續與心理感受。`
-      : `以艾琳·杭特 10+ 半馬賽克筆觸，描繪「${species.name}」個體「${name}」在荒野中作出抉擇：「${choiceText}」後的具體搏鬥或求生過程（約 110~150 字繁體中文）。注重動作衝擊力、氣息喘息與本能意志，無過度血腥，不含任何說明標籤。`;
+    const authorGuide = this.getAuthorDirective(author);
+    const charNameDisp = name ? `「${name}」` : "你";
+
+    const prompt = `角色 ${charNameDisp} 在面臨轉折時作出了自主行動抉擇：「${choiceText}」。
+當前情境：${species.name} 在 ${isHuman ? "人類社會" : "荒野"} 生存
+${authorGuide}
+
+請撰寫約 110~150 字繁體中文小說段落，生動描寫這項自主決策在自然環境中引發的即時連鎖反應、對手或環境的真實反饋與心理震撼。
+規範：破除刻板印象，無過度血腥，不含任何說明標籤。`;
 
     try {
       const messages = [
-        { role: "system", content: "你是艾琳·杭特風格的荒野冒險作家。請輸出精采繁體中文小說段落。" },
+        { role: "system", content: "你是精通生命文學與個體心理的頂級作家。請輸出精采繁體中文小說段落。" },
         { role: "user", content: prompt }
       ];
       const text = await this.callLlm(messages, false);
@@ -289,59 +372,59 @@ window.AiService = {
       console.warn("抉擇後續生成異常，使用備援：", e);
     }
 
-    return `你在本能與決心驅使下採取了行動：「${choiceText}」。筋骨的酸痛伴隨著急促的喘息，但你成功在這片充滿未知的荒野中刻下了自己的意志。`;
+    return `你在本能與獨立決心驅使下採取了行動：「${choiceText}」。筋骨的酸痛伴隨著急促的喘息，大自然給予了難以預料的反饋，你在天地間留下了屬於自己意志的鮮明印記。`;
   },
 
   // 相容別名
-  async expandChapterWithAi(chapter, choice, species, name = "霜爪") {
+  async expandChapterWithAi(chapter, choice, species, name = "") {
     return this.generateChoiceFollowup(species, name, choice.text, chapter);
   },
 
   /**
    * 4. 即時生成：終章與死亡過程小說 (Death Narrative & Process)
-   * 讓使用者清楚看到究竟是如何死去的過程與長眠
+   * 篇名嚴格規定只能是「第N章」，不可有副標題
    */
-  async generateDeathChapter(species, name, finalAge, deathCause, biome, countryData, fullContext = {}) {
+  async generateDeathChapter(species, name, finalAge, deathCause, biome, countryData, fullContext = {}, author = "erinhunter") {
     const isHuman = species.isHuman;
-    const prompt = isHuman
-      ? `角色「${name}」在「${countryData.name}」活至 ${finalAge} 歲，死因為「${deathCause}」。
-請撰寫：
-1. 最終章小說（約 180-220 字）：詳細描繪走向終點的真實過程、身邊的光影、呼吸逐漸微弱的平靜與告別。
-2. 荒野追思館悼文（約 100 字）：致敬其一生足跡。
-輸出 STRICT JSON：
-{
-  "chapterTitle": "最終章 · 晚霞與最後的告別",
-  "deathNarrative": "最終章小說正文",
-  "eulogy": "追思館悼文"
-}`
-      : `請以艾琳·杭特《貓戰士》莊嚴壯烈的風格（10+ 半馬賽克），為「${species.name}」個體「${name}」在 ${finalAge} ${species.unit} 之際，因「${deathCause}」而迎來終暮撰寫小說。
+    const authorGuide = this.getAuthorDirective(author);
+    const finalChapIdx = (fullContext.choicesCount || 3) + 2;
+    const chapterTitleFixed = this.formatChapterTitle(finalChapIdx);
+    const charNameDisp = name ? `「${name}」` : "這隻生靈";
+
+    const prompt = `角色 ${charNameDisp}（物種：${species.name}）在 ${finalAge} ${species.unit} 之際，因「${deathCause}」走向生命終暮。
+${authorGuide}
+
 要求：
-1. 最終章小說（約 180-220 字）：詳細描繪面對此致命危機（如天敵突襲、寒冬飢荒、公路怪獸或衰暮力竭）時的搏鬥掙扎、呼吸沉重，以及最後痛楚散去、靈魂奔向群星與先祖獵場的壯烈長眠過程。
-2. 荒野追思館悼詞（約 100 字）。
-輸出 STRICT JSON：
+1. 最終章小說（約 180-230 字）：詳細描繪面對此終局的真實搏鬥、呼吸漸緩、感官退潮與安詳歸宿的過程。
+2. 荒野追思館悼詞（約 80-100 字）：致敬其作為獨立個體的唯一荒野足跡。
+3. STRICT JSON：
 {
-  "chapterTitle": "最終章 · 星芒與永恆長眠",
+  "chapterTitle": "${chapterTitleFixed}",
   "deathNarrative": "最終章小說正文",
   "eulogy": "追思館悼詞"
-}`;
+}
+篇名必須嚴格為「${chapterTitleFixed}」，絕不可加副標題！`;
 
     try {
       const messages = [
-        { role: "system", content: "你是一位頂級艾琳·杭特荒野小說家。請一律使用繁體中文，且只輸出合法 JSON 物件。" },
+        { role: "system", content: "你是一位頂級荒野小說家。請一律使用繁體中文，且只輸出合法 JSON 物件。" },
         { role: "user", content: prompt }
       ];
       const raw = await this.callLlm(messages, true);
       const parsed = JSON.parse(raw);
-      if (parsed.chapterTitle && parsed.deathNarrative && parsed.eulogy) {
-        return parsed;
+      if (parsed.deathNarrative && parsed.eulogy) {
+        return {
+          chapterTitle: chapterTitleFixed,
+          deathNarrative: parsed.deathNarrative,
+          eulogy: parsed.eulogy
+        };
       }
     } catch (e) {
       console.warn("終章生成異常，啟用動態備援：", e);
     }
 
-    // 智能備援
     return {
-      chapterTitle: isHuman ? "最終章 · 晚霞與最後的告別" : "最終章 · 星芒與永恆長眠",
+      chapterTitle: chapterTitleFixed,
       deathNarrative: isHuman
         ? `在${finalAge}歲這一年，因${deathCause}，病房的窗櫺外是夕陽溫暖的光芒。監護儀的波動漸漸舒緩，親人的手掌傳來熟悉的溫度。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
         : `【面對${deathCause}的終局】刺骨的寒意侵入四肢，劇烈的喘息在冷空氣中化作白霧。視線中的古木與山稜逐漸模糊化為柔和的微光，骨骼間的劇痛奇蹟般地平復，取而代之的是如春日溪流般的寧靜。你緩緩伏下身軀，任由最後一口吐息融入狂風，靈魂奔向了群星與先祖的遼闊獵場。`,

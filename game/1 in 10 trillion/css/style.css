@@ -1003,86 +1003,168 @@ body {
   color: var(--text-muted);
 }
 
-/* 雙頁書本展開視圖 */
+/* --------------------------------------------------------------------------
+   真實紙本書開本小說閱讀器 (Paper Novel Double-Spread Reader)
+   排版遵循真實紙本小說規格：段落首行縮排兩字元 (text-indent: 2em)、滿版欄位、非單行塌陷
+   -------------------------------------------------------------------------- */
 .book-spread-container {
   display: flex;
-  flex-direction: row-reverse; /* 右頁在右、左頁在左，文字由右至左流動 */
-  min-height: 480px;
-  height: 480px;
-  background: #FDFBF7;
-  border: 1px solid #E6DFD5;
+  flex-direction: row-reverse; /* 右頁在右、左頁在左，直排文字由右至左流動 */
+  min-height: 520px;
+  height: 520px;
+  background: #FAF7F0; /* 經典米黃道林紙色澤 */
+  border: 1px solid #DFD5C6;
   border-radius: var(--radius-md);
-  box-shadow: inset 0 0 25px rgba(0,0,0,0.05), var(--shadow-sm);
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.06), 0 6px 20px rgba(0,0,0,0.07);
   position: relative;
   overflow: hidden;
 }
 
 body.theme-dark .book-spread-container {
-  background: #17171A;
-  border-color: #2E2E36;
-  box-shadow: inset 0 0 25px rgba(0,0,0,0.5);
+  background: #19181C;
+  border-color: #2D2C34;
+  box-shadow: inset 0 0 40px rgba(0,0,0,0.6), 0 6px 20px rgba(0,0,0,0.4);
 }
 
-/* 中縫書脊陰影 */
+/* 中縫裝訂書脊立體摺痕陰影 */
 .book-spine-divider {
-  width: 22px;
-  background: linear-gradient(to right, rgba(0,0,0,0.06), rgba(0,0,0,0.18), rgba(0,0,0,0.06));
+  width: 20px;
+  background: linear-gradient(to right, rgba(0,0,0,0.05), rgba(0,0,0,0.22), rgba(0,0,0,0.05));
   flex-shrink: 0;
   height: 100%;
-  box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.12);
+  z-index: 5;
 }
 
 body.theme-dark .book-spine-divider {
-  background: linear-gradient(to right, rgba(0,0,0,0.2), rgba(0,0,0,0.5), rgba(0,0,0,0.2));
+  background: linear-gradient(to right, rgba(0,0,0,0.2), rgba(0,0,0,0.6), rgba(0,0,0,0.2));
 }
 
-/* 直式書頁 */
+/* 紙本書單頁 (頁寬固定佔 50%，絕不塌陷為單列一線) */
 .book-page {
-  flex: 1;
-  padding: 24px 22px 20px 22px;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  font-family: var(--font-serif);
-  font-size: 1.05rem;
-  line-height: 2.15;
-  letter-spacing: 1.5px;
-  color: #2B2826;
-  overflow: hidden;
+  flex: 1 1 50%;
+  width: calc(50% - 10px);
+  max-width: calc(50% - 10px);
+  height: 100%;
+  padding: 32px 30px 30px 30px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   position: relative;
+  overflow: hidden;
   user-select: text;
 }
 
-body.theme-dark .book-page {
-  color: #E2DDD5;
-}
-
 .book-page-right {
-  border-left: 1px solid rgba(0,0,0,0.04);
+  border-left: 1px solid rgba(0,0,0,0.05);
 }
 
 .book-page-left {
-  border-right: 1px solid rgba(0,0,0,0.04);
+  border-right: 1px solid rgba(0,0,0,0.05);
 }
 
+/* 紙本書眉 (天頭) */
+.page-header-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-serif);
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+  writing-mode: horizontal-tb;
+  letter-spacing: 1px;
+}
+
+/* 書本版心本文容器 (Paper Novel Body) */
+.paper-novel-body {
+  flex: 1;
+  width: 100%;
+  height: calc(100% - 36px);
+  overflow: hidden;
+}
+
+/* 直排紙本書模式 (繁體中文經典排版：文字直立、由右向左滿版排列) */
+.novel-book-card:not(.reading-mode-horizontal) .book-page {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  display: block;
+}
+
+.novel-book-card:not(.reading-mode-horizontal) .paper-novel-body {
+  display: block;
+  width: 100%;
+  height: calc(100% - 24px);
+  overflow: hidden;
+}
+
+.novel-book-card:not(.reading-mode-horizontal) .page-header-line {
+  display: none; /* 直排紙本古典頁面天頭留白 */
+}
+
+/* 紙本小說段落：嚴格遵守首行縮排兩字元 (text-indent: 2em)，排版緊湊如實體書 */
+.novel-para {
+  text-indent: 2em;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  line-height: 2.1;
+  letter-spacing: 1.5px;
+  color: #242220;
+  text-align: justify;
+  text-justify: inter-ideograph;
+  word-break: break-all;
+  margin: 0 0.8em 0 0; /* 直排中 margin-right/left 為分欄間距 */
+}
+
+body.theme-dark .novel-para {
+  color: #E2DDD5;
+}
+
+/* 橫排紙本書模式 (對開橫排紙本書) */
+.reading-mode-horizontal .book-spread-container {
+  flex-direction: row !important; /* 橫排左頁在左、右頁在右 */
+  height: 520px !important;
+}
+
+.reading-mode-horizontal .book-page {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 26px 28px 24px 28px !important;
+}
+
+.reading-mode-horizontal .page-header-line {
+  display: flex !important;
+}
+
+.reading-mode-horizontal .paper-novel-body {
+  display: block !important;
+  overflow: hidden !important;
+}
+
+.reading-mode-horizontal .novel-para {
+  text-indent: 2em !important;
+  margin: 0 0 0.8em 0 !important;
+  line-height: 1.88 !important;
+  font-size: 1.02rem !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* 頁底頁碼 (地腳) */
 .page-num-tag {
   position: absolute;
-  bottom: 12px;
-  left: 14px;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
   font-family: var(--font-serif);
   font-size: 11px;
   color: var(--text-muted);
   writing-mode: horizontal-tb;
-  border: 1px solid var(--border-color);
-  padding: 2px 6px;
-  border-radius: 4px;
-  opacity: 0.7;
-}
-
-.vertical-text-flow {
-  width: 100%;
-  height: 100%;
-  white-space: pre-wrap;
-  word-break: break-all;
+  letter-spacing: 2px;
+  opacity: 0.8;
 }
 
 /* 死亡過程閱讀通知橫幅 */
@@ -1121,40 +1203,7 @@ body.theme-dark .book-page {
   border-color: #B91C1C !important;
 }
 
-/* 橫排閱讀模式 (針對習慣現代橫排之使用者) */
-.reading-mode-horizontal .book-spread-container {
-  flex-direction: column !important;
-  height: auto !important;
-  min-height: 400px;
-}
-
-.reading-mode-horizontal .book-spine-divider {
-  display: none !important;
-}
-
-.reading-mode-horizontal .book-page {
-  writing-mode: horizontal-tb !important;
-  text-orientation: mixed !important;
-  text-align: justify;
-  line-height: 2;
-  font-size: 1.05rem;
-  letter-spacing: 0.5px;
-  padding: 22px 24px !important;
-  white-space: pre-wrap !important;
-  border: none !important;
-}
-
-.reading-mode-horizontal .book-page-left {
-  border-top: 1px dashed var(--border-color) !important;
-}
-
-.reading-mode-horizontal .page-num-tag {
-  bottom: 8px;
-  right: 14px;
-  left: auto;
-}
-
-/* 手機版適應排版 (針對小螢幕防止兩欄擠壓變形) */
+/* 手機版自適應 (在 768px 以下全寬展示單頁，絕不縮擠成細條) */
 @media (max-width: 768px) {
   .game-topbar .topbar-inner {
     flex-direction: column;
@@ -1179,31 +1228,22 @@ body.theme-dark .book-page {
   }
 
   .book-spread-container {
-    height: 420px !important;
-    min-height: 380px !important;
+    height: 480px !important;
   }
 
-  /* 在手機螢幕直書模式下，單頁全寬展示，避免兩欄壓縮成細條 */
   .book-page-left {
-    display: none !important; /* 手機端一次只顯示單頁，全寬呈現 */
+    display: none !important;
   }
 
   .book-page-right {
     width: 100% !important;
+    max-width: 100% !important;
     flex: 1 1 100% !important;
-    border-left: none !important;
-    padding: 16px 14px 28px 14px !important;
-    font-size: 1.08rem !important;
-    line-height: 2.3 !important;
+    padding: 24px 20px 22px 20px !important;
   }
 
   .book-spine-divider {
     display: none !important;
-  }
-
-  /* 橫排模式下的手機調校 */
-  .reading-mode-horizontal .book-page-left {
-    display: block !important;
   }
 }
 
@@ -1295,6 +1335,83 @@ body.theme-dark .book-page {
 .choice-btn-impact {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* 自訂/其他自主行動輸入 */
+.custom-choice-wrap {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.custom-choice-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-choice-row {
+  display: flex;
+  gap: 8px;
+}
+
+.custom-choice-input {
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.custom-choice-input:focus {
+  border-color: var(--accent-burgundy);
+  box-shadow: 0 0 0 2px rgba(140, 29, 60, 0.15);
+}
+
+/* 多重名稱標籤與空白名稱樣式 */
+.cert-multi-names, .dash-multi-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.name-badge {
+  background: rgba(0,0,0,0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+body.theme-dark .name-badge {
+  background: rgba(255,255,255,0.06);
+}
+
+.name-badge strong {
+  color: var(--accent-forest);
+  font-weight: 600;
+}
+
+.author-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* 當季重心 */

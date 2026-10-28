@@ -7,12 +7,18 @@
  */
 
 window.DestinyEngine = {
+  formatChapterTitle(index) {
+    const chNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
+                    "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+                    "二十一", "二十二", "二十三", "二十四", "二十五", "二十六", "二十七", "二十八", "二十九", "三十"];
+    return "第" + (chNums[index] || index) + "章";
+  },
+
   /**
-   * 產生一生完整生命軌跡與事件
+   * 產生一生完整生命軌跡與事件 (支援多重稱呼與無名空白、個體自主意識)
    */
   generateLifeTrajectory(species, config = {}) {
     const isHuman = species.isHuman;
-    const name = config.customName || species.namingPool[Math.floor(Math.random() * species.namingPool.length)];
     const biome = species.biomes[Math.floor(Math.random() * species.biomes.length)];
 
     let countryData = null;
@@ -21,24 +27,42 @@ window.DestinyEngine = {
       countryData = config.country || cList[Math.floor(Math.random() * cList.length)];
     }
 
+    // 命名處理：野生生靈在自然界初生時無受命名，姓名格為空白！
+    let currentName = "";
+    const names = [];
+
+    if (isHuman) {
+      currentName = config.customName || species.namingPool[Math.floor(Math.random() * species.namingPool.length)];
+      names.push({ source: "戶籍登記名", name: currentName, time: "誕生" });
+    } else if (config.customName) {
+      currentName = config.customName;
+      names.push({ source: "指定命名", name: currentName, time: "誕生" });
+    }
+
     // 1. 根據統計曲線計算壽命極限與死因
     const lifeDeathPlan = this.calculateLifespanAndFate(species, countryData);
 
-    // 2. 原始年表模擬：逐年/逐期生成生態統計事件
-    const rawEvents = this.simulateRawLifecycle(species, lifeDeathPlan, biome, countryData);
+    // 2. 原始年表模擬：逐年/逐期生成生態統計事件 (含個體獨立思維與動態命名機會)
+    const rawEvents = this.simulateRawLifecycle(species, lifeDeathPlan, biome, countryData, names);
+
+    // 若歷程中有獲得稱呼，更新 currentName
+    if (names.length > 0 && !currentName) {
+      currentName = names[names.length - 1].name;
+    }
 
     // 3. AI 智慧去重與修剪：過濾重複的日常事件，提煉核心轉折
     const deduplicatedEvents = this.aiDeduplicateEvents(rawEvents, species);
 
-    // 4. 生成艾琳·杭特式小說序幕 (出生登記段落)
-    const prologueNovel = this.writeErinHunterPrologue(species, name, biome, countryData, lifeDeathPlan);
+    // 4. 生成作家小說序幕 (出生登記段落)
+    const prologueNovel = this.writeErinHunterPrologue(species, currentName, biome, countryData, lifeDeathPlan);
 
-    // 5. 動態編織完全不重複、依據物種特化的互動抉擇與命運章節
-    const storyTimeline = this.compileStoryTimeline(species, name, deduplicatedEvents, lifeDeathPlan, biome, countryData);
+    // 5. 動態編織完全不重複、依據物種特化的互動抉擇與命運章節 (篇名嚴格規定為第N章)
+    const storyTimeline = this.compileStoryTimeline(species, currentName, deduplicatedEvents, lifeDeathPlan, biome, countryData);
 
     return {
       species,
-      name,
+      name: currentName,
+      names,
       biome,
       countryData,
       maxPossibleAge: lifeDeathPlan.finalAge,
@@ -351,15 +375,15 @@ window.DestinyEngine = {
   },
 
   /**
-   * 艾琳·杭特風格：動態物種專屬章節生成器（杜絕重複文字，10+ 半馬賽克張力）
+   * 物種專屬章節生成器（篇名嚴格規定只能是「第一章」、「第二章」…不可有標題）
    */
   generateUniqueChapter(params) {
     const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex } = params;
     const isHuman = species.isHuman;
+    const title = this.formatChapterTitle(chapterIndex);
 
     // 開篇第一章 (誕生與幼年探索)
     if (chapterIndex === 1) {
-      const title = isHuman ? `第一章 · 啼哭與世界的輪廓` : `第一章 · 盲目之光與泥土的氣味`;
       const narrative = isHuman
         ? `在${countryData.name}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次跌跌撞撞學步的疼痛構成。小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
         : `初春的寒氣刺痛了稚嫩的鼻頭。你跟隨著手足跌跌撞撞地探出巢穴，迎面而來的是高聳入雲的古木與無邊無際的灰色天幕。松針與融雪在腳掌下發出細微的碎裂聲，遠處掠過猛禽拍翅的陰影，荒野用第一陣冷風向你宣告了生存的嚴苛與廣闊。`;
@@ -368,18 +392,17 @@ window.DestinyEngine = {
 
     // 終幕章節 (生命回歸)
     if (isLast) {
-      const title = isHuman ? `最終章 · 晚霞與歸途的安詳` : `最終章 · 星芒與長眠的大地`;
       const narrative = isHuman
         ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData.name}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
         : `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與平靜。沒有恐懼，也沒有慌亂，耳邊彷彿迴盪起年少時在草甸上狂奔的呼嘯聲。你緩緩伏下身軀，將下顎貼在冰涼的落葉泥土上，任由最後一口吐息化作微風，奔向群星與先祖的古老獵場。`;
       return { age, title, narrative, choices: null };
     }
 
-    // 中間章節：依據物種分類與年齡階段抽選「完全不重複」的艾琳·杭特情境
+    // 中間章節：依據物種分類與年齡階段抽選情境
     const scenario = this.pickDynamicScenario(species, name, age, biome, countryData, stepIndex);
     return {
       age,
-      title: `第${chapterIndex}章 · ${scenario.title}`,
+      title,
       narrative: scenario.narrative,
       choices: isChoice ? scenario.choices : null
     };

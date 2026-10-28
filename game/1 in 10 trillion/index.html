@@ -29,7 +29,7 @@
                     <div id="ai-progress-fill" style="width:10%;"></div>
                 </div>
                 <span id="ai-progress-pct">10%</span>
-                <button type="button" onclick="document.getElementById('admin-ai-progress-bar').style.display='none'" class="ai-close-btn" title="收合進度列">✕</button>
+                <button type="button" onclick="document.getElementById('admin-ai-progress-bar').style.display='none'" class="ai-close-btn" title="收合進度列"><i class="fas fa-xmark"></i></button>
             </div>
         </div>
     </div>
@@ -44,14 +44,14 @@
                     <span class="dot-sep">•</span>
                     <span>十兆生命模擬</span>
                     <span class="dot-sep">•</span>
-                    <span>艾琳·杭特式 10+ 半馬賽克</span>
+                    <span>跨物種文學演繹</span>
                 </div>
                 <div class="nav-controls">
                     <button type="button" id="ambientSoundBtn" class="pill-btn" title="切換荒野環境氛圍音效">
                         <i class="fas fa-music"></i> <span id="ambientSoundLabel">自然音效：關閉</span>
                     </button>
                     <button type="button" id="themeToggleBtn" class="pill-btn" title="切換明暗模式">
-                        <span id="themeIcon">◐</span> 明暗主題
+                        <i id="themeIcon" class="fas fa-circle-half-stroke"></i> 明暗主題
                     </button>
                 </div>
             </nav>
@@ -122,13 +122,27 @@
                     </div>
 
                     <div class="option-item">
-                        <label class="opt-label"><i class="fas fa-hourglass-half"></i> 生命步調</label>
-                        <div class="seg-btn-group" id="paceGroup">
-                            <button type="button" class="seg-btn" data-pace="fast">極速 (約1分鐘)</button>
-                            <button type="button" class="seg-btn active" data-pace="normal">一般 (約3分鐘)</button>
-                            <button type="button" class="seg-btn" data-pace="slow">沉浸 (逐年品味)</button>
+                        <label class="opt-label"><i class="fas fa-book-bookmark"></i> 內容敘事模式</label>
+                        <div class="seg-btn-group" id="contentModeGroup">
+                            <button type="button" class="seg-btn active" data-mode="normal" title="適時省略，詳述重要段落，簡述日常">普通 (適時省略)</button>
+                            <button type="button" class="seg-btn" data-mode="full" title="事無巨細、每分每秒感官描摹，時長較長">完整 (一字不漏)</button>
+                            <button type="button" class="seg-btn" data-mode="compact" title="原版80億事件敘述，重大事件才抉擇，時長較短">精簡 (事件敘述)</button>
                         </div>
-                        <span class="opt-hint">遊戲中隨時可以手動暫停、加速或快轉到下一個抉擇。</span>
+                        <span class="opt-hint" id="modeHintText">普通模式：採用小說適度剪輯，詳細描述重要段落，其他簡述帶過。</span>
+                    </div>
+
+                    <div class="option-item" style="grid-column: 1 / -1;">
+                        <label class="opt-label"><i class="fas fa-feather-pointed"></i> 參考作家風格</label>
+                        <div class="author-bar">
+                            <div class="seg-btn-group" id="authorGroup">
+                                <button type="button" class="seg-btn active" data-author="erinhunter">艾琳·杭特 (貓戰士/冒險)</button>
+                                <button type="button" class="seg-btn" data-author="shenshixi">沈石溪 (動物小說/生存哲理)</button>
+                            </div>
+                            <button type="button" id="addCustomAuthorBtn" class="pill-btn" style="margin-left:8px;">
+                                <i class="fas fa-plus"></i> 自訂作家
+                            </button>
+                        </div>
+                        <span class="opt-hint" id="authorHintText">目前風格：艾琳·杭特（感官細膩、野性本能、10+ 半馬賽克少年文學，個體具自主思維）。</span>
                     </div>
                 </div>
 
@@ -136,12 +150,12 @@
                     <button type="button" id="startRollBtn" class="cta-btn pulse-glow">
                         <i class="fas fa-dice"></i> 開始誕生 (決定生命)
                     </button>
-                    <span class="cta-subnote">點擊後將由統計資料生成一生年表，並經 AI 去重與艾琳·杭特小說潤色。</span>
+                    <span class="cta-subnote">由真實生態母體生成，由指定作家文學模型即時演繹一生。</span>
                 </div>
             </div>
 
             <div class="disclaimer-bar">
-                <span><i class="fas fa-shield-halved"></i> 內容規範：本遊戲涉及自然捕食與生存競爭，描寫一律遵循艾琳·杭特式「半馬賽克」寫法（10+ 少年勇士文學），注重感官與本能，不含過度血腥。</span>
+                <span><i class="fas fa-shield-halved"></i> 內容規範：每個生靈皆有獨立意志與性格，破除物種刻板套路。血腥與心理描寫一律遵循 10+ 半馬賽克文學標準。</span>
             </div>
         </section>
 
@@ -170,7 +184,8 @@
                             </div>
                             <div class="cert-name-block">
                                 <span class="cert-label">被賦予之名 / NAME</span>
-                                <h2 class="cert-char-name" id="certCharName">霜爪</h2>
+                                <h2 class="cert-char-name" id="certCharName"></h2>
+                                <div class="cert-multi-names" id="certMultiNames"></div>
                                 <div class="cert-species-line" id="certSpeciesLine">
                                     <span class="cert-species-cn">灰狼</span>
                                     <span class="cert-species-sci">(Canis lupus)</span>
@@ -225,7 +240,7 @@
 
                     <div class="playback-controls">
                         <button type="button" id="pauseBtn" class="ctrl-btn active" title="暫停/繼續">
-                            <span id="pauseIcon">❚❚</span> 暫停
+                            <i id="pauseIcon" class="fas fa-pause"></i> <span>暫停</span>
                         </button>
                         <div class="speed-btn-group">
                             <button type="button" class="sp-btn" data-sp="1">1×</button>
@@ -233,13 +248,13 @@
                             <button type="button" class="sp-btn" data-sp="4">4×</button>
                         </div>
                         <button type="button" id="nextChoiceBtn" class="ctrl-btn" title="快轉推進到下一個抉擇">
-                            下一個抉擇 »
+                            下一個抉擇 <i class="fas fa-angles-right"></i>
                         </button>
                         <button type="button" id="readPauseToggleBtn" class="ctrl-btn active" title="新篇章自動暫停，提供充裕閱讀時間">
                             <i class="fas fa-book-reader"></i> 閱讀保護：開
                         </button>
                         <button type="button" id="abandonLifeBtn" class="ctrl-btn danger-btn" title="放棄當前進度重新投胎">
-                            <i class="fas fa-redo"></i> 放棄此生
+                            <i class="fas fa-rotate-left"></i> 放棄此生
                         </button>
                     </div>
                 </div>
@@ -255,7 +270,8 @@
                                 <i class="fas fa-paw"></i>
                             </div>
                             <div class="id-info">
-                                <h3 id="dashName">霜爪</h3>
+                                <h3 id="dashName"></h3>
+                                <div class="dash-multi-names" id="dashMultiNames"></div>
                                 <div class="id-species" id="dashSpecies">灰狼</div>
                                 <span class="id-rank-tag" id="dashRank">幼體 (Pup)</span>
                             </div>
@@ -328,18 +344,18 @@
                     </div>
                 </aside>
 
-                <!-- 中欄：艾琳·杭特小說閱讀器 & AI 事件流 -->
+                <!-- 中欄：紙本小說閱讀器 & AI 事件流 -->
                 <main class="col-center">
-                    <!-- 艾琳·杭特式雙頁直書小說館 (左右兩面・右翻・直式・右到左) -->
+                    <!-- 典雅紙本書開本小說館 (左右兩面・真實書籍版心排版) -->
                     <div class="card novel-book-card" id="novelBookCard">
                         <div class="novel-header">
                             <div class="novel-title-wrap">
                                 <i class="fas fa-book-open"></i>
-                                <h3 id="novelChapterTitle">第一章 · 盲目之光與泥土的氣味</h3>
+                                <h3 id="novelChapterTitle">第一章</h3>
                             </div>
                             <div class="book-nav-controls">
                                 <button type="button" id="readingModeToggleBtn" class="book-nav-btn" title="切換直排/橫排顯示模式">
-                                    <span id="readingModeIcon">〣</span> <span id="readingModeText">切換橫排</span>
+                                    <i id="readingModeIcon" class="fas fa-table-columns"></i> <span id="readingModeText">切換橫排</span>
                                 </button>
                                 <button type="button" id="prevPageBtn" class="book-nav-btn" title="往前翻頁（回看較早段落）">
                                     <i class="fas fa-arrow-right"></i> 往前翻
@@ -358,37 +374,39 @@
                                 <span>生命已迎來終暮！請靜心閱讀最後的長眠小說篇章：</span>
                             </div>
                             <button type="button" id="goToMemorialBtn" class="cta-btn sm-cta">
-                                前往荒野追思館結算 ›
+                                前往荒野追思館結算 <i class="fas fa-chevron-right"></i>
                             </button>
                         </div>
 
-                        <!-- 雙頁書本主體 (右頁 + 書脊 + 左頁，直書右至左) -->
+                        <!-- 雙頁紙本書開本主體 (右頁 + 書脊 + 左頁，真實紙書段落版心) -->
                         <div class="book-spread-container" id="bookSpreadContainer">
                             <!-- 生成中載入遮罩 (生成完第一頁之前不要開始遊戲) -->
                             <div id="novelLoadingOverlay" class="novel-loading-overlay">
                                 <div class="loading-spinner-box">
                                     <i class="fas fa-feather-pointed fa-bounce" style="font-size:2.4rem; color:#8C1D3C;"></i>
                                 </div>
-                                <h4 class="loading-title" id="novelLoadingTitle">艾琳·杭特 AI 正在構思開篇生靈小說...</h4>
+                                <h4 class="loading-title" id="novelLoadingTitle">AI 正在構思開篇生靈小說...</h4>
                                 <p class="loading-desc" id="novelLoadingDesc">正在編織最初的感官與野性本能。生成完成前生命時鐘保持暫停中，請稍候...</p>
                                 <div class="loading-mini-bar">
                                     <div class="loading-mini-fill"></div>
                                 </div>
                             </div>
 
-                            <!-- 右頁 (Page A - 順位在先，由右至左讀起) -->
+                            <!-- 右頁 (Page A - 順位在先，紙本書版心排版) -->
                             <div class="book-page book-page-right" id="bookPageRight">
+                                <div class="page-header-line"><span class="header-book-title">十兆分之一</span><span class="header-chapter-title" id="headerChapterRight">第一章</span></div>
+                                <div class="paper-novel-body" id="pageContentRight"></div>
                                 <div class="page-num-tag" id="pageNumRight">壹</div>
-                                <div class="vertical-text-flow" id="pageContentRight"></div>
                             </div>
 
                             <!-- 中縫書脊立體摺痕 -->
                             <div class="book-spine-divider"></div>
 
-                            <!-- 左頁 (Page B - 順位在後，接續右頁內容) -->
+                            <!-- 左頁 (Page B - 順位在後，紙本書版心排版) -->
                             <div class="book-page book-page-left" id="bookPageLeft">
+                                <div class="page-header-line"><span class="header-book-title">十兆分之一</span><span class="header-chapter-title" id="headerChapterLeft">第一章</span></div>
+                                <div class="paper-novel-body" id="pageContentLeft"></div>
                                 <div class="page-num-tag" id="pageNumLeft">貳</div>
-                                <div class="vertical-text-flow" id="pageContentLeft"></div>
                             </div>
                         </div>
 
@@ -396,10 +414,18 @@
                         <div class="choice-container" id="choiceContainer" style="display:none;">
                             <div class="choice-prompt">
                                 <i class="fas fa-exclamation-triangle"></i>
-                                <span>關鍵抉擇時刻！請選擇你的應對策略：</span>
+                                <span id="choicePromptText">關鍵抉擇時刻！請選擇你的應對策略：</span>
                             </div>
                             <div class="choice-buttons-grid" id="choiceButtonsGrid">
                                 <!-- 抉擇按鈕由 JS 填充 -->
+                            </div>
+                            <!-- 自訂/其他自主行動輸入格 (AI 判斷是否開放或純填空) -->
+                            <div class="custom-choice-wrap" id="customChoiceWrap">
+                                <div class="custom-choice-label"><i class="fas fa-pen-fancy"></i> 其他自主行動（自行決定行動策略）：</div>
+                                <div class="custom-choice-row">
+                                    <input type="text" id="customChoiceInput" class="custom-choice-input" placeholder="輸入你想採取的特別行動或心境應對...">
+                                    <button type="button" id="submitCustomChoiceBtn" class="cta-btn sm-cta">執行行動</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -507,7 +533,7 @@
 
                     <div class="memorial-actions">
                         <button type="button" id="reviewNovelBtn" class="ghost-btn" style="margin-right:12px;">
-                            <i class="fas fa-book-open"></i> 📖 翻閱此生完整雙頁小說
+                            <i class="fas fa-book-open"></i> 翻閱此生完整雙頁小說
                         </button>
                         <button type="button" id="restartGameBtn" class="cta-btn">
                             <i class="fas fa-rotate-right"></i> 開啟下一段十兆生命

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>十兆分之一 · 跨物種人生模擬與荒野紀事 (1 in 10 Trillion)</title>
+    <meta name="description" content="十兆分之一（1 in 10 Trillion）。隨機出生為地球生態系中十億生命之一，在自然演化、食物鏈與人類文明的真實生態統計中，透過艾琳·杭特式半互動小說，活過僅此一次的生命。">
+    
+    <!-- 引入字型與圖示庫 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 遊戲樣式 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="theme-parchment">
+    <!-- 頂端 AI 運算進度條 (參考 pandapanda6666 首頁公告管理工具) -->
+    <div id="admin-ai-progress-bar" style="display:none;">
+        <div class="ai-prog-inner">
+            <div class="ai-prog-left">
+                <i class="fas fa-robot fa-spin" style="color:#6ee7b7;"></i>
+                <span id="ai-progress-badge" class="ai-badge">生態與小說生成</span>
+                <span id="ai-progress-status">AI 正在計算生命軌跡...</span>
+            </div>
+            <div class="ai-prog-right">
+                <div class="ai-bar-track">
+                    <div id="ai-progress-fill" style="width:10%;"></div>
+                </div>
+                <span id="ai-progress-pct">10%</span>
+                <button type="button" onclick="document.getElementById('admin-ai-progress-bar').style.display='none'" class="ai-close-btn" title="收合進度列"><i class="fas fa-xmark"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主應用容器 -->
+    <main id="app">
+        <!-- 1. 首頁介紹視圖 (Intro Section) -->
+        <section id="intro" class="view-section">
+            <nav class="top-nav">
+                <div class="brand-tag">
+                    <span class="version-pill">v1.0 生態小說版</span>
+                    <span class="dot-sep">•</span>
+                    <span>十兆生命模擬</span>
+                    <span class="dot-sep">•</span>
+                    <span>跨物種文學演繹</span>
+                </div>
+                <div class="nav-controls">
+                    <button type="button" id="ambientSoundBtn" class="pill-btn" title="切換荒野環境氛圍音效">
+                        <i class="fas fa-music"></i> <span id="ambientSoundLabel">自然音效：關閉</span>
+                    </button>
+                    <button type="button" id="themeToggleBtn" class="pill-btn" title="切換明暗模式">
+                        <i id="themeIcon" class="fas fa-circle-half-stroke"></i> 明暗主題
+                    </button>
+                </div>
+            </nav>
+
+            <div class="hero-container">
+                <div class="hero-text-block">
+                    <div class="sub-header">地球生態系與人類文明跨物種模擬</div>
+                    <h1 class="main-title">十兆分之<em class="accent-word">1</em></h1>
+                    <p class="hero-quote">
+                        就在此刻，地球上有數百萬個生命正在誕生：森林深處的狼崽、浮冰下的幼企鵝、珊瑚礁裡的魚苗、以及產房裡的嬰兒。
+                        你無法挑選物種、棲息地或家庭。在演化、食物鏈與大自然的嚴酷法則中，你將如何活過這僅有一次的荒野旅程？
+                    </p>
+
+                    <div class="live-counters">
+                        <div class="counter-card">
+                            <span class="counter-num" id="liveAnimalBirths">0</span>
+                            <span class="counter-label">打開此頁後誕生的動物與生靈</span>
+                        </div>
+                        <div class="counter-card">
+                            <span class="counter-num" id="liveHumanBirths">0</span>
+                            <span class="counter-label">同時間出生的人類嬰兒</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-side-card">
+                    <div class="odds-header">
+                        <h3><i class="fas fa-dna"></i> 降生機率一覽</h3>
+                        <p class="odds-sub">根據地球生物量與現存個體統計估算</p>
+                    </div>
+                    <ul class="odds-list">
+                        <li>
+                            <span class="odds-name"><i class="fas fa-bug"></i> 昆蟲與節肢動物</span>
+                            <span class="odds-pct">約 82.4%</span>
+                        </li>
+                        <li>
+                            <span class="odds-name"><i class="fas fa-fish"></i> 魚類與海洋生靈</span>
+                            <span class="odds-pct">約 12.1%</span>
+                        </li>
+                        <li>
+                            <span class="odds-name"><i class="fas fa-crow"></i> 鳥類</span>
+                            <span class="odds-pct">約 3.8%</span>
+                        </li>
+                        <li>
+                            <span class="odds-name"><i class="fas fa-paw"></i> 野生與家養哺乳類</span>
+                            <span class="odds-pct">約 1.6%</span>
+                        </li>
+                        <li>
+                            <span class="odds-name"><i class="fas fa-person"></i> 智人（人類）</span>
+                            <span class="odds-pct highlight-pct">約 0.08%</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 出生設定面板 -->
+            <div class="setup-panel">
+                <div class="option-grid">
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-paw"></i> 降生物種池</label>
+                        <div class="seg-btn-group" id="speciesPoolGroup">
+                            <button type="button" class="seg-btn active" data-pool="all">十兆生靈 (全物種)</button>
+                            <button type="button" class="seg-btn" data-pool="wild">野生陸生獸</button>
+                            <button type="button" class="seg-btn" data-pool="marine">海洋與天空</button>
+                            <button type="button" class="seg-btn" data-pool="human">指定智人 (人類)</button>
+                        </div>
+                        <span class="opt-hint">選擇十兆生靈時，有千分之一以內的真實機率降生為人類。</span>
+                    </div>
+
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-book-bookmark"></i> 內容敘事模式</label>
+                        <div class="seg-btn-group" id="contentModeGroup">
+                            <button type="button" class="seg-btn active" data-mode="normal" title="適時省略，詳述重要段落，簡述日常">普通 (適時省略)</button>
+                            <button type="button" class="seg-btn" data-mode="full" title="事無巨細、每分每秒感官描摹，時長較長">完整 (一字不漏)</button>
+                            <button type="button" class="seg-btn" data-mode="compact" title="原版80億事件敘述，重大事件才抉擇，時長較短">精簡 (事件敘述)</button>
+                        </div>
+                        <span class="opt-hint" id="modeHintText">普通模式：採用小說適度剪輯，詳細描述重要段落，其他簡述帶過。</span>
+                    </div>
+
+                    <div class="option-item" style="grid-column: 1 / -1;">
+                        <label class="opt-label"><i class="fas fa-feather-pointed"></i> 參考作家風格</label>
+                        <div class="author-bar">
+                            <div class="seg-btn-group" id="authorGroup">
+                                <button type="button" class="seg-btn active" data-author="erinhunter">艾琳·杭特 (貓戰士/冒險)</button>
+                                <button type="button" class="seg-btn" data-author="shenshixi">沈石溪 (動物小說/生存哲理)</button>
+                            </div>
+                            <button type="button" id="addCustomAuthorBtn" class="pill-btn" style="margin-left:8px;">
+                                <i class="fas fa-plus"></i> 自訂作家
+                            </button>
+                        </div>
+                        <span class="opt-hint" id="authorHintText">目前風格：艾琳·杭特（感官細膩、野性本能、10+ 半馬賽克少年文學，個體具自主思維）。</span>
+                    </div>
+                </div>
+
+                <div class="cta-row">
+                    <button type="button" id="startRollBtn" class="cta-btn pulse-glow">
+                        <i class="fas fa-dice"></i> 開始誕生 (決定生命)
+                    </button>
+                    <span class="cta-subnote">由真實生態母體生成，由指定作家文學模型即時演繹一生。</span>
+                </div>
+            </div>
+
+            <div class="disclaimer-bar">
+                <span><i class="fas fa-shield-halved"></i> 內容規範：每個生靈皆有獨立意志與性格，破除物種刻板套路。血腥與心理描寫一律遵循 10+ 半馬賽克文學標準。</span>
+            </div>
+        </section>
+
+        <!-- 2. 輪盤抽選與出生登記證 (Rolling & Birth Certificate) -->
+        <section id="roll" class="view-section" style="display:none;">
+            <!-- 抽選動畫中 -->
+            <div id="rollerBox" class="roller-container">
+                <div class="roller-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="roller-title">命運輪盤轉動中...</div>
+                <div id="rollerDisplay" class="roller-name">正在從十兆生命中抽選...</div>
+                <div id="rollerBiome" class="roller-sub">匹配適生生態系與氣候...</div>
+            </div>
+
+            <!-- 出生登記證 (Birth Certificate) -->
+            <div id="certCard" class="cert-container" style="display:none;">
+                <div class="cert-guilloche">
+                    <div class="cert-header">
+                        <span class="cert-badge">生靈登錄證書 · BIRTH CERTIFICATE</span>
+                        <span class="cert-serial" id="certSerialNo">NO. 10T-88294</span>
+                    </div>
+
+                    <div class="cert-body">
+                        <div class="cert-identity-row">
+                            <div class="cert-avatar-box" id="certAvatarBox">
+                                <i class="fas fa-paw" id="certAvatarIcon"></i>
+                            </div>
+                            <div class="cert-name-block">
+                                <span class="cert-label">被賦予之名 / NAME</span>
+                                <h2 class="cert-char-name" id="certCharName"></h2>
+                                <div class="cert-multi-names" id="certMultiNames"></div>
+                                <div class="cert-species-line" id="certSpeciesLine">
+                                    <span class="cert-species-cn">灰狼</span>
+                                    <span class="cert-species-sci">(Canis lupus)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 物種與棲地詳細數據 -->
+                        <div class="cert-fields-grid" id="certFieldsGrid">
+                            <!-- 動態填充：如果是動物顯示生態棲地，若是人類顯示國家與貨幣 -->
+                        </div>
+
+                        <!-- 艾琳·杭特風格小說序幕 -->
+                        <div class="cert-prologue-box">
+                            <div class="prologue-title"><i class="fas fa-feather-pointed"></i> 序幕 · 初誕之微光</div>
+                            <p class="prologue-text" id="certPrologueText">載入中...</p>
+                        </div>
+                    </div>
+
+                    <div class="cert-footer">
+                        <button type="button" id="reRollBtn" class="ghost-btn">
+                            <i class="fas fa-redo"></i> 重新投胎
+                        </button>
+                        <button type="button" id="beginLifeBtn" class="cta-btn">
+                            <i class="fas fa-play"></i> 開啟這段生命之旅
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 主遊戲儀表板 (Life Dashboard) -->
+        <section id="lifeview" class="view-section" style="display:none;">
+            <!-- 頂部時間控制列 -->
+            <header class="game-topbar">
+                <div class="topbar-inner">
+                    <div class="topbar-brand">
+                        十兆分之<em>1</em>
+                    </div>
+
+                    <div class="age-tracker">
+                        <div class="age-display" id="topAgeDisplay">
+                            0 <small id="topAgeUnit">歲</small>
+                        </div>
+                        <div class="timeline-bar-wrapper">
+                            <span class="season-badge" id="topSeasonBadge">初誕之季</span>
+                            <div class="timeline-track">
+                                <div class="timeline-fill" id="topTimelineFill" style="width:0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="playback-controls">
+                        <button type="button" id="pauseBtn" class="ctrl-btn active" title="暫停/繼續">
+                            <i id="pauseIcon" class="fas fa-pause"></i> <span>暫停</span>
+                        </button>
+                        <div class="speed-btn-group">
+                            <button type="button" class="sp-btn" data-sp="1">1×</button>
+                            <button type="button" class="sp-btn active" data-sp="2">2×</button>
+                            <button type="button" class="sp-btn" data-sp="4">4×</button>
+                        </div>
+                        <button type="button" id="nextChoiceBtn" class="ctrl-btn" title="快轉推進到下一個抉擇">
+                            下一個抉擇 <i class="fas fa-angles-right"></i>
+                        </button>
+                        <button type="button" id="readPauseToggleBtn" class="ctrl-btn active" title="新篇章自動暫停，提供充裕閱讀時間">
+                            <i class="fas fa-book-reader"></i> 閱讀保護：開
+                        </button>
+                        <button type="button" id="abandonLifeBtn" class="ctrl-btn danger-btn" title="放棄當前進度重新投胎">
+                            <i class="fas fa-rotate-left"></i> 放棄此生
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 核心三欄版面 -->
+            <div class="dashboard-grid">
+                <!-- 左欄：生物身分證與狀態值 -->
+                <aside class="col-left">
+                    <div class="card id-card">
+                        <div class="id-card-top">
+                            <div class="id-avatar" id="dashAvatar">
+                                <i class="fas fa-paw"></i>
+                            </div>
+                            <div class="id-info">
+                                <h3 id="dashName"></h3>
+                                <div class="dash-multi-names" id="dashMultiNames"></div>
+                                <div class="id-species" id="dashSpecies">灰狼</div>
+                                <span class="id-rank-tag" id="dashRank">幼體 (Pup)</span>
+                            </div>
+                        </div>
+
+                        <div class="id-specs">
+                            <div class="spec-row">
+                                <span class="spec-k">棲所 / 國家：</span>
+                                <span class="spec-v" id="dashBiome">北美育空針葉林</span>
+                            </div>
+                            <div class="spec-row" id="dashHumanEcoRow" style="display:none;">
+                                <span class="spec-k">當地貨幣：</span>
+                                <span class="spec-v" id="dashCurrency">TWD</span>
+                            </div>
+                            <div class="spec-row">
+                                <span class="spec-k">社會群體：</span>
+                                <span class="spec-v" id="dashSocialType">狼群成員</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 狀態數值條 (0-100) -->
+                    <div class="card stats-card">
+                        <h4 class="card-title"><i class="fas fa-heart-pulse"></i> 生存狀態指標</h4>
+                        
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span>體魄健康</span>
+                                <strong id="valHealth">90/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-health" id="barHealth" style="width:90%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span id="labelEnergy">飽足精力</span>
+                                <strong id="valEnergy">85/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-energy" id="barEnergy" style="width:85%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span id="labelInstinct">野性直覺</span>
+                                <strong id="valInstinct">75/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-instinct" id="barInstinct" style="width:75%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span id="labelSocial">族群羈絆</span>
+                                <strong id="valSocial">80/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-social" id="barSocial" style="width:80%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="resource-box">
+                            <span class="res-k" id="labelResource">領地掌控度：</span>
+                            <span class="res-v" id="valResource">50%</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- 中欄：紙本小說閱讀器 & AI 事件流 -->
+                <main class="col-center">
+                    <!-- 典雅紙本書開本小說館 (左右兩面・真實書籍版心排版) -->
+                    <div class="card novel-book-card" id="novelBookCard">
+                        <div class="novel-header">
+                            <div class="novel-title-wrap">
+                                <i class="fas fa-book-open"></i>
+                                <h3 id="novelChapterTitle">第一章</h3>
+                            </div>
+                            <div class="book-nav-controls">
+                                <button type="button" id="readingModeToggleBtn" class="book-nav-btn" title="切換直排/橫排顯示模式">
+                                    <i id="readingModeIcon" class="fas fa-table-columns"></i> <span id="readingModeText">切換橫排</span>
+                                </button>
+                                <button type="button" id="prevPageBtn" class="book-nav-btn" title="往前翻頁（回看較早段落）">
+                                    <i class="fas fa-arrow-right"></i> 往前翻
+                                </button>
+                                <span class="page-indicator" id="bookPageIndicator">第 1–2 頁 / 共 2 頁</span>
+                                <button type="button" id="nextPageBtn" class="book-nav-btn" title="往後翻頁（接續情節）">
+                                    往後翻 <i class="fas fa-arrow-left"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 死亡過程閱讀通知橫幅 (確保讀者看完全部死亡小說後才前往追思館) -->
+                        <div id="novelDeathNotice" class="novel-death-notice" style="display:none;">
+                            <div class="death-notice-info">
+                                <i class="fas fa-moon" style="color:#C28D38;"></i>
+                                <span>生命已迎來終暮！請靜心閱讀最後的長眠小說篇章：</span>
+                            </div>
+                            <button type="button" id="goToMemorialBtn" class="cta-btn sm-cta">
+                                前往荒野追思館結算 <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <!-- 雙頁紙本書開本主體 (右頁 + 書脊 + 左頁，真實紙書段落版心) -->
+                        <div class="book-spread-container" id="bookSpreadContainer">
+                            <!-- 生成中載入遮罩 (生成完第一頁之前不要開始遊戲) -->
+                            <div id="novelLoadingOverlay" class="novel-loading-overlay">
+                                <div class="loading-spinner-box">
+                                    <i class="fas fa-feather-pointed fa-bounce" style="font-size:2.4rem; color:#8C1D3C;"></i>
+                                </div>
+                                <h4 class="loading-title" id="novelLoadingTitle">AI 正在構思開篇生靈小說...</h4>
+                                <p class="loading-desc" id="novelLoadingDesc">正在編織最初的感官與野性本能。生成完成前生命時鐘保持暫停中，請稍候...</p>
+                                <div class="loading-mini-bar">
+                                    <div class="loading-mini-fill"></div>
+                                </div>
+                            </div>
+
+                            <!-- 右頁 (Page A - 順位在先，紙本書版心排版) -->
+                            <div class="book-page book-page-right" id="bookPageRight">
+                                <div class="page-header-line"><span class="header-book-title">十兆分之一</span><span class="header-chapter-title" id="headerChapterRight">第一章</span></div>
+                                <div class="paper-novel-body" id="pageContentRight"></div>
+                                <div class="page-num-tag" id="pageNumRight">壹</div>
+                            </div>
+
+                            <!-- 中縫書脊立體摺痕 -->
+                            <div class="book-spine-divider"></div>
+
+                            <!-- 左頁 (Page B - 順位在後，紙本書版心排版) -->
+                            <div class="book-page book-page-left" id="bookPageLeft">
+                                <div class="page-header-line"><span class="header-book-title">十兆分之一</span><span class="header-chapter-title" id="headerChapterLeft">第一章</span></div>
+                                <div class="paper-novel-body" id="pageContentLeft"></div>
+                                <div class="page-num-tag" id="pageNumLeft">貳</div>
+                            </div>
+                        </div>
+
+                        <!-- 抉擇分支卡片 (當遇到抉擇時動態顯示) -->
+                        <div class="choice-container" id="choiceContainer" style="display:none;">
+                            <div class="choice-prompt">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <span id="choicePromptText">關鍵抉擇時刻！請選擇你的應對策略：</span>
+                            </div>
+                            <div class="choice-buttons-grid" id="choiceButtonsGrid">
+                                <!-- 抉擇按鈕由 JS 填充 -->
+                            </div>
+                            <!-- 自訂/其他自主行動輸入格 (AI 判斷是否開放或純填空) -->
+                            <div class="custom-choice-wrap" id="customChoiceWrap">
+                                <div class="custom-choice-label"><i class="fas fa-pen-fancy"></i> 其他自主行動（自行決定行動策略）：</div>
+                                <div class="custom-choice-row">
+                                    <input type="text" id="customChoiceInput" class="custom-choice-input" placeholder="輸入你想採取的特別行動或心境應對...">
+                                    <button type="button" id="submitCustomChoiceBtn" class="cta-btn sm-cta">執行行動</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 當季生活重心切換 -->
+                    <div class="card focus-card">
+                        <div class="focus-title">
+                            <span><i class="fas fa-compass"></i> 當前生活重心</span>
+                            <small id="focusHint">重心將微幅影響生存數值增減</small>
+                        </div>
+                        <div class="focus-chips" id="focusChipsContainer">
+                            <!-- 動物與人類專屬籌碼 -->
+                        </div>
+                    </div>
+
+                    <!-- AI 去重潤色後的統計事件歷史流 (Feed) -->
+                    <div class="card feed-card">
+                        <div class="feed-header">
+                            <h4 class="card-title">
+                                <i class="fas fa-list-check"></i> 生態年表事件流
+                                <small class="feed-subnote">(由生態母體生成並經 AI 去重過濾)</small>
+                            </h4>
+                        </div>
+                        <ul class="event-feed-list" id="eventFeedList">
+                            <!-- 事件由 JS 即時滾動插入 -->
+                        </ul>
+                    </div>
+                </main>
+
+                <!-- 右欄：同刻降生夥伴、生命地圖與存活曲線 -->
+                <aside class="col-right">
+                    <!-- 同一秒誕生的十兆生靈 -->
+                    <div class="card companions-card">
+                        <h4 class="card-title"><i class="fas fa-users-rays"></i> 同一刻誕生的生靈</h4>
+                        <p class="comp-subnote">與你同一秒降生的同胞生命現狀</p>
+                        <ul class="companions-list" id="companionsList">
+                            <!-- JS 填充 -->
+                        </ul>
+                    </div>
+
+                    <!-- 生命地圖 (10x10 格子) -->
+                    <div class="card grid-card">
+                        <div class="grid-header">
+                            <h4 class="card-title"><i class="fas fa-border-all"></i> 生命地圖</h4>
+                            <span class="grid-scale" id="gridScaleLabel">一格 = 1年</span>
+                        </div>
+                        <div class="life-grid-100" id="lifeGridContainer">
+                            <!-- 100 格 -->
+                        </div>
+                    </div>
+
+                    <!-- 存活曲線圖 -->
+                    <div class="card chart-card">
+                        <h4 class="card-title"><i class="fas fa-chart-line"></i> 生態存活率曲線</h4>
+                        <div class="chart-box">
+                            <svg id="survivalSvg" viewBox="0 0 300 130" class="survival-svg">
+                                <path id="svgCurvePath" d="" fill="none" stroke="#8C1D3C" stroke-width="2.5"></path>
+                                <circle id="svgAgeMarker" cx="0" cy="0" r="4.5" fill="#2c5e32"></circle>
+                            </svg>
+                        </div>
+                        <div class="chart-caption" id="chartCaption">當前存活機率分位點計算中...</div>
+                    </div>
+
+                    <!-- 物種生態與人類經濟統計卡 -->
+                    <div class="card eco-stats-card">
+                        <h4 class="card-title"><i class="fas fa-circle-info"></i> 生態母體背景數據</h4>
+                        <div class="eco-data-content" id="ecoDataContent">
+                            <!-- JS 填充 -->
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <!-- 4. 荒野追思館 (Memorial Hall / End Screen) -->
+        <section id="dead" class="view-section" style="display:none;">
+            <div class="memorial-container">
+                <div class="memorial-paper">
+                    <div class="memorial-wreath"><i class="fas fa-leaf"></i></div>
+                    <div class="memorial-badge">安放在荒野追思館的生靈</div>
+                    
+                    <h2 class="memorial-title" id="memoCharTitle">霜原的孤高守護者 · 霜爪</h2>
+                    <div class="memorial-lifespan" id="memoLifespan">享年 8 歲 (北美育空針葉林)</div>
+
+                    <div class="memorial-eulogy-box">
+                        <p class="memorial-eulogy-text" id="memoEulogyText">
+                            <!-- 艾琳·杭特悼念詞 -->
+                        </p>
+                    </div>
+
+                    <div class="memorial-stats-summary">
+                        <div class="sum-item">
+                            <span class="sum-k">終幕死因</span>
+                            <span class="sum-v" id="memoDeathCause">衰老力竭回歸大地</span>
+                        </div>
+                        <div class="sum-item">
+                            <span class="sum-k">存活超越</span>
+                            <span class="sum-v" id="memoPercentile">78% 的同族生靈</span>
+                        </div>
+                        <div class="sum-item">
+                            <span class="sum-k">歷經抉擇</span>
+                            <span class="sum-v" id="memoChoicesCount">3 次關鍵抉擇</span>
+                        </div>
+                    </div>
+
+                    <div class="memorial-actions">
+                        <button type="button" id="reviewNovelBtn" class="ghost-btn" style="margin-right:12px;">
+                            <i class="fas fa-book-open"></i> 翻閱此生完整雙頁小說
+                        </button>
+                        <button type="button" id="restartGameBtn" class="cta-btn">
+                            <i class="fas fa-rotate-right"></i> 開啟下一段十兆生命
+                        </button>
+                    </div>
+
+                    <!-- 追思館內嵌完整小說檢視區 -->
+                    <div id="memorialNovelContainer" class="memorial-novel-box" style="display:none; margin-top:24px; text-align:left;">
+                        <div class="memorial-novel-header">
+                            <h4><i class="fas fa-scroll"></i> 此生荒野全篇紀事</h4>
+                            <button type="button" id="closeMemoNovelBtn" class="ghost-btn sm" style="padding:3px 10px;">收合</button>
+                        </div>
+                        <div class="memorial-novel-text" id="memoFullNovelText"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 腳本引入 -->
+    <script src="js/species_data.js"></script>
+    <script src="js/destiny_engine.js"></script>
+    <script src="js/ai_service.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
