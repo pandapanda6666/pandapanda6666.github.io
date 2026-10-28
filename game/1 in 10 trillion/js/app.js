@@ -48,8 +48,9 @@
     feedEvents: [],
     eulogy: "",
     isDeathNoticed: false,
-    isHorizontalReading: false,
-    currentActiveChapter: null // 當前面臨的抉擇章節資料
+    currentActiveChapter: null, // 當前面臨的抉擇章節資料
+    prefetchedChapters: {},     // 提前生成的章節快取 { [chapterIdx]: chapterData }
+    isPrefetching: false        // 背景生成狀態鎖
   };
 
   // DOM 元素引用
@@ -292,8 +293,10 @@
       }
     });
 
-    // 閱讀模式切換 (直排 <-> 橫排)
-    el.readingModeToggleBtn.addEventListener("click", toggleReadingMode);
+    // 閱讀模式（保持經典直排紙本書）
+    if (el.readingModeToggleBtn) {
+      el.readingModeToggleBtn.addEventListener("click", toggleReadingMode);
+    }
 
     // 書本翻頁按鈕
     el.prevPageBtn.addEventListener("click", turnPagePrev);
@@ -570,6 +573,8 @@
     state.feedEvents = [];
     state.isDeathNoticed = false;
     state.currentActiveChapter = null;
+    state.prefetchedChapters = {};
+    state.isPrefetching = false;
     el.novelDeathNotice.style.display = "none";
     el.choiceContainer.style.display = "none";
 
@@ -605,39 +610,44 @@
     saveGameState("lifeview");
     setPauseState(false);
     startSimulationLoop();
+
+    // 核心優化：生命開始之初，立即在背景提前構思第二章，拒絕翻頁等待！
+    prefetchUpcomingMilestone(2);
   }
 
-  // 雙頁紙本小說分頁系統 (依實體紙本書規格滿版排版，首行縮排兩字，非單行塌陷)
+  // 雙頁紙本小說分頁系統 (依實體紙本書規格滿版排版，首行縮排兩字，始終雙頁對開)
   function rePaginateBook(targetSpread = null) {
     const rawText = state.fullNovelText || "";
     if (!rawText.trim()) {
-      state.bookPages = [["（尚無篇章紀錄）"]];
+      state.bookPages = [["（尚無篇章紀錄）"], [""]];
       renderBookSpread();
       return;
     }
 
-    const rawLines = rawText.split(/\n+/);
-    const paragraphs = [];
+    // 利用自然段落智慧切分器，確保每段均具備標點與縮排
+    const paragraphs = window.DestinyEngine
+      ? window.DestinyEngine.splitIntoNaturalParagraphs(rawText)
+      : rawText.split(/\n+/).map(p => p.trim()).filter(Boolean);
 
-    rawLines.forEach(line => {
-      const trimmed = line.trim();
+    const cleanParas = [];
+    paragraphs.forEach(p => {
+      const trimmed = p.trim();
       if (!trimmed) return;
       if (/^【第[零一二三四五六七八九十百]+章】$/.test(trimmed)) {
         state.currentChapterTitle = trimmed.replace(/【|】/g, "");
         return;
       }
-      paragraphs.push(trimmed);
+      cleanParas.push(trimmed);
     });
 
-    const isMobile = window.innerWidth <= 768;
-    // 紙本書單頁容量預算 (使每頁充實滿版，約 340~460 字元)
-    const PAGE_BUDGET = state.isHorizontalReading ? 440 : (isMobile ? 240 : 360);
+    // 紙本書單頁容量預算 (使每頁適中雅緻，約 220~280 字元)
+    const PAGE_BUDGET = 260;
 
     const pages = [];
     let curParas = [];
     let curChars = 0;
 
-    paragraphs.forEach(p => {
+    cleanParas.forEach(p => {
       if (curChars + p.length > PAGE_BUDGET && curParas.length > 0) {
         pages.push(curParas);
         curParas = [p];
@@ -652,42 +662,43 @@
       pages.push(curParas);
     }
 
-    state.bookPages = pages.length > 0 ? pages : [[""]];
+    // 確保偶數頁對開 (雙頁閱讀)
+    if (pages.length % 2 !== 0) {
+      pages.push([""]);
+    }
 
-    const isSinglePage = isMobile && !state.isHorizontalReading;
-    const step = isSinglePage ? 1 : 2;
+    state.bookPages = pages.length > 0 ? pages : [[""], [""]];
 
     if (targetSpread !== null) {
-      state.currentSpreadIndex = Math.min(targetSpread, Math.max(0, state.bookPages.length - 1));
+      state.currentSpreadIndex = Math.floor(Math.min(targetSpread, Math.max(0, state.bookPages.length - 1)) / 2) * 2;
     } else {
       const last = Math.max(0, state.bookPages.length - 1);
-      state.currentSpreadIndex = isSinglePage ? last : Math.floor(last / 2) * 2;
+      state.currentSpreadIndex = Math.floor(last / 2) * 2;
     }
 
     renderBookSpread();
   }
 
-  // 渲染雙頁面 (紙本書版心規格)
+  // 渲染雙頁面 (紙本書版心規格：右頁在右、左頁在左，兩頁始終同時呈現)
   function renderBookSpread() {
     const total = state.bookPages.length;
-    const isMobile = window.innerWidth <= 768;
-    const isSinglePage = isMobile && !state.isHorizontalReading;
-
     const rIdx = state.currentSpreadIndex;
     const lIdx = state.currentSpreadIndex + 1;
 
     const rParas = state.bookPages[rIdx] || [];
-    const lParas = (!isSinglePage && lIdx < total) ? state.bookPages[lIdx] : [];
+    const lParas = (lIdx < total) ? state.bookPages[lIdx] : [];
 
-    // 渲染右頁
-    el.pageContentRight.innerHTML = rParas.map(p => `<p class="novel-para">${escapeHtml(p)}</p>`).join("");
+    // 渲染右頁 (文字直排，右頁優先)
+    el.pageContentRight.innerHTML = rParas.map(p => p.trim() ? `<p class="novel-para">${escapeHtml(p)}</p>` : "").join("");
     // 渲染左頁
-    el.pageContentLeft.innerHTML = lParas.map(p => `<p class="novel-para">${escapeHtml(p)}</p>`).join("");
+    el.pageContentLeft.innerHTML = lParas.map(p => p.trim() ? `<p class="novel-para">${escapeHtml(p)}</p>` : "").join("");
 
     // 漢字頁碼 (壹, 貳, 參...)
-    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸", "拾柒", "拾捌", "拾玖", "貳拾", "貳拾壹", "貳拾貳", "貳拾參", "貳拾肆", "貳拾伍"];
-    el.pageNumRight.textContent = `- ${numToChinese[rIdx] || (rIdx + 1)} -`;
-    el.pageNumLeft.textContent = lParas.length > 0 ? `- ${numToChinese[lIdx] || (lIdx + 1)} -` : "";
+    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸", "拾柒", "拾捌", "拾玖", "貳拾", "貳拾壹", "貳拾貳", "貳拾參", "貳拾肆", "貳拾伍", "貳拾陸", "貳拾柒", "貳拾捌", "貳拾玖", "參拾"];
+    
+    // 頁數顯示規範：右頁右下角、左頁左下角
+    el.pageNumRight.textContent = rIdx < total ? `第 ${numToChinese[rIdx] || (rIdx + 1)} 頁` : "";
+    el.pageNumLeft.textContent = (lIdx < total && lParas.length > 0) ? `第 ${numToChinese[lIdx] || (lIdx + 1)} 頁` : "";
 
     // 書眉章節更新 (嚴格為「第N章」)
     if (el.headerChapterRight) el.headerChapterRight.textContent = state.currentChapterTitle || "第一章";
@@ -695,34 +706,73 @@
     el.novelChapterTitle.textContent = state.currentChapterTitle || "第一章";
 
     // 頁碼導航指示器
-    if (isSinglePage) {
-      el.bookPageIndicator.textContent = `第 ${rIdx + 1} 頁 / 共 ${Math.max(1, total)} 頁`;
-      el.prevPageBtn.disabled = (rIdx <= 0);
-      el.nextPageBtn.disabled = (rIdx >= total - 1);
-    } else {
-      el.bookPageIndicator.textContent = `第 ${rIdx + 1}–${Math.min(lIdx + 1, Math.max(1, total))} 頁 / 共 ${Math.max(1, total)} 頁`;
-      el.prevPageBtn.disabled = (rIdx <= 0);
-      el.nextPageBtn.disabled = (rIdx + 2 >= total);
-    }
+    el.bookPageIndicator.textContent = `第 ${rIdx + 1}–${Math.min(lIdx + 1, Math.max(1, total))} 頁 / 共 ${Math.max(1, total)} 頁`;
+    el.prevPageBtn.disabled = (rIdx <= 0);
+    el.nextPageBtn.disabled = (rIdx + 2 >= total);
   }
 
   function turnPagePrev() {
-    const isMobile = window.innerWidth <= 768;
-    const step = (isMobile && !state.isHorizontalReading) ? 1 : 2;
     if (state.currentSpreadIndex > 0) {
-      state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - step);
+      state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - 2);
       renderBookSpread();
       saveGameState();
     }
   }
 
   function turnPageNext() {
-    const isMobile = window.innerWidth <= 768;
-    const step = (isMobile && !state.isHorizontalReading) ? 1 : 2;
-    if (state.currentSpreadIndex + step < state.bookPages.length) {
-      state.currentSpreadIndex = state.currentSpreadIndex + step;
+    if (state.currentSpreadIndex + 2 < state.bookPages.length) {
+      state.currentSpreadIndex = state.currentSpreadIndex + 2;
       renderBookSpread();
       saveGameState();
+      // 提前預判：若已接近當前末頁，主動觸發下一章提前預先生成
+      if (state.currentSpreadIndex + 2 >= state.bookPages.length) {
+        prefetchUpcomingMilestone();
+      }
+    }
+  }
+
+  // 提前生成機制 (Pre-generation)：在玩家閱讀當前頁面時，已在背景提前準備好下一章，拒絕翻頁等待！
+  async function prefetchUpcomingMilestone(targetChapterIdx = null) {
+    if (state.isPrefetching || state.isGameOver) return;
+    if (!state.currentLife || !state.currentLife.storyTimeline) return;
+
+    const timeline = state.currentLife.storyTimeline;
+    const nextIdx = targetChapterIdx || (state.choicesMadeCount + 2);
+    if (state.prefetchedChapters[nextIdx]) return; // 已預先生成好
+
+    const milestoneChapter = timeline[nextIdx - 1];
+    if (!milestoneChapter) return;
+
+    state.isPrefetching = true;
+    try {
+      const playerContext = {
+        activeFocus: state.activeFocus,
+        recentChoices: state.recentChoices,
+        companionsAliveCount: state.companions.filter(c => c.isAlive).length,
+        season: state.currentSeasonIdx
+      };
+
+      const aiChapter = await window.AiService.generateMilestoneChapter(
+        state.currentLife.species,
+        state.currentLife.name,
+        milestoneChapter.age || (state.currentAge + 2),
+        state.currentLife.initialStats,
+        state.currentLife.biome,
+        state.currentLife.countryData,
+        nextIdx,
+        playerContext,
+        state.selectedAuthor,
+        state.contentMode
+      );
+
+      if (aiChapter) {
+        state.prefetchedChapters[nextIdx] = aiChapter;
+        console.log(`[提前生成] 第 ${nextIdx} 章已在背景構思完畢，翻頁即讀！`);
+      }
+    } catch (err) {
+      console.warn("提前生成章節備援：", err);
+    } finally {
+      state.isPrefetching = false;
     }
   }
 
@@ -952,38 +1002,43 @@
     const chapter = timeline.find(ch => ch.age === state.currentAge && state.currentSeasonIdx === 0);
 
     if (chapter && chapter.age > 0) {
-      setPauseState(true);
-      showNovelLoading("AI 正在即時生成新篇章...", "正在結合你的生活重心與當前體魄，推演命運轉折...");
-
       const chapterIdx = state.choicesMadeCount + 2;
       const chapterTitleFixed = window.DestinyEngine.formatChapterTitle(chapterIdx);
 
-      const playerContext = {
-        activeFocus: state.activeFocus,
-        recentChoices: state.recentChoices,
-        companionsAliveCount: state.companions.filter(c => c.isAlive).length,
-        season: state.currentSeasonIdx
-      };
+      // 檢查是否已提前預先生成好
+      let activeChap = state.prefetchedChapters[chapterIdx];
 
-      let aiChapter = null;
-      try {
-        aiChapter = await window.AiService.generateMilestoneChapter(
-          life.species,
-          life.name,
-          state.currentAge,
-          life.initialStats,
-          life.biome,
-          life.countryData,
-          chapterIdx,
-          playerContext,
-          state.selectedAuthor,
-          state.contentMode
-        );
-      } catch (err) {
-        console.warn("AI 章節生成備援", err);
+      if (!activeChap) {
+        setPauseState(true);
+        showNovelLoading("正在展開新篇章...", "正在編織自然生靈的全新轉折...");
+
+        const playerContext = {
+          activeFocus: state.activeFocus,
+          recentChoices: state.recentChoices,
+          companionsAliveCount: state.companions.filter(c => c.isAlive).length,
+          season: state.currentSeasonIdx
+        };
+
+        try {
+          activeChap = await window.AiService.generateMilestoneChapter(
+            life.species,
+            life.name,
+            state.currentAge,
+            life.initialStats,
+            life.biome,
+            life.countryData,
+            chapterIdx,
+            playerContext,
+            state.selectedAuthor,
+            state.contentMode
+          );
+        } catch (err) {
+          console.warn("AI 章節生成備援", err);
+        }
+        hideNovelLoading();
       }
 
-      const activeChap = aiChapter || chapter;
+      if (!activeChap) activeChap = chapter;
       state.currentActiveChapter = activeChap;
       state.currentChapterTitle = chapterTitleFixed;
       el.novelChapterTitle.textContent = chapterTitleFixed;
@@ -992,7 +1047,8 @@
       state.fullNovelText += `\n\n【${chapterTitleFixed}】\n${activeChap.narrative}`;
       rePaginateBook();
 
-      hideNovelLoading();
+      // 核心機制：立刻在背景提前構思下一章，保證讀者下一頁毫無停頓
+      prefetchUpcomingMilestone(chapterIdx + 1);
 
       // 檢查是否包含抉擇或自主輸入
       const hasChoices = Array.isArray(activeChap.choices) && activeChap.choices.length > 0;

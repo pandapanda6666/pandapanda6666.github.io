@@ -53,11 +53,11 @@ window.DestinyEngine = {
     // 3. AI 智慧去重與修剪：過濾重複的日常事件，提煉核心轉折
     const deduplicatedEvents = this.aiDeduplicateEvents(rawEvents, species);
 
-    // 4. 生成作家小說序幕 (出生登記段落)
-    const prologueNovel = this.writeErinHunterPrologue(species, currentName, biome, countryData, lifeDeathPlan);
+    // 4. 生成作家小說序幕 (出生登記段落，動態物種專屬)
+    const prologueNovel = this.generateChapterOneNarrative(species, currentName, biome, countryData, config.author, config.contentMode);
 
     // 5. 動態編織完全不重複、依據物種特化的互動抉擇與命運章節 (篇名嚴格規定為第N章)
-    const storyTimeline = this.compileStoryTimeline(species, currentName, deduplicatedEvents, lifeDeathPlan, biome, countryData);
+    const storyTimeline = this.compileStoryTimeline(species, currentName, deduplicatedEvents, lifeDeathPlan, biome, countryData, config);
 
     return {
       species,
@@ -339,7 +339,7 @@ window.DestinyEngine = {
   /**
    * 編織半互動式小說時間線（保證章節完全不重複，依據年齡階段與物種專屬情境演繹）
    */
-  compileStoryTimeline(species, name, events, lifeDeathPlan, biome, countryData) {
+  compileStoryTimeline(species, name, events, lifeDeathPlan, biome, countryData, config = {}) {
     const chapters = [];
     const finalAge = lifeDeathPlan.finalAge;
     const chapterAges = this.selectMilestoneAges(finalAge);
@@ -357,7 +357,9 @@ window.DestinyEngine = {
         isLast,
         isChoice,
         chapterIndex: idx + 1,
-        stepIndex: idx
+        stepIndex: idx,
+        author: config.author || "erinhunter",
+        mode: config.contentMode || "normal"
       });
 
       chapters.push(chapter);
@@ -377,24 +379,113 @@ window.DestinyEngine = {
   /**
    * 物種專屬章節生成器（篇名嚴格規定只能是「第一章」、「第二章」…不可有標題）
    */
+  /**
+   * 自然段落智能切分器：確保文本具備 2 到 3 個段落，段首縮排兩字
+   */
+  splitIntoNaturalParagraphs(text) {
+    if (!text) return [];
+    const rawParts = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+    const result = [];
+
+    rawParts.forEach(part => {
+      if (/^【第[零一二三四五六七八九十百]+章】$/.test(part)) {
+        result.push(part);
+        return;
+      }
+      // 若單一段落過長（超過 110 字且無分段），在標點處自然切分
+      if (part.length > 110) {
+        const sentences = part.match(/[^。！？]+[。！？]*/g) || [part];
+        let buf = "";
+        sentences.forEach(s => {
+          if (buf.length + s.length > 95 && buf.length >= 50) {
+            result.push(buf);
+            buf = s;
+          } else {
+            buf += s;
+          }
+        });
+        if (buf) result.push(buf);
+      } else {
+        result.push(part);
+      }
+    });
+
+    return result.length > 0 ? result : [text];
+  },
+
+  /**
+   * 根據物種、棲地、作家與模式動態生成第一章開篇小說（嚴格分成 2-3 段落）
+   */
+  generateChapterOneNarrative(species, name, biome, countryData, author = "erinhunter", mode = "normal") {
+    const isHuman = species.isHuman;
+    const sId = species.id;
+    const bName = biome ? biome.name : "未知生境";
+
+    if (isHuman) {
+      const cName = (countryData && countryData.name) ? countryData.name : "這個國度";
+      return `在${cName}，最初的記憶始於刺目而潔白的產房頂燈，以及猛然湧入肺部的第一口灼熱空氣。伴隨著劃破寂靜的清脆啼哭，冰涼的世界在被柔軟溫暖的襁褓包裹的那一刻安靜了下來。\n\n小小的手掌在半空中無意識地抓握，指尖碰觸到母親微顫而帶著淚痕的臉頰。窗外是這座國度日夜奔流的街道脈動與喧囂，在家庭、社會與文明交織的龐大網絡中，你作為八十億分之一的微光，正式啟程。`;
+    }
+
+    // 依據物種 ID 精準配置專屬生物感官與生態細節（絕不混淆）
+    if (sId === "gray_wolf") {
+      return `洞穴深處瀰漫著濃重的潮濕泥土與母狼腹毛的溫熱。最初的知覺是緊閉的眼皮外朦朧的微光，以及同胞幼崽擠挨在身側急促微弱的心跳。乳汁的甘甜伴隨著母親溫柔粗糙的舌舔，撫平了初臨塵世的戰慄。\n\n幾週後，稚嫩的四爪終於跌跌撞撞地邁出了幽暗的石穴。迎面而來的是${bName}凜冽刺骨的寒風，松針與未融的殘雪在腳掌下發出細碎的脆響。遠方山嶺間迴盪起族群蒼涼綿長的嗥叫，荒野用第一陣戰慄與浩瀚，向你宣示了獵手一生的宿命。`;
+    }
+
+    if (sId === "feral_cat" || species.name.includes("貓")) {
+      return `紙箱與廢棄磚瓦搭建的狹縫裡，殘留著瀝青與雨水的混合氣味。幾隻毛茸茸的手足在陰暗的角落裡交疊蜷縮，母親輕柔的咕嚕聲如引擎般震顫著單薄的胸膛，驅散了破瓦殘縫間漏進的初春寒意。\n\n當藍灰色的幼貓瞳孔第一次聚焦，映入眼簾的是霓虹閃爍的水泥縫隙與高聳如峭壁的垃圾箱。遠處急馳而過的車輪掀起刺鼻的尾氣，身旁的母貓警惕地豎直了耳尖。這片由人類遺棄物與暗巷鼠跡構築的領地，就是你必須用利爪征服的全部世界。`;
+    }
+
+    if (sId === "orca" || species.category === "marine") {
+      return `沒有重力，沒有泥土，唯有一片無邊無際的湛藍與冰冷水流包裹著身軀。剛脫離母體的一剎那，本能驅使著尾鰭用力擺動，母親與族群副手隨即以強健的身軀將你托向海面。破水而出的瞬間，頭頂的氣孔噴出一道細密的白霧，吸入了${bName}純淨而冷冽的第一口空氣。\n\n沉入海面之下，家族特有的高頻哨音與回聲定位脈衝在深邃的海溝間迴盪，如同一張無形而溫暖的聲波搖籃。龐大如島嶼的親族在身側靜默伴游，黑白分明的流線身軀撕開浪潮，帶你領略這片縱橫萬里的冰海王者疆域。`;
+    }
+
+    if (sId === "emperor_penguin") {
+      return `零下四十度的極地暴風雪在幾寸之外咆哮，但你所感知的第一個世界，卻是父親溫暖緊繃的育兒袋皺褶與厚重脂肪層。微小的喙尖破開堅硬的卵殼，在黑暗中發出微弱而尖銳的索食嘶鳴。\n\n暴風雪暫歇的短暫時刻，父親微微抬起腹部羽翼。那一瞬間，極晝微光下耀眼奪目的藍白冰原與千萬同族緊密相依的壯闊景象震撼了幼小的心靈。在無邊無際的白色荒原邊緣，死寂與嚴寒構築了最嚴苛的生存試煉。`;
+    }
+
+    if (sId === "african_elephant") {
+      return `烈日烘烤著赤紅的大地，金黃色的草浪在熱浪中蒸騰扭曲。甫一落地，四條如石柱般笨拙的長腿便在母象長鼻的輕柔扶持下，一次次摔倒又固執地站起。熱風掠過寬大薄嫩的雙耳，送來遠方相思樹皮與乾燥泥土的氣息。\n\n整個象群停下了遷徙的沉重腳步，圍攏成一道堅不可摧的移動肉牆，族群長老的長鼻輕撫過你的背脊，發出低沉而溫柔的次聲波共鳴。在獅群潛伏的金色大草原上，古老的家族記憶與無盡的跋涉就此啟航。`;
+    }
+
+    if (sId === "green_sea_turtle") {
+      return `潮濕而溫熱的沙層深處，卵殼破裂的細響在黑暗中蔓延。數十隻同胞本能地一齊向上攀爬、扒開鬆散的珊瑚砂。當第一顆小腦袋頂破沙面，滿天璀璨的星光與白色海浪的磷光瞬間照亮了幼小的眼眸。\n\n沒有任何母性的庇護與告別，落地即是生死競速。夜空下，幽靈蟹在沙灘上橫行，海鳥的雙眼在樹影中窺伺。你揮動著如槳般的細小前肢，向著那片轟鳴而發光的大海拼盡全力狂奔，躍入翻滾浪潮的瞬間，漫長的大洋漂流正式展開。`;
+    }
+
+    if (sId === "red_fox") {
+      return `山坡樹根下的泥穴裡，散發著乾草與母狐被毛濃郁的野性氣味。柔軟的小爪相互推搡著爭奪乳頭，耳尖微微顫動，捕捉著泥土上方傳來的落葉沙沙聲與晨露滴落的脆響。\n\n幾週後，大膽地探出洞口，初升的旭日將你赤紅如火焰的絨毛鍍上一層金輝。一隻金龜子在苔蘚上爬過，引發了你第一次笨拙的撲擊；遠處農莊的犬吠隱隱傳來，機敏與狡黠的天性在這一刻悄然覺醒。`;
+    }
+
+    if (sId === "honeybee" || species.category === "insect") {
+      return `封蓋的六角形蠟房內，最後一層薄膜被堅硬的上顎咬破。伸展出濕漉漉的六足與透明的雙翅，空氣中瀰漫著溫熱濃郁的蜂蜜香氣與蜂王漿的信息素。身旁忙碌的撫育蜂用觸角輕柔觸碰，清理著身上的蠟屑。\n\n蜂巢深處如同一座精密運轉的金色鐘錶，數萬名姐妹的翅膀振動發出和諧的共鳴。當翅膀在溫暖的巢風中徹底晾乾硬化，本能的指令已在神經中樞中啟動——清理巢房、侍奉幼蟲，直到飛向藍天探尋花海，你的一生是無私與奉獻的壯麗史詩。`;
+    }
+
+    if (sId === "common_raven" || species.category === "avian") {
+      return `松枝與羊毛編織的巨巢高懸在冷杉樹冠之巔。破殼而出的那一刻，光禿的頭頂感受到了高空冷冽氣流的激盪。親鳥漆黑如鐵的巨喙銜著腐肉與漿果俯下身來，發出深沉低沉的金屬般咕噥聲。\n\n烏黑的羽管在春風中迅速拔節生長，一對漆黑如黑曜石的敏銳雙眼好奇地審視著大地上的一切動靜。狼群在雪谷中狩獵的喧囂引來了注意——作為荒野中最具智慧的飛行觀察者，你與猛獸共生的傳奇旅程由此啟幕。`;
+    }
+
+    // 通用自然生靈備援（嚴格分段，按生境描寫）
+    return `在${bName}的晨曦微光中，最初的生命脈動悄然甦醒。微風拂過初生的軀體，帶來了泥土、草葉與遠方同伴微弱的氣息，生命的本能在此刻被全面喚醒。\n\n睜開雙眸的那一瞬，浩瀚的天地在眼前鋪展而開。無論前路隱伏著多少風雨與捕食者的陰影，屬於你的這一篇章已然展開，以最純粹的野性力量向荒野致敬。`;
+  },
+
+  /**
+   * 物種專屬章節生成器（篇名嚴格規定只能是「第一章」、「第二章」…不可有標題）
+   */
   generateUniqueChapter(params) {
-    const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex } = params;
+    const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex, author, mode } = params;
     const isHuman = species.isHuman;
     const title = this.formatChapterTitle(chapterIndex);
 
     // 開篇第一章 (誕生與幼年探索)
     if (chapterIndex === 1) {
-      const narrative = isHuman
-        ? `在${countryData.name}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次跌跌撞撞學步的疼痛構成。小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
-        : `初春的寒氣刺痛了稚嫩的鼻頭。你跟隨著手足跌跌撞撞地探出巢穴，迎面而來的是高聳入雲的古木與無邊無際的灰色天幕。松針與融雪在腳掌下發出細微的碎裂聲，遠處掠過猛禽拍翅的陰影，荒野用第一陣冷風向你宣告了生存的嚴苛與廣闊。`;
+      const narrative = this.generateChapterOneNarrative(species, name, biome, countryData, author, mode);
       return { age, title, narrative, choices: null };
     }
 
     // 終幕章節 (生命回歸)
     if (isLast) {
       const narrative = isHuman
-        ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData.name}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
-        : `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與平靜。沒有恐懼，也沒有慌亂，耳邊彷彿迴盪起年少時在草甸上狂奔的呼嘯聲。你緩緩伏下身軀，將下顎貼在冰涼的落葉泥土上，任由最後一口吐息化作微風，奔向群星與先祖的古老獵場。`;
+        ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData ? countryData.name : ''}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意。\n\n回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
+        : `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與平靜。\n\n沒有恐懼，也沒有慌亂，耳邊彷彿迴盪起年少時狂奔的呼嘯聲。你緩緩伏下身軀，將下顎貼在冰涼的泥土上，任由最後一口吐息化作微風，奔向群星與先祖的古老獵場。`;
       return { age, title, narrative, choices: null };
     }
 

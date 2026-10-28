@@ -59,35 +59,42 @@ window.AiService = {
   async callLlm(messages, responseFormatJson = false) {
     const sUrl = await this.resolveServerUrl();
 
-    // 1. 若伺服器有專屬 AI chat 端點，優先嘗試
+    // 1. 若伺服器在線，優先嘗試本機端點 (設定 1200ms 極速 ping 檢驗，避免卡頓)
     if (sUrl) {
       try {
-        const controller = new AbortController();
-        const tid = setTimeout(() => controller.abort(), 7000);
-        const res = await fetch(`${sUrl}/api/ai-banner/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" },
-          body: JSON.stringify({
-            message: messages[messages.length - 1].content,
-            history: messages.slice(0, -1),
-            mode: "code"
-          }),
-          signal: controller.signal
-        });
-        clearTimeout(tid);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.replyText) return data.replyText;
+        const pingCtrl = new AbortController();
+        const pTid = setTimeout(() => pingCtrl.abort(), 1200);
+        const pingRes = await fetch(`${sUrl}/api/ping`, { signal: pingCtrl.signal });
+        clearTimeout(pTid);
+
+        if (pingRes.ok) {
+          const controller = new AbortController();
+          const tid = setTimeout(() => controller.abort(), 8000);
+          const res = await fetch(`${sUrl}/api/ai-banner/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" },
+            body: JSON.stringify({
+              message: messages[messages.length - 1].content,
+              history: messages.slice(0, -1),
+              mode: "code"
+            }),
+            signal: controller.signal
+          });
+          clearTimeout(tid);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.replyText) return data.replyText;
+          }
         }
       } catch (e) {}
     }
 
-    // 2. 直接呼叫免金鑰高可用 LLM (與 server.js line 908 一致之端點)
+    // 2. 直接呼叫免金鑰高速 LLM (採用極速且穩定的 openai-fast 模型，支援 JSON)
     const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 12000);
+    const tid = setTimeout(() => controller.abort(), 22000);
 
     const bodyPayload = {
-      model: "openai",
+      model: "openai-fast",
       messages: messages
     };
     if (responseFormatJson) {
@@ -108,45 +115,6 @@ window.AiService = {
     }
 
     throw new Error("AI 服務暫時無法連線");
-  },
-
-  /**
-   * 1. 即時生成：開篇第一章小說 (Opening Chapter)
-   */
-  async generateOpeningChapter(species, name, biome, countryData) {
-    const isHuman = species.isHuman;
-    const prompt = isHuman
-      ? `請以艾琳·杭特（Erin Hunter）中文筆觸，撰寫現代人類嬰兒「${name}」在「${countryData.name}」降生的一篇微型小說開篇（約 180~220 字繁體中文）。
-要求：
-1. 輸出 JSON 物件：{"title": "第一章標題 (約4-8字)", "narrative": "正文內容"}。
-2. 充滿感官細節（產房消毒水、窗外光斑、心跳初啼、對世界的懵懂摸索），文筆真摯動人。`
-      : `請以艾琳·杭特《貓戰士》風格（10+ 半馬賽克），撰寫物種「${species.name}（${species.scientificName}）」個體「${name}」在「${biome.name}」降生的一篇微型小說開篇（約 180~220 字繁體中文）。
-要求：
-1. 輸出 JSON 物件：{"title": "第一章標題 (約4-8字)", "narrative": "正文內容"}。
-2. 充滿強烈動物感官（母體腹毛溫度、泥土與松針氣味、巢外寒風與猛禽陰影、本能戰慄）。
-3. 切勿包含「【艾琳·杭特式描繪】」之類的說明標籤，純粹呈現小說文字。`;
-
-    try {
-      const messages = [
-        { role: "system", content: "你是一位精通艾琳·杭特（Erin Hunter）風格的頂級動物冒險小說家。請輸出標準繁體中文 JSON 物件。" },
-        { role: "user", content: prompt }
-      ];
-      const raw = await this.callLlm(messages, true);
-      const parsed = JSON.parse(raw);
-      if (parsed.title && parsed.narrative) {
-        return parsed;
-      }
-    } catch (e) {
-      console.warn("即時開篇生成異常，啟用動態備援：", e);
-    }
-
-    // 智能備援（動態組合，絕非死板文字）
-    return {
-      title: isHuman ? "第一章 · 啼哭與世界的輪廓" : "第一章 · 盲目之光與泥土的氣味",
-      narrative: isHuman
-        ? `在${countryData.name}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次學步跌倒的疼痛構成。小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
-        : `初春的寒氣刺痛了稚嫩的鼻頭。你跟隨著手足跌跌撞撞地探出巢穴，迎面而來的是高聳入雲的古木與無邊無際的灰色天幕。松針與融雪在腳爪下發出細微的碎裂聲，荒野用第一陣冷風向你宣告了生存的嚴苛與廣闊。`
-    };
   },
 
   formatChapterTitle(index) {
@@ -236,8 +204,9 @@ ${modeGuide}
 【重要規範】：
 1. 輸出 STRICT JSON：{"title": "第一章", "narrative": "正文內容"}。
 2. 篇名必須嚴格為「第一章」，絕對禁止添加任何副標題、冒號或附屬標籤！
-3. 破除物種刻板套路：每個個體都是具備自主意志與獨特性格的生命。
-4. 正文中嚴禁出現任何「【某某式描繪】」之類的說明標籤。`;
+3. 格式要求：請務必將正文分成 2 到 3 個自然段落（段落之間使用換行符號 \\n\\n 分隔），每段約 60~100 字，段首不要自行加空格，排版系統會自動處理縮排。
+4. 破除物種刻板套路：每個個體都是具備自主意志與獨特性格的生命。
+5. 正文中嚴禁出現任何「【某某式描繪】」之類的說明標籤。`;
 
     try {
       const messages = [
@@ -247,20 +216,27 @@ ${modeGuide}
       const raw = await this.callLlm(messages, true);
       const parsed = JSON.parse(raw);
       if (parsed.narrative) {
+        const cleanNarrative = window.DestinyEngine
+          ? window.DestinyEngine.splitIntoNaturalParagraphs(parsed.narrative).join("\n\n")
+          : parsed.narrative;
         return {
           title: "第一章",
-          narrative: parsed.narrative
+          narrative: cleanNarrative
         };
       }
     } catch (e) {
-      console.warn("即時開篇生成異常，啟用動態備援：", e);
+      console.warn("即時開篇生成異常，啟用動態生態備援：", e);
     }
+
+    const dynamicNarrative = window.DestinyEngine
+      ? window.DestinyEngine.generateChapterOneNarrative(species, name, biome, countryData, author, mode)
+      : (isHuman
+          ? `在${countryData ? countryData.name : '這片土地'}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次學步跌倒的疼痛構成。\n\n小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
+          : `在${biome ? biome.name : '荒野'}的晨曦微光中，初生的軀體感受到了微風帶來的草葉氣味與同伴微弱的心跳。\n\n雙眸在黑暗中悄然睜開，天地萬物在眼前無邊延展，純粹的野性力量就此啟幕。`);
 
     return {
       title: "第一章",
-      narrative: isHuman
-        ? `在${countryData.name}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次學步跌倒的疼痛構成。小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
-        : `初春的寒氣刺痛了稚嫩的鼻頭。你跟隨著手足跌跌撞撞地探出巢穴，迎面而來的是高聳入雲的古木與無邊無際的灰色天幕。松針與融雪在腳爪下發出細微的碎裂聲，荒野用第一陣冷風向你宣告了生存的嚴苛與廣闊。`
+      narrative: dynamicNarrative
     };
   },
 
@@ -312,7 +288,8 @@ ${modeGuide}
 }
 2. 篇名只能是「${chapterTitleFixed}」，嚴格禁止添加任何冒號或副標題！
 3. 嚴禁任何生物決定論！絕無「公棕熊必殺幼崽」或「某物種必定殘暴」等死板套路。每個生靈都有獨立性格、當下情緒與自主意志。
-4. 可以包含 0~3 個預設選項，並保留 allowCustom: true 讓使用者自由輸入特殊應對。`;
+4. 可以包含 0~3 個預設選項，並保留 allowCustom: true 讓使用者自由輸入特殊應對。
+5. 格式要求：請務必將小說正文分成 2 到 3 個自然段落（段落之間使用換行符號 \\n\\n 分隔），每段約 60~100 字，段首不要自行加空格，排版系統會自動縮排。`;
 
     try {
       const messages = [
@@ -322,9 +299,12 @@ ${modeGuide}
       const raw = await this.callLlm(messages, true);
       const parsed = JSON.parse(raw);
       if (parsed.narrative) {
+        const cleanNarrative = window.DestinyEngine
+          ? window.DestinyEngine.splitIntoNaturalParagraphs(parsed.narrative).join("\n\n")
+          : parsed.narrative;
         return {
           title: chapterTitleFixed,
-          narrative: parsed.narrative,
+          narrative: cleanNarrative,
           allowCustom: parsed.allowCustom !== undefined ? parsed.allowCustom : true,
           customPromptHint: parsed.customPromptHint || "自訂你的自主行動策略...",
           choices: Array.isArray(parsed.choices) ? parsed.choices : []
@@ -335,9 +315,12 @@ ${modeGuide}
     }
 
     const fallback = window.DestinyEngine.pickDynamicScenario(species, name, age, biome, countryData, chapterIdx);
+    const cleanFallback = window.DestinyEngine
+      ? window.DestinyEngine.splitIntoNaturalParagraphs(fallback.narrative).join("\n\n")
+      : fallback.narrative;
     return {
       title: chapterTitleFixed,
-      narrative: fallback.narrative,
+      narrative: cleanFallback,
       allowCustom: true,
       customPromptHint: "自訂你想採取的自主行動策略...",
       choices: fallback.choices || []
@@ -395,12 +378,12 @@ ${authorGuide}
 ${authorGuide}
 
 要求：
-1. 最終章小說（約 180-230 字）：詳細描繪面對此終局的真實搏鬥、呼吸漸緩、感官退潮與安詳歸宿的過程。
+1. 最終章小說（約 180-230 字）：詳細描繪面對此終局的真實搏鬥、呼吸漸緩、感官退潮與安詳歸宿的過程。務必分成 2 到 3 個自然段落（以 \\n\\n 分隔）。
 2. 荒野追思館悼詞（約 80-100 字）：致敬其作為獨立個體的唯一荒野足跡。
 3. STRICT JSON：
 {
   "chapterTitle": "${chapterTitleFixed}",
-  "deathNarrative": "最終章小說正文",
+  "deathNarrative": "最終章小說正文（2-3段）",
   "eulogy": "追思館悼詞"
 }
 篇名必須嚴格為「${chapterTitleFixed}」，絕不可加副標題！`;
@@ -413,9 +396,12 @@ ${authorGuide}
       const raw = await this.callLlm(messages, true);
       const parsed = JSON.parse(raw);
       if (parsed.deathNarrative && parsed.eulogy) {
+        const cleanNarrative = window.DestinyEngine
+          ? window.DestinyEngine.splitIntoNaturalParagraphs(parsed.deathNarrative).join("\n\n")
+          : parsed.deathNarrative;
         return {
           chapterTitle: chapterTitleFixed,
-          deathNarrative: parsed.deathNarrative,
+          deathNarrative: cleanNarrative,
           eulogy: parsed.eulogy
         };
       }
@@ -423,11 +409,13 @@ ${authorGuide}
       console.warn("終章生成異常，啟用動態備援：", e);
     }
 
+    const fallbackDeath = isHuman
+      ? `在${finalAge}歲這一年，因${deathCause}，病房的窗櫺外是夕陽溫暖的光芒。監護儀的波動漸漸舒緩，親人的手掌傳來熟悉的溫度。\n\n回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
+      : `刺骨的寒意侵入四肢，面對${deathCause}的終局，劇烈的喘息在冷空氣中化作白霧。\n\n視線中的生境山稜逐漸化為柔和的微光，骨骼間的劇痛奇蹟般地平復，取而代之的是如溪流般的寧靜。你緩緩伏下身軀，任由最後一口吐息融入風中，靈魂奔向了群星與先祖的遼闊獵場。`;
+
     return {
       chapterTitle: chapterTitleFixed,
-      deathNarrative: isHuman
-        ? `在${finalAge}歲這一年，因${deathCause}，病房的窗櫺外是夕陽溫暖的光芒。監護儀的波動漸漸舒緩，親人的手掌傳來熟悉的溫度。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
-        : `【面對${deathCause}的終局】刺骨的寒意侵入四肢，劇烈的喘息在冷空氣中化作白霧。視線中的古木與山稜逐漸模糊化為柔和的微光，骨骼間的劇痛奇蹟般地平復，取而代之的是如春日溪流般的寧靜。你緩緩伏下身軀，任由最後一口吐息融入狂風，靈魂奔向了群星與先祖的遼闊獵場。`,
+      deathNarrative: fallbackDeath,
       eulogy: isHuman
         ? `生命在文明的浪潮中劃下了休止符。你在這片大地上留下的足跡、親情與愛意，已經真實地溫暖過這個世界。安息吧，歸於星河。`
         : `風吹過荒原，帶走了最後一道足跡。你以無畏的野性與忠誠活過這僅有一次的荒野旅程。在星族的永恆獵場中，繼續自由奔跑吧。`
