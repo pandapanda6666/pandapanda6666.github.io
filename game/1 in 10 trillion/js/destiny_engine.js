@@ -1,27 +1,20 @@
 /**
  * 十兆分之一 (1 in 10 Trillion) - 命運統計與艾琳·杭特式 AI 敘事引擎
  * 流程：
- * 1. 根據物種生態統計表產生原始一生年表 (Cohort Hazard Simulation)
- * 2. AI 智慧剪輯去重：合併日常重複瑣事，凸顯生命轉折 (Deduplication & Polishing)
- * 3. 艾琳·杭特式（半馬賽克 10+）小說生成：半互動式抉擇與自然命運交織
+ * 1. 根據物種生態統計表產生一生年表 (Cohort Hazard Simulation)
+ * 2. AI 智慧剪輯去重：合併日常重複瑣事，凸顯生命轉折
+ * 3. 艾琳·杭特式（半馬賽克 10+）小說生成：按物種特徵、成長期動態編織獨一無二的感官篇章與抉擇
  */
 
 window.DestinyEngine = {
   /**
    * 產生一生完整生命軌跡與事件
-   * @param {Object} species 物種資料
-   * @param {Object} config 配置（包含國家、出生設定等）
    */
   generateLifeTrajectory(species, config = {}) {
     const isHuman = species.isHuman;
-    const maxAge = species.maxAge;
-    const unit = species.unit || "歲";
-
-    // 隨機抽選名字與棲地
     const name = config.customName || species.namingPool[Math.floor(Math.random() * species.namingPool.length)];
     const biome = species.biomes[Math.floor(Math.random() * species.biomes.length)];
-    
-    // 若為人類，抽選國家與經濟設定
+
     let countryData = null;
     if (isHuman) {
       const cList = species.countries;
@@ -40,7 +33,7 @@ window.DestinyEngine = {
     // 4. 生成艾琳·杭特式小說序幕 (出生登記段落)
     const prologueNovel = this.writeErinHunterPrologue(species, name, biome, countryData, lifeDeathPlan);
 
-    // 5. 預先編織互動抉擇與命運節點
+    // 5. 動態編織完全不重複、依據物種特化的互動抉擇與命運章節
     const storyTimeline = this.compileStoryTimeline(species, name, deduplicatedEvents, lifeDeathPlan, biome, countryData);
 
     return {
@@ -57,28 +50,23 @@ window.DestinyEngine = {
       initialStats: {
         health: 85 + Math.floor(Math.random() * 10),
         energy: 90,
-        instinct: isHuman ? 50 : 70, // 人類為知識/敏銳，動物為野性直覺
-        social: 80, // 群體羈絆 / 人際關係
-        resource: isHuman ? countryData.localEquivMonthly * 2 : 50 // 人類為貨幣儲蓄，動物為儲糧/領地掌控
+        instinct: isHuman ? 50 : 70,
+        social: 80,
+        resource: isHuman ? countryData.localEquivMonthly * 2 : 50
       }
     };
   },
 
-  /**
-   * 根據生態存活率分佈計算死亡年齡與最終死因
-   */
   calculateLifespanAndFate(species, countryData) {
     const maxAge = species.maxAge;
     let finalAge = 0;
     let deathCause = "";
 
-    // 幼體死亡率檢查
-    const infantSurvival = species.isHuman && countryData 
-      ? (1 - countryData.infantMortality) 
+    const infantSurvival = species.isHuman && countryData
+      ? (1 - countryData.infantMortality)
       : species.infantSurvivalRate;
 
     if (Math.random() > infantSurvival) {
-      // 未挺過幼年期
       finalAge = species.unit === "週" ? Math.floor(Math.random() * 3) : (Math.random() < 0.6 ? 0 : 1);
       deathCause = species.threats[Math.floor(Math.random() * species.threats.length)];
       return {
@@ -88,16 +76,11 @@ window.DestinyEngine = {
       };
     }
 
-    // 成年後存活率模擬
     const avgWild = species.isHuman && countryData ? countryData.avgLifespan : species.avgAgeWild;
-    
-    // 使用高斯/韋伯加權分佈模擬壽命
+
     for (let age = 1; age <= maxAge; age++) {
       const ageRatio = age / maxAge;
-      // 隨年齡上升的年死亡風險率
       let annualHazard = Math.pow(ageRatio, 2.3) * (age > avgWild ? 0.35 : 0.12);
-      
-      // 特殊物種調整
       if (species.id === "honeybee_worker" && age > 6) annualHazard += 0.25;
 
       if (Math.random() < annualHazard || age === maxAge) {
@@ -111,15 +94,10 @@ window.DestinyEngine = {
       }
     }
 
-    // 計算存活百分位
     let survivalPercentile = Math.min(99, Math.max(5, Math.floor((finalAge / maxAge) * 100)));
-
     return { finalAge, deathCause, survivalPercentile };
   },
 
-  /**
-   * 逐期模擬生態事件 (Raw Lifecycle)
-   */
   simulateRawLifecycle(species, lifeDeathPlan, biome, countryData) {
     const rawEvents = [];
     const finalAge = lifeDeathPlan.finalAge;
@@ -135,7 +113,7 @@ window.DestinyEngine = {
           unit,
           season: "初誕之季",
           type: "birth",
-          rawText: species.isHuman 
+          rawText: species.isHuman
             ? `在${countryData.name}平安降生，第一聲啼哭在產房中迴盪。`
             : `在${biome.name}破曉的微光中降生，感受母體的溫度與初次呼吸。`,
           statChange: { health: +5, energy: +10 }
@@ -155,7 +133,6 @@ window.DestinyEngine = {
         break;
       }
 
-      // 產生該時期的常態生態遭遇
       const occurrences = this.generateEcologicalEncounters(species, age, stage, biome, countryData);
       occurrences.forEach(occ => rawEvents.push(occ));
     }
@@ -163,34 +140,24 @@ window.DestinyEngine = {
     return rawEvents;
   },
 
-  /**
-   * 根據物種與時空生成生態統計遭遇
-   */
   generateEcologicalEncounters(species, age, stage, biome, countryData) {
     const unit = species.unit;
     const encounters = [];
     const seasons = ["春", "夏", "秋", "冬"];
-
-    // 每年模擬 1~2 個事件
     const season = seasons[age % 4];
 
     if (species.isHuman) {
       if (age <= 6) {
         encounters.push({
-          age,
-          unit,
-          season,
-          type: "routine_growth",
+          age, unit, season, type: "routine_growth",
           rawText: `幼兒期生長發育，開始牙牙學語與探索身邊環境。`,
           statChange: { instinct: +4, social: +3 }
         });
       } else if (age <= 18) {
         encounters.push({
-          age,
-          unit,
-          season,
+          age, unit, season,
           type: Math.random() < 0.4 ? "milestone" : "routine_school",
-          rawText: Math.random() < 0.4 
+          rawText: Math.random() < 0.4
             ? `在${countryData.name}面臨關鍵升學考試與同儕競合，熬夜讀書。`
             : `在學校與社群中度過平穩求學時光，結識好友。`,
           statChange: { instinct: +6, energy: -5 }
@@ -198,9 +165,7 @@ window.DestinyEngine = {
       } else if (age <= 60) {
         const moneyDelta = (Math.random() * 0.4 - 0.1) * countryData.localEquivMonthly;
         encounters.push({
-          age,
-          unit,
-          season,
+          age, unit, season,
           type: Math.random() < 0.35 ? "milestone" : "routine_work",
           rawText: Math.random() < 0.35
             ? `職場生涯轉折：參與重大專案並承受高壓工作負載，薪水調升。`
@@ -209,10 +174,7 @@ window.DestinyEngine = {
         });
       } else {
         encounters.push({
-          age,
-          unit,
-          season,
-          type: "routine_elder",
+          age, unit, season, type: "routine_elder",
           rawText: `進入退休歲月，體力漸退，常在公園散步或回憶往事。`,
           statChange: { health: -4, energy: -4, social: +2 }
         });
@@ -220,45 +182,28 @@ window.DestinyEngine = {
       return encounters;
     }
 
-    // 野生動物生態事件
     const roll = Math.random();
     if (roll < 0.3) {
-      // 獵食與覓食
       encounters.push({
-        age,
-        unit,
-        season,
-        type: "foraging",
+        age, unit, season, type: "foraging",
         rawText: `在${biome.name}追蹤${biome.prey}，憑藉本能精準出擊，飽餐一頓。`,
         statChange: { energy: +12, health: +4 }
       });
     } else if (roll < 0.55) {
-      // 領地巡邏與環境威脅
       encounters.push({
-        age,
-        unit,
-        season,
-        type: "territory_danger",
+        age, unit, season, type: "territory_danger",
         rawText: `巡邏領地邊界，遭遇鄰近族群氣味標記與警告低吼，雙方對峙後退讓。`,
         statChange: { instinct: +8, energy: -8 }
       });
     } else if (roll < 0.8) {
-      // 極端氣候或常態遷徙
       encounters.push({
-        age,
-        unit,
-        season,
-        type: "climate_test",
+        age, unit, season, type: "climate_test",
         rawText: `${season}季遭逢嚴峻天氣考驗，蜷縮於隱蔽岩穴避寒耐飢。`,
         statChange: { energy: -10, health: -2 }
       });
     } else {
-      // 平淡渡過
       encounters.push({
-        age,
-        unit,
-        season,
-        type: "routine_survival",
+        age, unit, season, type: "routine_survival",
         rawText: `氣候溫和，獵物充裕，在族群邊緣平穩度過此季節。`,
         statChange: { health: +2, energy: +4 }
       });
@@ -267,11 +212,6 @@ window.DestinyEngine = {
     return encounters;
   },
 
-  /**
-   * AI 去重與修剪管道 (AI Deduplication Engine)
-   * 刪除連續過度重複的日常事件（例如連續多年的平穩覓食或日常通勤），
-   * 合併成精煉生動的生命階段標記，讓玩家看到的事件流每一條都具有意義。
-   */
   aiDeduplicateEvents(rawEvents, species) {
     const deduplicated = [];
     let consecutiveRoutineCount = 0;
@@ -280,7 +220,6 @@ window.DestinyEngine = {
     for (let i = 0; i < rawEvents.length; i++) {
       const evt = rawEvents[i];
 
-      // 保留出生、死亡與關鍵里程碑
       if (evt.type === "birth" || evt.type === "death" || evt.type === "milestone" || evt.type === "territory_danger") {
         if (pendingRoutineGroup) {
           deduplicated.push(this.formatConsolidatedRoutine(pendingRoutineGroup, species));
@@ -291,7 +230,6 @@ window.DestinyEngine = {
         continue;
       }
 
-      // 檢查是否為重複的常規事件
       if (evt.type.startsWith("routine") || evt.type === "foraging" || evt.type === "climate_test") {
         if (!pendingRoutineGroup) {
           pendingRoutineGroup = {
@@ -308,7 +246,6 @@ window.DestinyEngine = {
           pendingRoutineGroup.events.push(evt);
           consecutiveRoutineCount++;
 
-          // 若連續達到 3 期以上，或者到達中年轉折，進行壓縮
           if (consecutiveRoutineCount >= 3) {
             deduplicated.push(this.formatConsolidatedRoutine(pendingRoutineGroup, species));
             pendingRoutineGroup = null;
@@ -325,9 +262,6 @@ window.DestinyEngine = {
     return deduplicated;
   },
 
-  /**
-   * 將連續重複的日常事件壓縮成單一有意義的階段紀錄
-   */
   formatConsolidatedRoutine(group, species) {
     const span = group.endAge - group.startAge;
     const unit = group.unit;
@@ -351,15 +285,12 @@ window.DestinyEngine = {
     };
   },
 
-  /**
-   * AI 潤色個別事件：將生硬統計資料轉化為生動精準的短句
-   */
   aiPolishEvent(evt, species) {
     const ageLabel = `${evt.age} ${evt.unit}・${evt.season}`;
     let polishedText = evt.rawText;
 
     if (evt.type === "territory_danger") {
-      polishedText = species.isHuman 
+      polishedText = species.isHuman
         ? `在職場或生活遭遇嚴重利益爭端與對立，歷經一番周旋才化險為夷。`
         : `邊境爆發緊張對峙！與入侵的同族互露獠牙警告，空氣中瀰漫火藥味，所幸成功守住領界。`;
     }
@@ -373,44 +304,36 @@ window.DestinyEngine = {
     };
   },
 
-  /**
-   * 艾琳·杭特風格（10+ 半馬賽克）小說序幕撰寫
-   */
   writeErinHunterPrologue(species, name, biome, countryData, lifeDeathPlan) {
     if (species.isHuman) {
       return `夜色在${countryData.name}的天際線緩緩隱退。一陣尖銳的胎心監護儀蜂鳴聲中，你用力吸入了這個文明世界的第一口冰涼空氣。\n\n消毒水、窗外的雨氣，以及兩雙溫暖大手輕輕將你裹入柔軟的棉被。你不知道這個國家的吉尼係數、人均所得或是醫療負擔，但心臟在小小的胸膛裡有力地跳動著——你成為了這個星球八十億人中的一員，一個名為「${name}」的人類旅程正式啟航。`;
     }
 
-    // 艾琳·杭特純粹動物感官筆觸
     return `黑暗，黏稠而溫暖。鼻腔裡首先充斥著母親腹毛上帶有潮濕泥土與落葉的濃烈氣味。\n\n遠處傳來風穿過高大林冠的呼嘯，伴隨著極遙遠的一聲雷鳴。你微弱地蹬動四肢，盲目的眼皮試圖阻擋縫隙中滲入的清冷微光。一隻粗糙而溫暖的舌頭舔過你的耳廓，帶來了本能的戰慄與安心。\n\n在${biome.name}這片古老荒野裡，無數生靈在泥土、草葉與暴雪間誕生、獵食與逝去。你的名字是「${name}」——這片廣袤天地已經在你的骨髓深處留下了第一道印記。`;
   },
 
   /**
-   * 編織半互動式小說時間線（包含抉擇分支與命運節點）
+   * 編織半互動式小說時間線（保證章節完全不重複，依據年齡階段與物種專屬情境演繹）
    */
   compileStoryTimeline(species, name, events, lifeDeathPlan, biome, countryData) {
     const chapters = [];
-    const unit = species.unit;
     const finalAge = lifeDeathPlan.finalAge;
-
-    // 依年齡階段挑選 4~6 個核心小說章節
     const chapterAges = this.selectMilestoneAges(finalAge);
 
     chapterAges.forEach((age, idx) => {
       const isLast = (age === finalAge);
-      const isChoice = !isLast && (idx === 1 || idx === 2 || idx === 3);
+      const isChoice = !isLast && idx > 0;
 
-      const chapter = this.generateChapterContent({
+      const chapter = this.generateUniqueChapter({
         species,
         name,
         age,
-        unit,
         biome,
         countryData,
         isLast,
         isChoice,
         chapterIndex: idx + 1,
-        lifeDeathPlan
+        stepIndex: idx
       });
 
       chapters.push(chapter);
@@ -428,93 +351,279 @@ window.DestinyEngine = {
   },
 
   /**
-   * 艾琳·杭特式章節生成器（強調感官、心理、半馬賽克搏鬥與莊嚴宿命）
+   * 艾琳·杭特風格：動態物種專屬章節生成器（杜絕重複文字，10+ 半馬賽克張力）
    */
-  generateChapterContent(params) {
-    const { species, name, age, unit, biome, countryData, isLast, isChoice, chapterIndex, lifeDeathPlan } = params;
+  generateUniqueChapter(params) {
+    const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex } = params;
     const isHuman = species.isHuman;
 
-    let title = `第${chapterIndex}章 · `;
-    let narrative = "";
-    let choices = null;
+    // 開篇第一章 (誕生與幼年探索)
+    if (chapterIndex === 1) {
+      const title = isHuman ? `第一章 · 啼哭與世界的輪廓` : `第一章 · 盲目之光與泥土的氣味`;
+      const narrative = isHuman
+        ? `在${countryData.name}，最初的記憶由搖籃邊模糊的光斑、父母輕聲哼唱的搖籃曲，以及每一次跌跌撞撞學步的疼痛構成。小小的手掌摸索著冰涼的地磚與窗外的陽光，懵懂地認識著這個複雜又龐大的文明社會。`
+        : `初春的寒氣刺痛了稚嫩的鼻頭。你跟隨著手足跌跌撞撞地探出巢穴，迎面而來的是高聳入雲的古木與無邊無際的灰色天幕。松針與融雪在腳掌下發出細微的碎裂聲，遠處掠過猛禽拍翅的陰影，荒野用第一陣冷風向你宣告了生存的嚴苛與廣闊。`;
+      return { age, title, narrative, choices: null };
+    }
 
-    if (age === 0) {
-      title += isHuman ? `誕生之鳴` : `苔原與母體微光`;
-      narrative = isHuman
-        ? `五歲之前的歲月，世界由模糊的光影、父母的懷抱以及最初的語言片段拼湊而成。在${countryData.name}，你第一次學會走路，在跌倒與哭泣中摸索這個文明社會的輪廓。`
-        : `幼時的記憶由黑暗中溫熱的皮毛與乳汁的甜香構築。當你第一次跌跌撞撞爬出洞穴時，冰冷的空氣刺得鼻尖生疼。你看見了無邊無際的樹海與高懸的灰白色天空，那是荒野向你發出的第一聲無言呼喚。`;
-    } else if (isLast) {
-      title += `星芒與永恆長眠`;
-      narrative = isHuman
-        ? `在${age}歲這一年，醫院監護儀上的波形逐漸平緩。窗外陽光穿過樹梢灑在白色的被單上。親友握著你的手，耳邊傳來溫和的道別聲。在${countryData.name}經歷過歡笑、奮鬥與遺憾的一生，在此刻歸於最深沉的安詳。`
-        : `【半馬賽克終曲】寒風吹過粗糙的被毛，四肢沉重如灌滿了鉛。視線中的群山與林冠逐漸模糊化為朦朧的灰影。耳畔迴盪著爪尖踩碎枯枝的微弱脆響，伴隨骨骼深處傳來的久遠疲憊。疼痛正奇蹟般地退去，只剩下一股如春日陽光般的暖意悄然蔓延——你緩緩合上雙眼，靈魂如奔向繁星的輕風，回歸荒野的古老懷抱。`;
-    } else if (isChoice) {
-      // 互動抉擇章節！
-      if (isHuman) {
-        title += `人生的分水嶺抉擇`;
-        narrative = `在${age}歲這一年，現實的重壓如陰雲般籠罩在頭頂。一邊是平穩但一眼望穿的穩定工作，另一邊是充滿未知風險但可能改寫命運的創業冒險，或是遠赴異地求學的決定。你在深夜的書桌前盯著合約與帳單，心跳因焦慮與渴望而加速。`;
-        choices = [
-          {
-            text: "選擇極端冒險：投入所有積蓄開創新局",
-            impact: "野性/智識 +15，儲蓄資源 -40，高風險回報",
-            statChange: { instinct: +15, resource: -40000, energy: -15 },
-            followupText: "你簽下了這份合約。接下來的數百個夜晚，咖啡與焦慮伴隨著你，但也為你撕開了嶄新世界的入口。"
-          },
-          {
-            text: "穩紮穩打：留守既有崗位，累積人脈與存款",
-            impact: "儲蓄穩定成長，羈絆 +10，生活平穩",
-            statChange: { resource: +25000, social: +10, energy: +5 },
-            followupText: "你選擇了克制。生活像一條平靜的河流緩緩向前，雖然少了驚心動魄，卻多了一份遮蔽風雨的踏實。"
-          },
-          {
-            text: "兼顧平衡：發展副業，探尋另一種可能",
-            impact: "體力消耗大，但多方下注",
-            statChange: { energy: -20, resource: +10000, instinct: +8 },
-            followupText: "你開始了日夜兼程的生活。疲憊寫在眼角，但內心點燃的希望支撐著你熬過每一個凌晨。"
-          }
-        ];
+    // 終幕章節 (生命回歸)
+    if (isLast) {
+      const title = isHuman ? `最終章 · 晚霞與歸途的安詳` : `最終章 · 星芒與長眠的大地`;
+      const narrative = isHuman
+        ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData.name}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
+        : `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與平靜。沒有恐懼，也沒有慌亂，耳邊彷彿迴盪起年少時在草甸上狂奔的呼嘯聲。你緩緩伏下身軀，將下顎貼在冰涼的落葉泥土上，任由最後一口吐息化作微風，奔向群星與先祖的古老獵場。`;
+      return { age, title, narrative, choices: null };
+    }
+
+    // 中間章節：依據物種分類與年齡階段抽選「完全不重複」的艾琳·杭特情境
+    const scenario = this.pickDynamicScenario(species, name, age, biome, countryData, stepIndex);
+    return {
+      age,
+      title: `第${chapterIndex}章 · ${scenario.title}`,
+      narrative: scenario.narrative,
+      choices: isChoice ? scenario.choices : null
+    };
+  },
+
+  /**
+   * 根據物種與生命週期挑選獨特情境
+   */
+  pickDynamicScenario(species, name, age, biome, countryData, stepIndex) {
+    const isHuman = species.isHuman;
+
+    // 1. 人類情境庫
+    if (isHuman) {
+      if (stepIndex === 1) {
+        return {
+          title: "校園同儕與最初的考驗",
+          narrative: `在${countryData.name}的少年時代，課堂的鐘聲、堆積的課本與同儕間複雜微妙的人際圈成了你的全部世界。一場關鍵的考核與好友的誤會同時降臨，深夜的檯燈下，你揉著酸澀的雙眼，思索著自己的堅持與未來的方向。`,
+          choices: [
+            {
+              text: "專注課業競逐高分，暫時放下社交摩擦",
+              impact: "智識 +15，精力 -10，人際持平",
+              statChange: { instinct: +15, energy: -10 },
+              followupText: "你沉下心投入題海。亮眼的成績單換來了師長讚許，但放學路上的孤單背影也成了青春難忘的代價。"
+            },
+            {
+              text: "主動坦誠溝通，化解誤會維繫摯友牽絆",
+              impact: "羈絆 +15，精力 +5，身心充實",
+              statChange: { social: +15, energy: +5 },
+              followupText: "真誠的長談解開了心結。夕陽下並肩走過校門口的笑聲，成了日後抵禦無數挫折的溫暖盾牌。"
+            }
+          ]
+        };
+      } else if (stepIndex === 2) {
+        return {
+          title: "職場洪流與立足之地的抉擇",
+          narrative: `步入青年期，現實的生活開銷與租金帳單沉甸甸地壓在胸口。辦公室螢幕散發著冷光，部門面臨重組動盪。一邊是高薪但需要通宵加班的冒險企劃，另一邊是安穩平淡卻升遷緩慢的常態業務。`,
+          choices: [
+            {
+              text: "承接高壓專案，爭取薪資躍升與個人突破",
+              impact: "資產 +35000，健康 -12，智識 +10",
+              statChange: { resource: +35000, health: -12, instinct: +10 },
+              followupText: "數不清的黑咖啡與深夜通勤換來了專案的成功上線。存摺上的數字增長了，但也深刻體會到了成年人生活的代價。"
+            },
+            {
+              text: "堅守生活平衡，保全身心健康與生活作息",
+              impact: "健康 +8，精力 +10，收入穩定",
+              statChange: { health: +8, energy: +10 },
+              followupText: "你拒絕了無止盡的內耗。在下班後的微風中烹調一頓晚餐，讓內心在繁華都市中保有一方清朗的天地。"
+            }
+          ]
+        };
       } else {
-        // 艾琳·杭特式野生動物重大抉擇
-        title += `利爪與暗影的交鋒`;
-        narrative = `【艾琳·杭特式半馬賽克描繪】\n狂風捲起刺鼻的腐植土與陌生公獸的兇猛氣息。灌木叢劇烈晃動，一對琥珀色的森冷瞳孔自陰影中顯現！\n對方的喉頭發出雷鳴般的咆哮，肩背肌肉如鋼纜般繃緊，尖銳的利爪在凍土上刮出深痕。鮮血的腥味在寒風中驟然升騰——這是一場爭奪獵場或生死存亡的宿命對決！你的背毛猛烈炸開，喉嚨發出警告的嘶鳴，心臟在肋骨間急促撞擊！`;
-        choices = [
-          {
-            text: "亮出獠牙正面迎擊！捍衛尊嚴與領地",
-            impact: "展現領袖魄力！體能消耗劇烈，可能負傷但威名大震",
-            statChange: { health: -15, energy: -25, instinct: +20, social: +15 },
-            followupText: "雙方在泥濘與飛濺的草屑中轟然撞在一起！銳利的爪尖擦過你的肩頭，撕開灼熱的皮肉，溫熱的血珠在毛髮上凝結；但你咬緊牙關發出震天的狂吼，藉著下顎的猛烈扭咬重重將對手逼退入林木深處！"
-          },
-          {
-            text: "低伏身姿，利用敏捷身手迂迴避入密林深處",
-            impact: "保留實力！消耗較少體能，但可能失去部分地盤",
-            statChange: { energy: -10, instinct: +10, health: -2 },
-            followupText: "你壓低重心，如同一道無聲的暗影滑入荊棘叢中。背後傳來對手示威性的咆哮，刺鼻的泥水浸濕了你的腳掌，但你保全了最核心的生存力量。"
-          },
-          {
-            text: "發出呼喚！引領同族夥伴發起群體包圍",
-            impact: "考驗族群羈絆！成功則無損驅逐強敵",
-            statChange: { social: +20, energy: -15, instinct: +12 },
-            followupText: "你昂首向天發出悠長而急迫的嗥鳴！林地各處立刻傳來響應的呼喝聲，數道矯健的影子自樹影後疾馳而來，化為銅牆鐵壁，令強敵在震驚中夾起尾巴倉皇遁逃！"
-          }
-        ];
-      }
-    } else {
-      // 命運考驗章節 (不可逆的生態命運)
-      if (isHuman) {
-        title += `時代浪潮與不可測之命運`;
-        narrative = `在${age}歲這一年，全球經濟劇烈波動與科技變革席捲了${countryData.name}。通貨膨脹、產業轉型讓每個人都在風浪中顛簸。你見證了身邊朋友的聚散起落，學會了在無奈與堅韌中尋找平靜。`;
-      } else {
-        title += `嚴冬暴雪與自然的試煉`;
-        narrative = `【大自然的命運法則】\n罕見的五十年極端暴雪連續肆虐了三個星期。積雪深達腹部，獵物早已銷聲匿跡。寒冷如同細密的鋼針刺透每一寸骨骼，胃部因極度飢餓而劇烈抽搐。\n這不是戰鬥，而是面對大自然浩瀚法則的無言忍耐。你只能縮在落葉與積雪的避風凹地裡，用同伴微弱的體溫相互支撐，等待暴風雪停歇的那一絲微光。`;
+        return {
+          title: "家庭責任與時代風浪的洗禮",
+          narrative: `年屆中年，父母老邁、後輩漸長，經濟週期的波動讓身邊不少人動盪不安。你站在人生的中游，不僅要為自己掌舵，更成為身邊重要之人倚靠的屋脊。`,
+          choices: [
+            {
+              text: "謹慎緊縮開支，建立抵禦風險的穩固防護網",
+              impact: "資產安全度高，羈絆 +10，克制消費",
+              statChange: { social: +10, instinct: +5 },
+              followupText: "你的審慎讓家庭平穩渡過經濟寒冬。風雨過後，客廳溫暖的燈火證明了這份隱忍守護的價值。"
+            },
+            {
+              text: "把握轉型機會投資副業，嘗試拓寬生活維度",
+              impact: "風險投資，可能收穫全新機遇",
+              statChange: { resource: +20000, energy: -15 },
+              followupText: "新的嘗試充滿挑戰與焦慮，但在一次次調試中，你為家庭開闢出了一條更具彈性的新道路。"
+            }
+          ]
+        };
       }
     }
 
+    // 2. 野生動物情境庫（依物種綱別與階段精準派發，徹底消除單一重複）
+    const cat = species.category;
+
+    // 哺乳類 (灰狼 / 赤狐 / 非洲象)
+    if (cat === "mammal") {
+      if (species.id === "gray_wolf") {
+        if (stepIndex === 1) {
+          return {
+            title: "覆雪溪谷與幼鹿的微弱氣息",
+            narrative: `初冬的嚴霜將松針凍成硬刺。風中帶來了半里外一頭跛足麋鹿的溫熱腥甜味，但也夾雜著冰河薄冰碎裂的喀拉聲。\n你伏低身軀，肩胛骨在緊繃的毛皮下隆起，利爪深深扣入凍土。這是你作為年輕獵手的第一次獨立考驗，喉嚨深處的野性本能因興奮而隱隱發燙。`,
+            choices: [
+              {
+                text: "冒險涉過薄冰，搶在對岸同伴前發起迅猛伏擊",
+                impact: "考驗敏捷度！飽足大幅回升，但冰裂可能負傷",
+                statChange: { energy: +25, health: -8, instinct: +15 },
+                followupText: "薄冰在腳爪下驟然崩裂，刺骨的冰水濺濕腹毛！但你憑藉驚人的爆發力縱身一躍，精準撲倒了獵物，成功將熱騰騰的收穫獻給族群！"
+              },
+              {
+                text: "耐心沿岩脊繞行，等待獵物步入下風處盲區",
+                impact: "穩健狩獵！體力消耗平穩，無受傷風險",
+                statChange: { energy: +15, instinct: +12 },
+                followupText: "你如同一道無聲的灰色暗影在巨石間穿梭。風向將你的氣味完全抹去，一記精準的鎖喉瞬間終結了這場靜默的獵捕。"
+              }
+            ]
+          };
+        } else if (stepIndex === 2) {
+          return {
+            title: "邊界界木與異族狼群的警告",
+            narrative: `巡邏至領地邊緣的山脊，樹幹上留有新鮮而刺鼻的陌生爪痕。空氣中瀰漫著濃烈的硫磺味與焦躁的敵意——鄰近狼群的先鋒小隊正越過乾涸的河床！\n對方的副首領露出尖銳森白的獠牙，低沉而威脅的咕嚕聲在林間震盪，心臟在你的肋骨間瘋狂擂動。`,
+            choices: [
+              {
+                text: "弓背炸毛！亮出獠牙發出震天咆哮正面宣誓主權",
+                impact: "捍衛狼群威信！可能引發撕咬負傷，但士氣大振",
+                statChange: { health: -15, energy: -20, social: +20, instinct: +15 },
+                followupText: "兩頭巨獸狠狠撞在泥濘中！銳利的爪尖劃破了你的肩側，熱血滲出刺骨生疼，但你寸步不退反口咬住對方耳根，逼得入侵者夾尾潰逃！"
+              },
+              {
+                text: "引頸向天發出急促長嗥，召喚身後的巡邏主力",
+                impact: "善用族群戰術！安全退敵，羈絆大幅提升",
+                statChange: { social: +25, energy: -10, instinct: +10 },
+                followupText: "高亢的嗥叫在群峰間迴盪，數道矯健的灰影如暴風般穿透樹影匯聚而來，敵方在強大的群體威壓下自知不敵，匆忙退回對岸。"
+              }
+            ]
+          };
+        } else {
+          return {
+            title: "暴風雪封山與傳奇獵手的暮年守護",
+            narrative: `五十年罕見的狂暴白毛風肆虐了整座針葉林，積雪漫過膝蓋，獵物早已銷聲匿跡。巢穴深處的幼崽因飢餓而發出哀弱的哀鳴。\n你作為資深的族群砥柱，即便關節在寒風中隱隱作痛，仍必須決定如何在暴風雪中維持狼群的生機。`,
+            choices: [
+              {
+                text: "頂著狂風深入絕壁尋找避風石洞，帶領族群遷徙",
+                impact: "極度耗費體力，但能避開林木被雪壓斷砸傷的致命危險",
+                statChange: { energy: -25, health: -10, social: +25 },
+                followupText: "你在狂暴的風雪中用龐大的身軀為幼崽破開雪道。雖然毛皮結滿了硬冰，但成功引領大家抵達了堅固溫暖的岩穴深處。"
+              },
+              {
+                text: "將最後一口儲存肉塊讓給幼崽，原地抱團取暖死守",
+                impact: "自我奉獻！大幅提升族群向心力，自身健康損耗",
+                statChange: { health: -15, social: +30, energy: -15 },
+                followupText: "狼群緊緊簇擁在一起，彼此的體溫在絕望的寒夜中化作唯一的明燈。你守護住了族群未來的火種。"
+              }
+            ]
+          };
+        }
+      }
+
+      // 其他陸生哺乳類（赤狐、非洲象等通用精采情境）
+      return {
+        title: "旱季水塘與潛伏的暗影",
+        narrative: `酷熱蒸乾了大地，水窪邊聚集了各懷鬼胎的生靈。空氣中夾雜著泥土的腥氣與大型猛獸的殘留氣味。一聲枯枝斷裂的脆響讓每一根神經瞬間繃緊——水源是生命的甘霖，也是死亡的陷阱。`,
+        choices: [
+          {
+            text: "壓低身形貼地疾走，迅速痛飲數口隨即退回灌木",
+            impact: "敏捷求生！恢復精力，遠離危險",
+            statChange: { energy: +20, instinct: +10 },
+            followupText: "清涼的水流滋潤了焦渴的喉嚨。你機警地在掠食者從蘆葦中探頭的前一秒沒入岩石陰影，安然脫險。"
+          },
+          {
+            text: "登高望遠確認四周無埋伏後，呼喚同伴共同靠近",
+            impact: "共享水源！族群羈絆增強",
+            statChange: { social: +18, energy: +12 },
+            followupText: "大家在互為犄角警戒的掩護下輪流飲水，無一落單，在嚴酷的乾季中展現了生命的團結。"
+          }
+        ]
+      };
+    }
+
+    // 貓科 / 街貓 (Felis catus)
+    if (species.id === "feral_cat") {
+      return {
+        title: "雷擊路與夜行巡守之戰",
+        narrative: `潮濕的雨夜，兩腳獸的鋼鐵巨獸在雷擊路（公路）上呼嘯飛馳，刺眼的白光撕裂黑暗。\n窄巷垃圾桶旁，一隻斷耳的兇暴流浪公貓正虎視眈眈盯著你的地盤。風中帶著腐敗魚骨與消毒水的刺鼻氣味，雙方的利爪都在紅磚牆上抓出火花。`,
+        choices: [
+          {
+            text: "弓背怒吼！騰空躍起利用牆面反蹬實施高速撲擊",
+            impact: "勇猛戰士！爪尖撕破對手耳廓，確立巷道霸權",
+            statChange: { health: -10, energy: -15, instinct: +20, social: +15 },
+            followupText: "尖銳的嘶鳴劃破夜空！你的爪痕在對方鼻樑留下血痕，劇痛讓敵手倒抽一口冷氣，在驚恐中狼狽竄入通風道深處。"
+          },
+          {
+            text: "靈巧翻上鐵絲圍籬，居高臨下嘲弄並固守高點",
+            impact: "機智避戰！體力無損，安全化解危機",
+            statChange: { instinct: +15, energy: -5 },
+            followupText: "你在冰涼的鐵絲網頂端悠然舔舐爪掌。對手在下方向你狂吠卻無可奈何，最終無趣地甩尾離去。"
+          }
+        ]
+      };
+    }
+
+    // 海洋生物 (虎鯨 / 綠蠵龜 / 魚類)
+    if (cat === "marine") {
+      return {
+        title: "深藍湧流與巨網的陰影",
+        narrative: `冰冷徹骨的洋流在鰭邊呼嘯。前方透光的海面突然垂下巨大的尼龍死神之網，同伴焦急的聲納鳴叫在水中如波紋般震盪。\n金屬螺旋槳的低頻轟鳴由遠及近，海水的壓力在胸腔沉悶作響。`,
+        choices: [
+          {
+            text: "下潛至百米深淵，藉由水下暗礁裂隙避開大網",
+            impact: "考驗深潛耐受！消耗氧氣但徹底擺脫纏繞風險",
+            statChange: { energy: -20, health: -5, instinct: +25 },
+            followupText: "深海的黑暗與寒冷壓迫著肺部，但你準確地穿透了暗流裂隙，帶領受驚的同伴在另一側安全上浮換氣。"
+          },
+          {
+            text: "發出共鳴聲納指揮群體加速側轉，繞行開闊洋面",
+            impact: "團隊領航！群體羈絆大幅提升",
+            statChange: { social: +25, energy: -15 },
+            followupText: "你的鳴叫宛如深海的燈塔。家族幼鯨緊隨你的尾鰭破浪疾馳，完美繞開了人類捕撈區的致命邊界。"
+          }
+        ]
+      };
+    }
+
+    // 鳥類 (企鵝 / 渡鴉 / 倉鴞)
+    if (cat === "avian") {
+      return {
+        title: "絕壁狂風與高空霸主的俯衝",
+        narrative: `狂風如巨浪般撞擊著懸崖峭壁，鉛灰色的雲層壓得極低。一頭金雕巨大的翼影在懸崖上方盤旋，尖銳的啼鳴帶著穿透靈魂的威壓。\n巢中的風羽正在顫抖，你必須在陡峭的氣流中做出抉擇。`,
+        choices: [
+          {
+            text: "收攏羽翼朝岩縫實施垂直俯衝，藉由狹窄石縫避難",
+            impact: "驚險特技！羽翼擦傷，但成功避開利爪",
+            statChange: { health: -8, instinct: +20, energy: -10 },
+            followupText: "風聲在耳邊淒厲呼嘯！你在距岩壁僅數寸處猛然張開尾羽，滑入僅容一身的岩縫，金雕的鐵爪重重抓在岩石上擦出火星！"
+          },
+          {
+            text: "昂首振翅高鳴，與周遭同伴組成盤旋防禦陣型",
+            impact: "群鳥威懾！迫使猛禽放棄目標",
+            statChange: { social: +22, energy: -12 },
+            followupText: "黑色的羽翼在狂風中連成一片令人眼花撩亂的翻滾巨浪。猛禽在無處下爪的漫天鳴叫聲中被迫調頭離去。"
+          }
+        ]
+      };
+    }
+
+    // 昆蟲 (蜜蜂等)
     return {
-      age,
-      unit,
-      title,
-      narrative,
-      choices
+      title: "大黃蜂襲擊與蜂巢之盾",
+      narrative: `巢門口的守衛蜂發出了劇烈的振動警報！兩隻體型巨大的胡蜂破空而來，巨大的口器嘎吱作響。巢內滿是嬌弱的幼蟲與儲藏的金色蜜脾。`,
+      choices: [
+        {
+          text: "數百工蜂一擁而上，實施「熱殺蜂球」將敵包裹",
+          impact: "自我犧牲與忠誠！劇烈消耗精力，成功退敵",
+          statChange: { energy: -30, health: -15, social: +30 },
+          followupText: "你毫不猶豫振翅撲入球心！數百隻姊妹用胸肌高頻震動釋放高熱，成功在高溫中將侵略者徹底瓦解！"
+        },
+        {
+          text: "釋放警報費洛蒙，封鎖深層蜜房並轉移蜂王",
+          impact: "戰略撤退！保全核心命脈",
+          statChange: { instinct: +20, social: +15 },
+          followupText: "濃烈的警報氣味引導工蜂迅速用蜂蠟封死通往深處的要道，為族群保住了最重要的繁衍火種。"
+        }
+      ]
     };
   },
 

@@ -931,18 +931,22 @@ body {
   color: var(--accent-forest);
 }
 
-/* 中欄：艾琳·杭特小說主視窗 */
-.novel-card {
+/* 中欄：艾琳·杭特式雙頁直書小說館 (左右兩面・右翻・直式・右到左) */
+.novel-book-card {
   border-top: 3px solid var(--accent-burgundy);
+  position: relative;
+  overflow: hidden;
 }
 
 .novel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .novel-title-wrap {
@@ -961,25 +965,188 @@ body {
   color: var(--text-primary);
 }
 
-.novel-tag {
-  font-size: 11px;
-  background: rgba(140, 29, 60, 0.08);
-  color: var(--accent-burgundy);
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-weight: 700;
+.book-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.novel-body {
+.book-nav-btn {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.book-nav-btn:hover:not(:disabled) {
+  background: var(--accent-burgundy);
+  color: white;
+  border-color: var(--accent-burgundy);
+}
+
+.book-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-indicator {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* 雙頁書本展開視圖 */
+.book-spread-container {
+  display: flex;
+  flex-direction: row-reverse; /* 右頁在右、左頁在左，文字由右至左流動 */
+  min-height: 480px;
+  height: 480px;
+  background: #FDFBF7;
+  border: 1px solid #E6DFD5;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 25px rgba(0,0,0,0.05), var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+body.theme-dark .book-spread-container {
+  background: #17171A;
+  border-color: #2E2E36;
+  box-shadow: inset 0 0 25px rgba(0,0,0,0.5);
+}
+
+/* 中縫書脊陰影 */
+.book-spine-divider {
+  width: 22px;
+  background: linear-gradient(to right, rgba(0,0,0,0.06), rgba(0,0,0,0.18), rgba(0,0,0,0.06));
+  flex-shrink: 0;
+  height: 100%;
+  box-shadow: inset 0 0 4px rgba(0,0,0,0.1);
+}
+
+body.theme-dark .book-spine-divider {
+  background: linear-gradient(to right, rgba(0,0,0,0.2), rgba(0,0,0,0.5), rgba(0,0,0,0.2));
+}
+
+/* 直式書頁 */
+.book-page {
+  flex: 1;
+  padding: 24px 22px 20px 22px;
+  writing-mode: vertical-rl;
+  text-orientation: upright;
   font-family: var(--font-serif);
   font-size: 1.05rem;
-  line-height: 1.95;
-  color: var(--text-primary);
-  white-space: pre-line;
+  line-height: 2.15;
+  letter-spacing: 1.5px;
+  color: #2B2826;
+  overflow: hidden;
+  position: relative;
+  user-select: text;
+}
+
+body.theme-dark .book-page {
+  color: #E2DDD5;
+}
+
+.book-page-right {
+  border-left: 1px solid rgba(0,0,0,0.04);
+}
+
+.book-page-left {
+  border-right: 1px solid rgba(0,0,0,0.04);
+}
+
+.page-num-tag {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  font-family: var(--font-serif);
+  font-size: 11px;
+  color: var(--text-muted);
+  writing-mode: horizontal-tb;
+  border: 1px solid var(--border-color);
+  padding: 2px 6px;
+  border-radius: 4px;
+  opacity: 0.7;
+}
+
+.vertical-text-flow {
+  width: 100%;
+  height: 100%;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 生成中載入遮罩 */
+.novel-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(253, 251, 247, 0.94);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+
+body.theme-dark .novel-loading-overlay {
+  background: rgba(23, 23, 26, 0.94);
+}
+
+.loading-spinner-box {
   margin-bottom: 16px;
-  max-height: 480px;
-  overflow-y: auto;
-  padding-right: 6px;
+}
+
+.loading-title {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-burgundy);
+  margin-bottom: 8px;
+}
+
+.loading-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 420px;
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+
+.loading-mini-bar {
+  width: 240px;
+  height: 6px;
+  background: rgba(140, 29, 60, 0.15);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.loading-mini-fill {
+  width: 100%;
+  height: 100%;
+  background: var(--accent-burgundy);
+  animation: loadingAnim 1.6s infinite ease-in-out;
+}
+
+@keyframes loadingAnim {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
 }
 
 /* 半互動抉擇卡片 */
