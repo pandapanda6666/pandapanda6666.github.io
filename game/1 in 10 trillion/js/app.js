@@ -1,10 +1,18 @@
 /**
  * 十兆分之一 (1 in 10 Trillion) - 主應用邏輯與遊戲控制器
- * 支援雙頁直書右翻小說、分頁導航、生成中載入遮罩門閘
+ * 功能特點：
+ * 1. 雙頁直書右翻小說閱讀器（左右兩面・右翻・直式・右到左，支援手機響應單頁與橫排切換）
+ * 2. 嚴格生命時鐘保護：生成完第一頁之前時鐘絕對暫停，生成中顯示載入遮罩
+ * 3. AI 即時生成：不寫死情節，AI 接收完整玩家狀態（物種、年齡、數值、生活重心、同儕狀態），並能控制畫面數值與情境
+ * 4. 閱讀保護機制：新篇章生成後自動暫停，提供充裕時間品讀，放慢步調
+ * 5. 死亡完整小說流程：死前由 AI 生成詳細死亡與長眠篇章，讀者於雙頁書中閱讀完畢後才前往荒野追思館
+ * 6. 自動儲存進度 (localStorage)：重新整理頁面後無縫保留在同一畫面與狀態
  */
 
 (function () {
   "use strict";
+
+  const SAVE_STORAGE_KEY = "10t_life_save";
 
   // 全域遊戲狀態
   const state = {
@@ -15,19 +23,27 @@
     currentSeasonIdx: 0,
     isPaused: true,
     isGameOver: false,
-    speedMultiplier: 2,
+    speedMultiplier: 1, // 預設 1x 步調更慢更適合閱讀
+    readingProtection: true, // 閱讀保護模式：新章節出現自動暫停
     timerId: null,
     companions: [],
     choicesMadeCount: 0,
+    recentChoices: [],
     activeFocus: "hunt",
     soundEnabled: false,
     audioCtx: null,
     ambientGain: null,
+    sceneMood: "calm",
 
     // 雙頁直書小說狀態
     bookPages: [],          // 所有已解鎖的小說頁面文字數組
     currentSpreadIndex: 0,  // 當前展開之右頁索引 (0, 2, 4...)
-    fullNovelText: ""       // 完整累積小說純文字
+    fullNovelText: "",      // 完整累積小說純文字
+    currentChapterTitle: "",
+    feedEvents: [],
+    eulogy: "",
+    isDeathNoticed: false,
+    isHorizontalReading: false
   };
 
   // DOM 元素引用
@@ -62,6 +78,8 @@
     el.pauseBtn = document.getElementById("pauseBtn");
     el.pauseIcon = document.getElementById("pauseIcon");
     el.nextChoiceBtn = document.getElementById("nextChoiceBtn");
+    el.readPauseToggleBtn = document.getElementById("readPauseToggleBtn");
+    el.abandonLifeBtn = document.getElementById("abandonLifeBtn");
 
     el.dashAvatar = document.getElementById("dashAvatar");
     el.dashName = document.getElementById("dashName");
@@ -87,10 +105,18 @@
     el.labelSocial = document.getElementById("labelSocial");
 
     // 雙頁書本元件
+    el.novelBookCard = document.getElementById("novelBookCard");
     el.novelChapterTitle = document.getElementById("novelChapterTitle");
+    el.readingModeToggleBtn = document.getElementById("readingModeToggleBtn");
+    el.readingModeIcon = document.getElementById("readingModeIcon");
+    el.readingModeText = document.getElementById("readingModeText");
     el.prevPageBtn = document.getElementById("prevPageBtn");
     el.nextPageBtn = document.getElementById("nextPageBtn");
     el.bookPageIndicator = document.getElementById("bookPageIndicator");
+    el.novelDeathNotice = document.getElementById("novelDeathNotice");
+    el.goToMemorialBtn = document.getElementById("goToMemorialBtn");
+
+    el.bookSpreadContainer = document.getElementById("bookSpreadContainer");
     el.novelLoadingOverlay = document.getElementById("novelLoadingOverlay");
     el.novelLoadingTitle = document.getElementById("novelLoadingTitle");
     el.novelLoadingDesc = document.getElementById("novelLoadingDesc");
@@ -114,6 +140,10 @@
     el.ambientSoundBtn = document.getElementById("ambientSoundBtn");
     el.ambientSoundLabel = document.getElementById("ambientSoundLabel");
     el.restartGameBtn = document.getElementById("restartGameBtn");
+    el.reviewNovelBtn = document.getElementById("reviewNovelBtn");
+    el.closeMemoNovelBtn = document.getElementById("closeMemoNovelBtn");
+    el.memorialNovelContainer = document.getElementById("memorialNovelContainer");
+    el.memoFullNovelText = document.getElementById("memoFullNovelText");
   }
 
   // 即時每秒生命出生計數器
@@ -130,6 +160,7 @@
 
   // 綁定事件監聽
   function bindEvents() {
+    // 降生物種池按鈕
     document.querySelectorAll("#speciesPoolGroup .seg-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("#speciesPoolGroup .seg-btn").forEach(b => b.classList.remove("active"));
@@ -138,6 +169,7 @@
       });
     });
 
+    // 生命步調選擇
     document.querySelectorAll("#paceGroup .seg-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("#paceGroup .seg-btn").forEach(b => b.classList.remove("active"));
@@ -146,36 +178,102 @@
       });
     });
 
+    // 輪盤與投胎
     el.startRollBtn.addEventListener("click", startRollingLife);
     el.reRollBtn.addEventListener("click", startRollingLife);
     el.beginLifeBtn.addEventListener("click", enterLifeDashboard);
 
+    // 時間控制器
     el.pauseBtn.addEventListener("click", togglePause);
     document.querySelectorAll(".sp-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".sp-btn").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         state.speedMultiplier = parseInt(btn.dataset.sp, 10);
+        restartSimulationTimer();
       });
     });
+
     el.nextChoiceBtn.addEventListener("click", fastForwardToNextChoice);
+
+    // 閱讀保護開關
+    el.readPauseToggleBtn.addEventListener("click", () => {
+      state.readingProtection = !state.readingProtection;
+      if (state.readingProtection) {
+        el.readPauseToggleBtn.classList.add("active");
+        el.readPauseToggleBtn.innerHTML = '<i class="fas fa-book-reader"></i> 閱讀保護：開';
+      } else {
+        el.readPauseToggleBtn.classList.remove("active");
+        el.readPauseToggleBtn.innerHTML = '<i class="fas fa-book-reader"></i> 閱讀保護：關';
+      }
+      saveGameState();
+    });
+
+    // 放棄此生按鈕
+    el.abandonLifeBtn.addEventListener("click", () => {
+      if (confirm("確定要放棄當前生命進度並重新開始投胎嗎？所有當前歷程將會重置。")) {
+        clearGameState();
+        if (state.timerId) clearInterval(state.timerId);
+        el.lifeSec.style.display = "none";
+        el.rollSec.style.display = "none";
+        el.deadSec.style.display = "none";
+        el.introSec.style.display = "block";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    // 閱讀模式切換 (直排 <-> 橫排)
+    el.readingModeToggleBtn.addEventListener("click", toggleReadingMode);
 
     // 書本翻頁按鈕 (右翻直書：往前翻看較早段落，往後翻看後續情節)
     el.prevPageBtn.addEventListener("click", turnPagePrev);
     el.nextPageBtn.addEventListener("click", turnPageNext);
 
-    el.themeToggleBtn.addEventListener("click", toggleTheme);
-    el.ambientSoundBtn.addEventListener("click", toggleAmbientSound);
+    // 前往追思館按鈕 (從死亡橫幅)
+    el.goToMemorialBtn.addEventListener("click", showMemorialHall);
 
+    // 追思館內翻閱全篇小說
+    el.reviewNovelBtn.addEventListener("click", () => {
+      el.memoFullNovelText.textContent = state.fullNovelText || "尚無文字記錄。";
+      el.memorialNovelContainer.style.display = "block";
+      el.memorialNovelContainer.scrollIntoView({ behavior: "smooth" });
+    });
+    el.closeMemoNovelBtn.addEventListener("click", () => {
+      el.memorialNovelContainer.style.display = "none";
+    });
+
+    // 重生按鈕
     el.restartGameBtn.addEventListener("click", () => {
+      clearGameState();
       el.deadSec.style.display = "none";
       el.introSec.style.display = "block";
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
+
+    // 主題與音效
+    el.themeToggleBtn.addEventListener("click", toggleTheme);
+    el.ambientSoundBtn.addEventListener("click", toggleAmbientSound);
+  }
+
+  // 切換直排/橫排閱讀模式
+  function toggleReadingMode() {
+    state.isHorizontalReading = !state.isHorizontalReading;
+    if (state.isHorizontalReading) {
+      el.novelBookCard.classList.add("reading-mode-horizontal");
+      el.readingModeIcon.textContent = "☰";
+      el.readingModeText.textContent = "切換直排";
+    } else {
+      el.novelBookCard.classList.remove("reading-mode-horizontal");
+      el.readingModeIcon.textContent = "〣";
+      el.readingModeText.textContent = "切換橫排";
+    }
+    rePaginateBook(state.currentSpreadIndex);
+    saveGameState();
   }
 
   // 1. 命運輪盤與出生登記
   async function startRollingLife() {
+    clearGameState();
     el.introSec.style.display = "none";
     el.deadSec.style.display = "none";
     el.lifeSec.style.display = "none";
@@ -199,14 +297,15 @@
       el.rollerDisplay.textContent = rand.name;
       el.rollerBiome.textContent = rand.scientificName;
       rollTicks++;
-    }, 80);
+    }, 70);
 
     let chosenSpecies = null;
     if (state.selectedPool === "human") {
       chosenSpecies = candidates.find(s => s.isHuman);
     } else if (state.selectedPool === "all") {
       const rollVal = Math.random();
-      if (rollVal < 0.02) {
+      // 人類約千分之一真實生態比例
+      if (rollVal < 0.005) {
         chosenSpecies = candidates.find(s => s.isHuman);
       } else {
         const nonHuman = candidates.filter(s => !s.isHuman);
@@ -228,7 +327,8 @@
       el.aiBar.style.display = "none";
       state.currentLife = lifeData;
       renderBirthCertificate(lifeData);
-    }, 600);
+      saveGameState("roll");
+    }, 400);
   }
 
   function renderBirthCertificate(life) {
@@ -283,7 +383,7 @@
         </div>
         <div class="cert-field-item">
           <span class="cf-title">幼體第一年存活率</span>
-          <span class="cf-val">${(s.infantSurvivalRate * 100).toFixed(1)}% (極端生存篩選)</span>
+          <span class="cf-val">${(s.infantSurvivalRate * 100).toFixed(1)}% (極端野外篩選)</span>
         </div>
         <div class="cert-field-item">
           <span class="cf-title">野外平均壽命</span>
@@ -315,12 +415,17 @@
     state.isPaused = true;
     state.isGameOver = false;
     state.choicesMadeCount = 0;
+    state.recentChoices = [];
     state.bookPages = [];
     state.currentSpreadIndex = 0;
     state.fullNovelText = "";
+    state.feedEvents = [];
+    state.isDeathNoticed = false;
+    el.novelDeathNotice.style.display = "none";
+    el.choiceContainer.style.display = "none";
 
-    // 啟動載入遮罩：生成第一頁小說中，時鐘暫停
-    showNovelLoading("艾琳·杭特 AI 正在構思開篇生靈小說...", "正在編織第一頁小說與野性直覺。生成完成前生命時鐘保持暫停中，請稍候...");
+    // 啟動載入遮罩：生成第一頁小說中，時鐘嚴格暫停
+    showNovelLoading("艾琳·杭特 AI 正在構思開篇生靈小說...", "正在編織最初的感官與野性本能。生成完成前生命時鐘保持暫停中，請稍候...");
 
     // 設置同伴、重心、地圖與存活曲線
     generateCohortCompanions();
@@ -329,29 +434,39 @@
     renderSurvivalChart();
     updateDashboardUI();
 
-    // 模擬 AI 生成第一頁小說並進行直書分頁 (至少保證 800ms 讓載入過渡平滑且確實)
-    await delay(850);
-
     // 載入第一章
     const firstChapter = state.currentLife.storyTimeline[0];
     if (firstChapter) {
+      state.currentChapterTitle = firstChapter.title;
       el.novelChapterTitle.textContent = firstChapter.title;
-      state.fullNovelText = firstChapter.narrative;
+      state.fullNovelText = `【${firstChapter.title}】\n${firstChapter.narrative}`;
       rePaginateBook();
     }
+
+    // 稍微延遲確保平滑過渡
+    await delay(700);
 
     // 第一頁生成完成！收起載入中遮罩，開放遊戲開始
     hideNovelLoading();
 
-    // 解除暫停並啟動生命推進時鐘
-    state.isPaused = false;
-    el.pauseBtn.classList.add("active");
-    el.pauseIcon.textContent = "❚❚";
+    // 注入初生事件
+    pushEventToFeed({
+      ageLabel: `0 ${state.currentLife.species.unit}・初誕`,
+      type: "milestone",
+      text: state.currentLife.species.isHuman
+        ? `在${state.currentLife.countryData.name}呱呱墜地，開啟文明旅途。`
+        : `在${state.currentLife.biome.name}微光中降生，感受初次呼吸。`
+    });
+
+    // 儲存狀態
+    saveGameState("lifeview");
+
+    // 依照使用者設定啟動時鐘（若啟用閱讀保護，則暫停待讀者開啟；預設播放）
+    setPauseState(false);
     startSimulationLoop();
   }
 
   // 雙頁直書分頁系統 (Paginator)
-  // 將連續小說文字拆分為每頁約 130～160 字之直書版面
   function rePaginateBook(targetSpread = null) {
     const text = state.fullNovelText || "";
     if (!text.trim()) {
@@ -361,7 +476,9 @@
     }
 
     const pages = [];
-    const PAGE_CHAR_LIMIT = 145; // 直書單頁最佳字數
+    // 依手機或桌機、直排或橫排動態調節單頁最佳字數
+    const isMobile = window.innerWidth <= 768;
+    const PAGE_CHAR_LIMIT = state.isHorizontalReading ? 210 : (isMobile ? 120 : 145);
     let remaining = text.trim();
 
     while (remaining.length > 0) {
@@ -387,13 +504,16 @@
 
     state.bookPages = pages;
 
-    // 若未指定展開頁，預設翻到最新章節頁面
+    // 分頁索引控制
+    const isSinglePageMode = isMobile && !state.isHorizontalReading;
+    const step = isSinglePageMode ? 1 : 2;
+
     if (targetSpread !== null) {
-      state.currentSpreadIndex = targetSpread;
+      state.currentSpreadIndex = Math.min(targetSpread, Math.max(0, pages.length - 1));
     } else {
-      // 翻到最後兩頁
-      const lastIndex = Math.max(0, pages.length - (pages.length % 2 === 0 ? 2 : 1));
-      state.currentSpreadIndex = Math.floor(lastIndex / 2) * 2;
+      // 預設翻到最後一頁
+      const last = Math.max(0, pages.length - 1);
+      state.currentSpreadIndex = isSinglePageMode ? last : Math.floor(last / 2) * 2;
     }
 
     renderBookSpread();
@@ -402,41 +522,54 @@
   // 渲染雙頁面 (右頁 + 左頁，直式，右到左)
   function renderBookSpread() {
     const total = state.bookPages.length;
-    const rIdx = state.currentSpreadIndex;     // 右頁索引 (順位在前)
-    const lIdx = state.currentSpreadIndex + 1; // 左頁索引 (順位在後)
+    const isMobile = window.innerWidth <= 768;
+    const isSinglePageMode = isMobile && !state.isHorizontalReading;
+
+    const rIdx = state.currentSpreadIndex;
+    const lIdx = state.currentSpreadIndex + 1;
 
     const rText = state.bookPages[rIdx] || "";
-    const lText = state.bookPages[lIdx] || "";
+    const lText = (!isSinglePageMode && lIdx < total) ? state.bookPages[lIdx] : "";
 
     el.pageContentRight.textContent = rText;
     el.pageContentLeft.textContent = lText;
 
     // 漢字頁碼 (壹, 貳, 參...)
-    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸"];
+    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸", "拾柒", "拾捌", "拾玖", "貳拾"];
     el.pageNumRight.textContent = numToChinese[rIdx] || `${rIdx + 1}`;
     el.pageNumLeft.textContent = lText ? (numToChinese[lIdx] || `${lIdx + 1}`) : "";
 
     // 頁碼導航指示器
-    el.bookPageIndicator.textContent = `第 ${rIdx + 1}–${Math.min(lIdx + 1, Math.max(1, total))} 頁 / 共 ${Math.max(1, total)} 頁`;
-
-    // 翻頁按鈕狀態 (右翻直書：往前翻按鈕若在第 0 頁則停用；往後翻若在末頁則停用)
-    el.prevPageBtn.disabled = (rIdx <= 0);
-    el.nextPageBtn.disabled = (rIdx + 2 >= total);
+    if (isSinglePageMode) {
+      el.bookPageIndicator.textContent = `第 ${rIdx + 1} 頁 / 共 ${Math.max(1, total)} 頁`;
+      el.prevPageBtn.disabled = (rIdx <= 0);
+      el.nextPageBtn.disabled = (rIdx >= total - 1);
+    } else {
+      el.bookPageIndicator.textContent = `第 ${rIdx + 1}–${Math.min(lIdx + 1, Math.max(1, total))} 頁 / 共 ${Math.max(1, total)} 頁`;
+      el.prevPageBtn.disabled = (rIdx <= 0);
+      el.nextPageBtn.disabled = (rIdx + 2 >= total);
+    }
   }
 
   // 往前翻頁 (查看較早篇章)
   function turnPagePrev() {
+    const isMobile = window.innerWidth <= 768;
+    const step = (isMobile && !state.isHorizontalReading) ? 1 : 2;
     if (state.currentSpreadIndex > 0) {
-      state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - 2);
+      state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - step);
       renderBookSpread();
+      saveGameState();
     }
   }
 
   // 往後翻頁 (接續閱讀情節)
   function turnPageNext() {
-    if (state.currentSpreadIndex + 2 < state.bookPages.length) {
-      state.currentSpreadIndex = state.currentSpreadIndex + 2;
+    const isMobile = window.innerWidth <= 768;
+    const step = (isMobile && !state.isHorizontalReading) ? 1 : 2;
+    if (state.currentSpreadIndex + step < state.bookPages.length) {
+      state.currentSpreadIndex = state.currentSpreadIndex + step;
       renderBookSpread();
+      saveGameState();
     }
   }
 
@@ -511,15 +644,16 @@
         ];
 
     el.focusChipsContainer.innerHTML = "";
-    chips.forEach((c, idx) => {
+    chips.forEach(c => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = `chip ${idx === 0 ? "active" : ""}`;
+      btn.className = `chip ${state.activeFocus === c.id ? "active" : ""}`;
       btn.textContent = c.label;
       btn.addEventListener("click", () => {
         document.querySelectorAll(".chip").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         state.activeFocus = c.id;
+        saveGameState();
       });
       el.focusChipsContainer.appendChild(btn);
     });
@@ -578,17 +712,50 @@
     el.chartCaption.textContent = `同儕群體存活率：約 ${yVal}%`;
   }
 
-  // 3. 主循環模擬引擎
+  // 3. 主循環模擬引擎（放慢步調，讓使用者有充裕閱讀時間）
+  function getPaceInterval() {
+    // 基準節奏：慢步調 5200ms、一般 3800ms、極速 1800ms
+    const base = state.selectedPace === "fast" ? 1800 : (state.selectedPace === "slow" ? 5200 : 3800);
+    return Math.max(700, Math.round(base / state.speedMultiplier));
+  }
+
   function startSimulationLoop() {
     if (state.timerId) clearInterval(state.timerId);
-    const basePace = state.selectedPace === "fast" ? 900 : (state.selectedPace === "slow" ? 3000 : 1600);
-
     state.timerId = setInterval(() => {
       if (state.isPaused || state.isGameOver) return;
       advanceLifeOneStep();
-    }, basePace / state.speedMultiplier);
+    }, getPaceInterval());
   }
 
+  function restartSimulationTimer() {
+    if (!state.isPaused && !state.isGameOver) {
+      startSimulationLoop();
+    }
+  }
+
+  function setPauseState(paused) {
+    state.isPaused = paused;
+    if (paused) {
+      el.pauseBtn.classList.remove("active");
+      el.pauseIcon.textContent = "▶";
+      el.pauseBtn.querySelector("span:last-child")?.remove();
+      el.pauseBtn.appendChild(document.createTextNode(" 繼續"));
+    } else {
+      el.pauseBtn.classList.add("active");
+      el.pauseIcon.textContent = "❚❚";
+      el.pauseBtn.querySelector("span:last-child")?.remove();
+      el.pauseBtn.appendChild(document.createTextNode(" 暫停"));
+    }
+  }
+
+  function togglePause() {
+    setPauseState(!state.isPaused);
+    if (!state.isPaused) {
+      restartSimulationTimer();
+    }
+  }
+
+  // 推進生命一季
   async function advanceLifeOneStep() {
     const seasons = ["春之甦醒", "盛夏繁茂", "清秋收成", "凜冬考驗"];
     state.currentSeasonIdx = (state.currentSeasonIdx + 1) % 4;
@@ -600,11 +767,13 @@
     const life = state.currentLife;
     const maxAge = life.maxPossibleAge;
 
-    if (state.currentAge >= maxAge && state.currentSeasonIdx === 0) {
-      triggerDeath();
+    // 檢查生命終暮 (壽命到期或健康耗盡)
+    if ((state.currentAge >= maxAge && state.currentSeasonIdx === 0) || life.initialStats.health <= 0) {
+      await triggerDeathProcess();
       return;
     }
 
+    // 更新同儕存活狀態
     state.companions.forEach(c => {
       if (c.isAlive && state.currentAge >= c.maxAge) {
         c.isAlive = false;
@@ -612,53 +781,81 @@
     });
     renderCompanions();
 
-    // 檢查小說故事章節推進
+    // 檢查是否有即時 AI 篇章推進
     await checkStoryProgression();
 
     injectFeedEventsForCurrentAge();
     updateDashboardUI();
+    saveGameState();
   }
 
+  // 檢查是否觸發新章節或抉擇
   async function checkStoryProgression() {
     const life = state.currentLife;
     const timeline = life.storyTimeline;
 
+    // 尋找符合當前年齡的章節
     const chapter = timeline.find(ch => ch.age === state.currentAge && state.currentSeasonIdx === 0);
 
-    if (chapter) {
-      // 觸發新篇章時，先暫停並顯示載入中
-      state.isPaused = true;
-      el.pauseBtn.classList.remove("active");
-      el.pauseIcon.textContent = "▶";
-      showNovelLoading("AI 正在撰寫接續章節中...", "正在演算野性情節與生命抉擇，載入中請稍候...");
+    if (chapter && chapter.age > 0) {
+      // 觸發新篇章：先暫停時鐘以保護閱讀，顯示載入遮罩
+      setPauseState(true);
+      showNovelLoading("AI 正在即時生成下一篇冒險篇章...", "正在結合你的生活重心與當前體魄，推演野性遭遇...");
 
-      await delay(600);
+      // 呼叫 AI 產生或精煉此篇章（傳送完整玩家資訊）
+      const playerContext = {
+        activeFocus: state.activeFocus,
+        recentChoices: state.recentChoices,
+        companionsAliveCount: state.companions.filter(c => c.isAlive).length,
+        season: state.currentSeasonIdx
+      };
 
-      el.novelChapterTitle.textContent = chapter.title;
-      state.fullNovelText += `\n\n【${chapter.title}】\n${chapter.narrative}`;
+      let aiChapter = null;
+      try {
+        aiChapter = await window.AiService.generateMilestoneChapter(
+          life.species,
+          life.name,
+          state.currentAge,
+          life.initialStats,
+          life.biome,
+          life.countryData,
+          state.choicesMadeCount + 2,
+          playerContext
+        );
+      } catch (err) {
+        console.warn("AI 章節生成備援", err);
+      }
+
+      const activeChap = aiChapter || chapter;
+      state.currentChapterTitle = activeChap.title;
+      el.novelChapterTitle.textContent = activeChap.title;
+
+      // 附加到小說並重新分頁
+      state.fullNovelText += `\n\n【${activeChap.title}】\n${activeChap.narrative}`;
       rePaginateBook();
 
       hideNovelLoading();
 
-      if (chapter.choices && chapter.choices.length > 0) {
-        pauseGameForChoice(chapter);
+      // 處理抉擇或平穩閱讀
+      if (activeChap.choices && activeChap.choices.length > 0) {
+        pauseGameForChoice(activeChap);
       } else {
-        // 非抉擇篇章，短暫停留後繼續推進
-        setTimeout(() => {
-          if (!state.isGameOver) {
-            state.isPaused = false;
-            el.pauseBtn.classList.add("active");
-            el.pauseIcon.textContent = "❚❚";
-          }
-        }, 1200);
+        // 若啟用閱讀保護，保持暫停，讓讀者安心閱讀；否則短暫停留後自動前進
+        if (!state.readingProtection) {
+          setTimeout(() => {
+            if (!state.isGameOver) {
+              setPauseState(false);
+              startSimulationLoop();
+            }
+          }, 3500);
+        }
       }
     }
   }
 
+  // 抉擇暫停面板
   function pauseGameForChoice(chapter) {
-    state.isPaused = true;
-    el.pauseBtn.classList.remove("active");
-    el.pauseIcon.textContent = "▶";
+    setPauseState(true);
 
     el.choiceContainer.style.display = "block";
     el.choiceButtonsGrid.innerHTML = "";
@@ -678,23 +875,38 @@
 
       el.choiceButtonsGrid.appendChild(btn);
     });
+
+    saveGameState();
   }
 
+  // 執行玩家抉擇
   async function executeChoice(chapter, choice) {
     state.choicesMadeCount++;
+    state.recentChoices.push(choice.text);
     el.choiceContainer.style.display = "none";
 
     // 顯示抉擇後續生成載入中
-    showNovelLoading("AI 正在以艾琳·杭特風格延續抉擇後續...", "正在根據你的選擇計算生存張力與本能反饋...");
+    showNovelLoading("AI 正在以艾琳·杭特風格演繹你的抉擇後續...", "正在根據你的選擇計算生存張力與本能反饋...");
 
+    // 套用數值變化（由 AI 控制）
     applyStatDeltas(choice.statChange);
 
-    const followupText = await window.AiService.expandChapterWithAi(chapter, choice, state.currentLife.species);
+    const playerContext = {
+      activeFocus: state.activeFocus,
+      stats: state.currentLife.initialStats
+    };
 
-    state.fullNovelText += `\n\n【你的抉擇：${choice.text}】\n${followupText}`;
+    const followupText = await window.AiService.generateChoiceFollowup(
+      state.currentLife.species,
+      state.currentLife.name,
+      choice.text,
+      chapter,
+      playerContext
+    );
+
+    state.fullNovelText += `\n\n【抉擇：${choice.text}】\n${followupText}`;
     rePaginateBook();
 
-    await delay(500);
     hideNovelLoading();
 
     pushEventToFeed({
@@ -703,13 +915,17 @@
       text: `作出命運抉擇：「${choice.text}」。${choice.impact}`
     });
 
-    setTimeout(() => {
-      if (!state.isGameOver) {
-        state.isPaused = false;
-        el.pauseBtn.classList.add("active");
-        el.pauseIcon.textContent = "❚❚";
-      }
-    }, 1200);
+    saveGameState();
+
+    // 抉擇完成後，若閱讀保護啟用則讓使用者自己按繼續，或稍候 2.5 秒自動繼續
+    if (!state.readingProtection) {
+      setTimeout(() => {
+        if (!state.isGameOver) {
+          setPauseState(false);
+          startSimulationLoop();
+        }
+      }, 2500);
+    }
   }
 
   function applyStatDeltas(deltas) {
@@ -732,6 +948,9 @@
   }
 
   function pushEventToFeed(evt) {
+    state.feedEvents.unshift(evt);
+    if (state.feedEvents.length > 50) state.feedEvents.pop();
+
     const li = document.createElement("li");
     li.className = `feed-item ${evt.type === 'milestone' || evt.isConsolidated ? 'milestone' : ''}`;
     li.innerHTML = `
@@ -746,6 +965,8 @@
 
   function updateDashboardUI() {
     const life = state.currentLife;
+    if (!life) return;
+
     const s = life.species;
     const stats = life.initialStats;
     const maxAge = s.maxAge;
@@ -810,36 +1031,81 @@
     `;
   }
 
-  function togglePause() {
-    state.isPaused = !state.isPaused;
-    if (state.isPaused) {
-      el.pauseBtn.classList.remove("active");
-      el.pauseIcon.textContent = "▶";
-    } else {
-      el.pauseBtn.classList.add("active");
-      el.pauseIcon.textContent = "❚❚";
-    }
-  }
-
   function fastForwardToNextChoice() {
     if (state.isGameOver) return;
-    state.speedMultiplier = 8;
+    state.speedMultiplier = 4;
     document.querySelectorAll(".sp-btn").forEach(b => b.classList.remove("active"));
-    const sp8 = document.querySelector('.sp-btn[data-sp="8"]');
-    if (sp8) sp8.classList.add("active");
+    const sp4 = document.querySelector('.sp-btn[data-sp="4"]');
+    if (sp4) sp4.classList.add("active");
+    setPauseState(false);
     startSimulationLoop();
   }
 
-  function triggerDeath() {
+  // 4. 完整死亡小說流程（死時在書本中完整呈現過程，讀者看完才點擊前往追思館）
+  async function triggerDeathProcess() {
     state.isGameOver = true;
+    setPauseState(true);
     if (state.timerId) clearInterval(state.timerId);
 
     const life = state.currentLife;
     const s = life.species;
 
+    // 顯示 AI 正在撰寫終章小說
+    showNovelLoading("生命旅程已至終暮，AI 正在編織長眠小說篇章...", "正在以艾琳·杭特莊嚴筆觸，詳細描摹面對終局與歸宿的過程...");
+
+    let deathPack = null;
+    try {
+      deathPack = await window.AiService.generateDeathChapter(
+        s,
+        life.name,
+        state.currentAge,
+        life.deathCause,
+        life.biome,
+        life.countryData,
+        { choicesCount: state.choicesMadeCount, recentChoices: state.recentChoices }
+      );
+    } catch (e) {
+      console.warn("死亡章節生成異常：", e);
+    }
+
+    if (!deathPack) {
+      deathPack = {
+        chapterTitle: s.isHuman ? "最終章 · 晚霞與最後的告別" : "最終章 · 星芒與永恆長眠",
+        deathNarrative: s.isHuman
+          ? `在${state.currentAge}歲這一年，因${life.deathCause}，病房的窗櫺外是夕陽溫暖的光芒。監護儀的波動漸漸舒緩，親人的手掌傳來熟悉的溫度。回顧這一生走過的坎坷與選擇，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
+          : `【面對${life.deathCause}的終局】刺骨的寒意侵入四肢，劇烈的喘息在冷空氣中化作白霧。視線中的古木與山稜逐漸模糊化為柔和的微光，骨骼間的劇痛奇蹟般地平復，取而代之的是如春日溪流般的寧靜。你緩緩伏下身軀，任由最後一口吐息融入狂風，靈魂奔向了群星與先祖的遼闊獵場。`,
+        eulogy: s.isHuman
+          ? `生命在文明的浪潮中劃下了休止符。你在這片大地上留下的足跡、親情與愛意，已經真實地溫暖過這個世界。安息吧，歸於星河。`
+          : `風吹過荒原，帶走了最後一道足跡。你以無畏的野性與忠誠活過這僅有一次的荒野旅程。在星族的永恆獵場中，繼續自由奔跑吧。`
+      };
+    }
+
+    state.eulogy = deathPack.eulogy;
+    state.currentChapterTitle = deathPack.chapterTitle;
+    el.novelChapterTitle.textContent = deathPack.chapterTitle;
+
+    // 附加終章並重新分頁、自動翻到最後一頁
+    state.fullNovelText += `\n\n【${deathPack.chapterTitle}】\n${deathPack.deathNarrative}`;
+    rePaginateBook();
+
+    hideNovelLoading();
+
+    // 顯示書本頂部的死亡閱讀提示橫幅
+    state.isDeathNoticed = true;
+    el.novelDeathNotice.style.display = "flex";
+    el.novelDeathNotice.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    saveGameState();
+  }
+
+  // 前往荒野追思館結算
+  function showMemorialHall() {
     el.lifeSec.style.display = "none";
     el.deadSec.style.display = "block";
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    const life = state.currentLife;
+    const s = life.species;
 
     let titlePrefix = "荒野的行者";
     if (s.isHuman) titlePrefix = "文明的追尋者";
@@ -851,14 +1117,147 @@
     document.getElementById("memoDeathCause").textContent = life.deathCause;
     document.getElementById("memoPercentile").textContent = `${life.survivalPercentile}% 的同族生靈`;
     document.getElementById("memoChoicesCount").textContent = `${state.choicesMadeCount} 次關鍵抉擇`;
+    document.getElementById("memoEulogyText").textContent = state.eulogy;
 
-    const eulogy = s.isHuman
-      ? `漫長的人生像一艘靠岸的航船。在${life.countryData.name}，你走過了歡笑、疲憊、抉擇與堅持。\n生命或許只是十兆分之一的微小存在，但你在這片大地上留下的足跡、愛意與記憶，已經真實地溫暖過這個世界。安息吧，回到寧靜的星空。`
-      : `寒風吹過粗糙的被毛，四肢沉重如灌滿了鉛。耳畔迴盪著爪尖踩碎枯枝的微弱脆響，伴隨骨骼深處傳來的久遠疲憊。\n疼痛正奇蹟般地退去，只剩下一股如春日陽光般的暖意悄然蔓延——你緩緩合上雙眼，靈魂如奔向繁星的輕風，回歸荒野的古老懷抱。奔跑吧，在永恆無垠的獵場中。`;
-
-    document.getElementById("memoEulogyText").textContent = eulogy;
+    saveGameState("dead");
   }
 
+  // 5. 自動存檔與進度還原系統 (localStorage)
+  function saveGameState(customView = null) {
+    if (!state.currentLife) return;
+
+    let view = customView;
+    if (!view) {
+      if (el.deadSec.style.display === "block") view = "dead";
+      else if (el.lifeSec.style.display === "block") view = "lifeview";
+      else if (el.rollSec.style.display === "block") view = "roll";
+      else view = "intro";
+    }
+
+    const payload = {
+      view,
+      life: state.currentLife,
+      currentAge: state.currentAge,
+      currentSeasonIdx: state.currentSeasonIdx,
+      isPaused: state.isPaused,
+      isGameOver: state.isGameOver,
+      speedMultiplier: state.speedMultiplier,
+      readingProtection: state.readingProtection,
+      companions: state.companions,
+      choicesMadeCount: state.choicesMadeCount,
+      recentChoices: state.recentChoices,
+      activeFocus: state.activeFocus,
+      bookPages: state.bookPages,
+      currentSpreadIndex: state.currentSpreadIndex,
+      fullNovelText: state.fullNovelText,
+      currentChapterTitle: state.currentChapterTitle,
+      feedEvents: state.feedEvents,
+      eulogy: state.eulogy,
+      isDeathNoticed: state.isDeathNoticed,
+      isHorizontalReading: state.isHorizontalReading,
+      savedAt: Date.now()
+    };
+
+    try {
+      localStorage.setItem(SAVE_STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn("無法寫入 localStorage：", e);
+    }
+  }
+
+  function loadGameState() {
+    try {
+      const raw = localStorage.getItem(SAVE_STORAGE_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (!data || !data.life) return false;
+
+      // 還原狀態
+      state.currentLife = data.life;
+      state.currentAge = data.currentAge || 0;
+      state.currentSeasonIdx = data.currentSeasonIdx || 0;
+      state.isPaused = true; // 還原時預設暫停讓玩家安心確認
+      state.isGameOver = !!data.isGameOver;
+      state.speedMultiplier = data.speedMultiplier || 1;
+      state.readingProtection = data.readingProtection !== undefined ? data.readingProtection : true;
+      state.companions = data.companions || [];
+      state.choicesMadeCount = data.choicesMadeCount || 0;
+      state.recentChoices = data.recentChoices || [];
+      state.activeFocus = data.activeFocus || "hunt";
+      state.bookPages = data.bookPages || [];
+      state.currentSpreadIndex = data.currentSpreadIndex || 0;
+      state.fullNovelText = data.fullNovelText || "";
+      state.currentChapterTitle = data.currentChapterTitle || "";
+      state.feedEvents = data.feedEvents || [];
+      state.eulogy = data.eulogy || "";
+      state.isDeathNoticed = !!data.isDeathNoticed;
+      state.isHorizontalReading = !!data.isHorizontalReading;
+
+      // 切換視圖
+      el.introSec.style.display = "none";
+      el.rollSec.style.display = "none";
+      el.lifeSec.style.display = "none";
+      el.deadSec.style.display = "none";
+
+      if (data.view === "dead") {
+        showMemorialHall();
+      } else if (data.view === "roll") {
+        el.rollSec.style.display = "block";
+        renderBirthCertificate(state.currentLife);
+      } else {
+        // 恢復 lifeview 視圖
+        el.lifeSec.style.display = "block";
+        if (state.isHorizontalReading) {
+          el.novelBookCard.classList.add("reading-mode-horizontal");
+          el.readingModeIcon.textContent = "☰";
+          el.readingModeText.textContent = "切換直排";
+        }
+
+        renderCompanions();
+        renderFocusChips();
+        renderLifeGrid();
+        renderSurvivalChart();
+        updateDashboardUI();
+
+        el.novelChapterTitle.textContent = state.currentChapterTitle || "荒野篇章";
+        rePaginateBook(state.currentSpreadIndex);
+
+        if (state.isDeathNoticed) {
+          el.novelDeathNotice.style.display = "flex";
+        }
+
+        // 還原歷史事件流
+        el.eventFeedList.innerHTML = "";
+        (state.feedEvents || []).forEach(evt => {
+          const li = document.createElement("li");
+          li.className = `feed-item ${evt.type === 'milestone' || evt.isConsolidated ? 'milestone' : ''}`;
+          li.innerHTML = `
+            <div class="feed-meta">
+              <span class="feed-age">${evt.ageLabel}</span>
+              <span class="feed-type">${evt.isConsolidated ? '🌟 階段沉澱' : (evt.type === 'milestone' ? '⚡ 命運轉折' : '🌿 生態紀錄')}</span>
+            </div>
+            <div class="feed-text">${evt.text}</div>
+          `;
+          el.eventFeedList.appendChild(li);
+        });
+
+        setPauseState(true);
+      }
+
+      return true;
+    } catch (e) {
+      console.warn("進度還原失敗：", e);
+      return false;
+    }
+  }
+
+  function clearGameState() {
+    try {
+      localStorage.removeItem(SAVE_STORAGE_KEY);
+    } catch (e) {}
+  }
+
+  // 6. 音效與主題
   function toggleTheme() {
     const isDark = document.body.classList.toggle("theme-dark");
     document.getElementById("themeIcon").textContent = isDark ? "☼" : "◐";
@@ -919,9 +1318,23 @@
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  // 視窗縮放自動重新分頁適應
+  window.addEventListener("resize", () => {
+    if (state.fullNovelText) {
+      rePaginateBook(state.currentSpreadIndex);
+    }
+  });
+
+  // 初始化啟動
   window.addEventListener("DOMContentLoaded", () => {
     initElements();
     bindEvents();
     startBirthTickers();
+
+    // 嘗試從 localStorage 恢復存檔進度
+    const hasRestored = loadGameState();
+    if (!hasRestored) {
+      el.introSec.style.display = "block";
+    }
   });
 })();
