@@ -75,6 +75,10 @@
     el.authorGroup = document.getElementById("authorGroup");
     el.authorHintText = document.getElementById("authorHintText");
     el.addCustomAuthorBtn = document.getElementById("addCustomAuthorBtn");
+    el.customAuthorInline = document.getElementById("customAuthorInline");
+    el.customAuthorInput = document.getElementById("customAuthorInput");
+    el.confirmCustomAuthorBtn = document.getElementById("confirmCustomAuthorBtn");
+    el.cancelCustomAuthorBtn = document.getElementById("cancelCustomAuthorBtn");
 
     el.startRollBtn = document.getElementById("startRollBtn");
     el.rollerBox = document.getElementById("rollerBox");
@@ -95,6 +99,9 @@
     el.nextChoiceBtn = document.getElementById("nextChoiceBtn");
     el.readPauseToggleBtn = document.getElementById("readPauseToggleBtn");
     el.abandonLifeBtn = document.getElementById("abandonLifeBtn");
+    el.abandonConfirmModal = document.getElementById("abandonConfirmModal");
+    el.confirmAbandonYesBtn = document.getElementById("confirmAbandonYesBtn");
+    el.confirmAbandonNoBtn = document.getElementById("confirmAbandonNoBtn");
 
     el.dashAvatar = document.getElementById("dashAvatar");
     el.dashName = document.getElementById("dashName");
@@ -220,31 +227,62 @@
       });
     }
 
-    // 新增自訂作家
+    // 新增自訂作家 (改為內建表單，不用 prompt)
     if (el.addCustomAuthorBtn) {
       el.addCustomAuthorBtn.addEventListener("click", () => {
-        const inputName = prompt("請輸入你想參考的作家或文學流派名稱（例如：傑克·倫敦、法布爾、吉卜林、卡夫卡...）：");
-        if (inputName && inputName.trim()) {
-          const cleanName = inputName.trim();
-          state.selectedAuthor = { name: cleanName };
+        if (el.customAuthorInline) {
+          const isHidden = el.customAuthorInline.style.display === "none";
+          el.customAuthorInline.style.display = isHidden ? "block" : "none";
+          if (isHidden && el.customAuthorInput) {
+            el.customAuthorInput.focus();
+          }
+        }
+      });
+    }
 
-          // 建立新按鈕並置為 active
+    const handleConfirmCustomAuthor = () => {
+      if (!el.customAuthorInput) return;
+      const inputName = el.customAuthorInput.value.trim();
+      if (inputName) {
+        state.selectedAuthor = { name: inputName };
+
+        // 建立新按鈕並置為 active
+        el.authorGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        const newBtn = document.createElement("button");
+        newBtn.type = "button";
+        newBtn.className = "seg-btn active";
+        newBtn.dataset.author = "custom_" + Date.now();
+        newBtn.textContent = inputName;
+        newBtn.addEventListener("click", () => {
           el.authorGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
-          const newBtn = document.createElement("button");
-          newBtn.type = "button";
-          newBtn.className = "seg-btn active";
-          newBtn.dataset.author = "custom_" + Date.now();
-          newBtn.textContent = cleanName;
-          newBtn.addEventListener("click", () => {
-            el.authorGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
-            newBtn.classList.add("active");
-            state.selectedAuthor = { name: cleanName };
-            updateAuthorHint(state.selectedAuthor);
-            saveGameState();
-          });
-          el.authorGroup.appendChild(newBtn);
+          newBtn.classList.add("active");
+          state.selectedAuthor = { name: inputName };
           updateAuthorHint(state.selectedAuthor);
           saveGameState();
+        });
+        el.authorGroup.appendChild(newBtn);
+        updateAuthorHint(state.selectedAuthor);
+        saveGameState();
+        el.customAuthorInput.value = "";
+        if (el.customAuthorInline) el.customAuthorInline.style.display = "none";
+      }
+    };
+
+    if (el.confirmCustomAuthorBtn) {
+      el.confirmCustomAuthorBtn.addEventListener("click", handleConfirmCustomAuthor);
+    }
+    if (el.cancelCustomAuthorBtn) {
+      el.cancelCustomAuthorBtn.addEventListener("click", () => {
+        if (el.customAuthorInline) el.customAuthorInline.style.display = "none";
+      });
+    }
+    if (el.customAuthorInput) {
+      el.customAuthorInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleConfirmCustomAuthor();
+        } else if (e.key === "Escape") {
+          if (el.customAuthorInline) el.customAuthorInline.style.display = "none";
         }
       });
     }
@@ -280,9 +318,18 @@
       saveGameState();
     });
 
-    // 放棄此生按鈕
-    el.abandonLifeBtn.addEventListener("click", () => {
-      if (confirm("確定要放棄當前生命進度並重新開始投胎嗎？所有當前歷程將會重置。")) {
+    // 放棄此生按鈕 (改為內建確認視窗，不用 confirm)
+    if (el.abandonLifeBtn) {
+      el.abandonLifeBtn.addEventListener("click", () => {
+        if (el.abandonConfirmModal) {
+          el.abandonConfirmModal.style.display = "flex";
+        }
+      });
+    }
+
+    if (el.confirmAbandonYesBtn) {
+      el.confirmAbandonYesBtn.addEventListener("click", () => {
+        if (el.abandonConfirmModal) el.abandonConfirmModal.style.display = "none";
         clearGameState();
         if (state.timerId) clearInterval(state.timerId);
         el.lifeSec.style.display = "none";
@@ -290,8 +337,22 @@
         el.deadSec.style.display = "none";
         el.introSec.style.display = "block";
         window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    });
+      });
+    }
+
+    if (el.confirmAbandonNoBtn) {
+      el.confirmAbandonNoBtn.addEventListener("click", () => {
+        if (el.abandonConfirmModal) el.abandonConfirmModal.style.display = "none";
+      });
+    }
+
+    if (el.abandonConfirmModal) {
+      el.abandonConfirmModal.addEventListener("click", (e) => {
+        if (e.target === el.abandonConfirmModal) {
+          el.abandonConfirmModal.style.display = "none";
+        }
+      });
+    }
 
     // 閱讀模式（保持經典直排紙本書）
     if (el.readingModeToggleBtn) {
