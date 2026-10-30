@@ -1304,16 +1304,25 @@
     });
 
     // 全球前 12 大概率微光點
+    const oddsPoints = [];
     if (window.GLOBAL_ODDS_DATA) {
-      window.GLOBAL_ODDS_DATA.forEach(od => {
+      if (Array.isArray(window.GLOBAL_ODDS_DATA)) {
+        oddsPoints.push(...window.GLOBAL_ODDS_DATA);
+      } else {
+        if (Array.isArray(window.GLOBAL_ODDS_DATA.humanOdds)) oddsPoints.push(...window.GLOBAL_ODDS_DATA.humanOdds);
+        if (Array.isArray(window.GLOBAL_ODDS_DATA.animalOdds)) oddsPoints.push(...window.GLOBAL_ODDS_DATA.animalOdds);
+      }
+    }
+    oddsPoints.forEach(od => {
+      if (od && typeof od.lng === 'number' && typeof od.lat === 'number') {
         const ox = toCanvasX(od.lng);
         const oy = toCanvasY(od.lat);
         ctx.fillStyle = "rgba(140, 29, 60, 0.45)";
         ctx.beginPath();
         ctx.arc(ox, oy, 2.5, 0, Math.PI * 2);
         ctx.fill();
-      });
-    }
+      }
+    });
 
     // 若有母國座標：青綠色標記
     if (homeCoord && typeof homeCoord.lat === 'number' && typeof homeCoord.lng === 'number') {
@@ -1815,7 +1824,7 @@
 
   // 提前生成機制 (Pre-generation)：在玩家閱讀當前頁面時，已在背景提前準備好下一章，拒絕翻頁等待！
   async function prefetchUpcomingMilestone(targetChapterIdx = null) {
-    if (state.isPrefetching || state.isGameOver) return;
+    if (state.isPrefetching || state.isGameOver || state.isDeathNoticed) return;
     if (!state.currentLife || !state.currentLife.storyTimeline) return;
 
     const timeline = state.currentLife.storyTimeline;
@@ -2066,8 +2075,8 @@
     const life = state.currentLife;
     const maxAge = life.maxPossibleAge;
 
-    // 檢查生命終暮
-    if ((state.currentAge >= maxAge && state.currentSeasonIdx === 0) || life.initialStats.health <= 0) {
+    // 檢查生命終暮：達到最大年齡或健康耗盡，立即觸發終局
+    if (state.currentAge >= maxAge || life.initialStats.health <= 0) {
       await triggerDeathProcess();
       return;
     }
@@ -2493,9 +2502,15 @@
 
   // 4. 完整死亡小說流程 (篇名嚴格為第N章)
   async function triggerDeathProcess() {
+    if (state.isGameOver && state.isDeathNoticed) return; // 避免重複觸發
     state.isGameOver = true;
+    state.isDeathNoticed = true;
     setPauseState(true);
-    if (state.timerId) clearInterval(state.timerId);
+    if (state.timerId) {
+      clearInterval(state.timerId);
+      state.timerId = null;
+    }
+    saveGameState(); // 立即將終暮長眠狀態寫入硬碟儲存，刷新頁面絕不重新生成！
 
     const life = state.currentLife;
     const s = life.species;
@@ -2511,7 +2526,12 @@
         life.deathCause,
         life.biome,
         life.countryData,
-        { choicesCount: state.choicesMadeCount, recentChoices: state.recentChoices },
+        {
+          choicesCount: state.choicesMadeCount,
+          recentChoices: state.recentChoices,
+          gender: life.gender,
+          appearance: life.appearance
+        },
         state.selectedAuthor,
         state.experienceMode
       );
@@ -3269,6 +3289,7 @@
         if (state.isDeathNoticed || state.isGameOver) {
           state.isGameOver = true;
           state.isDeathNoticed = true;
+          hideNovelLoading();
           if (el.novelDeathNotice) el.novelDeathNotice.style.display = "flex";
           if (state.timerId) {
             clearInterval(state.timerId);
@@ -3557,16 +3578,21 @@
   }
 
   window.addEventListener("DOMContentLoaded", () => {
-    initElements();
-    bindEvents();
-    initIntroPageAndMap();
-    startBirthTickers();
+    try { initElements(); } catch (e) { console.error("initElements error:", e); }
+    try { bindEvents(); } catch (e) { console.error("bindEvents error:", e); }
+    try { initIntroPageAndMap(); } catch (e) { console.error("initIntroPageAndMap error:", e); }
+    try { startBirthTickers(); } catch (e) { console.error("startBirthTickers error:", e); }
 
-    const hasRestored = loadGameState();
-    if (!hasRestored) {
-      el.introSec.style.display = "block";
+    try {
+      const hasRestored = loadGameState();
+      if (!hasRestored && el.introSec) {
+        el.introSec.style.display = "block";
+      }
+    } catch (e) {
+      console.error("loadGameState error:", e);
+      if (el.introSec) el.introSec.style.display = "block";
     }
 
-    initPrologueReflection();
+    try { initPrologueReflection(); } catch (e) { console.error("initPrologueReflection error:", e); }
   });
 })();
