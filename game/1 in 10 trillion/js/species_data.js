@@ -34,6 +34,10 @@ window.SPECIES_DATABASE = [
       { min: 8, max: 10, name: "狼群長老 (Veteran)" },
       { min: 11, max: 13, name: "衰暮孤狼 (Elder)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "郊狼 (Coyote)、哈士奇 / 阿拉斯加雪橇犬 (Siberian Husky)",
+      differences: "【胸腔與體態】：灰狼胸廓極為深窄，前肢間距狹窄，奔跑時後足精準踩入前足印記（成一直線直線單跡）；哈士奇等犬隻胸寬體闊，奔跑為雙線足跡。\n【尾巴姿態】：灰狼尾巴粗厚筆直，平時始終垂直下垂或微斜，絕不向上捲曲於背上；哈士奇等犬隻尾巴常向上捲成鐮刀狀或圈狀。\n【頭部與吻部】：灰狼頭部寬闊、吻部粗壯寬圓，雙眼呈傾斜的琥珀金眸；郊狼體型僅灰狼三分之一，耳廓不成比例地碩大尖聳，吻部極尖細如狐。\n【耳廓特徵】：灰狼耳尖較圓鈍且覆厚絨毛；犬類與郊狼耳尖較薄而尖銳。"
+    },
     survivalCurve: [100, 48, 38, 30, 22, 14, 7, 3, 1, 0.2]
   },
   {
@@ -66,6 +70,10 @@ window.SPECIES_DATABASE = [
       { min: 61, max: 80, name: "熟齡退休" },
       { min: 81, max: 100, name: "耄耋之年" }
     ],
+    lookalikeGuide: {
+      confusedWith: "尼安德塔人 (Neanderthals)、早期直立人 (Homo erectus)",
+      differences: "【下巴頦隆突 (Mental Eminence)】：現代智人是唯一擁有向前隆起突出「真正下巴」的靈長類；尼安德塔人與近緣古人類下頜向後傾斜縮進，無下巴突出結構。\n【高隆垂直前額】：智人眉脊骨平緩退化，額骨近乎垂直高聳以容納發達額葉；尼安德塔人具粗厚突出的眉脊雙拱與扁平後傾的顱骨。\n【體態與骨骼】：智人骨骼輕盈修長、骨盆特化為長期直立行走，上肢短於下肢；古人類骨骼粗壯厚重、胸腔呈圓桶狀。"
+    },
     survivalCurve: [100, 96, 95, 93, 89, 83, 72, 55, 30, 8, 1],
     // 人類專屬國家與經濟資料庫
     countries: [
@@ -188,6 +196,10 @@ window.SPECIES_DATABASE = [
       { min: 7, max: 10, name: "資深頑抗者 (Senior)" },
       { min: 11, max: 16, name: "九命長老 (Elder)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "歐亞石虎 / 豹貓 (Leopard Cat)、歐洲野貓 (European Wildcat)",
+      differences: "【耳後白斑（重要鑑別標記）】：石虎（豹貓）雙耳背面有極為醒目的「黑底白斑」（白點印記），兩眼內側有兩條白色線條延伸至額頂；家貓耳背絕無此對稱白斑。\n【尾巴外觀】：家貓尾巴細長末端收尖，或常有折尾（麒麟尾）；石虎與野貓尾巴粗圓如圓柱，末端粗鈍帶數道黑色環紋，絕無折尾。\n【瞳孔特徵】：家貓瞳孔在強光下收縮為垂直細裂縫；兔猻等部分野貓收縮為正圓形。"
+    },
     survivalCurve: [100, 35, 25, 16, 9, 4, 1.5, 0.4]
   },
   {
@@ -219,6 +231,10 @@ window.SPECIES_DATABASE = [
       { min: 36, max: 55, name: "家族領航長老 (Matriarch Lead)" },
       { min: 56, max: 80, name: "深海智慧古鯨 (Venerable)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "偽虎鯨 (False Killer Whale)、領航鯨 (Pilot Whale)、海豚 (Dolphin)",
+      differences: "【眼斑 vs 真正眼睛】：虎鯨最標誌性的橢圓形白斑是「眼斑」，位於眼部後上方；真正的眼睛藏在眼斑前方的黑色皮膚處，常被大眾誤認。\n【體色與背鰭】：虎鯨黑白分明，下顎至腹部純白，背鰭後有灰白馬鞍斑，雄性背鰭高達1.8公尺呈高直三角形；偽虎鯨全身烏黑油亮無任何白斑，體型修長纖細；領航鯨頭部膨大呈西瓜球狀。"
+    },
     survivalCurve: [100, 55, 48, 42, 35, 28, 20, 12, 5, 1]
   },
   {
@@ -249,6 +265,10 @@ window.SPECIES_DATABASE = [
       { min: 13, max: 18, name: "老成巡洋者 (Experienced)" },
       { min: 19, max: 22, name: "冰原傳奇 (Elder)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "國王企鵝 (King Penguin)",
+      differences: "【耳斑與胸羽漸層】：皇帝企鵝耳部為淡檸檬黃，下方開口自然漸層融入胸腹部柔白羽毛；國王企鵝耳斑為全封閉如水滴狀的鮮豔火橙色斑塊，與下腹羽毛界線分明。\n【體型與體重差距】：皇帝企鵝為企鵝之王，體高達120公分、體重達35~45公斤；國王企鵝體高約90公分、體重僅15公斤左右（約皇帝企鵝三分之一）。\n【喙部斑紋】：皇帝企鵝下喙基部為柔和粉紅或淡紫色；國王企鵝下喙兩側有鮮豔橙紅色角質片。"
+    },
     survivalCurve: [100, 32, 26, 20, 15, 10, 5, 2, 0.5]
   },
   {
@@ -279,6 +299,10 @@ window.SPECIES_DATABASE = [
       { min: 26, max: 50, name: "智慧領航象 (Prime)" },
       { min: 51, max: 70, name: "草原巨木祖母 (Matriarch)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "亞洲象 (Asian Elephant)、非洲森林象 (African Forest Elephant)",
+      differences: "【雙耳尺寸與輪廓】：非洲草原象雙耳極為巨大（長達2公尺），外觀輪廓酷似非洲大陸地圖；亞洲象耳朵顯著較小，輪廓呈三角形。\n【背部線條】：非洲象背部中央凹陷呈馬鞍形，最高點在肩部與臀部；亞洲象背部整體向上拱起隆起呈圓弧冠狀。\n【鼻端指狀突起】：非洲象鼻端上下各有一個「指狀突起」（共2個），可如鑷子般靈巧對捏；亞洲象鼻端僅上方有一個突起。\n【頭頂特徵】：亞洲象頭頂有兩個明顯隆起的肉質額凸（如雙峰）；非洲象頭頂平坦單一。"
+    },
     survivalCurve: [100, 68, 62, 55, 48, 38, 25, 12, 3]
   },
   {
@@ -309,6 +333,10 @@ window.SPECIES_DATABASE = [
       { min: 36, max: 60, name: "成熟返鄉巨龜 (Adult Breeder)" },
       { min: 61, max: 85, name: "百歲滄海長老 (Ancient Navigator)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "玳瑁 (Hawksbill Sea Turtle)、赤蠵龜 (Loggerhead)",
+      differences: "【額前鱗 (Prefrontal Scales)】：綠蠵龜兩眼之間僅有一對（2片）長形額前鱗片；玳瑁與赤蠵龜則具有兩對（4片）額前鱗片。\n【嘴喙輪廓】：綠蠵龜嘴喙短而圓鈍、下顎邊緣帶平滑細齒（食海草與海藻適應）；玳瑁嘴喙細長強烈下彎呈鋒利鷹鉤狀（鷹嘴），用以啄食珊瑚縫隙海綿。\n【背甲盾片覆疊】：綠蠵龜背甲平滑圓潤、盾片並列平接；玳瑁背甲盾片如同屋頂瓦片般「後片覆疊前片」，且甲殼後緣呈尖銳鋸齒狀。"
+    },
     survivalCurve: [100, 0.1, 0.08, 0.06, 0.05, 0.04, 0.02, 0.008]
   },
   {
@@ -338,6 +366,10 @@ window.SPECIES_DATABASE = [
       { min: 3, max: 5, name: "頂級獵鼠高手 (Adult)" },
       { min: 6, max: 9, name: "白鬚林隱者 (Veteran)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "灰狐 (Gray Fox)、柴犬 (Shiba Inu)、郊狼 (Coyote)",
+      differences: "【白尾尖（絕對辨識標記）】：赤狐不論毛色變異為何，蓬鬆尾巴末端永遠帶有一撮「純白色毛尖」；灰狐尾部背脊中央有一道黑色硬毛脊線，且尾尖永遠是純黑色。\n【黑襪四足與耳背】：赤狐四肢末端與耳朵背面覆蓋深黑被毛，如同穿著黑襪手套；柴犬四肢內側與胸前必有白毛（裏白），且尾巴捲於背上。\n【瞳孔】：赤狐瞳孔在光線下呈垂直細裂縫；犬類瞳孔收縮時始終為正圓形。"
+    },
     survivalCurve: [100, 42, 28, 16, 7, 2, 0.4]
   },
   {
@@ -367,6 +399,10 @@ window.SPECIES_DATABASE = [
       { min: 5, max: 8, name: "野外外勤採蜜工蜂 (Forager)" },
       { min: 9, max: 26, name: "越冬存續神祕蜂 (Winter Bee)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "黃蜂 / 虎頭蜂 (Wasp / Hornet)、食蚜蠅 (Hoverfly)、熊蜂 (Bumblebee)",
+      differences: "【羽狀絨毛與花粉籃】：蜜蜂全身覆滿分叉羽狀絨毛，後足特化為具長毛邊緣的凹陷「花粉籃」，採蜜時常攜帶兩顆圓滾滾花粉團；黃蜂全身光滑無絨毛、腹部基部極細（胡蜂腰），後足無花粉籃。\n【翅膀與懸停（vs 食蚜蠅）】：食蚜蠅僅有2片翅膀（雙翅目），能於空中超高速定點懸停，觸角極短如小點；蜜蜂有4片翅膀以翅鉤鎖定（膜翅目），觸角為膝狀長節。\n【螫針構造】：蜜蜂工蜂螫針具微小倒鉤，刺入哺乳類皮膚後內臟撕裂而亡；黃蜂螫針光滑無倒鉤，可反覆連續刺擊。"
+    },
     survivalCurve: [100, 85, 70, 45, 18, 5, 1]
   },
   {
@@ -396,6 +432,10 @@ window.SPECIES_DATABASE = [
       { min: 4, max: 12, name: "結盟獵手領空主 (Mated Pair)" },
       { min: 13, max: 23, name: "黑羽古智者 (Ancient Prophet)" }
     ],
+    lookalikeGuide: {
+      confusedWith: "巨嘴鴉 / 小嘴烏鴉 (Carrion / Jungle Crow)、黑鳶 (Black Kite)",
+      differences: "【體型規模】：渡鴉是雀形目最大鳥類，翼展超過1.2公尺、重達1.2公斤，體格相當於猛禽巨鵰，比市區普通烏鴉大上將近一倍。\n【飛行尾羽形狀】：渡鴉在空中滑翔時，尾羽末端呈鮮明的「菱形 / 楔形（三角形凸出）」；普通烏鴉尾羽展開呈平緩的扇形或方圓形。\n【喉羽鬍鬚】：渡鴉喉部與下顎長有一叢蓬鬆粗糙、長矛狀的尖刺「喉羽」，警戒或鳴叫時如鬍鬚般炸開；普通烏鴉喉羽光滑平順。\n【鳴叫聲線】：渡鴉聲音極其深沉渾厚、如木管空腔共鳴的「咯-咯-(Grok)」喉音；普通烏鴉叫聲則是尖銳高亢的「啊-啊-(Caw)」。"
+    },
     survivalCurve: [100, 52, 44, 38, 28, 18, 8, 2, 0.4]
   }
 ];

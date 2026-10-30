@@ -124,6 +124,9 @@
     el.certGenderBadge = document.getElementById("certGenderBadge");
     el.certAppearanceBox = document.getElementById("certAppearanceBox");
     el.certAppearanceText = document.getElementById("certAppearanceText");
+    el.certBioScienceBox = document.getElementById("certBioScienceBox");
+    el.certBioLookalike = document.getElementById("certBioLookalike");
+    el.certBioScienceText = document.getElementById("certBioScienceText");
     el.certExpBadge = document.getElementById("certExpBadge");
     el.beginLifeBtn = document.getElementById("beginLifeBtn");
     el.reRollBtn = document.getElementById("reRollBtn");
@@ -167,6 +170,8 @@
     el.dashSpecies = document.getElementById("dashSpecies");
     el.dashGenderBadge = document.getElementById("dashGenderBadge");
     el.dashAppearanceText = document.getElementById("dashAppearanceText");
+    el.dashBioScienceRow = document.getElementById("dashBioScienceRow");
+    el.dashBioScienceText = document.getElementById("dashBioScienceText");
     el.dashExpBadge = document.getElementById("dashExpBadge");
     el.dashRank = document.getElementById("dashRank");
     el.dashBiome = document.getElementById("dashBiome");
@@ -1118,6 +1123,22 @@
     // 樣貌特徵描寫
     if (el.certAppearanceText) {
       el.certAppearanceText.textContent = life.appearance || "體態勻稱，毛色健康自然，帶著野外獨有的生命張力。";
+    }
+
+    // 外表科普與易混淆物種辨識指南
+    if (el.certBioScienceBox) {
+      const lg = s.lookalikeGuide;
+      if (lg) {
+        el.certBioScienceBox.style.display = "block";
+        if (el.certBioLookalike) {
+          el.certBioLookalike.innerHTML = `<span><i class="fas fa-arrows-split-up-and-left"></i> 容易搞混物種：</span><span class="cert-bio-lookalike-badge">${escapeHtml(lg.confusedWith)}</span>`;
+        }
+        if (el.certBioScienceText) {
+          el.certBioScienceText.textContent = lg.differences;
+        }
+      } else {
+        el.certBioScienceBox.style.display = "none";
+      }
     }
 
     document.querySelector(".cert-species-cn").textContent = s.name;
@@ -2375,6 +2396,15 @@
     }
     if (el.dashAppearanceText) {
       el.dashAppearanceText.textContent = life.appearance || "體態勻稱，毛色健康自然。";
+    }
+    if (el.dashBioScienceText) {
+      const lg = s.lookalikeGuide;
+      if (lg) {
+        if (el.dashBioScienceRow) el.dashBioScienceRow.style.display = "flex";
+        el.dashBioScienceText.innerHTML = `<span style="color:var(--accent-burgundy); font-weight:700;"><i class="fas fa-arrows-split-up-and-left"></i> 易混淆: ${escapeHtml(lg.confusedWith)}</span><br><span style="white-space:pre-line; color:var(--text-secondary);">${escapeHtml(lg.differences)}</span>`;
+      } else if (el.dashBioScienceRow) {
+        el.dashBioScienceRow.style.display = "none";
+      }
     }
     if (el.dashExpBadge) {
       if (state.experienceMode === "realism") {

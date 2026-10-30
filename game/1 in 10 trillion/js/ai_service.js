@@ -53,45 +53,29 @@ window.AiService = {
     return null;
   },
 
+  parseJsonSafely(raw) {
+    if (!raw) return null;
+    let text = String(raw).trim();
+    text = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      text = text.slice(firstBrace, lastBrace + 1);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return null;
+    }
+  },
+
   /**
    * 呼叫 LLM 完成對話/生成任務
+   * 具備 3500ms 快速超時保護機制：若遠端公用 API 忙碌 (503/429/網路超時)，立即安全拋出異常無縫切換本機生態小說引擎
    */
   async callLlm(messages, responseFormatJson = false) {
-    const sUrl = await this.resolveServerUrl();
-
-    // 1. 若伺服器在線，優先嘗試本機端點 (設定 1200ms 極速 ping 檢驗，避免卡頓)
-    if (sUrl) {
-      try {
-        const pingCtrl = new AbortController();
-        const pTid = setTimeout(() => pingCtrl.abort(), 1200);
-        const pingRes = await fetch(`${sUrl}/api/ping`, { signal: pingCtrl.signal });
-        clearTimeout(pTid);
-
-        if (pingRes.ok) {
-          const controller = new AbortController();
-          const tid = setTimeout(() => controller.abort(), 8000);
-          const res = await fetch(`${sUrl}/api/ai-banner/chat`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" },
-            body: JSON.stringify({
-              message: messages[messages.length - 1].content,
-              history: messages.slice(0, -1),
-              mode: "code"
-            }),
-            signal: controller.signal
-          });
-          clearTimeout(tid);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.replyText) return data.replyText;
-          }
-        }
-      } catch (e) {}
-    }
-
-    // 2. 直接呼叫免金鑰高速 LLM (採用極速且穩定的 openai-fast 模型，支援 JSON)
     const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 22000);
+    const tid = setTimeout(() => controller.abort(), 3500);
 
     const bodyPayload = {
       model: "openai-fast",
@@ -101,20 +85,29 @@ window.AiService = {
       bodyPayload.response_format = { type: "json_object" };
     }
 
-    const res = await fetch("https://text.pollinations.ai/openai/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(bodyPayload),
-      signal: controller.signal
-    });
-    clearTimeout(tid);
+    try {
+      const res = await fetch("https://text.pollinations.ai/openai/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyPayload),
+        signal: controller.signal
+      });
+      clearTimeout(tid);
 
-    if (res.ok) {
-      const data = await res.json();
-      return data.choices?.[0]?.message?.content || "";
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        if (content && !content.includes("SERVICE_UNAVAILABLE")) {
+          return content;
+        }
+      }
+    } catch (e) {
+      // 快速捕獲超時或連線失敗，絕不卡頓玩家畫面
+    } finally {
+      clearTimeout(tid);
     }
 
-    throw new Error("AI 服務暫時無法連線");
+    throw new Error("遠端 AI 服務繁忙，無縫啟用本機生態小說引擎");
   },
 
   formatChapterTitle(index, authorStyle = null) {
@@ -259,8 +252,8 @@ ${expGuide}
         { role: "user", content: prompt }
       ];
       const raw = await this.callLlm(messages, true);
-      const parsed = JSON.parse(raw);
-      if (parsed.narrative) {
+      const parsed = this.parseJsonSafely(raw);
+      if (parsed && parsed.narrative) {
         const cleanNarrative = window.DestinyEngine
           ? window.DestinyEngine.splitIntoNaturalParagraphs(parsed.narrative).join("\n\n")
           : parsed.narrative;
@@ -348,8 +341,8 @@ ${expGuide}
         { role: "user", content: prompt }
       ];
       const raw = await this.callLlm(messages, true);
-      const parsed = JSON.parse(raw);
-      if (parsed.narrative) {
+      const parsed = this.parseJsonSafely(raw);
+      if (parsed && parsed.narrative) {
         const cleanNarrative = window.DestinyEngine
           ? window.DestinyEngine.splitIntoNaturalParagraphs(parsed.narrative).join("\n\n")
           : parsed.narrative;
@@ -456,8 +449,8 @@ ${expGuide}
         { role: "user", content: prompt }
       ];
       const raw = await this.callLlm(messages, true);
-      const parsed = JSON.parse(raw);
-      if (parsed.deathNarrative && parsed.eulogy) {
+      const parsed = this.parseJsonSafely(raw);
+      if (parsed && parsed.deathNarrative && parsed.eulogy) {
         const cleanNarrative = window.DestinyEngine
           ? window.DestinyEngine.splitIntoNaturalParagraphs(parsed.deathNarrative).join("\n\n")
           : parsed.deathNarrative;
@@ -516,8 +509,8 @@ ${expGuide}
 
     try {
       const raw = await this.callLlm(messages, true);
-      const parsed = JSON.parse(raw);
-      if (parsed.replyText && parsed.styleConfig) {
+      const parsed = this.parseJsonSafely(raw);
+      if (parsed && parsed.replyText && parsed.styleConfig) {
         return parsed;
       }
     } catch (e) {
