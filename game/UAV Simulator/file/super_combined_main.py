@@ -208,7 +208,16 @@ def start_rabboni_background():
         print(f"Rabboni error: {e}")
 
 # --- HTTP SERVER LOGIC ---
+server_ready_event = threading.Event()
+actual_server_port = 8849
+server_started_successfully = False
+
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
 def start_http_server(directory, port=8849):
+    global actual_server_port, server_started_successfully
     class Handler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=directory, **kwargs)
@@ -326,22 +335,24 @@ def start_http_server(directory, port=8849):
                     return
             super().do_POST()
 
-    global actual_server_port
-    for p in range(port, port + 20):
+    for p in range(port, port + 30):
         try:
-            socketserver.TCPServer.allow_reuse_address = True
-            httpd = socketserver.TCPServer(("127.0.0.1", p), Handler)
+            httpd = ThreadingTCPServer(("127.0.0.1", p), Handler)
             actual_server_port = p
+            server_started_successfully = True
+            server_ready_event.set()
             httpd.serve_forever()
             break
-        except Exception as e:
+        except Exception:
             continue
+    server_ready_event.set()
 
 # --- MAIN ---
-actual_server_port = 8849
-
 def main():
-    ctypes.windll.kernel32.SetConsoleTitleW("【PandaPanda的AI日常___無人機模擬器】")
+    try:
+        ctypes.windll.kernel32.SetConsoleTitleW("【PandaPanda的AI日常___無人機模擬器】")
+    except Exception:
+        pass
     
     if getattr(sys, 'frozen', False):
         exe_dir = os.path.dirname(sys.executable)
@@ -350,35 +361,87 @@ def main():
     
     threading.Thread(target=start_rabboni_background, daemon=True).start()
     threading.Thread(target=start_http_server, args=(exe_dir,), daemon=True).start()
-    import time
-    time.sleep(0.5)
+    
+    # 等待本地伺服器完成綁定 (最多等 3 秒)
+    server_ready_event.wait(timeout=3.0)
     
     index_path = os.path.join(exe_dir, 'index.html')
-    if os.path.exists(index_path):
-        target_url = f'http://127.0.0.1:{actual_server_port}'
+    if not os.path.exists(index_path):
+        print(f"找不到 {index_path}，請確定執行檔在正確的資料夾！")
+        return
+
+    # 驗證本地 HTTP 伺服器是否可正常訪問，若成功則以 HTTP 訪問，若異常則直接載入本機 HTML
+    target_url = None
+    if server_started_successfully:
         try:
-            try:
-                ctypes.windll.kernel32.SetConsoleTitleW('【PandaPanda的AI日常___無人機模擬器】')
-            except Exception:
-                pass
+            import urllib.request
+            test_resp = urllib.request.urlopen(f'http://127.0.0.1:{actual_server_port}/index.html', timeout=1.5)
+            if test_resp.status == 200:
+                target_url = f'http://127.0.0.1:{actual_server_port}/index.html'
+        except Exception:
+            target_url = None
+
+    if not target_url:
+        # 降級保底：直接以本機檔案路徑加載，絕對不會出現 127.0.0.1 載入失敗！
+        target_url = "file:///" + index_path.replace("\\", "/")
+
+    # 啟動獨立應用程式視窗 (優先 Edge / Chrome App Mode，完全無網址列、無分頁)
+    window_launched = False
+
+    # 嘗試 pywebview (若本機有可用 WebView2/WinForms 環境)
+    if webview is not None:
+        try:
             window = webview.create_window(
                 '【PandaPanda的AI日常___無人機模擬器】', 
                 target_url,
                 width=1280, 
-                height=720
+                height=750
             )
-            webview.start(debug=True)
-        except Exception as e:
-            print(f"[系統] 內嵌視窗無法啟動 ({e})，正在自動切換為預設瀏覽器開啟...")
+            webview.start(debug=False)
+            window_launched = True
+        except Exception:
+            window_launched = False
+
+    if not window_launched:
+        # 以 Edge / Chrome --app 獨立桌面視窗執行 (不含瀏覽器標籤分頁與網址列)
+        edge_candidates = [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+        ]
+        app_browser = None
+        for cand in edge_candidates:
+            if os.path.exists(cand):
+                app_browser = cand
+                break
+
+        if app_browser:
+            user_data = os.path.join(exe_dir, "app_profile")
+            cmd = [
+                app_browser,
+                f"--app={target_url}",
+                "--window-size=1280,750",
+                f"--user-data-dir={user_data}",
+                "--no-first-run",
+                "--no-default-browser-check"
+            ]
+            try:
+                proc = subprocess.Popen(cmd)
+                proc.wait()
+            except KeyboardInterrupt:
+                pass
+        else:
+            # 極端保底
             import webbrowser
             webbrowser.open(target_url)
             try:
+                import time
                 while True:
                     time.sleep(1)
             except KeyboardInterrupt:
                 pass
-    else:
-        print(f"找不到 {index_path}，請確定執行檔在正確的資料夾！")
 
 if __name__ == '__main__':
     main()
