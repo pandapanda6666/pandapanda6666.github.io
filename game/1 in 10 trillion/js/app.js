@@ -3223,6 +3223,13 @@
             clearInterval(state.timerId);
             state.timerId = null;
           }
+          if (el.deathSettlementModal) {
+            const finalIdx = (state.choicesMadeCount || 0) + 2;
+            if (el.settleCauseText) el.settleCauseText.textContent = state.currentLife?.deathCause || "壽終正寢";
+            if (el.settlePercentileText) el.settlePercentileText.textContent = `${state.currentLife?.survivalPercentile || 80}% 的同族生靈`;
+            if (el.settleChaptersText) el.settleChaptersText.textContent = `${finalIdx} 章 (含 ${state.choicesMadeCount || 0} 次關鍵抉擇)`;
+            el.deathSettlementModal.style.display = "flex";
+          }
         }
 
         renderFeedEvents();
