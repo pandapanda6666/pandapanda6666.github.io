@@ -74,10 +74,14 @@
       ]
     }
     </script>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <link rel="icon" type="image/x-icon" href="./favicon.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
     <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48x48.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="/favicon-256x256.png">
     <link rel="icon" type="image/png" sizes="256x256" href="./favicon-256x256.png">
-    <link rel="shortcut icon" href="./favicon.ico">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="apple-touch-icon" href="./apple-touch-icon.png">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -2694,15 +2698,41 @@
             }
         };
 
+        window.loadRemoteSiteConfig = async function() {
+            try {
+                const res = await fetch('./site_config.json?t=' + Date.now());
+                if (res.ok) {
+                    const cfg = await res.json();
+                    if (cfg.hidden_projects && Array.isArray(cfg.hidden_projects)) {
+                        const local = JSON.parse(localStorage.getItem('panda_hidden_projects') || '[]');
+                        const merged = Array.from(new Set([...cfg.hidden_projects, ...local]));
+                        localStorage.setItem('panda_hidden_projects', JSON.stringify(merged));
+                    }
+                    if (cfg.custom_nav_items && Array.isArray(cfg.custom_nav_items)) {
+                        const formatted = cfg.custom_nav_items.map(it => ({
+                            name: it.name,
+                            url: it.url,
+                            targetBlank: it.target === '_blank'
+                        }));
+                        localStorage.setItem('panda_custom_nav_items', JSON.stringify(formatted));
+                        if (typeof window.renderCustomNavItems === 'function') window.renderCustomNavItems();
+                    }
+                    if (typeof window.filterAndRenderProjects === 'function') window.filterAndRenderProjects();
+                }
+            } catch(e) {}
+        };
+
         window.getCustomNavItems = function() {
             try {
                 const stored = localStorage.getItem('panda_custom_nav_items');
                 if (stored) {
                     const arr = JSON.parse(stored);
-                    if (Array.isArray(arr)) return arr;
+                    if (Array.isArray(arr) && arr.length > 0) return arr;
                 }
             } catch(e) {}
-            return [];
+            return [
+                { name: '十兆分之一', url: './game/1 in 10 trillion/', targetBlank: false }
+            ];
         };
 
         window.renderCustomNavItems = function() {
@@ -3192,6 +3222,9 @@
             }
 
             async function scanAndLoadFolders() {
+                if (typeof window.loadRemoteSiteConfig === 'function') {
+                    await window.loadRemoteSiteConfig();
+                }
                 const container = document.getElementById('project-list');
                 const loadingIndicator = document.getElementById('loading-indicator');
                 const repoInfo = await getRepoInfo();

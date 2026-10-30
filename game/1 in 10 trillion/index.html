@@ -53,12 +53,68 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- 網站圖示 (LOGO / Favicon) -->
-    <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
-    <link rel="apple-touch-icon" href="assets/logo.svg">
+    <!-- 網站圖示 (LOGO / Favicon 48x48 256x256 與 ICO 相容 Google 搜尋引擎) -->
+    <link rel="icon" type="image/x-icon" href="../../favicon.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="../../favicon-48x48.png">
+    <link rel="icon" type="image/png" sizes="256x256" href="../../favicon-256x256.png">
+    <link rel="shortcut icon" href="../../favicon.ico">
+    <link rel="apple-touch-icon" href="../../apple-touch-icon.png">
     
     <!-- 遊戲樣式 -->
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .footer-status-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+        .status-chip {
+            background: transparent !important;
+            padding: 4px 10px;
+            border-radius: 0;
+            font-size: 13px;
+            color: #166534;
+            font-weight: bold;
+            box-shadow: none !important;
+            border: none !important;
+            display: inline-flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+            font-family: inherit;
+        }
+        #system-monitor {
+            background: transparent !important;
+            padding: 4px 10px;
+            border-radius: 0;
+            font-size: 13px;
+            color: #166534;
+            font-weight: bold;
+            box-shadow: none !important;
+            border: none !important;
+            display: inline-flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            line-height: normal;
+            font-family: inherit;
+        }
+        .stat-divider {
+            display: inline-block;
+            width: 2px;
+            height: 12px;
+            background: #166534;
+            margin: 0 5px;
+            opacity: 0.35;
+        }
+    </style>
 </head>
 <body class="theme-parchment">
     <!-- 首次進入全螢幕省思文字引言 (Prologue Reflection Overlay) -->
@@ -340,12 +396,12 @@
                 </ul>
             </div>
 
-            <!-- 網站頁尾 (Footer 與 荒野探險訪客統計) -->
+            <!-- 網站頁尾 (Footer 與 訪客統計) -->
             <footer class="site-footer">
                 <div class="footer-inner" style="display:flex; flex-direction:column; gap:12px; align-items:center;">
-                    <!-- 荒野專屬探險者統計 (無 Emoji，全向量圖示) -->
-                    <div id="gameVisitorStats" style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:14px; font-size:12.5px; color:#475569; background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.08); padding:6px 16px; border-radius:20px;">
-                        <!-- 由 renderGameVisitorStats 動態生成 -->
+                    <div class="footer-status-bar">
+                        <div id="gameVisitorStats" class="status-chip"></div>
+                        <div id="system-monitor" class="status-chip"></div>
                     </div>
                     
                     <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px;">
@@ -1390,24 +1446,47 @@
             return { todayVisits, todayUniqueIps: todayUniques, totalVisits, totalUniqueIps: totalUniques, onlineUsers: 1 };
         }
 
+        window.updateGameSystemMonitor = function() {
+            const innerW = window.innerWidth;
+            const innerH = window.innerHeight;
+            const screenW = window.screen.width;
+            const screenH = window.screen.height;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || innerW < 768;
+            const type = isMobile ? '行動裝置' : '電腦';
+
+            const monitorEl = document.getElementById('system-monitor');
+            if (monitorEl) {
+                const devIcon = isMobile ? '<i class="fas fa-mobile-alt"></i>' : '<i class="fas fa-desktop"></i>';
+                monitorEl.innerHTML = `<span style="white-space:nowrap;">${devIcon} ${type}</span> <span class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-expand-arrows-alt"></i> 螢幕: ${screenW}×${screenH}</span> <span class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-window-maximize"></i> 視窗: ${innerW}×${innerH}</span>`;
+            }
+        };
+
         window.renderGameVisitorStats = function() {
             const el = document.getElementById('gameVisitorStats');
             if (!el) return;
             const stats = getGameVisitorStats('1in10t');
             el.innerHTML = `
-                <span><i class="fas fa-compass" style="color:#10b981; margin-right:4px;"></i> 今日探險者: <strong>${stats.todayUniqueIps}</strong> 人</span>
-                <span style="opacity:0.3;">|</span>
-                <span><i class="fas fa-feather-pointed" style="color:#10b981; margin-right:4px;"></i> 今日探索輪迴: <strong>${stats.todayVisits}</strong> 次</span>
-                <span style="opacity:0.3;">|</span>
-                <span><i class="fas fa-paw" style="color:#10b981; margin-right:4px;"></i> 荒野歷史探索人次: <strong>${stats.totalUniqueIps}</strong> 位</span>
-                <span style="opacity:0.3;">|</span>
-                <span><i class="fas fa-seedling" style="color:#10b981; margin-right:4px;"></i> 累積輪迴生命: <strong>${stats.totalVisits}</strong> 柱</span>
+                <span style="white-space:nowrap;"><i class="fas fa-circle" style="color:#10b981; font-size:10px;"></i> 目前在線人數: ${stats.onlineUsers || 1}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-user-check"></i> 本日進入人數: ${stats.todayUniqueIps}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-calendar-check"></i> 本日進入次數: ${stats.todayVisits}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-users"></i> 總曾進入人數: ${stats.totalUniqueIps}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-chart-line"></i> 總網站進入次數: ${stats.totalVisits}</span>
             `;
+            if (window.updateGameSystemMonitor) window.updateGameSystemMonitor();
         };
+
+        window.addEventListener('resize', () => {
+            if (window.updateGameSystemMonitor) window.updateGameSystemMonitor();
+        });
 
         // 支援 URL 參數 ?q=... 自動打開物種獨立搜尋
         document.addEventListener("DOMContentLoaded", () => {
             if (window.renderGameVisitorStats) window.renderGameVisitorStats();
+            if (window.updateGameSystemMonitor) window.updateGameSystemMonitor();
             const params = new URLSearchParams(window.location.search);
             const q = params.get('q') || params.get('search');
             if (q) {
