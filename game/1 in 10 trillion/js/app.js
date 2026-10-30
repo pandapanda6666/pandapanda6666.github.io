@@ -311,6 +311,16 @@
     el.myMemorialModal = document.getElementById("myMemorialModal");
     el.closeMyMemorialBtn = document.getElementById("closeMyMemorialBtn");
     el.myMemorialListContainer = document.getElementById("myMemorialListContainer");
+
+    // 全螢幕省思文字引言與頁尾
+    el.introPrologueOverlay = document.getElementById("introPrologueOverlay");
+    el.prologueLine = document.getElementById("prologueLine");
+    el.prologueDots = document.getElementById("prologueDots");
+    el.prologueFinishBtn = document.getElementById("prologueFinishBtn");
+    el.prologueSkipBtn = document.getElementById("prologueSkipBtn");
+    el.replayPrologueBtn = document.getElementById("replayPrologueBtn");
+    el.replayPrologueBtnDead = document.getElementById("replayPrologueBtnDead");
+    el.topPrologueBtn = document.getElementById("topPrologueBtn");
   }
 
   // 出生計數器 (每秒更新，無表情符號)
@@ -3335,6 +3345,176 @@
     }
   });
 
+  // ============================================================================
+  // 首次進入全螢幕省思文字引言 (Prologue Reflection Screen)
+  // ============================================================================
+  const PROLOGUE_REFLECTION_LINES = [
+    "這個世界上，約有十兆個有意識的生命。",
+    "你，僅僅是其中之一。",
+    "牠們感知世界，牠們畏懼死亡。",
+    "但人類留給牠們的生存空間，正在迅速消逝。",
+    "每一次人為的代價，都是另一個生命的終點。",
+    "如果這一次，你不再是人類——"
+  ];
+
+  let prologueCurrentIdx = 0;
+  let prologueTimer = null;
+  let prologueIsTransitioning = false;
+
+  function initPrologueReflection() {
+    const overlay = el.introPrologueOverlay || document.getElementById("introPrologueOverlay");
+    const lineEl = el.prologueLine || document.getElementById("prologueLine");
+    const dotsContainer = el.prologueDots || document.getElementById("prologueDots");
+    const finishBtn = el.prologueFinishBtn || document.getElementById("prologueFinishBtn");
+    const skipBtn = el.prologueSkipBtn || document.getElementById("prologueSkipBtn");
+    const replayBtn = el.replayPrologueBtn || document.getElementById("replayPrologueBtn");
+    const replayBtnDead = el.replayPrologueBtnDead || document.getElementById("replayPrologueBtnDead");
+    const topPrologueBtn = el.topPrologueBtn || document.getElementById("topPrologueBtn");
+
+    if (!overlay || !lineEl) return;
+
+    const dots = dotsContainer ? dotsContainer.querySelectorAll(".p-dot") : [];
+
+    function showLine(idx) {
+      if (idx >= PROLOGUE_REFLECTION_LINES.length) {
+        completePrologue();
+        return;
+      }
+      prologueCurrentIdx = idx;
+      prologueIsTransitioning = true;
+
+      // 當前文字淡出
+      lineEl.classList.remove("visible");
+      lineEl.classList.add("fading");
+
+      setTimeout(() => {
+        lineEl.textContent = PROLOGUE_REFLECTION_LINES[idx];
+        lineEl.classList.remove("fading");
+        lineEl.classList.add("visible");
+        prologueIsTransitioning = false;
+
+        // 更新指示點
+        dots.forEach((dot, dIdx) => {
+          dot.classList.toggle("active", dIdx === idx);
+          dot.classList.toggle("passed", dIdx < idx);
+        });
+
+        // 最後一句特殊處理
+        if (idx === PROLOGUE_REFLECTION_LINES.length - 1) {
+          if (finishBtn) {
+            finishBtn.style.display = "inline-flex";
+            finishBtn.classList.add("pulse-glow");
+          }
+          if (skipBtn) skipBtn.style.display = "none";
+        } else {
+          if (finishBtn) finishBtn.style.display = "none";
+          if (skipBtn) skipBtn.style.display = "inline-block";
+          // 自動推進至下一句 (淡入後停留約 3.2 秒)
+          prologueTimer = setTimeout(() => {
+            showLine(idx + 1);
+          }, 3300);
+        }
+      }, 420);
+    }
+
+    function advanceNextLine() {
+      if (prologueIsTransitioning) return;
+      if (prologueTimer) {
+        clearTimeout(prologueTimer);
+        prologueTimer = null;
+      }
+      if (prologueCurrentIdx === PROLOGUE_REFLECTION_LINES.length - 1) {
+        completePrologue();
+      } else {
+        showLine(prologueCurrentIdx + 1);
+      }
+    }
+
+    // 只有完整看完，才標記看過並寫入 localStorage！
+    function completePrologue() {
+      if (prologueTimer) {
+        clearTimeout(prologueTimer);
+        prologueTimer = null;
+      }
+      try {
+        localStorage.setItem("10t_reflection_seen", "true");
+      } catch (e) {}
+
+      overlay.classList.add("fade-out-overlay");
+      setTimeout(() => {
+        overlay.style.display = "none";
+        overlay.classList.remove("fade-out-overlay");
+      }, 800);
+    }
+
+    // 沒看完點略過：不寫入 localStorage！下次進入時仍會出現！
+    function dismissPrologueWithoutSave() {
+      if (prologueTimer) {
+        clearTimeout(prologueTimer);
+        prologueTimer = null;
+      }
+      overlay.classList.add("fade-out-overlay");
+      setTimeout(() => {
+        overlay.style.display = "none";
+        overlay.classList.remove("fade-out-overlay");
+      }, 500);
+    }
+
+    function startPrologue() {
+      if (prologueTimer) {
+        clearTimeout(prologueTimer);
+        prologueTimer = null;
+      }
+      overlay.style.display = "flex";
+      overlay.classList.remove("fade-out-overlay");
+      prologueCurrentIdx = 0;
+      lineEl.textContent = "";
+      lineEl.classList.remove("visible", "fading");
+      if (finishBtn) finishBtn.style.display = "none";
+      if (skipBtn) skipBtn.style.display = "inline-block";
+      showLine(0);
+    }
+
+    // 點擊背景任意處快速切換下一句
+    overlay.addEventListener("click", (e) => {
+      if (e.target.closest("#prologueFinishBtn") || e.target.closest("#prologueSkipBtn")) return;
+      advanceNextLine();
+    });
+
+    // 鍵盤導航：空白鍵、Enter 或右鍵前進；Esc 略過
+    document.addEventListener("keydown", (e) => {
+      if (overlay.style.display !== "none" && overlay.style.display !== "") {
+        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
+          e.preventDefault();
+          advanceNextLine();
+        } else if (e.key === "Escape") {
+          dismissPrologueWithoutSave();
+        }
+      }
+    });
+
+    if (finishBtn) finishBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      completePrologue();
+    });
+
+    if (skipBtn) skipBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dismissPrologueWithoutSave();
+    });
+
+    // 網站頁尾與導覽列回顧按鈕
+    if (replayBtn) replayBtn.addEventListener("click", () => startPrologue());
+    if (replayBtnDead) replayBtnDead.addEventListener("click", () => startPrologue());
+    if (topPrologueBtn) topPrologueBtn.addEventListener("click", () => startPrologue());
+
+    // 檢查是否初次進入且尚未完整看完
+    const hasSeen = localStorage.getItem("10t_reflection_seen");
+    if (!hasSeen) {
+      startPrologue();
+    }
+  }
+
   window.addEventListener("DOMContentLoaded", () => {
     initElements();
     bindEvents();
@@ -3345,5 +3525,7 @@
     if (!hasRestored) {
       el.introSec.style.display = "block";
     }
+
+    initPrologueReflection();
   });
 })();
