@@ -75,15 +75,21 @@ window.AiService = {
    */
   async callLlm(messages, responseFormatJson = false) {
     const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 3500);
+    const tid = setTimeout(() => controller.abort(), 7000);
+
+    // 複製 messages，若需要 JSON 則在開頭加強提示，避免 Pollinations 開啟超慢思考模型 (37s)
+    const effectiveMessages = [...messages];
+    if (responseFormatJson && effectiveMessages.length > 0) {
+      effectiveMessages[0] = {
+        role: effectiveMessages[0].role || "system",
+        content: (effectiveMessages[0].content || "") + " 請直接輸出純 JSON 格式物件，以 { 開始以 } 結束，絕不輸出任何 markdown 代碼標籤（不要 ```json）。"
+      };
+    }
 
     const bodyPayload = {
       model: "openai-fast",
-      messages: messages
+      messages: effectiveMessages
     };
-    if (responseFormatJson) {
-      bodyPayload.response_format = { type: "json_object" };
-    }
 
     try {
       const res = await fetch("https://text.pollinations.ai/openai/chat/completions", {

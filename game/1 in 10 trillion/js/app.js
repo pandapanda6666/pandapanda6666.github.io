@@ -271,7 +271,7 @@
     el.candleCount = document.getElementById("candleCount");
     el.memoPresetsRow = document.getElementById("memoPresetsRow");
     el.memoMsgInput = document.getElementById("memoMsgInput");
-    el.memoSendBtn = document.getElementById("memoSendBtn");
+    el.memoSendBtn = document.getElementById("sendMemoMsgBtn") || document.getElementById("memoSendBtn");
     el.memoWall = document.getElementById("memoWall");
     el.memoRandBtn = document.getElementById("memoRandBtn");
     el.memoMineBtn = document.getElementById("memoMineBtn");
@@ -691,12 +691,12 @@
     }
 
     // 輪盤與投胎
-    el.startRollBtn.addEventListener("click", startRollingLife);
-    el.reRollBtn.addEventListener("click", startRollingLife);
-    el.beginLifeBtn.addEventListener("click", enterLifeDashboard);
+    if (el.startRollBtn) el.startRollBtn.addEventListener("click", startRollingLife);
+    if (el.reRollBtn) el.reRollBtn.addEventListener("click", startRollingLife);
+    if (el.beginLifeBtn) el.beginLifeBtn.addEventListener("click", enterLifeDashboard);
 
     // 時間控制器
-    el.pauseBtn.addEventListener("click", togglePause);
+    if (el.pauseBtn) el.pauseBtn.addEventListener("click", togglePause);
     document.querySelectorAll(".sp-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll(".sp-btn").forEach(b => b.classList.remove("active"));
@@ -706,20 +706,23 @@
       });
     });
 
-    el.nextChoiceBtn.addEventListener("click", fastForwardToNextChoice);
+    if (el.nextChoiceBtn) el.nextChoiceBtn.addEventListener("click", fastForwardToNextChoice);
+    if (el.ffBtn) el.ffBtn.addEventListener("click", fastForwardToNextChoice);
 
     // 閱讀保護開關
-    el.readPauseToggleBtn.addEventListener("click", () => {
-      state.readingProtection = !state.readingProtection;
-      if (state.readingProtection) {
-        el.readPauseToggleBtn.classList.add("active");
-        el.readPauseToggleBtn.innerHTML = '<i class="fas fa-book-reader"></i> 閱讀保護：開';
-      } else {
-        el.readPauseToggleBtn.classList.remove("active");
-        el.readPauseToggleBtn.innerHTML = '<i class="fas fa-book-reader"></i> 閱讀保護：關';
-      }
-      saveGameState();
-    });
+    if (el.readPauseToggleBtn) {
+      el.readPauseToggleBtn.addEventListener("click", () => {
+        state.readingProtection = !state.readingProtection;
+        if (state.readingProtection) {
+          el.readPauseToggleBtn.classList.add("active");
+          el.readPauseToggleBtn.innerHTML = '<i class="fas fa-book-reader"></i> 閱讀保護：開';
+        } else {
+          el.readPauseToggleBtn.classList.remove("active");
+          el.readPauseToggleBtn.innerHTML = '<i class="fas fa-book-reader"></i> 閱讀保護：關';
+        }
+        saveGameState();
+      });
+    }
 
     // 放棄此生按鈕 (改為內建確認視窗，不用 confirm)
     if (el.abandonLifeBtn) {
@@ -763,8 +766,8 @@
     }
 
     // 書本翻頁按鈕與點擊頁面翻頁支援
-    el.prevPageBtn.addEventListener("click", turnPagePrev);
-    el.nextPageBtn.addEventListener("click", turnPageNext);
+    if (el.prevPageBtn) el.prevPageBtn.addEventListener("click", turnPagePrev);
+    if (el.nextPageBtn) el.nextPageBtn.addEventListener("click", turnPageNext);
 
     if (el.bookPageRight) {
       el.bookPageRight.addEventListener("click", () => {
@@ -789,7 +792,7 @@
     });
 
     // 前往追思館按鈕
-    el.goToMemorialBtn.addEventListener("click", showMemorialHall);
+    if (el.goToMemorialBtn) el.goToMemorialBtn.addEventListener("click", showMemorialHall);
 
     // 自訂/其他自主行動輸入按鈕
     if (el.submitCustomChoiceBtn) {
@@ -805,22 +808,30 @@
     }
 
     // 追思館內翻閱全篇小說
-    el.reviewNovelBtn.addEventListener("click", () => {
-      el.memoFullNovelText.textContent = state.fullNovelText || "尚無文字記錄。";
-      el.memorialNovelContainer.style.display = "block";
-      el.memorialNovelContainer.scrollIntoView({ behavior: "smooth" });
-    });
-    el.closeMemoNovelBtn.addEventListener("click", () => {
-      el.memorialNovelContainer.style.display = "none";
-    });
+    if (el.reviewNovelBtn) {
+      el.reviewNovelBtn.addEventListener("click", () => {
+        if (el.memoFullNovelText) el.memoFullNovelText.textContent = state.fullNovelText || "尚無文字記錄。";
+        if (el.memorialNovelContainer) {
+          el.memorialNovelContainer.style.display = "block";
+          el.memorialNovelContainer.scrollIntoView({ behavior: "smooth" });
+        }
+      });
+    }
+    if (el.closeMemoNovelBtn) {
+      el.closeMemoNovelBtn.addEventListener("click", () => {
+        if (el.memorialNovelContainer) el.memorialNovelContainer.style.display = "none";
+      });
+    }
 
     // 重生按鈕
-    el.restartGameBtn.addEventListener("click", () => {
-      clearGameState();
-      el.deadSec.style.display = "none";
-      el.introSec.style.display = "block";
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    });
+    if (el.restartGameBtn) {
+      el.restartGameBtn.addEventListener("click", () => {
+        clearGameState();
+        if (el.deadSec) el.deadSec.style.display = "none";
+        if (el.introSec) el.introSec.style.display = "block";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    }
 
     // 風格設定顧問 AI 事件綁定
     let pendingTunedStyle = null;
