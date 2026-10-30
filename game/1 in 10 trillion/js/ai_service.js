@@ -75,9 +75,9 @@ window.AiService = {
    */
   async callLlm(messages, responseFormatJson = false) {
     const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 7000);
+    const tid = setTimeout(() => controller.abort(), 4000);
 
-    // 複製 messages，若需要 JSON 則在開頭加強提示，避免 Pollinations 開啟超慢思考模型 (37s)
+    // 複製 messages，若需要 JSON 則在開頭加強提示，避免 Pollinations 開啟超慢思考模型
     const effectiveMessages = [...messages];
     if (responseFormatJson && effectiveMessages.length > 0) {
       effectiveMessages[0] = {
@@ -86,24 +86,22 @@ window.AiService = {
       };
     }
 
-    const bodyPayload = {
-      model: "openai-fast",
-      messages: effectiveMessages
-    };
-
     try {
-      const res = await fetch("https://text.pollinations.ai/openai/chat/completions", {
+      // 優先使用原生極速端點 (反應速度 < 400ms)
+      const res = await fetch("https://text.pollinations.ai/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyPayload),
+        body: JSON.stringify({
+          messages: effectiveMessages,
+          model: "openai-fast"
+        }),
         signal: controller.signal
       });
       clearTimeout(tid);
 
       if (res.ok) {
-        const data = await res.json();
-        const content = data.choices?.[0]?.message?.content || "";
-        if (content && !content.includes("SERVICE_UNAVAILABLE")) {
+        const content = await res.text();
+        if (content && !content.includes("Free limit reached") && !content.includes("SERVICE_UNAVAILABLE")) {
           return content;
         }
       }
