@@ -52,12 +52,18 @@
                     <span>跨物種文學演繹</span>
                 </div>
                 <div class="nav-controls">
+                    <button type="button" id="speciesSearchBtn" class="pill-btn" onclick="openSpeciesSearchModal()" title="單獨搜尋十兆生命物種檔案" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; font-weight: bold;">
+                        <i class="fas fa-search"></i> 搜尋生態物種
+                    </button>
                     <button type="button" id="ambientSoundBtn" class="pill-btn" title="切換荒野環境氛圍音效">
                         <i class="fas fa-music"></i> <span id="ambientSoundLabel">自然音效：關閉</span>
                     </button>
                     <button type="button" id="themeToggleBtn" class="pill-btn" title="切換明暗模式">
                         <i id="themeIcon" class="fas fa-circle-half-stroke"></i> 明暗主題
                     </button>
+                    <a href="../../" class="pill-btn" title="返回 PandaPanda 的 AI 日常官網首頁" style="text-decoration:none; color:inherit;">
+                        <i class="fas fa-home"></i> 官網首頁
+                    </a>
                 </div>
             </nav>
 
@@ -1113,6 +1119,42 @@
                 </div>
             </div>
         </div>
+
+        <!-- 物種生態檔案獨立搜尋視窗 (Species Search Modal) -->
+        <div id="speciesSearchModal" class="inline-modal-backdrop" style="display:none; z-index:99999;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card" style="max-width:850px; width:92%; max-height:85vh; display:flex; flex-direction:column; padding:24px; background:var(--card-bg, #fff); color:var(--text-color, #222); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:15px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-book-atlas" style="font-size:22px; color:#10b981;"></i>
+                        <div>
+                            <h3 style="margin:0; font-size:18px;">十兆生命 · 生態物種檔案獨立搜尋</h3>
+                            <div style="font-size:12px; color:#64748b;">檢索真實生態統計數據庫與跨物種檔案</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeSpeciesSearchModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#94a3b8;"><i class="fas fa-times"></i></button>
+                </div>
+
+                <!-- 搜尋與分類列 -->
+                <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+                    <div style="position:relative;">
+                        <i class="fas fa-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                        <input type="text" id="speciesSearchInput" placeholder="搜尋物種名稱 (例如: 灰狼、智人、座頭鯨)、學名、生境或天敵..." style="width:100%; box-sizing:border-box; padding:10px 14px 10px 38px; border-radius:20px; border:1px solid #cbd5e1; font-size:14px; outline:none;" oninput="filterSpeciesArchive(this.value)">
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; font-size:12px;" id="speciesCatFilters">
+                        <button type="button" class="pill-btn sm active" onclick="setSpeciesCat('all', this)">全部物種</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('mammal', this)">哺乳綱</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('human', this)">智人文明</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('bird', this)">鳥綱</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('ocean', this)">海洋生態</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('reptile', this)">爬蟲類</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('insect', this)">節肢與昆蟲</button>
+                    </div>
+                </div>
+
+                <!-- 物種卡片容器 (平滑滾動) -->
+                <div id="speciesCardsContainer" style="flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; padding:4px;"></div>
+            </div>
+        </div>
     </main>
 
     <!-- 腳本引入 -->
@@ -1120,5 +1162,93 @@
     <script src="js/destiny_engine.js"></script>
     <script src="js/ai_service.js"></script>
     <script src="js/app.js"></script>
+
+    <script>
+        window.currentSpeciesCat = 'all';
+        window.currentSpeciesQuery = '';
+
+        window.openSpeciesSearchModal = function(initialQuery) {
+            const modal = document.getElementById('speciesSearchModal');
+            if (modal) modal.style.display = 'flex';
+            if (initialQuery !== undefined) {
+                const inp = document.getElementById('speciesSearchInput');
+                if (inp) inp.value = initialQuery;
+                window.currentSpeciesQuery = initialQuery;
+            }
+            renderSpeciesCards();
+        };
+
+        window.closeSpeciesSearchModal = function() {
+            const modal = document.getElementById('speciesSearchModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.setSpeciesCat = function(cat, btn) {
+            window.currentSpeciesCat = cat;
+            document.querySelectorAll('#speciesCatFilters button').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderSpeciesCards();
+        };
+
+        window.filterSpeciesArchive = function(val) {
+            window.currentSpeciesQuery = (val || '').trim().toLowerCase();
+            renderSpeciesCards();
+        };
+
+        window.renderSpeciesCards = function() {
+            const container = document.getElementById('speciesCardsContainer');
+            if (!container || !window.SPECIES_DATABASE) return;
+
+            const q = window.currentSpeciesQuery;
+            const cat = window.currentSpeciesCat;
+
+            const filtered = window.SPECIES_DATABASE.filter(sp => {
+                if (cat !== 'all' && sp.category !== cat) return false;
+                if (!q) return true;
+                const matchName = (sp.name || '').toLowerCase().includes(q);
+                const matchSci = (sp.scientificName || '').toLowerCase().includes(q);
+                const matchBiomes = (sp.biomes || []).some(b => (b.name + b.climate).toLowerCase().includes(q));
+                const matchThreats = (sp.threats || []).some(t => t.toLowerCase().includes(q));
+                return matchName || matchSci || matchBiomes || matchThreats;
+            });
+
+            container.innerHTML = '';
+            if (filtered.length === 0) {
+                container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#94a3b8;">無符合「${escapeHtml(q)}」的物種檔案</div>`;
+                return;
+            }
+
+            filtered.forEach(sp => {
+                const card = document.createElement('div');
+                card.style.cssText = 'background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:6px;';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight:bold; font-size:15px; color:#10b981;">${escapeHtml(sp.name)}</div>
+                        <div style="font-size:11px; font-style:italic; color:#64748b; margin-bottom:4px;">${escapeHtml(sp.scientificName)}</div>
+                        <div style="font-size:12px; color:#475569; line-height:1.4;">
+                            <div>⚖️ 均重: <strong>${sp.weightKg} kg</strong> • ⏳ 壽命: <strong>${sp.maxAge} ${sp.unit}</strong></div>
+                            <div>🌍 典型生境: <strong>${escapeHtml((sp.biomes && sp.biomes[0]) ? sp.biomes[0].name : '全球')}</strong></div>
+                            <div style="margin-top:2px;">⚠️ 天敵威脅: <span style="font-size:11px; color:#b91c1c;">${escapeHtml((sp.threats || []).slice(0, 2).join('、'))}</span></div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // 支援 URL 參數 ?q=... 自動打開物種獨立搜尋
+        document.addEventListener("DOMContentLoaded", () => {
+            const params = new URLSearchParams(window.location.search);
+            const q = params.get('q') || params.get('search');
+            if (q) {
+                openSpeciesSearchModal(q);
+            }
+        });
+    </script>
 </body>
 </html>
