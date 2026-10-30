@@ -24,6 +24,18 @@
     selectedAuthor: "erinhunter", // erinhunter, shenshixi, 或自訂物件 { name: "..." }
     contentMode: "normal",        // normal (普通), full (完整), compact (精簡)
     experienceMode: "story",      // story (故事模式/深層情感), realism (現實模式/客觀生態)
+    era: "now",                  // now (現在), past (過去), future (未來), any (哪個世界都好)
+    eraYear: 1990,               // 過去時代年份 (1950-2025)
+    drawMode: "birth",           // birth (此刻出生的生靈), pop (現存群體)
+    lifePace: "30",              // 30 (約30分鐘), 60 (約1小時), 90 (約1小時30分鐘)
+    homeCountry: "TW",           // 使用者母國，預設台灣
+    skipHeavy: false,            // 略過可怕/過於沉重的情節
+    autoDecision: false,         // 自動抉擇開關 (不中斷小說流暢閱讀)
+    pauseOnReflection: true,     // 里程碑沉思停頓 (5, 15, 30, 50, 70歲)
+    musicVolume: 0.5,            // 背景音量
+    feedStarredOnly: false,      // 事件紀錄是否僅顯示加星標項目
+    starredFeedIndices: [],      // 已加星標事件索引
+    candleCount: 0,              // 點燭計數
     currentLife: null,
     currentAge: 0,
     currentSeasonIdx: 0,
@@ -71,6 +83,25 @@
     el.animalTicker = document.getElementById("liveAnimalBirths");
     el.humanTicker = document.getElementById("liveHumanBirths");
 
+    // 1in8b 序幕與設定元件
+    el.eraGroup = document.getElementById("eraGroup");
+    el.eraYrRow = document.getElementById("eraYrRow");
+    el.eraYearSel = document.getElementById("eraYearSel");
+    el.drawGroup = document.getElementById("drawGroup");
+    el.paceGroup = document.getElementById("paceGroup");
+    el.homeSel = document.getElementById("homeSel");
+    el.homeDescText = document.getElementById("homeDescText");
+    el.cBirth = document.getElementById("cBirth");
+    el.cDeath = document.getElementById("cDeath");
+    el.tgMap = document.getElementById("tgMap");
+    el.certMap = document.getElementById("certMap");
+    el.certHome = document.getElementById("certHome");
+    el.certCardBtn = document.getElementById("certCardBtn");
+    el.softBtn2 = document.getElementById("softBtn2");
+    el.careLinkBtn = document.getElementById("careLinkBtn");
+    el.heroMemo = document.getElementById("heroMemo");
+    el.pastLives = document.getElementById("pastLives");
+
     el.contentModeGroup = document.getElementById("contentModeGroup");
     el.modeHintText = document.getElementById("modeHintText");
     el.experienceModeGroup = document.getElementById("experienceModeGroup");
@@ -90,6 +121,9 @@
     el.certCard = document.getElementById("certCard");
     el.certCharName = document.getElementById("certCharName");
     el.certMultiNames = document.getElementById("certMultiNames");
+    el.certGenderBadge = document.getElementById("certGenderBadge");
+    el.certAppearanceBox = document.getElementById("certAppearanceBox");
+    el.certAppearanceText = document.getElementById("certAppearanceText");
     el.certExpBadge = document.getElementById("certExpBadge");
     el.beginLifeBtn = document.getElementById("beginLifeBtn");
     el.reRollBtn = document.getElementById("reRollBtn");
@@ -107,10 +141,32 @@
     el.confirmAbandonYesBtn = document.getElementById("confirmAbandonYesBtn");
     el.confirmAbandonNoBtn = document.getElementById("confirmAbandonNoBtn");
 
+    // 主畫面 1in8b 新增控制 (速度、快進、更多選單)
+    el.ffBtn = document.getElementById("ffBtn");
+    el.moreBtn = document.getElementById("moreBtn");
+    el.moreMenu = document.getElementById("moreMenu");
+    el.autoBtn = document.getElementById("autoBtn");
+    el.autoStatusTag = document.getElementById("autoStatusTag");
+    el.musicVolSlider = document.getElementById("musicVolSlider");
+    el.pauseQ = document.getElementById("pauseQ");
+    el.pauseQStatusTag = document.getElementById("pauseQStatusTag");
+    el.softBtn = document.getElementById("softBtn");
+    el.softStatusTag = document.getElementById("softStatusTag");
+    el.themeBtn2 = document.getElementById("themeBtn2");
+    el.careBtn = document.getElementById("careBtn");
+    el.goFam = document.getElementById("goFam");
+    el.goShop = document.getElementById("goShop");
+    el.famCard = document.getElementById("famCard");
+    el.famList = document.getElementById("famList");
+    el.dashHomeCard = document.getElementById("dashHomeCard");
+    el.filterStarredBtn = document.getElementById("filterStarredBtn");
+
     el.dashAvatar = document.getElementById("dashAvatar");
     el.dashName = document.getElementById("dashName");
     el.dashMultiNames = document.getElementById("dashMultiNames");
     el.dashSpecies = document.getElementById("dashSpecies");
+    el.dashGenderBadge = document.getElementById("dashGenderBadge");
+    el.dashAppearanceText = document.getElementById("dashAppearanceText");
     el.dashExpBadge = document.getElementById("dashExpBadge");
     el.dashRank = document.getElementById("dashRank");
     el.dashBiome = document.getElementById("dashBiome");
@@ -145,6 +201,7 @@
     el.goToMemorialBtn = document.getElementById("goToMemorialBtn");
 
     el.bookSpreadContainer = document.getElementById("bookSpreadContainer");
+    el.novelLoadingBanner = document.getElementById("novelLoadingBanner");
     el.novelLoadingOverlay = document.getElementById("novelLoadingOverlay");
     el.novelLoadingTitle = document.getElementById("novelLoadingTitle");
     el.novelLoadingDesc = document.getElementById("novelLoadingDesc");
@@ -156,6 +213,24 @@
     el.pageContentLeft = document.getElementById("pageContentLeft");
     el.pageNumRight = document.getElementById("pageNumRight");
     el.pageNumLeft = document.getElementById("pageNumLeft");
+
+    // 風格設定顧問 AI
+    el.openStyleTunerBtn = document.getElementById("openStyleTunerBtn");
+    el.styleTunerModal = document.getElementById("styleTunerModal");
+    el.closeStyleTunerBtn = document.getElementById("closeStyleTunerBtn");
+    el.styleTunerInput = document.getElementById("styleTunerInput");
+    el.styleTunerSendBtn = document.getElementById("styleTunerSendBtn");
+    el.styleTunerChatBox = document.getElementById("styleTunerChatBox");
+    el.applyTunedStyleBtn = document.getElementById("applyTunedStyleBtn");
+    el.currentTunedStyleSummary = document.getElementById("currentTunedStyleSummary");
+
+    // 生命終暮結算彈窗
+    el.deathSettlementModal = document.getElementById("deathSettlementModal");
+    el.stayReadDeathBtn = document.getElementById("stayReadDeathBtn");
+    el.confirmGoMemorialBtn = document.getElementById("confirmGoMemorialBtn");
+    el.settleCauseText = document.getElementById("settleCauseText");
+    el.settlePercentileText = document.getElementById("settlePercentileText");
+    el.settleChaptersText = document.getElementById("settleChaptersText");
 
     el.choiceContainer = document.getElementById("choiceContainer");
     el.choiceIncidentText = document.getElementById("choiceIncidentText");
@@ -184,6 +259,58 @@
     el.closeMemoNovelBtn = document.getElementById("closeMemoNovelBtn");
     el.memorialNovelContainer = document.getElementById("memorialNovelContainer");
     el.memoFullNovelText = document.getElementById("memoFullNovelText");
+
+    // 荒野追思館
+    el.candleSection = document.getElementById("candleSection");
+    el.lightCandleBtn = document.getElementById("lightCandleBtn");
+    el.candleCount = document.getElementById("candleCount");
+    el.memoPresetsRow = document.getElementById("memoPresetsRow");
+    el.memoMsgInput = document.getElementById("memoMsgInput");
+    el.memoSendBtn = document.getElementById("memoSendBtn");
+    el.memoWall = document.getElementById("memoWall");
+    el.memoRandBtn = document.getElementById("memoRandBtn");
+    el.memoMineBtn = document.getElementById("memoMineBtn");
+    el.moveRecordsBtn = document.getElementById("moveRecordsBtn");
+    el.shareMemorialBtn = document.getElementById("shareMemorialBtn");
+    el.pastShelfSection = document.getElementById("pastShelfSection");
+    el.pastShelfList = document.getElementById("pastShelfList");
+
+    // 內建彈窗
+    el.questionPauseModal = document.getElementById("questionPauseModal");
+    el.reflectAgeTag = document.getElementById("reflectAgeTag");
+    el.reflectQuestionText = document.getElementById("reflectQuestionText");
+    el.reflectAnswerInput = document.getElementById("reflectAnswerInput");
+    el.skipReflectBtn = document.getElementById("skipReflectBtn");
+    el.submitReflectBtn = document.getElementById("submitReflectBtn");
+
+    el.shopModal = document.getElementById("shopModal");
+    el.closeShopBtn = document.getElementById("closeShopBtn");
+    el.shopBalanceLabel = document.getElementById("shopBalanceLabel");
+
+    el.careModal = document.getElementById("careModal");
+    el.closeCareModalBtn = document.getElementById("closeCareModalBtn");
+    el.ackCareBtn = document.getElementById("ackCareBtn");
+
+    el.shareCardModal = document.getElementById("shareCardModal");
+    el.closeShareModalBtn = document.getElementById("closeShareModalBtn");
+    el.scSerial = document.getElementById("scSerial");
+    el.scTitle = document.getElementById("scTitle");
+    el.scMeta = document.getElementById("scMeta");
+    el.scStory = document.getElementById("scStory");
+    el.scStats = document.getElementById("scStats");
+    el.shareTextContent = document.getElementById("shareTextContent");
+    el.copyShareBtn = document.getElementById("copyShareBtn");
+
+    el.moveModal = document.getElementById("moveModal");
+    el.closeMoveModalBtn = document.getElementById("closeMoveModalBtn");
+    el.exportCodeArea = document.getElementById("exportCodeArea");
+    el.copyExportCodeBtn = document.getElementById("copyExportCodeBtn");
+    el.importCodeArea = document.getElementById("importCodeArea");
+    el.confirmImportBtn = document.getElementById("confirmImportBtn");
+
+    el.myMemorialModal = document.getElementById("myMemorialModal");
+    el.closeMyMemorialBtn = document.getElementById("closeMyMemorialBtn");
+    el.myMemorialListContainer = document.getElementById("myMemorialListContainer");
   }
 
   // 出生計數器 (每秒更新，無表情符號)
@@ -307,6 +434,244 @@
         } else if (e.key === "Escape") {
           if (el.customAuthorInline) el.customAuthorInline.style.display = "none";
         }
+      });
+    }
+
+    // 1in8b 時代選擇
+    if (el.eraGroup) {
+      el.eraGroup.querySelectorAll(".seg-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          el.eraGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.era = btn.dataset.era;
+          if (el.eraYrRow) {
+            el.eraYrRow.style.display = (state.era === "past") ? "flex" : "none";
+          }
+          saveGameState();
+        });
+      });
+    }
+
+    if (el.eraYearSel) {
+      el.eraYearSel.addEventListener("change", (e) => {
+        state.eraYear = parseInt(e.target.value, 10);
+        saveGameState();
+      });
+    }
+
+    // 1in8b 抽籤方式選擇 (此刻出生 vs 現存群體)
+    if (el.drawGroup) {
+      el.drawGroup.querySelectorAll(".seg-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          el.drawGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.drawMode = btn.dataset.draw;
+          saveGameState();
+        });
+      });
+    }
+
+    // 1in8b 人生長度 (30分/60分/90分)
+    if (el.paceGroup) {
+      el.paceGroup.querySelectorAll(".seg-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          el.paceGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          state.lifePace = btn.dataset.pace;
+          restartSimulationTimer();
+          saveGameState();
+        });
+      });
+    }
+
+    // 1in8b 實際出生地母國選擇
+    if (el.homeSel) {
+      el.homeSel.addEventListener("change", (e) => {
+        state.homeCountry = e.target.value;
+        const hc = (window.HOME_COUNTRIES_LIST || []).find(c => c.id === state.homeCountry);
+        if (hc && el.homeDescText) {
+          el.homeDescText.textContent = `${hc.name}：預期壽命約 ${hc.avgLifespan} 歲，嬰兒死亡率 ${(hc.infantMortality * 100).toFixed(2)}%，人均 GDP $${hc.gdpPppUsd.toLocaleString()} 美元。`;
+        }
+        saveGameState();
+      });
+    }
+
+    // 敏感內容切換 (略過可怕的情節)
+    const toggleSoftContent = () => {
+      state.skipHeavy = !state.skipHeavy;
+      const statusText = state.skipHeavy ? "已開啟過濾" : "未開啟過濾";
+      if (el.softBtn2) el.softBtn2.textContent = state.skipHeavy ? "已略過可怕的情節" : "略過可怕的情節";
+      if (el.softStatusTag) el.softStatusTag.textContent = statusText;
+      saveGameState();
+    };
+    if (el.softBtn2) el.softBtn2.addEventListener("click", toggleSoftContent);
+    if (el.softBtn) el.softBtn.addEventListener("click", toggleSoftContent);
+
+    // 心理與求助諮詢彈窗
+    if (el.careLinkBtn) el.careLinkBtn.addEventListener("click", () => { if (el.careModal) el.careModal.style.display = "flex"; });
+    if (el.careBtn) el.careBtn.addEventListener("click", () => {
+      if (el.moreMenu) el.moreMenu.classList.remove("active");
+      if (el.careModal) el.careModal.style.display = "flex";
+    });
+    if (el.careCloseBtn) el.careCloseBtn.addEventListener("click", () => { if (el.careModal) el.careModal.style.display = "none"; });
+    if (el.careModal) el.careModal.addEventListener("click", (e) => { if (e.target === el.careModal) el.careModal.style.display = "none"; });
+
+    // 更多選單 (⋯) 下拉開關
+    if (el.moreBtn) {
+      el.moreBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (el.moreMenu) el.moreMenu.classList.toggle("active");
+      });
+    }
+    document.addEventListener("click", (e) => {
+      if (el.moreMenu && el.moreMenu.classList.contains("active")) {
+        if (!el.moreMenu.contains(e.target) && e.target !== el.moreBtn) {
+          el.moreMenu.classList.remove("active");
+        }
+      }
+    });
+
+    // 自動抉擇開關
+    if (el.autoBtn) {
+      el.autoBtn.addEventListener("click", () => {
+        state.autoDecision = !state.autoDecision;
+        if (el.autoStatusTag) el.autoStatusTag.textContent = state.autoDecision ? "開" : "關";
+        if (el.autoStatusTag) el.autoStatusTag.classList.toggle("more-status-active", state.autoDecision);
+        saveGameState();
+      });
+    }
+
+    // 音量滑桿
+    if (el.musicVolSlider) {
+      el.musicVolSlider.addEventListener("input", (e) => {
+        state.musicVolume = parseFloat(e.target.value);
+        if (state.ambientGain && state.audioCtx) {
+          state.ambientGain.gain.setValueAtTime(state.musicVolume * 0.08, state.audioCtx.currentTime);
+        }
+      });
+    }
+
+    // 里程碑沉思停頓開關
+    if (el.pauseQ) {
+      el.pauseQ.addEventListener("click", () => {
+        state.pauseOnReflection = !state.pauseOnReflection;
+        if (el.pauseQStatusTag) el.pauseQStatusTag.textContent = state.pauseOnReflection ? "開" : "關";
+        if (el.pauseQStatusTag) el.pauseQStatusTag.classList.toggle("more-status-active", state.pauseOnReflection);
+        saveGameState();
+      });
+    }
+
+    // 主題切換 (選單內)
+    if (el.themeBtn2) {
+      el.themeBtn2.addEventListener("click", () => {
+        toggleTheme();
+        if (el.moreMenu) el.moreMenu.classList.remove("active");
+      });
+    }
+
+    // 查看家庭成員
+    if (el.goFam) {
+      el.goFam.addEventListener("click", () => {
+        if (el.moreMenu) el.moreMenu.classList.remove("active");
+        if (el.famCard) el.famCard.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+
+    // 花費與投資彈窗
+    if (el.goShop) {
+      el.goShop.addEventListener("click", () => {
+        if (el.moreMenu) el.moreMenu.classList.remove("active");
+        openShopModal();
+      });
+    }
+    if (el.closeShopBtn) el.closeShopBtn.addEventListener("click", () => { if (el.shopModal) el.shopModal.style.display = "none"; });
+    if (el.shopModal) el.shopModal.addEventListener("click", (e) => { if (e.target === el.shopModal) el.shopModal.style.display = "none"; });
+
+    // 事件流星星篩選
+    if (el.filterStarredBtn) {
+      el.filterStarredBtn.addEventListener("click", () => {
+        state.feedStarredOnly = !state.feedStarredOnly;
+        el.filterStarredBtn.classList.toggle("active", state.feedStarredOnly);
+        renderFeedEvents();
+      });
+    }
+
+    // 快進到下一個抉擇
+    if (el.ffBtn) {
+      el.ffBtn.addEventListener("click", fastForwardToNextChoice);
+    }
+
+    // 出生證明分享卡
+    if (el.certCardBtn) {
+      el.certCardBtn.addEventListener("click", () => openShareCardModal(false));
+    }
+
+    // 荒野追思館分享卡
+    if (el.shareMemorialBtn) {
+      el.shareMemorialBtn.addEventListener("click", () => openShareCardModal(true));
+    }
+    if (el.closeShareModalBtn) el.closeShareModalBtn.addEventListener("click", () => { if (el.shareCardModal) el.shareCardModal.style.display = "none"; });
+    if (el.shareCardModal) el.shareCardModal.addEventListener("click", (e) => { if (e.target === el.shareCardModal) el.shareCardModal.style.display = "none"; });
+    if (el.copyShareBtn) el.copyShareBtn.addEventListener("click", copyShareCardContent);
+
+    // 點亮蠟燭
+    if (el.lightCandleBtn) {
+      el.lightCandleBtn.addEventListener("click", handleLightCandle);
+    }
+
+    // 思念牆留言
+    if (el.memoPresetsRow) {
+      el.memoPresetsRow.querySelectorAll(".preset-chip").forEach(chip => {
+        chip.addEventListener("click", () => {
+          if (el.memoMsgInput) el.memoMsgInput.value = chip.dataset.text || chip.textContent.trim();
+        });
+      });
+    }
+    if (el.memoSendBtn) el.memoSendBtn.addEventListener("click", handlePostMemorialMessage);
+    if (el.memoMsgInput) {
+      el.memoMsgInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handlePostMemorialMessage();
+        }
+      });
+    }
+
+    // 隨機重現一則過往人生
+    if (el.memoRandBtn) el.memoRandBtn.addEventListener("click", handleShowRandomMemorialLife);
+
+    // 我的紀念碑清單
+    if (el.memoMineBtn) el.memoMineBtn.addEventListener("click", openMyMemorialLivesModal);
+    if (el.closeMyMemorialBtn) el.closeMyMemorialBtn.addEventListener("click", () => { if (el.myMemorialModal) el.myMemorialModal.style.display = "none"; });
+    if (el.myMemorialModal) el.myMemorialModal.addEventListener("click", (e) => { if (e.target === el.myMemorialModal) el.myMemorialModal.style.display = "none"; });
+
+    // 跨裝置紀錄轉移
+    if (el.moveRecordsBtn) el.moveRecordsBtn.addEventListener("click", openTransferRecordsModal);
+    if (el.closeMoveModalBtn) el.closeMoveModalBtn.addEventListener("click", () => { if (el.moveModal) el.moveModal.style.display = "none"; });
+    if (el.moveModal) el.moveModal.addEventListener("click", (e) => { if (e.target === el.moveModal) el.moveModal.style.display = "none"; });
+    if (el.copyExportCodeBtn) el.copyExportCodeBtn.addEventListener("click", copyExportTransferCode);
+    if (el.confirmImportBtn) el.confirmImportBtn.addEventListener("click", applyImportTransferCode);
+
+    // 里程碑沉思彈窗按鈕
+    if (el.skipReflectBtn) {
+      el.skipReflectBtn.addEventListener("click", () => {
+        if (el.questionPauseModal) el.questionPauseModal.style.display = "none";
+        setPauseState(false);
+        startSimulationLoop();
+      });
+    }
+    if (el.submitReflectBtn) {
+      el.submitReflectBtn.addEventListener("click", () => {
+        const thought = el.reflectAnswerInput ? el.reflectAnswerInput.value.trim() : "";
+        pushEventToFeed({
+          ageLabel: `${state.currentAge} ${state.currentLife.species.unit}・深層沉思`,
+          type: "milestone",
+          isConsolidated: true,
+          text: thought ? `在 ${state.currentAge} 歲銘刻感悟：「${thought}」。` : `在 ${state.currentAge} 歲佇足沉思，將對荒野生命的眷戀化為深層直覺。`
+        });
+        if (el.questionPauseModal) el.questionPauseModal.style.display = "none";
+        setPauseState(false);
+        startSimulationLoop();
       });
     }
 
@@ -442,6 +807,143 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    // 風格設定顧問 AI 事件綁定
+    let pendingTunedStyle = null;
+    let tunerHistory = [];
+
+    if (el.openStyleTunerBtn) {
+      el.openStyleTunerBtn.addEventListener("click", () => {
+        if (el.styleTunerModal) el.styleTunerModal.style.display = "flex";
+      });
+    }
+
+    if (el.closeStyleTunerBtn) {
+      el.closeStyleTunerBtn.addEventListener("click", () => {
+        if (el.styleTunerModal) el.styleTunerModal.style.display = "none";
+      });
+    }
+
+    if (el.styleTunerModal) {
+      el.styleTunerModal.addEventListener("click", (e) => {
+        if (e.target === el.styleTunerModal) el.styleTunerModal.style.display = "none";
+      });
+    }
+
+    // 快速推薦風格按鈕
+    document.querySelectorAll(".preset-pill-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const preset = btn.dataset.preset;
+        if (el.styleTunerInput) {
+          el.styleTunerInput.value = `我想採用${preset}的文字風格與描寫要求`;
+          handleStyleTunerSend();
+        }
+      });
+    });
+
+    const appendTunerMessage = (role, text) => {
+      if (!el.styleTunerChatBox) return;
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `tuner-msg ${role === 'user' ? 'user-msg' : 'bot-msg'}`;
+      msgDiv.innerHTML = `<div class="tuner-bubble">${escapeHtml(text)}</div>`;
+      el.styleTunerChatBox.appendChild(msgDiv);
+      el.styleTunerChatBox.scrollTop = el.styleTunerChatBox.scrollHeight;
+    };
+
+    const handleStyleTunerSend = async () => {
+      if (!el.styleTunerInput) return;
+      const inputVal = el.styleTunerInput.value.trim();
+      if (!inputVal) return;
+
+      appendTunerMessage("user", inputVal);
+      el.styleTunerInput.value = "";
+      tunerHistory.push({ role: "user", content: inputVal });
+
+      const thinkingDiv = document.createElement("div");
+      thinkingDiv.className = "tuner-msg bot-msg";
+      thinkingDiv.innerHTML = `<div class="tuner-bubble"><i class="fas fa-spinner fa-spin"></i> 顧問正在研讀並調校筆觸世界觀...</div>`;
+      el.styleTunerChatBox.appendChild(thinkingDiv);
+      el.styleTunerChatBox.scrollTop = el.styleTunerChatBox.scrollHeight;
+
+      try {
+        const res = await window.AiService.tuneAuthorStyleWithAi(inputVal, tunerHistory.slice(-4));
+        thinkingDiv.remove();
+        if (res && res.replyText) {
+          appendTunerMessage("bot", res.replyText);
+          tunerHistory.push({ role: "assistant", content: res.replyText });
+          if (res.styleConfig) {
+            pendingTunedStyle = res.styleConfig;
+            if (el.currentTunedStyleSummary) {
+              el.currentTunedStyleSummary.textContent = `已調校風格：${res.styleConfig.name}`;
+            }
+          }
+        }
+      } catch (err) {
+        thinkingDiv.remove();
+        appendTunerMessage("bot", "風格調校完成！已為您匹配相應的野生文學規則。");
+        pendingTunedStyle = { name: inputVal, directive: inputVal };
+      }
+    };
+
+    if (el.styleTunerSendBtn) {
+      el.styleTunerSendBtn.addEventListener("click", handleStyleTunerSend);
+    }
+    if (el.styleTunerInput) {
+      el.styleTunerInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleStyleTunerSend();
+        }
+      });
+    }
+
+    if (el.applyTunedStyleBtn) {
+      el.applyTunedStyleBtn.addEventListener("click", () => {
+        if (!pendingTunedStyle) {
+          alert("請先在對話中輸入您想調校的風格或點選快速推薦！");
+          return;
+        }
+        state.selectedAuthor = pendingTunedStyle;
+        updateAuthorHint(state.selectedAuthor);
+
+        // 在作家切換列加上自訂按鈕
+        el.authorGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+        const customBtn = document.createElement("button");
+        customBtn.type = "button";
+        customBtn.className = "seg-btn active";
+        customBtn.textContent = pendingTunedStyle.name;
+        customBtn.addEventListener("click", () => {
+          el.authorGroup.querySelectorAll(".seg-btn").forEach(b => b.classList.remove("active"));
+          customBtn.classList.add("active");
+          state.selectedAuthor = pendingTunedStyle;
+          updateAuthorHint(state.selectedAuthor);
+          saveGameState();
+        });
+        el.authorGroup.appendChild(customBtn);
+
+        if (el.styleTunerModal) el.styleTunerModal.style.display = "none";
+        saveGameState();
+      });
+    }
+
+    // 生命終暮結算彈窗按鈕
+    if (el.stayReadDeathBtn) {
+      el.stayReadDeathBtn.addEventListener("click", () => {
+        if (el.deathSettlementModal) el.deathSettlementModal.style.display = "none";
+        el.novelBookCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+    if (el.confirmGoMemorialBtn) {
+      el.confirmGoMemorialBtn.addEventListener("click", () => {
+        if (el.deathSettlementModal) el.deathSettlementModal.style.display = "none";
+        showMemorialHall();
+      });
+    }
+    if (el.deathSettlementModal) {
+      el.deathSettlementModal.addEventListener("click", (e) => {
+        if (e.target === el.deathSettlementModal) el.deathSettlementModal.style.display = "none";
+      });
+    }
+
     // 主題與音效
     el.themeToggleBtn.addEventListener("click", toggleTheme);
     el.ambientSoundBtn.addEventListener("click", toggleAmbientSound);
@@ -550,7 +1052,13 @@
     const pipelineConfig = {
       author: state.selectedAuthor,
       contentMode: state.contentMode,
-      experienceMode: state.experienceMode
+      experienceMode: state.experienceMode,
+      era: state.era,
+      eraYear: state.eraYear,
+      drawMode: state.drawMode,
+      pace: state.lifePace,
+      homeCountry: state.homeCountry,
+      skipHeavy: state.skipHeavy
     };
 
     const lifeData = await window.AiService.generateLifePipeline(chosenSpecies, pipelineConfig, (pct, msg) => {
@@ -587,6 +1095,20 @@
 
     // 多重稱呼標籤列表
     renderMultiNameTags(el.certMultiNames, life.names);
+
+    // 性別徽章
+    if (el.certGenderBadge) {
+      const g = life.gender || "雄性";
+      el.certGenderBadge.textContent = g;
+      el.certGenderBadge.className = "cert-gender-badge";
+      if (g === "雌性") el.certGenderBadge.classList.add("female");
+      else if (g === "雌雄同體") el.certGenderBadge.classList.add("hermaphrodite");
+    }
+
+    // 樣貌特徵描寫
+    if (el.certAppearanceText) {
+      el.certAppearanceText.textContent = life.appearance || "體態勻稱，毛色健康自然，帶著野外獨有的生命張力。";
+    }
 
     document.querySelector(".cert-species-cn").textContent = s.name;
     document.querySelector(".cert-species-sci").textContent = `(${s.scientificName})`;
@@ -661,6 +1183,229 @@
     }
 
     document.getElementById("certPrologueText").textContent = life.prologueNovel;
+
+    // 1in8b 出生證明世界地圖繪製
+    renderCertMap(life);
+    // 1in8b 母國比較卡片
+    renderCertHome(life);
+  }
+
+  // --------------------------------------------------------------------------
+  // 世界地圖 Canvas 繪製器 (點陣極簡投影 + 出生地與母國連線 + 全球生滅脈搏)
+  // --------------------------------------------------------------------------
+  const WORLD_LAND_POINTS = [
+    { lat: 35, lng: 105 }, { lat: 38, lng: 116 }, { lat: 31, lng: 121 }, { lat: 24, lng: 121 },
+    { lat: 22, lng: 114 }, { lat: 36, lng: 128 }, { lat: 36, lng: 138 }, { lat: 43, lng: 142 },
+    { lat: 14, lng: 100 }, { lat: 10, lng: 106 }, { lat: 1, lng: 104 }, { lat: -6, lng: 106 },
+    { lat: 13, lng: 122 }, { lat: 21, lng: 105 },
+    { lat: 28, lng: 77 }, { lat: 19, lng: 73 }, { lat: 13, lng: 80 }, { lat: 23, lng: 90 },
+    { lat: 33, lng: 73 }, { lat: 41, lng: 69 }, { lat: 32, lng: 53 }, { lat: 35, lng: 51 },
+    { lat: 51, lng: 0 }, { lat: 48, lng: 2 }, { lat: 52, lng: 13 }, { lat: 41, lng: 12 },
+    { lat: 40, lng: -3 }, { lat: 55, lng: 37 }, { lat: 59, lng: 18 }, { lat: 60, lng: 25 },
+    { lat: 52, lng: 21 }, { lat: 44, lng: 26 }, { lat: 38, lng: 23 },
+    { lat: 30, lng: 31 }, { lat: 9, lng: 7 }, { lat: 6, lng: 3 }, { lat: -1, lng: 36 },
+    { lat: -26, lng: 28 }, { lat: -33, lng: 18 }, { lat: 14, lng: -17 }, { lat: 33, lng: -7 },
+    { lat: 4, lng: 9 }, { lat: -4, lng: 15 }, { lat: -18, lng: 47 },
+    { lat: 40, lng: -74 }, { lat: 34, lng: -118 }, { lat: 41, lng: -87 }, { lat: 29, lng: -95 },
+    { lat: 45, lng: -75 }, { lat: 49, lng: -123 }, { lat: 64, lng: -147 }, { lat: 19, lng: -99 },
+    { lat: 4, lng: -74 }, { lat: -12, lng: -77 }, { lat: -23, lng: -46 }, { lat: -34, lng: -58 },
+    { lat: -33, lng: -70 }, { lat: -15, lng: -47 }, { lat: -3, lng: -60 },
+    { lat: -33, lng: 151 }, { lat: -37, lng: 144 }, { lat: -31, lng: 115 }, { lat: -41, lng: 174 },
+    { lat: -9, lng: 147 }
+  ];
+
+  function drawWorldMap(canvas, targetCoord, homeCoord) {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const parent = canvas.parentElement || canvas;
+    const w = parent.clientWidth || 360;
+    const h = parent.clientHeight || 180;
+    canvas.width = w;
+    canvas.height = h;
+
+    // 背景底色 (深太空藍黑)
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, h);
+    bgGrad.addColorStop(0, "#13171F");
+    bgGrad.addColorStop(1, "#1A1E29");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    const toCanvasX = (lng) => Math.round(((lng + 180) / 360) * w);
+    const toCanvasY = (lat) => Math.round(((90 - lat) / 180) * h);
+
+    // 經緯格線
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    ctx.lineWidth = 1;
+    for (let lat = -60; lat <= 60; lat += 30) {
+      const y = toCanvasY(lat);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    for (let lng = -150; lng <= 150; lng += 50) {
+      const x = toCanvasX(lng);
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+
+    // 世界陸地基準點陣
+    ctx.fillStyle = "rgba(226, 221, 213, 0.35)";
+    WORLD_LAND_POINTS.forEach(pt => {
+      const px = toCanvasX(pt.lng);
+      const py = toCanvasY(pt.lat);
+      ctx.beginPath();
+      ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 全球前 12 大概率微光點
+    if (window.GLOBAL_ODDS_DATA) {
+      window.GLOBAL_ODDS_DATA.forEach(od => {
+        const ox = toCanvasX(od.lng);
+        const oy = toCanvasY(od.lat);
+        ctx.fillStyle = "rgba(140, 29, 60, 0.45)";
+        ctx.beginPath();
+        ctx.arc(ox, oy, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    // 若有母國座標：青綠色標記
+    if (homeCoord && typeof homeCoord.lat === 'number' && typeof homeCoord.lng === 'number') {
+      const hx = toCanvasX(homeCoord.lng);
+      const hy = toCanvasY(homeCoord.lat);
+
+      ctx.beginPath();
+      ctx.arc(hx, hy, 7, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(16, 185, 129, 0.6)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(hx, hy, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#10B981";
+      ctx.fill();
+
+      ctx.font = "10px sans-serif";
+      ctx.fillStyle = "#34D399";
+      ctx.fillText(homeCoord.name || "母國", hx + 8, hy + 3);
+    }
+
+    // 若有降生地座標：金色光環標記與連線
+    if (targetCoord && typeof targetCoord.lat === 'number' && typeof targetCoord.lng === 'number') {
+      const tx = toCanvasX(targetCoord.lng);
+      const ty = toCanvasY(targetCoord.lat);
+
+      if (homeCoord && typeof homeCoord.lat === 'number') {
+        const hx = toCanvasX(homeCoord.lng);
+        const hy = toCanvasY(homeCoord.lat);
+        const midX = (tx + hx) / 2;
+        const midY = Math.min(ty, hy) - 20;
+
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.quadraticCurveTo(midX, midY, tx, ty);
+        ctx.strokeStyle = "rgba(245, 158, 11, 0.6)";
+        ctx.setLineDash([3, 3]);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      ctx.beginPath();
+      ctx.arc(tx, ty, 9, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(tx, ty, 5, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(tx, ty, 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#F59E0B";
+      ctx.fill();
+
+      ctx.font = "bold 10px sans-serif";
+      ctx.fillStyle = "#FBBF24";
+      ctx.fillText(targetCoord.name || "降生地", tx + 8, ty - 4);
+    }
+  }
+
+  function renderCertMap(life) {
+    if (!el.certMap) return;
+    const targetCoord = {
+      lat: life.countryData ? life.countryData.lat : (life.biome.lat || 30),
+      lng: life.countryData ? life.countryData.lng : (life.biome.lng || 110),
+      name: life.countryData ? life.countryData.name : life.biome.name
+    };
+
+    const hc = (window.HOME_COUNTRIES_LIST || []).find(c => c.id === state.homeCountry) || {
+      lat: 23.6978, lng: 120.9605, name: "台灣"
+    };
+
+    drawWorldMap(el.certMap, targetCoord, { lat: hc.lat, lng: hc.lng, name: hc.name });
+  }
+
+  function renderCertHome(life) {
+    if (!el.certHome) return;
+    const cmp = life.homeComparison;
+    if (!cmp) {
+      el.certHome.style.display = "none";
+      return;
+    }
+    el.certHome.style.display = "block";
+    const deltaSign = cmp.lifespanDelta >= 0 ? `+${cmp.lifespanDelta}` : `${cmp.lifespanDelta}`;
+    const badgeClass = cmp.lifespanDelta >= 0 ? "cmp-badge-better" : "cmp-badge-worse";
+
+    el.certHome.innerHTML = `
+      <div class="home-cmp-title">
+        <i class="fas fa-scale-balanced"></i>
+        <span>與你的母國（${escapeHtml(cmp.homeCountry.name)}）命運對照</span>
+      </div>
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th>指標維度</th>
+            <th>降生環境</th>
+            <th>母國水準</th>
+            <th>命運差額</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>預期壽命</strong></td>
+            <td>${cmp.birthEnvironment.lifespan} 歲</td>
+            <td>${cmp.homeCountry.lifespan} 歲</td>
+            <td><span class="cmp-badge ${badgeClass}">${deltaSign} 歲</span></td>
+          </tr>
+          <tr>
+            <td><strong>幼年夭折風險</strong></td>
+            <td>${cmp.birthEnvironment.infantMortality}</td>
+            <td>${cmp.homeCountry.infantMortality}</td>
+            <td><span class="cmp-badge ${cmp.birthEnvironment.infantMortality > cmp.homeCountry.infantMortality ? 'cmp-badge-worse' : 'cmp-badge-better'}">${cmp.infantRiskRatio}x 倍率</span></td>
+          </tr>
+          <tr>
+            <td><strong>物質/領地資源</strong></td>
+            <td>${cmp.birthEnvironment.gdpOrResource}</td>
+            <td>${cmp.homeCountry.gdpOrResource}</td>
+            <td><span class="cmp-badge cmp-badge-neutral">${cmp.wealthRatio}</span></td>
+          </tr>
+          <tr>
+            <td><strong>生存環境評估</strong></td>
+            <td colspan="3" style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; padding-top: 6px;">
+              ${escapeHtml(cmp.summary)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `;
   }
 
   function renderMultiNameTags(container, names) {
@@ -817,15 +1562,17 @@
 
     if (paras.length === 0) {
       return [
-        { chapterTitle, paragraphs: [{ text: "...", isContinuation: false }] },
-        { chapterTitle, paragraphs: [] }
+        { chapterTitle, isChapterStart: true, paragraphs: [{ text: "...", isContinuation: false }] },
+        { chapterTitle, isChapterStart: false, paragraphs: [] }
       ];
     }
 
-    // 單頁容量字數預算：約 130~170 字元（對應直排約 8-9 行）
+    let pages = [];
+
+    // 單頁容量字數預算：約 140~190 字元
     if (paras.length === 1) {
       const text = paras[0];
-      if (text.length <= 150) {
+      if (text.length <= 160) {
         // 短單段：於中間標點符號處切分，前半右頁、後半左頁接續
         const half = Math.floor(text.length / 2);
         let splitIdx = -1;
@@ -843,7 +1590,7 @@
           }
         });
         if (splitIdx === -1) splitIdx = half;
-        return [
+        pages = [
           {
             chapterTitle,
             paragraphs: [{ text: text.slice(0, splitIdx).trim(), isContinuation: false }]
@@ -854,8 +1601,8 @@
           }
         ];
       } else {
-        const splitIdx = findBestSentenceSplit(text, 140);
-        return [
+        const splitIdx = findBestSentenceSplit(text, 150);
+        pages = [
           {
             chapterTitle,
             paragraphs: [{ text: text.slice(0, splitIdx).trim(), isContinuation: false }]
@@ -866,11 +1613,8 @@
           }
         ];
       }
-    }
-
-    if (paras.length === 2) {
-      // 兩段式（標準規格）：第一段在右頁，第二段在左頁，完美雙頁連貫對開！
-      return [
+    } else if (paras.length === 2) {
+      pages = [
         {
           chapterTitle,
           paragraphs: [{ text: paras[0], isContinuation: false }]
@@ -880,13 +1624,10 @@
           paragraphs: [{ text: paras[1], isContinuation: false }]
         }
       ];
-    }
-
-    if (paras.length === 3) {
-      // 三段式：前 1 段或 2 段在右頁，剩餘在左頁
+    } else if (paras.length === 3) {
       const len01 = paras[0].length + paras[1].length;
-      if (len01 <= 170) {
-        return [
+      if (len01 <= 180) {
+        pages = [
           {
             chapterTitle,
             paragraphs: [
@@ -900,7 +1641,7 @@
           }
         ];
       } else {
-        return [
+        pages = [
           {
             chapterTitle,
             paragraphs: [{ text: paras[0], isContinuation: false }]
@@ -914,30 +1655,33 @@
           }
         ];
       }
-    }
+    } else {
+      let curParas = [];
+      let curLen = 0;
 
-    // 4 段以上：按頁面容量均勻流動
-    const pages = [];
-    let curParas = [];
-    let curLen = 0;
+      paras.forEach(p => {
+        if (curLen + p.length > 180 && curParas.length > 0) {
+          pages.push({ chapterTitle, paragraphs: curParas });
+          curParas = [{ text: p, isContinuation: false }];
+          curLen = p.length;
+        } else {
+          curParas.push({ text: p, isContinuation: false });
+          curLen += p.length;
+        }
+      });
 
-    paras.forEach(p => {
-      if (curLen + p.length > 170 && curParas.length > 0) {
+      if (curParas.length > 0) {
         pages.push({ chapterTitle, paragraphs: curParas });
-        curParas = [{ text: p, isContinuation: false }];
-        curLen = p.length;
-      } else {
-        curParas.push({ text: p, isContinuation: false });
-        curLen += p.length;
       }
-    });
-
-    if (curParas.length > 0) {
-      pages.push({ chapterTitle, paragraphs: curParas });
     }
 
     if (pages.length % 2 !== 0) {
       pages.push({ chapterTitle, paragraphs: [] });
+    }
+
+    // 標記該章節開篇第一頁，以便渲染大章節標題
+    if (pages.length > 0) {
+      pages[0].isChapterStart = true;
     }
 
     return pages;
@@ -967,36 +1711,42 @@
     const rIdx = state.currentSpreadIndex;
     const lIdx = state.currentSpreadIndex + 1;
 
-    const rPage = state.bookPages[rIdx] || { chapterTitle: "第一章", paragraphs: [] };
-    const lPage = (lIdx < total) ? state.bookPages[lIdx] : { chapterTitle: rPage.chapterTitle, paragraphs: [] };
+    const rPage = state.bookPages[rIdx] || { chapterTitle: "第一章", paragraphs: [], isChapterStart: false };
+    const lPage = (lIdx < total) ? state.bookPages[lIdx] : { chapterTitle: rPage.chapterTitle, paragraphs: [], isChapterStart: false };
 
-    // 渲染右頁 (文字直排，右頁優先)
-    el.pageContentRight.innerHTML = rPage.paragraphs.map(p =>
+    // 渲染右頁 (文字直排，右頁優先；若為章節開篇首頁則先渲染大章節名)
+    let rHtml = "";
+    if (rPage.isChapterStart) {
+      rHtml += `<div class="chapter-opening-title">${escapeHtml(rPage.chapterTitle)}</div>`;
+    }
+    rHtml += rPage.paragraphs.map(p =>
       p.text.trim() ? `<p class="novel-para ${p.isContinuation ? 'para-continuation' : ''}">${escapeHtml(p.text)}</p>` : ""
     ).join("");
+    el.pageContentRight.innerHTML = rHtml;
 
     // 渲染左頁 (接續右頁內容)
-    el.pageContentLeft.innerHTML = lPage.paragraphs.map(p =>
+    let lHtml = "";
+    if (lPage.isChapterStart) {
+      lHtml += `<div class="chapter-opening-title">${escapeHtml(lPage.chapterTitle)}</div>`;
+    }
+    lHtml += lPage.paragraphs.map(p =>
       p.text.trim() ? `<p class="novel-para ${p.isContinuation ? 'para-continuation' : ''}">${escapeHtml(p.text)}</p>` : ""
     ).join("");
+    el.pageContentLeft.innerHTML = lHtml;
 
-    // 漢字頁碼 (壹, 貳, 參...)
-    const numToChinese = ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌", "玖", "拾", "拾壹", "拾貳", "拾參", "拾肆", "拾伍", "拾陸", "拾柒", "拾捌", "拾玖", "貳拾", "貳拾壹", "貳拾貳", "貳拾參", "貳拾肆", "貳拾伍", "貳拾陸", "貳拾柒", "貳拾捌", "貳拾玖", "參拾", "參拾壹", "參拾貳", "參拾參", "參拾肆", "參拾伍"];
+    // 阿拉伯數字頁碼 (1, 2, 3...)
+    el.pageNumRight.textContent = rIdx < total ? String(rIdx + 1) : "";
+    el.pageNumLeft.textContent = (lIdx < total && (lPage.paragraphs.length > 0 || lPage.isChapterStart)) ? String(lIdx + 1) : "";
 
-    // 頁數顯示規範：右頁右下角、左頁左下角
-    el.pageNumRight.textContent = rIdx < total ? `第 ${numToChinese[rIdx] || (rIdx + 1)} 頁` : "";
-    el.pageNumLeft.textContent = lIdx < total && lPage.paragraphs.length > 0 ? `第 ${numToChinese[lIdx] || (lIdx + 1)} 頁` : "";
-
-    // 書眉章節更新：嚴格只顯示「第一章」、「第二章」... 絕對禁止十兆分之一
+    // 書眉章節更新：固定在右頁右上角、左頁左上角
     if (el.headerChapterRight) el.headerChapterRight.textContent = rPage.chapterTitle || "第一章";
     if (el.headerChapterLeft) el.headerChapterLeft.textContent = lPage.chapterTitle || rPage.chapterTitle || "第一章";
     el.novelChapterTitle.textContent = rPage.chapterTitle || "第一章";
 
-    // 頁碼導航指示器
-    const rNum = numToChinese[rIdx] || (rIdx + 1);
-    const lNum = numToChinese[Math.min(lIdx, total - 1)] || Math.min(lIdx + 1, total);
-    const totalNum = numToChinese[Math.max(1, total) - 1] || Math.max(1, total);
-    el.bookPageIndicator.textContent = `第 ${rNum}–${lNum} 頁 / 全書共 ${totalNum} 頁`;
+    // 頁碼導航指示器 (阿拉伯數字)
+    const curRightNum = rIdx + 1;
+    const curLeftNum = Math.min(lIdx + 1, total);
+    el.bookPageIndicator.textContent = `第 ${curRightNum}–${curLeftNum} 頁 / 全書共 ${total} 頁`;
 
     el.prevPageBtn.disabled = (rIdx <= 0);
     el.nextPageBtn.disabled = (rIdx + 2 >= total);
@@ -1015,7 +1765,7 @@
       state.currentSpreadIndex = state.currentSpreadIndex + 2;
       renderBookSpread();
       saveGameState();
-      if (state.currentSpreadIndex + 2 >= state.bookPages.length) {
+      if (state.currentSpreadIndex + 2 >= state.bookPages.length && !state.isGameOver) {
         prefetchUpcomingMilestone();
       }
     }
@@ -1068,13 +1818,15 @@
   }
 
   function showNovelLoading(title, desc) {
-    el.novelLoadingTitle.textContent = title;
-    el.novelLoadingDesc.textContent = desc;
-    el.novelLoadingOverlay.style.display = "flex";
+    if (el.novelLoadingTitle) el.novelLoadingTitle.textContent = title;
+    if (el.novelLoadingDesc) el.novelLoadingDesc.textContent = desc;
+    if (el.novelLoadingBanner) el.novelLoadingBanner.style.display = "block";
+    if (el.novelLoadingOverlay) el.novelLoadingOverlay.style.display = "flex";
   }
 
   function hideNovelLoading() {
-    el.novelLoadingOverlay.style.display = "none";
+    if (el.novelLoadingBanner) el.novelLoadingBanner.style.display = "none";
+    if (el.novelLoadingOverlay) el.novelLoadingOverlay.style.display = "none";
   }
 
   // 產生 4 位同秒降生夥伴
@@ -1253,11 +2005,20 @@
 
   // 推進生命一季
   async function advanceLifeOneStep() {
+    if (state.isGameOver) return;
     const seasons = ["春之甦醒", "盛夏繁茂", "清秋收成", "凜冬考驗"];
     state.currentSeasonIdx = (state.currentSeasonIdx + 1) % 4;
 
     if (state.currentSeasonIdx === 0) {
       state.currentAge++;
+
+      // 1in8b 里程碑沉思停頓 (Ages 5, 15, 30, 50, 70)
+      if (checkMilestoneReflection()) {
+        return;
+      }
+
+      // 1in8b 家庭成員生命週期更新
+      updateFamilyLifeCycle();
     }
 
     const life = state.currentLife;
@@ -1287,6 +2048,7 @@
 
   // 檢查是否觸發新章節或抉擇 (篇名一律為第N章)
   async function checkStoryProgression() {
+    if (state.isGameOver) return;
     const life = state.currentLife;
     const timeline = life.storyTimeline;
 
@@ -1414,6 +2176,18 @@
     // 輕柔滾動至可視區域，確保上方小說與下方抉擇卡片皆完整可見，不遮擋小說
     el.choiceContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
+    // 1in8b 自動抉擇模式支援 (若使用者開啟 autoDecision，延遲 1.2 秒自動順應本能抉擇)
+    if (state.autoDecision) {
+      setTimeout(async () => {
+        if (state.isGameOver || el.choiceContainer.style.display === "none") return;
+        if (chapter.choices && chapter.choices.length > 0) {
+          await executeChoice(chapter, chapter.choices[0]);
+        } else {
+          await executeChoice(chapter, { text: "順應野性直覺行動", impact: "自動生存應對" });
+        }
+      }, 1200);
+    }
+
     saveGameState();
   }
 
@@ -1507,22 +2281,55 @@
 
   function pushEventToFeed(evt) {
     state.feedEvents.unshift(evt);
-    if (state.feedEvents.length > 50) state.feedEvents.pop();
+    if (state.feedEvents.length > 60) state.feedEvents.pop();
+    renderFeedEvents();
+  }
 
-    const li = document.createElement("li");
-    li.className = `feed-item ${evt.type === 'milestone' || evt.isConsolidated ? 'milestone' : ''}`;
-    const typeHtml = evt.isConsolidated
-      ? '<i class="fas fa-star" style="color:#eab308;"></i> 階段沉澱'
-      : (evt.type === 'milestone' ? '<i class="fas fa-bolt" style="color:#ef4444;"></i> 命運轉折' : '<i class="fas fa-leaf" style="color:#22c55e;"></i> 生態紀錄');
+  function renderFeedEvents() {
+    if (!el.eventFeedList) return;
+    el.eventFeedList.innerHTML = "";
 
-    li.innerHTML = `
-      <div class="feed-meta">
-        <span class="feed-age">${escapeHtml(evt.ageLabel)}</span>
-        <span class="feed-type">${typeHtml}</span>
-      </div>
-      <div class="feed-text">${escapeHtml(evt.text)}</div>
-    `;
-    el.eventFeedList.insertBefore(li, el.eventFeedList.firstChild);
+    const eventsToRender = state.feedEvents.map((evt, idx) => ({ evt, idx })).filter(item => {
+      if (!state.feedStarredOnly) return true;
+      return state.starredFeedIndices.includes(item.idx);
+    });
+
+    eventsToRender.forEach(({ evt, idx }) => {
+      const isStarred = state.starredFeedIndices.includes(idx);
+      const li = document.createElement("li");
+      li.className = `feed-item ${evt.type === 'milestone' || evt.isConsolidated ? 'milestone' : ''}`;
+      const typeHtml = evt.isConsolidated
+        ? '<i class="fas fa-star" style="color:#eab308;"></i> 階段沉澱'
+        : (evt.type === 'milestone' ? '<i class="fas fa-bolt" style="color:#ef4444;"></i> 命運轉折' : '<i class="fas fa-leaf" style="color:#22c55e;"></i> 生態紀錄');
+
+      li.innerHTML = `
+        <div class="feed-meta">
+          <span class="feed-age">${escapeHtml(evt.ageLabel)}</span>
+          <span class="feed-type">${typeHtml}</span>
+          <button type="button" class="feed-star-btn ${isStarred ? 'starred' : ''}" title="收藏此事件">
+            <i class="${isStarred ? 'fas' : 'far'} fa-star"></i>
+          </button>
+        </div>
+        <div class="feed-text">${escapeHtml(evt.text)}</div>
+      `;
+
+      const starBtn = li.querySelector(".feed-star-btn");
+      if (starBtn) {
+        starBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const starPos = state.starredFeedIndices.indexOf(idx);
+          if (starPos === -1) {
+            state.starredFeedIndices.push(idx);
+          } else {
+            state.starredFeedIndices.splice(starPos, 1);
+          }
+          renderFeedEvents();
+          saveGameState();
+        });
+      }
+
+      el.eventFeedList.appendChild(li);
+    });
   }
 
   function updateDashboardUI() {
@@ -1549,6 +2356,16 @@
     renderMultiNameTags(el.dashMultiNames, life.names);
 
     el.dashSpecies.textContent = s.name;
+    if (el.dashGenderBadge) {
+      const g = life.gender || "雄性";
+      el.dashGenderBadge.textContent = g;
+      el.dashGenderBadge.className = "id-gender-tag";
+      if (g === "雌性") el.dashGenderBadge.classList.add("female");
+      else if (g === "雌雄同體") el.dashGenderBadge.classList.add("hermaphrodite");
+    }
+    if (el.dashAppearanceText) {
+      el.dashAppearanceText.textContent = life.appearance || "體態勻稱，毛色健康自然。";
+    }
     if (el.dashExpBadge) {
       if (state.experienceMode === "realism") {
         el.dashExpBadge.className = "id-exp-tag realism-tag";
@@ -1592,6 +2409,10 @@
 
     updateLifeGrid();
     updateSurvivalChartMarker();
+
+    // 1in8b 家庭面版與母國卡片更新
+    renderFamilyUI();
+    renderDashHomeCard();
 
     el.ecoDataContent.innerHTML = `
       <div class="eco-row">
@@ -1673,7 +2494,14 @@
 
     state.isDeathNoticed = true;
     el.novelDeathNotice.style.display = "flex";
-    el.novelDeathNotice.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    // 彈出內建的生命終暮結算彈窗！
+    if (el.deathSettlementModal) {
+      if (el.settleCauseText) el.settleCauseText.textContent = life.deathCause || "壽終正寢";
+      if (el.settlePercentileText) el.settlePercentileText.textContent = `${life.survivalPercentile}% 的同族生靈`;
+      if (el.settleChaptersText) el.settleChaptersText.textContent = `${finalIdx} 章 (含 ${state.choicesMadeCount} 次關鍵抉擇)`;
+      el.deathSettlementModal.style.display = "flex";
+    }
 
     saveGameState();
   }
@@ -1704,7 +2532,554 @@
     }
     document.getElementById("memoEulogyText").textContent = state.eulogy;
 
+    // 1in8b 荒野追思館典藏更新 (存入書架、點燭渲染、留言牆渲染)
+    saveLifeToPastShelf(life, state.currentAge, state.choicesMadeCount, state.eulogy, state.fullNovelText);
+    renderCandleCount();
+    renderMemorialWall();
+    renderPastShelf();
+
     saveGameState("dead");
+  }
+
+  // --------------------------------------------------------------------------
+  // 1in8b 里程碑沉思停頓 (Ages 5, 15, 30, 50, 70)
+  // --------------------------------------------------------------------------
+  const MILESTONE_REFLECTION_AGES = [5, 15, 30, 50, 70];
+  let lastReflectedAge = -1;
+
+  function checkMilestoneReflection() {
+    if (!state.pauseOnReflection || state.isGameOver) return false;
+    const curAge = state.currentAge;
+    if (MILESTONE_REFLECTION_AGES.includes(curAge) && lastReflectedAge !== curAge) {
+      lastReflectedAge = curAge;
+      const isHuman = state.currentLife && state.currentLife.species && state.currentLife.species.isHuman;
+      const qGroup = (window.REFLECTION_QUESTIONS && (isHuman ? window.REFLECTION_QUESTIONS.human : window.REFLECTION_QUESTIONS.wild)) || {};
+      const qObj = qGroup[curAge] || {
+        title: "命運的迴響與沉思",
+        desc: "走到這個年歲，回望走過的小徑與荒野，你心中最深刻的感悟是什麼？"
+      };
+
+      setPauseState(true);
+      if (el.reflectAgeTag) el.reflectAgeTag.textContent = `${curAge} ${state.currentLife.species.unit}・生命轉折反思`;
+      if (el.reflectQuestionText) el.reflectQuestionText.textContent = qObj.desc;
+      if (el.reflectAnswerInput) el.reflectAnswerInput.value = "";
+
+      if (el.questionPauseModal) el.questionPauseModal.style.display = "flex";
+      return true;
+    }
+    return false;
+  }
+
+  // --------------------------------------------------------------------------
+  // 1in8b 家庭成員生命週期與面板 (Family & Life Panel)
+  // --------------------------------------------------------------------------
+  function updateFamilyLifeCycle() {
+    if (!state.currentLife || !state.currentLife.familyMembers) return;
+    const members = state.currentLife.familyMembers;
+    const curAge = state.currentAge;
+
+    members.forEach(m => {
+      if (m.isAlive) {
+        m.age++;
+        if (m.relation.includes("母") || m.relation.includes("父")) {
+          if (curAge >= Math.floor(state.currentLife.species.avgAgeWild * 0.75) && Math.random() < 0.2) {
+            m.isAlive = false;
+            pushEventToFeed({
+              ageLabel: `${curAge} ${state.currentLife.species.unit}・家庭變故`,
+              type: "milestone",
+              text: `至親的【${m.relation} ${m.name}】在時光的流逝中長眠，野地的風撫平了祂留下的痕跡。`
+            });
+          }
+        }
+      }
+    });
+    renderFamilyUI();
+  }
+
+  function renderFamilyUI() {
+    if (!el.famList || !state.currentLife) return;
+    const members = state.currentLife.familyMembers || [];
+    el.famList.innerHTML = "";
+    if (members.length === 0) {
+      el.famList.innerHTML = `<li style="font-size:12px; color:var(--text-muted); padding:6px 0;">荒野獨行者，孤身迎向大自然的考驗。</li>`;
+      return;
+    }
+
+    members.forEach(m => {
+      const li = document.createElement("li");
+      li.className = "fam-member-item";
+      li.innerHTML = `
+        <div class="fam-member-left">
+          <span class="fam-relation-tag">${escapeHtml(m.relation)}</span>
+          <span class="fam-member-name ${!m.isAlive ? 'fam-member-dead' : ''}">${escapeHtml(m.name)}</span>
+        </div>
+        <div class="fam-member-status">
+          ${m.isAlive ? `${m.age} 歲 · 羈絆 ${m.bond}%` : '<span style="color:#ef4444;"><i class="fas fa-cross"></i> 已故</span>'}
+        </div>
+      `;
+      el.famList.appendChild(li);
+    });
+  }
+
+  function renderDashHomeCard() {
+    if (!el.dashHomeCard || !state.currentLife) return;
+    const cmp = state.currentLife.homeComparison;
+    if (!cmp) {
+      el.dashHomeCard.style.display = "none";
+      return;
+    }
+    el.dashHomeCard.style.display = "block";
+    const deltaSign = cmp.lifespanDelta >= 0 ? `+${cmp.lifespanDelta}` : `${cmp.lifespanDelta}`;
+
+    el.dashHomeCard.innerHTML = `
+      <div style="font-size:11.5px; font-weight:700; color:var(--accent-gold); margin-bottom:6px; display:flex; align-items:center; gap:5px;">
+        <i class="fas fa-earth-americas"></i> 母國命運參照 (${escapeHtml(cmp.homeCountry.name)})
+      </div>
+      <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
+        預期壽命差：<strong style="color:var(--accent-burgundy);">${deltaSign} 歲</strong><br>
+        幼體存活率：<strong>${cmp.infantRiskRatio}x</strong> 差異
+      </div>
+    `;
+  }
+
+  // --------------------------------------------------------------------------
+  // 1in8b 花費與投資面板 (Shop & Spend)
+  // --------------------------------------------------------------------------
+  function openShopModal() {
+    if (!el.shopModal || !state.currentLife) return;
+    const isHuman = state.currentLife.species.isHuman;
+    const stats = state.currentLife.initialStats;
+
+    if (el.shopBalanceLabel) {
+      el.shopBalanceLabel.textContent = isHuman
+        ? `當前可用資源：${state.currentLife.countryData.currencySymbol} ${stats.resource.toLocaleString()}`
+        : `當前領地掌控度：${Math.min(100, stats.instinct)}%`;
+    }
+
+    document.querySelectorAll(".shop-buy-btn").forEach(btn => {
+      btn.onclick = () => {
+        const type = btn.dataset.type;
+        handleShopPurchase(type);
+      };
+    });
+
+    el.shopModal.style.display = "flex";
+  }
+
+  function handleShopPurchase(type) {
+    if (!state.currentLife) return;
+    const isHuman = state.currentLife.species.isHuman;
+    const stats = state.currentLife.initialStats;
+
+    const costs = isHuman
+      ? { health: 12000, study: 18000, family: 25000, invest: 30000 }
+      : { health: 15, study: 20, family: 25, invest: 30 };
+
+    const cost = costs[type] || 10000;
+    const canAfford = isHuman ? (stats.resource >= cost) : (stats.instinct >= cost);
+
+    if (!canAfford) {
+      alert("當前可用資源或領地掌控度不足！");
+      return;
+    }
+
+    if (isHuman) stats.resource -= cost;
+    else stats.instinct = Math.max(0, stats.instinct - cost);
+
+    if (type === "health") {
+      applyStatDeltas({ health: +15, energy: +10 });
+      pushEventToFeed({ ageLabel: `${state.currentAge} ${state.currentLife.species.unit}・體魄調理`, type: "milestone", text: "進行了深度健康調養與醫療檢查，體質大幅改善。" });
+    } else if (type === "study") {
+      applyStatDeltas({ instinct: +16, energy: -5 });
+      pushEventToFeed({ ageLabel: `${state.currentAge} ${state.currentLife.species.unit}・技能精進`, type: "milestone", text: "研習深造並磨礪關鍵直覺，開拓了生存思維。" });
+    } else if (type === "family") {
+      applyStatDeltas({ social: +18, health: +5 });
+      pushEventToFeed({ ageLabel: `${state.currentAge} ${state.currentLife.species.unit}・家庭照料`, type: "milestone", text: "投入資源呵護家人並加固巢居，族群羈絆更加堅韌。" });
+    } else if (type === "invest") {
+      applyStatDeltas({ energy: +25 });
+      pushEventToFeed({ ageLabel: `${state.currentAge} ${state.currentLife.species.unit}・長期儲備`, type: "milestone", text: "配置儲蓄資產與防禦性物資儲備，生活安全感顯著提升。" });
+    }
+
+    if (el.shopBalanceLabel) {
+      el.shopBalanceLabel.textContent = isHuman
+        ? `當前可用資源：${state.currentLife.countryData.currencySymbol} ${stats.resource.toLocaleString()}`
+        : `當前領地掌控度：${Math.min(100, stats.instinct)}%`;
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 1in8b 荒野追思館：點燭、留言、書架、轉移代碼、分享卡
+  // --------------------------------------------------------------------------
+  const CANDLE_KEY = "10t_candle_count";
+  const MEMO_POSTS_KEY = "10t_memorial_posts";
+  const PAST_SHELF_KEY = "10t_past_shelf";
+
+  function handleLightCandle() {
+    let count = parseInt(localStorage.getItem(CANDLE_KEY) || "128", 10);
+    count++;
+    localStorage.setItem(CANDLE_KEY, count);
+    state.candleCount = count;
+    renderCandleCount();
+
+    if (el.candleSection) {
+      const flame = el.candleSection.querySelector(".candle-flame");
+      if (flame) {
+        flame.style.animation = "none";
+        void flame.offsetWidth;
+        flame.style.animation = "candleFlicker 0.4s 4 ease-in-out alternate";
+      }
+    }
+  }
+
+  function renderCandleCount() {
+    const count = parseInt(localStorage.getItem(CANDLE_KEY) || "128", 10);
+    if (el.candleCount) {
+      el.candleCount.textContent = count.toLocaleString();
+    }
+  }
+
+  function handlePostMemorialMessage() {
+    if (!el.memoMsgInput) return;
+    const msg = el.memoMsgInput.value.trim();
+    if (!msg) return;
+
+    let posts = [];
+    try {
+      posts = JSON.parse(localStorage.getItem(MEMO_POSTS_KEY) || "[]");
+    } catch (e) { posts = []; }
+
+    const newPost = {
+      id: "post_" + Date.now(),
+      text: msg,
+      speciesName: state.currentLife ? state.currentLife.species.name : "未知生靈",
+      charName: (state.currentLife && state.currentLife.name) ? state.currentLife.name : "無名行者",
+      time: new Date().toLocaleDateString("zh-TW")
+    };
+
+    posts.unshift(newPost);
+    if (posts.length > 40) posts.pop();
+    localStorage.setItem(MEMO_POSTS_KEY, JSON.stringify(posts));
+
+    el.memoMsgInput.value = "";
+    renderMemorialWall();
+  }
+
+  function renderMemorialWall() {
+    if (!el.memoWall) return;
+    let posts = [];
+    try {
+      posts = JSON.parse(localStorage.getItem(MEMO_POSTS_KEY) || "[]");
+    } catch (e) { posts = []; }
+
+    if (posts.length === 0) {
+      posts = [
+        { text: "生如野火熾熱，歸如晨露無聲。願你在星辰的獵場自由馳騁。", charName: "荒原旅伴", speciesName: "野生生靈", time: "2026/10/29" },
+        { text: "謝謝你陪大自然度過這段壯闊的旅途，靈魂長眠於古木與微風之中。", charName: "行路者", speciesName: "荒野行者", time: "2026/10/29" }
+      ];
+    }
+
+    el.memoWall.innerHTML = "";
+    posts.forEach(p => {
+      const card = document.createElement("div");
+      card.className = "memo-post-card";
+      card.innerHTML = `
+        <div style="color:var(--text-primary);">${escapeHtml(p.text)}</div>
+        <div class="memo-post-meta">
+          <span>致：${escapeHtml(p.charName)} (${escapeHtml(p.speciesName)})</span>
+          <span>${escapeHtml(p.time)}</span>
+        </div>
+      `;
+      el.memoWall.appendChild(card);
+    });
+  }
+
+  function saveLifeToPastShelf(life, age, choicesCount, eulogy, novelText) {
+    if (!life) return;
+    let shelf = [];
+    try {
+      shelf = JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]");
+    } catch (e) { shelf = []; }
+
+    const entry = {
+      id: "shelf_" + Date.now(),
+      speciesName: life.species.name,
+      charName: life.name || "荒野無名生靈",
+      age: age,
+      unit: life.species.unit,
+      deathCause: life.deathCause || "壽終正寢",
+      choicesCount: choicesCount,
+      eulogy: eulogy,
+      fullNovelText: novelText,
+      era: state.era,
+      experienceMode: state.experienceMode,
+      date: new Date().toLocaleDateString("zh-TW")
+    };
+
+    if (!shelf.find(s => s.id === entry.id)) {
+      shelf.unshift(entry);
+      if (shelf.length > 50) shelf.pop();
+      localStorage.setItem(PAST_SHELF_KEY, JSON.stringify(shelf));
+    }
+
+    renderPastShelf();
+  }
+
+  function renderPastShelf() {
+    if (!el.pastShelfList) return;
+    let shelf = [];
+    try {
+      shelf = JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]");
+    } catch (e) { shelf = []; }
+
+    el.pastShelfList.innerHTML = "";
+    if (shelf.length === 0) {
+      el.pastShelfList.innerHTML = `<div style="grid-column:span 3; color:var(--text-muted); font-size:13px; text-align:center; padding:20px;">荒野書架尚無過往生靈的傳奇，當前生命結束後將在此被永恆典藏。</div>`;
+      return;
+    }
+
+    shelf.forEach((item, index) => {
+      const card = document.createElement("div");
+      card.className = "past-shelf-card";
+      card.innerHTML = `
+        <div>
+          <h4 class="shelf-card-title">${escapeHtml(item.charName)} (${escapeHtml(item.speciesName)})</h4>
+          <p class="shelf-card-desc">
+            享年 ${item.age} ${item.unit} · 因${escapeHtml(item.deathCause)}長眠<br>
+            歷經 ${item.choicesCount} 次命運抉擇
+          </p>
+        </div>
+        <div class="shelf-card-footer">
+          <span class="shelf-card-date">${escapeHtml(item.date)}</span>
+          <button type="button" class="shelf-replay-btn" data-index="${index}">
+            <i class="fas fa-book-open"></i> 再讀一次小說
+          </button>
+        </div>
+      `;
+
+      const replayBtn = card.querySelector(".shelf-replay-btn");
+      if (replayBtn) {
+        replayBtn.addEventListener("click", () => {
+          el.memoFullNovelText.textContent = item.fullNovelText || "尚無詳細文字檔案。";
+          el.memorialNovelContainer.style.display = "block";
+          el.memorialNovelContainer.scrollIntoView({ behavior: "smooth" });
+        });
+      }
+
+      el.pastShelfList.appendChild(card);
+    });
+  }
+
+  function handleShowRandomMemorialLife() {
+    let shelf = [];
+    try {
+      shelf = JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]");
+    } catch (e) { shelf = []; }
+
+    if (shelf.length > 0) {
+      const randLife = shelf[Math.floor(Math.random() * shelf.length)];
+      el.memoFullNovelText.textContent = randLife.fullNovelText || "尚無詳細文字檔案。";
+      el.memorialNovelContainer.style.display = "block";
+      el.memorialNovelContainer.scrollIntoView({ behavior: "smooth" });
+    } else {
+      alert("目前書架尚無其他過往生靈紀錄，請先完成一次人生旅程！");
+    }
+  }
+
+  function openMyMemorialLivesModal() {
+    if (!el.myMemorialModal || !el.myMemorialListContainer) return;
+    let shelf = [];
+    try {
+      shelf = JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]");
+    } catch (e) { shelf = []; }
+
+    el.myMemorialListContainer.innerHTML = "";
+    if (shelf.length === 0) {
+      el.myMemorialListContainer.innerHTML = `<li style="padding:12px; color:var(--text-muted); font-size:12.5px;">此裝置尚未建立任何生靈紀念碑。</li>`;
+    } else {
+      shelf.forEach(item => {
+        const li = document.createElement("li");
+        li.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-bottom:1px solid var(--border-light); font-size:12.5px;";
+        li.innerHTML = `
+          <div>
+            <strong>${escapeHtml(item.charName)}</strong> (${escapeHtml(item.speciesName)})
+            <div style="font-size:11px; color:var(--text-muted);">享年 ${item.age} ${item.unit} · ${escapeHtml(item.deathCause)}</div>
+          </div>
+          <span style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${escapeHtml(item.date)}</span>
+        `;
+        el.myMemorialListContainer.appendChild(li);
+      });
+    }
+
+    el.myMemorialModal.style.display = "flex";
+  }
+
+  function openTransferRecordsModal() {
+    if (!el.moveModal) return;
+    let exportObj = {
+      pastShelf: JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]"),
+      candleCount: parseInt(localStorage.getItem(CANDLE_KEY) || "128", 10),
+      memoPosts: JSON.parse(localStorage.getItem(MEMO_POSTS_KEY) || "[]"),
+      exportedAt: Date.now()
+    };
+
+    const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(exportObj))));
+    if (el.exportCodeArea) el.exportCodeArea.value = b64;
+    if (el.importCodeArea) el.importCodeArea.value = "";
+    el.moveModal.style.display = "flex";
+  }
+
+  function copyExportTransferCode() {
+    if (!el.exportCodeArea) return;
+    el.exportCodeArea.select();
+    navigator.clipboard.writeText(el.exportCodeArea.value).then(() => {
+      alert("轉移代碼已複製到剪貼簿！可在其他裝置貼上並還原。");
+    });
+  }
+
+  function applyImportTransferCode() {
+    if (!el.importCodeArea) return;
+    const raw = el.importCodeArea.value.trim();
+    if (!raw) {
+      alert("請先貼入有效的轉移代碼！");
+      return;
+    }
+    try {
+      const decoded = decodeURIComponent(escape(atob(raw)));
+      const obj = JSON.parse(decoded);
+      if (obj.pastShelf && Array.isArray(obj.pastShelf)) {
+        let curShelf = JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]");
+        obj.pastShelf.forEach(item => {
+          if (!curShelf.find(c => c.id === item.id)) {
+            curShelf.push(item);
+          }
+        });
+        localStorage.setItem(PAST_SHELF_KEY, JSON.stringify(curShelf));
+      }
+      if (typeof obj.candleCount === "number") {
+        const curC = parseInt(localStorage.getItem(CANDLE_KEY) || "128", 10);
+        localStorage.setItem(CANDLE_KEY, Math.max(curC, obj.candleCount));
+      }
+      alert("紀錄合併還原成功！已為您同步生靈書架與點燭紀錄。");
+      if (el.moveModal) el.moveModal.style.display = "none";
+      renderPastShelf();
+      renderCandleCount();
+    } catch (e) {
+      alert("代碼格式無效或已損毀，請確認複製了完整的轉移代碼！");
+    }
+  }
+
+  function openShareCardModal(isMemorial = false) {
+    if (!el.shareCardModal || !state.currentLife) return;
+    const life = state.currentLife;
+    const s = life.species;
+    const name = life.name || "荒野無名生靈";
+
+    let shareTitle = "";
+    let shareQuote = "";
+    let statsLine = "";
+
+    if (isMemorial) {
+      shareTitle = `${s.name} · ${name}`;
+      shareQuote = state.eulogy || "風吹過荒原，帶走了最後一道足跡。在星族的永恆獵場中自由奔跑吧。";
+      statsLine = `享年 ${state.currentAge} ${s.unit} | 超越 ${life.survivalPercentile}% 同族 | 歷經 ${state.choicesMadeCount} 次關鍵抉擇`;
+    } else {
+      shareTitle = `${s.name} · ${name}`;
+      shareQuote = life.prologueNovel ? life.prologueNovel.slice(0, 110) + "..." : "初誕於大地微光之中。";
+      statsLine = `原生棲地：${s.isHuman ? life.countryData.name : life.biome.name} | 性別：${life.gender || '雄性'}`;
+    }
+
+    if (el.scSerial) el.scSerial.textContent = `NO. 10T-${Math.floor(10000 + Math.random() * 90000)}`;
+    if (el.scTitle) el.scTitle.textContent = shareTitle;
+    if (el.scMeta) el.scMeta.textContent = isMemorial ? `享年 ${state.currentAge} ${s.unit} · ${s.isHuman ? life.countryData.name : life.biome.name} · ${life.gender || '雄性'}` : statsLine;
+    if (el.scStory) el.scStory.textContent = `「${shareQuote}」`;
+    if (el.scStats) {
+      el.scStats.innerHTML = isMemorial
+        ? `<span>超越 ${life.survivalPercentile}% 同儕</span><span>${state.choicesMadeCount} 次關鍵抉擇</span>`
+        : `<span>幼體存活率 ${(s.infantSurvivalRate ? s.infantSurvivalRate * 100 : 70).toFixed(1)}%</span><span>自然壽命約 ${s.avgAgeWild} ${s.unit}</span>`;
+    }
+
+    const shareUrl = window.location.href.split('#')[0];
+    const fullShareText = `【十兆分之一 · 生命紀錄】${shareTitle}\n\n「${shareQuote}」\n\n${statsLine}\n\n探索你在十兆分之一定律下的命運演繹：\n${shareUrl}`;
+    if (el.shareTextContent) {
+      el.shareTextContent.value = fullShareText;
+    }
+
+    el.shareCardModal.style.display = "flex";
+  }
+
+  function copyShareCardContent() {
+    if (!el.shareTextContent) return;
+    el.shareTextContent.select();
+    navigator.clipboard.writeText(el.shareTextContent.value).then(() => {
+      alert("分享文字與連結已複製到剪貼簿！");
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // 首頁地圖與母國選擇初始化 (Intro Page & Map Initialization)
+  // --------------------------------------------------------------------------
+  function initIntroPageAndMap() {
+    if (el.homeSel && window.HOME_COUNTRIES_LIST) {
+      el.homeSel.innerHTML = "";
+      window.HOME_COUNTRIES_LIST.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = `${c.name} (${c.continent})`;
+        if (c.id === state.homeCountry) opt.selected = true;
+        el.homeSel.appendChild(opt);
+      });
+
+      const curH = window.HOME_COUNTRIES_LIST.find(c => c.id === state.homeCountry);
+      if (curH && el.homeDescText) {
+        el.homeDescText.textContent = `${curH.name}：預期壽命約 ${curH.avgLifespan} 歲，嬰兒死亡率 ${(curH.infantMortality * 100).toFixed(2)}%，人均 GDP $${curH.gdpPppUsd.toLocaleString()} 美元。`;
+      }
+    }
+
+    if (el.tgMap) {
+      const hc = (window.HOME_COUNTRIES_LIST || []).find(c => c.id === state.homeCountry) || { lat: 23.6978, lng: 120.9605, name: "台灣" };
+      drawWorldMap(el.tgMap, null, { lat: hc.lat, lng: hc.lng, name: hc.name });
+    }
+
+    renderIntroPastLives();
+    startLiveOddsTicker();
+  }
+
+  function renderIntroPastLives() {
+    if (!el.pastLives) return;
+    let shelf = [];
+    try {
+      shelf = JSON.parse(localStorage.getItem(PAST_SHELF_KEY) || "[]");
+    } catch (e) { shelf = []; }
+
+    el.pastLives.innerHTML = "";
+    if (shelf.length === 0) {
+      el.pastLives.innerHTML = `<div style="font-size:12px; color:var(--text-muted); padding:8px 0;">尚無過去人生紀錄，點擊上方按鈕開始輪盤抽選！</div>`;
+      return;
+    }
+
+    shelf.slice(0, 4).forEach(item => {
+      const pill = document.createElement("div");
+      pill.className = "past-live-pill";
+      pill.innerHTML = `
+        <div>
+          <strong>${escapeHtml(item.charName)}</strong> (${escapeHtml(item.speciesName)})
+          <span style="font-size:11px; color:var(--text-muted); margin-left:6px;">享年 ${item.age} ${item.unit}</span>
+        </div>
+        <span style="font-size:11px; color:var(--accent-gold);">${escapeHtml(item.deathCause)}</span>
+      `;
+      el.pastLives.appendChild(pill);
+    });
+  }
+
+  let globalPulseCount = 0;
+  function startLiveOddsTicker() {
+    setInterval(() => {
+      globalPulseCount++;
+      const births = 280000000 + (globalPulseCount * 4600);
+      const deaths = 195000000 + (globalPulseCount * 2800);
+      if (el.cBirth) el.cBirth.textContent = births.toLocaleString();
+      if (el.cDeath) el.cDeath.textContent = deaths.toLocaleString();
+    }, 800);
   }
 
   // 5. 自動存檔與進度還原系統 (localStorage)
@@ -1725,6 +3100,16 @@
       selectedAuthor: state.selectedAuthor,
       contentMode: state.contentMode,
       experienceMode: state.experienceMode,
+      era: state.era,
+      eraYear: state.eraYear,
+      drawMode: state.drawMode,
+      lifePace: state.lifePace,
+      homeCountry: state.homeCountry,
+      skipHeavy: state.skipHeavy,
+      autoDecision: state.autoDecision,
+      pauseOnReflection: state.pauseOnReflection,
+      starredFeedIndices: state.starredFeedIndices,
+      feedStarredOnly: state.feedStarredOnly,
       currentAge: state.currentAge,
       currentSeasonIdx: state.currentSeasonIdx,
       isPaused: state.isPaused,
@@ -1764,6 +3149,16 @@
       state.selectedAuthor = data.selectedAuthor || "erinhunter";
       state.contentMode = data.contentMode || "normal";
       state.experienceMode = data.experienceMode || "story";
+      state.era = data.era || "now";
+      state.eraYear = data.eraYear || 1990;
+      state.drawMode = data.drawMode || "birth";
+      state.lifePace = data.lifePace || "30";
+      state.homeCountry = data.homeCountry || "TW";
+      state.skipHeavy = !!data.skipHeavy;
+      state.autoDecision = !!data.autoDecision;
+      state.pauseOnReflection = data.pauseOnReflection !== undefined ? data.pauseOnReflection : true;
+      state.starredFeedIndices = data.starredFeedIndices || [];
+      state.feedStarredOnly = !!data.feedStarredOnly;
       state.currentAge = data.currentAge || 0;
       state.currentSeasonIdx = data.currentSeasonIdx || 0;
       state.isPaused = true;
@@ -1820,27 +3215,17 @@
         el.novelChapterTitle.textContent = state.currentChapterTitle || "第一章";
         rePaginateBook(state.currentSpreadIndex);
 
-        if (state.isDeathNoticed) {
-          el.novelDeathNotice.style.display = "flex";
+        if (state.isDeathNoticed || state.isGameOver) {
+          state.isGameOver = true;
+          state.isDeathNoticed = true;
+          if (el.novelDeathNotice) el.novelDeathNotice.style.display = "flex";
+          if (state.timerId) {
+            clearInterval(state.timerId);
+            state.timerId = null;
+          }
         }
 
-        el.eventFeedList.innerHTML = "";
-        (state.feedEvents || []).forEach(evt => {
-          const li = document.createElement("li");
-          li.className = `feed-item ${evt.type === 'milestone' || evt.isConsolidated ? 'milestone' : ''}`;
-          const typeHtml = evt.isConsolidated
-            ? '<i class="fas fa-star" style="color:#eab308;"></i> 階段沉澱'
-            : (evt.type === 'milestone' ? '<i class="fas fa-bolt" style="color:#ef4444;"></i> 命運轉折' : '<i class="fas fa-leaf" style="color:#22c55e;"></i> 生態紀錄');
-          li.innerHTML = `
-            <div class="feed-meta">
-              <span class="feed-age">${escapeHtml(evt.ageLabel)}</span>
-              <span class="feed-type">${typeHtml}</span>
-            </div>
-            <div class="feed-text">${escapeHtml(evt.text)}</div>
-          `;
-          el.eventFeedList.appendChild(li);
-        });
-
+        renderFeedEvents();
         setPauseState(true);
       }
 
@@ -1934,11 +3319,19 @@
     if (state.fullNovelText) {
       rePaginateBook(state.currentSpreadIndex);
     }
+    if (el.tgMap) {
+      const hc = (window.HOME_COUNTRIES_LIST || []).find(c => c.id === state.homeCountry) || { lat: 23.6978, lng: 120.9605, name: "台灣" };
+      drawWorldMap(el.tgMap, null, { lat: hc.lat, lng: hc.lng, name: hc.name });
+    }
+    if (el.certMap && state.currentLife) {
+      renderCertMap(state.currentLife);
+    }
   });
 
   window.addEventListener("DOMContentLoaded", () => {
     initElements();
     bindEvents();
+    initIntroPageAndMap();
     startBirthTickers();
 
     const hasRestored = loadGameState();

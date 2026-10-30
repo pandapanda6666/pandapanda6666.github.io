@@ -7,15 +7,157 @@
  */
 
 window.DestinyEngine = {
-  formatChapterTitle(index) {
+  formatChapterTitle(index, authorStyle = null) {
     const chNums = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
                     "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
                     "二十一", "二十二", "二十三", "二十四", "二十五", "二十六", "二十七", "二十八", "二十九", "三十"];
-    return "第" + (chNums[index] || index) + "章";
+    const chNum = chNums[index] || index;
+    if (authorStyle && typeof authorStyle === "object" && authorStyle.chapterFormat) {
+      return authorStyle.chapterFormat.replace("{num}", chNum).replace("{arabic}", index);
+    }
+    return "第" + chNum + "章";
   },
 
   /**
-   * 產生一生完整生命軌跡與事件 (支援多重稱呼與無名空白、個體自主意識)
+   * 判定生物性別 (雄性 / 雌性 / 雌雄同體)
+   */
+  determineGender(species) {
+    if (species.isHermaphrodite || species.id === "common_earthworm" || species.id === "garden_snail") {
+      return "雌雄同體";
+    }
+    return Math.random() < 0.5 ? "雄性" : "雌性";
+  },
+
+  /**
+   * 生成生物/人類樣貌特徵描述
+   */
+  generateAppearance(species, gender, isHuman, biome) {
+    if (isHuman) {
+      const hairStyles = ["濃密烏黑的微捲短髮", "柔軟細緻的栗褐色直髮", "俐落修剪的深黑短髮", "蓬鬆帶有自然光澤的長髮", "天生微棕的柔軟髮絲"];
+      const eyeColors = ["明亮清澈的深褐色眼眸", "沉穩溫和的墨黑雙眸", "靈動且帶有神采的淺棕色眼睛"];
+      const skinTones = ["健康的小麥色膚質", "溫潤白皙的皮膚", "帶有陽光氣息的自然膚色"];
+      const builds = ["身形勻稱矯健", "修長苗條、體態挺拔", "骨架結實有力、步履穩健", "身形勻稱、充滿朝氣"];
+      const hair = hairStyles[Math.floor(Math.random() * hairStyles.length)];
+      const eyes = eyeColors[Math.floor(Math.random() * eyeColors.length)];
+      const skin = skinTones[Math.floor(Math.random() * skinTones.length)];
+      const build = builds[Math.floor(Math.random() * builds.length)];
+      return `${skin}，配有一頭${hair}與一雙${eyes}，${build}。`;
+    }
+
+    const sId = species.id;
+    if (sId === "gray_wolf") {
+      const coats = ["厚實濃密的銀灰色毛皮夾雜深黑脊線", "泛著蒼白色澤的厚重冬毛", "帶有灰褐色暗斑的耐寒雙層毛皮", "如深暮般沉靜的炭灰色皮毛"];
+      const marks = ["右耳帶有一道幼年時被冰刺劃破的微小白痕", "鼻吻兩側帶有對稱的霜白紋理", "左前爪趾端有一撮純白被毛", "寬闊的面頰覆蓋著威嚴的黑髭"];
+      const eyes = ["一雙如融金般深邃的琥珀色狼眸", "清冷如冬日初陽的淡金色雙眼", "沉著冷靜的深黃色瞳孔"];
+      const builds = ["肩胛骨寬闊隆起、四肢長而有力", "體格勻稱緊湊、奔跑時身形如灰影般流暢", "骨骼粗壯、胸膛寬闊沉穩"];
+      return `${coats[Math.floor(Math.random() * coats.length)]}，${marks[Math.floor(Math.random() * marks.length)]}，配有${eyes[Math.floor(Math.random() * eyes.length)]}，${builds[Math.floor(Math.random() * builds.length)]}。`;
+    }
+
+    if (sId === "feral_cat") {
+      const coats = ["深灰色虎斑條紋皮毛、腹部潔白", "帶有玳瑁斑塊的柔軟毛皮", "純黑油亮、光線下泛著墨藍光澤的被毛", "橘黃相間、背脊帶有微紅輪廓的蓬鬆毛皮"];
+      const marks = ["右耳尖端有一道打鬥留下的微小豁口", "粉紅鼻尖旁有顆醒目的黑色斑點", "修長靈巧的斑紋長尾末端微曲", "四足均覆蓋著如穿白襪般的雪白掌毛"];
+      const eyes = ["澄澈透亮如翡翠的碧綠眼眸", "如黃昏落日般耀眼的古銅金色瞳孔", "警惕機敏的淡海藍色雙眼"];
+      const builds = ["身形纖細柔軟、骨肉緊實敏捷", "步履輕盈無聲、爆發力極佳的矯健身軀"];
+      return `${coats[Math.floor(Math.random() * coats.length)]}，${marks[Math.floor(Math.random() * marks.length)]}，${eyes[Math.floor(Math.random() * eyes.length)]}，${builds[Math.floor(Math.random() * builds.length)]}。`;
+    }
+
+    if (sId === "orca") {
+      const marks = ["背鰭後方帶有如馬鞍般獨特的灰白斑紋", "左側眼斑略寬、呈流線形橢圓", "下顎至腹部覆蓋著無瑕的雪白紋路"];
+      const builds = ["長達數公尺的漆黑流線巨軀、背鰭高聳挺立", "雄渾強健的黑白身軀、尾鰭強韌有力"];
+      return `黑白分明的極致流線身軀，${marks[Math.floor(Math.random() * marks.length)]}，深邃如深海淵潭的黑眼，${builds[Math.floor(Math.random() * builds.length)]}。`;
+    }
+
+    if (sId === "emperor_penguin") {
+      const marks = ["頸側如晨曦破曉般的明黃色漸層羽斑", "耳部邊緣綻放鮮明的金橙色羽帶", "背部覆蓋著如鋼鐵般緻密的藍黑防水羽翎"];
+      const builds = ["胸膛飽滿厚實、腹部白羽柔軟如絲", "體態敦實威嚴、足掌寬厚帶黑色銳爪"];
+      return `${marks[Math.floor(Math.random() * marks.length)]}，${builds[Math.floor(Math.random() * builds.length)]}，深褐色的圓眼敏銳注視著冰原。`;
+    }
+
+    if (sId === "red_fox") {
+      const coats = ["如秋日烈焰般鮮紅的金赤色皮毛", "橙紅中夾雜著金黃光澤的厚實絨毛", "背部赤紅、腹部與下頜純白的鮮明毛色"];
+      const marks = ["蓬鬆巨大的赤色尾巴末端帶著一撮雪白毛尖", "修長的黑襪式四足、耳背覆蓋著深黑色被毛"];
+      const eyes = ["一雙狡黠靈動且帶有好奇光芒的琥珀金眼眸", "敏銳閃爍的黃褐色瞳孔"];
+      return `${coats[Math.floor(Math.random() * coats.length)]}，${marks[Math.floor(Math.random() * marks.length)]}，配上一雙${eyes[Math.floor(Math.random() * eyes.length)]}，身形修長靈巧。`;
+    }
+
+    const baseColors = ["深褐色", "灰褐色", "砂黃色", "斑駁斑紋", "暗灰夾黑", "墨黑泛光"];
+    const col = baseColors[Math.floor(Math.random() * baseColors.length)];
+    return `具有適應${biome ? biome.name : '自然棲所'}的${col}被毛/表皮，身形勻稱緊湊，雙眸明亮機敏，展現出健康的生命力。`;
+  },
+
+  generateFamilyMembers(species, isHuman, biome, countryData) {
+    const list = [];
+    if (isHuman) {
+      const c = countryData || { name: "本地" };
+      list.push({ relation: "父親", name: "父親", age: 29, status: "健康", bond: 88, icon: "fa-person" });
+      list.push({ relation: "母親", name: "母親", age: 27, status: "健康", bond: 94, icon: "fa-person-dress" });
+      if (Math.random() > 0.4) {
+        list.push({ relation: "手足", name: "哥哥", age: 3, status: "活潑", bond: 82, icon: "fa-child" });
+      }
+      if (Math.random() > 0.6) {
+        list.push({ relation: "手足", name: "妹妹", age: 1, status: "健康", bond: 85, icon: "fa-baby" });
+      }
+    } else {
+      const sId = species.id;
+      if (sId === "gray_wolf") {
+        list.push({ relation: "首領母狼", name: "母狼·霜影", age: 5, status: "健壯巡守", bond: 95, icon: "fa-shield-heart" });
+        list.push({ relation: "首領公狼", name: "灰首·裂爪", age: 6, status: "狼群領航", bond: 88, icon: "fa-paw" });
+        list.push({ relation: "同巢手足", name: "灰尾", age: 0, status: "稚嫩玩耍", bond: 90, icon: "fa-paw" });
+        list.push({ relation: "同巢手足", name: "白足", age: 0, status: "緊隨母腹", bond: 88, icon: "fa-paw" });
+      } else if (sId === "orca") {
+        list.push({ relation: "家族族長", name: "老祖母·碧浪", age: 48, status: "領航聲納", bond: 96, icon: "fa-water" });
+        list.push({ relation: "生母", name: "長泳·鳴波", age: 22, status: "並肩伴游", bond: 98, icon: "fa-fish" });
+        list.push({ relation: "同輩幼鯨", name: "破浪", age: 2, status: "嬉浪躍游", bond: 85, icon: "fa-fish" });
+      } else if (sId === "emperor_penguin") {
+        list.push({ relation: "育雛父親", name: "暖腹·蒼羽", age: 7, status: "抵禦暴風雪", bond: 98, icon: "fa-shield-halved" });
+        list.push({ relation: "遠海捕食母企鵝", name: "踏海·清露", age: 6, status: "返航途中", bond: 92, icon: "fa-crow" });
+      } else {
+        list.push({ relation: "守護母體", name: "母體", age: Math.max(1, Math.floor(species.avgAgeWild * 0.5)), status: "悉心哺育", bond: 95, icon: "fa-heart" });
+        list.push({ relation: "同巢手足", name: "同巢幼體", age: 0, status: "相依取暖", bond: 86, icon: "fa-paw" });
+      }
+    }
+    return list;
+  },
+
+  generateHomeComparison(species, countryData, biome, homeCountryId) {
+    if (!homeCountryId || !window.HOME_COUNTRIES_LIST) return null;
+    const home = window.HOME_COUNTRIES_LIST.find(c => c.id === homeCountryId) || window.HOME_COUNTRIES_LIST[0];
+    const isHuman = species.isHuman;
+
+    if (isHuman && countryData) {
+      const diffLifespan = (countryData.avgLifespan - home.avgLifespan).toFixed(1);
+      const infantRatio = (countryData.infantMortality / Math.max(0.0001, home.infantMortality)).toFixed(1);
+      const gdpDiff = countryData.gdpPppUsd - home.gdpPppUsd;
+
+      return {
+        homeName: home.name,
+        targetName: countryData.name,
+        diffLifespan: diffLifespan > 0 ? `+${diffLifespan} 歲` : `${diffLifespan} 歲`,
+        lifespanVerdict: diffLifespan >= 0 ? `比${home.name}多活約 ${diffLifespan} 歲` : `比${home.name}少活約 ${Math.abs(diffLifespan)} 歲`,
+        infantComparison: infantRatio > 1.2 ? `嬰兒死亡風險約為${home.name}的 ${infantRatio} 倍` : (infantRatio < 0.8 ? `嬰兒死亡率比${home.name}更低` : `與${home.name}相近`),
+        economicVerdict: gdpDiff >= 0 ? `人均GDP高於${home.name} (約高 $${gdpDiff.toLocaleString()})` : `人均GDP低於${home.name} (約低 $${Math.abs(gdpDiff).toLocaleString()})`,
+        summaryText: `若你在${home.name}成長，平均預期壽命為 ${home.avgLifespan} 歲（${home.env}）；而降生在${countryData.name}，你將在${countryData.description}中展開一生。`
+      };
+    } else {
+      const wildAvg = species.avgAgeWild;
+      const wildUnit = species.unit;
+      const infantSurvival = (species.infantSurvivalRate * 100).toFixed(1);
+      const homeLifespan = home.avgLifespan;
+
+      return {
+        homeName: home.name,
+        targetName: `${species.name} (${biome ? biome.name : '荒野生境'})`,
+        diffLifespan: `${wildAvg} ${wildUnit}`,
+        lifespanVerdict: `野外平均壽命僅約 ${wildAvg} ${wildUnit} (人類家鄉${home.name}約 ${homeLifespan} 歲)`,
+        infantComparison: `自然首年存活率僅約 ${infantSurvival}%，面臨純粹的物競天擇`,
+        economicVerdict: `領地掌控與自然獵場生態代謝`,
+        summaryText: `你在文明社會${home.name}習慣了安全庇護與醫療；而作為${biome ? biome.name : '自然荒野'}中的${species.name}，每一步都將在寒冬、天敵與野性直覺的真實洗禮中渡過。`
+      };
+    }
+  },
+
+  /**
+   * 產生一生完整生命軌跡與事件 (支援多重稱呼、出生的世界、故鄉對比、家庭結構)
    */
   generateLifeTrajectory(species, config = {}) {
     const isHuman = species.isHuman;
@@ -26,6 +168,10 @@ window.DestinyEngine = {
       const cList = species.countries;
       countryData = config.country || cList[Math.floor(Math.random() * cList.length)];
     }
+
+    // 生物性別與外觀樣貌特徵生成
+    const gender = this.determineGender(species);
+    const appearance = this.generateAppearance(species, gender, isHuman, biome);
 
     // 命名處理：野生生靈在自然界初生時無受命名，姓名格為空白！
     let currentName = "";
@@ -42,7 +188,7 @@ window.DestinyEngine = {
     // 1. 根據統計曲線計算壽命極限與死因
     const lifeDeathPlan = this.calculateLifespanAndFate(species, countryData);
 
-    // 2. 原始年表模擬：逐年/逐期生成生態統計事件 (含個體獨立思維與動態命名機會)
+    // 2. 原始年表模擬：逐年/逐期生成生態統計事件
     const rawEvents = this.simulateRawLifecycle(species, lifeDeathPlan, biome, countryData, names);
 
     // 若歷程中有獲得稱呼，更新 currentName
@@ -50,21 +196,43 @@ window.DestinyEngine = {
       currentName = names[names.length - 1].name;
     }
 
-    // 3. AI 智慧去重與修剪：過濾重複的日常事件，提煉核心轉折
-    const deduplicatedEvents = this.aiDeduplicateEvents(rawEvents, species);
+    // 3. AI 智慧去重與修剪 (若開啟 skipHeavy 則過濾極端悲慘與殘忍暴力描寫)
+    let deduplicatedEvents = this.aiDeduplicateEvents(rawEvents, species);
+    if (config.skipHeavy) {
+      deduplicatedEvents = deduplicatedEvents.map(evt => {
+        let txt = evt.text || "";
+        txt = txt.replace(/被殘忍分屍|血肉模糊|四肢斷裂|開膛破肚|自戕自絕/g, "遭遇重創不幸離世");
+        return { ...evt, text: txt };
+      });
+    }
 
     // 4. 生成作家小說序幕 (出生登記段落，動態物種專屬)
-    const prologueNovel = this.generateChapterOneNarrative(species, currentName, biome, countryData, config.author, config.contentMode);
+    const prologueNovel = this.generateChapterOneNarrative(species, currentName, biome, countryData, config.author, config.contentMode, config.experienceMode, gender, appearance);
 
-    // 5. 動態編織完全不重複、依據物種特化的互動抉擇與命運章節 (篇名嚴格規定為第N章)
-    const storyTimeline = this.compileStoryTimeline(species, currentName, deduplicatedEvents, lifeDeathPlan, biome, countryData, config);
+    // 5. 動態編織完全不重複、依據物種特化的互動抉擇與命運章節
+    const storyTimeline = this.compileStoryTimeline(species, currentName, deduplicatedEvents, lifeDeathPlan, biome, countryData, config, gender, appearance);
+
+    // 6. 生成家人與群體結構 (1in8b 家人與生活面板支援)
+    const familyMembers = this.generateFamilyMembers(species, isHuman, biome, countryData);
+
+    // 7. 生成故鄉並排對比數據 (1in8b 故鄉對比支援)
+    const homeComparison = this.generateHomeComparison(species, countryData, biome, config.homeCountry);
 
     return {
       species,
       name: currentName,
       names,
+      gender,
+      appearance,
       biome,
       countryData,
+      era: config.era || "now",
+      eraYear: config.eraYear || 2026,
+      drawMode: config.drawMode || "birth",
+      pace: config.pace || "60",
+      homeCountry: config.homeCountry || null,
+      homeComparison,
+      familyMembers,
       experienceMode: config.experienceMode || "story",
       maxPossibleAge: lifeDeathPlan.finalAge,
       deathCause: lifeDeathPlan.deathCause,
@@ -77,7 +245,7 @@ window.DestinyEngine = {
         energy: 90,
         instinct: isHuman ? 50 : 70,
         social: 80,
-        resource: isHuman ? countryData.localEquivMonthly * 2 : 50
+        resource: isHuman ? (countryData ? countryData.localEquivMonthly * 2 : 50000) : 50
       }
     };
   },
@@ -340,7 +508,7 @@ window.DestinyEngine = {
   /**
    * 編織半互動式小說時間線（保證章節完全不重複，依據年齡階段與物種專屬情境演繹）
    */
-  compileStoryTimeline(species, name, events, lifeDeathPlan, biome, countryData, config = {}) {
+  compileStoryTimeline(species, name, events, lifeDeathPlan, biome, countryData, config = {}, gender = "雄性", appearance = "") {
     const chapters = [];
     const finalAge = lifeDeathPlan.finalAge;
     const chapterAges = this.selectMilestoneAges(finalAge);
@@ -352,6 +520,8 @@ window.DestinyEngine = {
       const chapter = this.generateUniqueChapter({
         species,
         name,
+        gender,
+        appearance,
         age,
         biome,
         countryData,
@@ -379,9 +549,6 @@ window.DestinyEngine = {
   },
 
   /**
-   * 物種專屬章節生成器（篇名嚴格規定只能是「第一章」、「第二章」…不可有標題）
-   */
-  /**
    * 自然段落智能切分器：確保文本具備 2 到 3 個段落，段首縮排兩字
    */
   splitIntoNaturalParagraphs(text) {
@@ -394,12 +561,12 @@ window.DestinyEngine = {
         result.push(part);
         return;
       }
-      // 若單一段落過長（超過 110 字且無分段），在標點處自然切分
-      if (part.length > 110) {
+      // 若單一段落過長（超過 120 字且無分段），在標點處自然切分
+      if (part.length > 120) {
         const sentences = part.match(/[^。！？]+[。！？]*/g) || [part];
         let buf = "";
         sentences.forEach(s => {
-          if (buf.length + s.length > 95 && buf.length >= 50) {
+          if (buf.length + s.length > 105 && buf.length >= 50) {
             result.push(buf);
             buf = s;
           } else {
@@ -416,71 +583,59 @@ window.DestinyEngine = {
   },
 
   /**
-   * 根據物種、棲地、作家與模式動態生成第一章開篇小說（嚴格分成 2-3 段落）
+   * 根據物種、棲地、作家與模式動態生成第一章開篇小說（艾琳·杭特/沈石溪風格、擬人化話語與內心獨白）
    */
-  generateChapterOneNarrative(species, name, biome, countryData, author = "erinhunter", mode = "normal", expMode = "story") {
+  generateChapterOneNarrative(species, name, biome, countryData, author = "erinhunter", mode = "normal", expMode = "story", gender = "雄性", appearance = "") {
     const isHuman = species.isHuman;
     const sId = species.id;
     const bName = biome ? biome.name : "未知生境";
+    const appDesc = appearance ? `帶著${appearance}` : "";
 
     if (isHuman) {
       const cName = (countryData && countryData.name) ? countryData.name : "這個國度";
-      return `在${cName}，最初的記憶始於刺目而潔白的產房頂燈，以及猛然湧入肺部的第一口灼熱空氣。伴隨著劃破寂靜的清脆啼哭，冰涼的世界在被柔軟溫暖的襁褓包裹的那一刻安靜了下來。\n\n小小的手掌在半空中無意識地抓握，指尖碰觸到母親微顫而帶著淚痕的臉頰。窗外是這座國度日夜奔流的街道脈動與喧囂，在家庭、社會與文明交織的龐大網絡中，你作為八十億分之一的微光，正式啟程。`;
+      return `在${cName}，最初的記憶始於刺目而潔白的產房頂燈，以及猛然湧入肺部的第一口灼熱空氣。伴隨著劃破寂靜的清脆啼哭，冰涼的世界在被柔軟溫暖的襁褓包裹的那一刻安靜了下來。你${appDesc}，在親人的注視下睜開了懵懂的眼眸。\n\n「看他的眼睛多明亮，」母親疲憊而溫柔的聲音在耳畔響起，眼眶中帶著喜悅的淚光，「歡迎來到這個世界，我們的孩子。」小小的手掌在半空中無意識地抓握，指尖碰觸到父親微顫而厚實的掌心。你聽不懂周遭的話語，但心臟在小小的胸膛裡有力地跳動著。\n\n窗外是這座城市日夜奔流的車水馬龍與街道脈動。在家庭、社會與文明交織的龐大網絡中，你作為八十億分之一的微光，踏出了人生漫長跋涉的第一步。`;
     }
 
-    // 依據物種 ID 精準配置專屬生物感官與生態細節（絕不混淆）
     if (sId === "gray_wolf") {
-      return `洞穴深處瀰漫著濃重的潮濕泥土與母狼腹毛的溫熱。最初的知覺是緊閉的眼皮外朦朧的微光，以及同胞幼崽擠挨在身側急促微弱的心跳。乳汁的甘甜伴隨著母親溫柔粗糙的舌舔，撫平了初臨塵世的戰慄。\n\n幾週後，稚嫩的四爪終於跌跌撞撞地邁出了幽暗的石穴。迎面而來的是${bName}凜冽刺骨的寒風，松針與未融的殘雪在腳掌下發出細碎的脆響。遠方山嶺間迴盪起族群蒼涼綿長的嗥叫，荒野用第一陣戰慄與浩瀚，向你宣示了獵手一生的宿命。`;
+      return `洞穴深處瀰漫著濃重的潮濕泥土與母狼腹毛的溫熱。最初的知覺是緊閉的眼皮外朦朧的微光，以及手足幼崽擠挨在身側急促的心跳。乳汁的甘甜伴隨著母親溫柔粗糙的舌舔，撫平了初臨塵世的戰慄。那一身${appearance || '濃密厚實的被毛'}，在幽暗的穴壁石縫間若隱若現。\n\n「快趴低，別發出聲音，」母親沙啞而溫暖的鼻息拂過耳際，她的利爪輕輕將你往懷裡撥了撥，「外頭的暴風雪還在呼嘯，雷擊路上的怪獸正在咆哮。」你縮了縮脖子，心裡想著：外頭究竟是什麼樣的世界？長者們口中那些噴著黑煙的鐵皮怪物，真的會吞噬森林嗎？\n\n幾週後，稚嫩的四爪終於跌跌撞撞地探出了岩穴。迎面而來的是${bName}凜冽刺骨的寒風，松針與殘雪在腳爪下發出細微的碎裂聲。山脊另一端傳來了族群嘹亮悠長的嚎叫，先祖星族的呼喚在風中迴盪。荒野用第一陣冷風向你宣告了生存的嚴苛，也為你揭開了獵手一生的宿命。`;
     }
 
     if (sId === "feral_cat" || species.name.includes("貓")) {
-      return `紙箱與廢棄磚瓦搭建的狹縫裡，殘留著瀝青與雨水的混合氣味。幾隻毛茸茸的手足在陰暗的角落裡交疊蜷縮，母親輕柔的咕嚕聲如引擎般震顫著單薄的胸膛，驅散了破瓦殘縫間漏進的初春寒意。\n\n當藍灰色的幼貓瞳孔第一次聚焦，映入眼簾的是霓虹閃爍的水泥縫隙與高聳如峭壁的垃圾箱。遠處急馳而過的車輪掀起刺鼻的尾氣，身旁的母貓警惕地豎直了耳尖。這片由人類遺棄物與暗巷鼠跡構築的領地，就是你必須用利爪征服的全部世界。`;
+      return `破舊紙箱與廢棄磚瓦搭建的窄縫深處，殘留著瀝青與雨水的潮濕氣味。幾隻毛茸茸的手足在陰暗的角落裡交疊蜷縮，母親輕柔的呼嚕聲如引擎般震顫著單薄的胸膛，驅散了初春的寒氣。你的身上帶著${appearance || '柔軟細密的毛皮'}，在昏暗中微微泛光。\n\n「別往洞口擠，」身旁的手足幼貓瑟縮了一下，發出軟糯的喵叫，「兩腳獸剛剛才走過去，他們丟下來的鐵皮箱發出好可怕的巨響。」你好奇地豎起耳尖，心裡想著：兩腳獸到底是敵是友？為什麼母親總是告誡我們千萬不能踏上那條被稱為雷擊路的黑硬地面？\n\n當藍灰色的瞳孔第一次聚焦，映入眼簾的是霓虹閃爍的高聳水泥牆。遠處急馳而過的噴火獸掀起刺鼻的尾氣，母親警惕地亮出了雪白的爪尖。這片由人類遺棄物、暗巷鼠跡與未知危險構築的領地，就是你必須用勇氣與利爪守護的全部世界。`;
     }
 
     if (sId === "orca" || species.category === "marine") {
-      return `沒有重力，沒有泥土，唯有一片無邊無際的湛藍與冰冷水流包裹著身軀。剛脫離母體的一剎那，本能驅使著尾鰭用力擺動，母親與族群副手隨即以強健的身軀將你托向海面。破水而出的瞬間，頭頂的氣孔噴出一道細密的白霧，吸入了${bName}純淨而冷冽的第一口空氣。\n\n沉入海面之下，家族特有的高頻哨音與回聲定位脈衝在深邃的海溝間迴盪，如同一張無形而溫暖的聲波搖籃。龐大如島嶼的親族在身側靜默伴游，黑白分明的流線身軀撕開浪潮，帶你領略這片縱橫萬里的冰海王者疆域。`;
+      return `沒有重力，沒有泥土，唯有一片無邊無際的湛藍與冰冷水流包裹著身軀。剛脫離母體的一剎那，本能驅使著尾鰭用力擺動，母親與族群副手隨即以強健的身軀將你托向海面。破水而出的瞬間，頭頂的氣孔噴出一道細密的白霧，吸入了${bName}純淨而冷冽的第一口空氣。你那一身${appearance || '黑白分明的極致流線身軀'}，在陽光折射下閃爍著如黑曜石般的光澤。\n\n「跟著我們的聲納，小傢伙，」母親發出悠長而清脆的高頻哨音，身軀溫柔地蹭過你的背脊，「海灣很深，但只要你跟緊族群，這片大洋就沒有什麼能傷害你。」你用胸鰭輕觸母親的側腹，心裡滿是驚奇與安心：這座廣闊的水下宮殿，就是先祖世代游弋的王國嗎？\n\n然而遠處的深海中，隱隱傳來了金屬螺旋槳沉悶的轟鳴與人類巨輪撕裂浪潮的震顫。家族長老高高躍出海面，白色的巨浪隨之翻滾。家族的哨音在萬里冰海間交織成一張無形的情感之網，引領著你踏上這片屬於海洋霸主的浩瀚征途。`;
     }
 
     if (sId === "emperor_penguin") {
-      return `零下四十度的極地暴風雪在幾寸之外咆哮，但你所感知的第一個世界，卻是父親溫暖緊繃的育兒袋皺褶與厚重脂肪層。微小的喙尖破開堅硬的卵殼，在黑暗中發出微弱而尖銳的索食嘶鳴。\n\n暴風雪暫歇的短暫時刻，父親微微抬起腹部羽翼。那一瞬間，極晝微光下耀眼奪目的藍白冰原與千萬同族緊密相依的壯闊景象震撼了幼小的心靈。在無邊無際的白色荒原邊緣，死寂與嚴寒構築了最嚴苛的生存試煉。`;
+      return `零下四十度的極地暴風雪在幾寸之外咆哮，但你所感知的第一個世界，卻是父親溫暖緊繃的育兒袋皺褶與厚重脂肪層。微小的喙尖破開堅硬的卵殼，在黑暗中發出微弱而尖銳的索食嘶鳴。那一身${appearance || '稚嫩細軟的絨毛'}，在微光下顯得無比嬌小。\n\n「別怕，縮進來一點，」父親低沉的咕噥聲伴隨著胸腔的共鳴傳來，他用厚實的羽翼將你護得更緊，「這場白毛風很快就會過去，海裡的母親正在為我們帶回食物。」你依偎在父親溫暖的腳背上，心裡想著：外面的風暴究竟有多麼寒冷？大海又是怎樣一片寬廣的世界？\n\n暴風雪暫歇的短暫時刻，父親微微抬起腹部羽翼。那一瞬間，極晝微光下耀眼奪目的藍白冰原與千萬同族緊密相依的壯闊景象震撼了幼小的心靈。在無邊無際的白色荒原邊緣，死寂與嚴寒構築了最嚴苛的生存試煉，而親族的心跳是唯一的避風港。`;
     }
 
     if (sId === "african_elephant") {
-      return `烈日烘烤著赤紅的大地，金黃色的草浪在熱浪中蒸騰扭曲。甫一落地，四條如石柱般笨拙的長腿便在母象長鼻的輕柔扶持下，一次次摔倒又固執地站起。熱風掠過寬大薄嫩的雙耳，送來遠方相思樹皮與乾燥泥土的氣息。\n\n整個象群停下了遷徙的沉重腳步，圍攏成一道堅不可摧的移動肉牆，族群長老的長鼻輕撫過你的背脊，發出低沉而溫柔的次聲波共鳴。在獅群潛伏的金色大草原上，古老的家族記憶與無盡的跋涉就此啟航。`;
-    }
-
-    if (sId === "green_sea_turtle") {
-      return `潮濕而溫熱的沙層深處，卵殼破裂的細響在黑暗中蔓延。數十隻同胞本能地一齊向上攀爬、扒開鬆散的珊瑚砂。當第一顆小腦袋頂破沙面，滿天璀璨的星光與白色海浪的磷光瞬間照亮了幼小的眼眸。\n\n沒有任何母性的庇護與告別，落地即是生死競速。夜空下，幽靈蟹在沙灘上橫行，海鳥的雙眼在樹影中窺伺。你揮動著如槳般的細小前肢，向著那片轟鳴而發光的大海拼盡全力狂奔，躍入翻滾浪潮的瞬間，漫長的大洋漂流正式展開。`;
+      return `烈日烘烤著赤紅的大地，金黃色的草浪在熱浪中蒸騰扭曲。甫一落地，四條笨拙的粗壯小腿便在母象長鼻的輕柔扶持下，一次次摔倒又固執地站起。熱風掠過寬大薄嫩的雙耳，送來遠方相思樹皮與乾燥泥土的氣息。你身上帶有${appearance || '褶皺厚實的灰色皮膚'}，正試探性地甩動幼小的鼻子。\n\n「站直了，孩子，」母親長鼻發出低沉而柔和的低鳴，輕輕頂住你的後膝，「這片荒原很漫長，獅群隨時都在暗處窺伺，你必須學會自己邁開腳步。」你依偎在母親高聳如山峰的象腿旁，心裡湧起對這個世界無盡的好奇與敬畏。\n\n整個象群停下了遷徙的沉重腳步，圍攏成一道堅不可摧的移動肉牆。族群長老的長鼻輕撫過你的背脊，發出低沉而溫柔的次聲波共鳴。在金色大草原上，古老的家族記憶與無盡的跋涉就此啟航。`;
     }
 
     if (sId === "red_fox") {
-      return `山坡樹根下的泥穴裡，散發著乾草與母狐被毛濃郁的野性氣味。柔軟的小爪相互推搡著爭奪乳頭，耳尖微微顫動，捕捉著泥土上方傳來的落葉沙沙聲與晨露滴落的脆響。\n\n幾週後，大膽地探出洞口，初升的旭日將你赤紅如火焰的絨毛鍍上一層金輝。一隻金龜子在苔蘚上爬過，引發了你第一次笨拙的撲擊；遠處農莊的犬吠隱隱傳來，機敏與狡黠的天性在這一刻悄然覺醒。`;
-    }
-
-    if (sId === "honeybee" || species.category === "insect") {
-      return `封蓋的六角形蠟房內，最後一層薄膜被堅硬的上顎咬破。伸展出濕漉漉的六足與透明的雙翅，空氣中瀰漫著溫熱濃郁的蜂蜜香氣與蜂王漿的信息素。身旁忙碌的撫育蜂用觸角輕柔觸碰，清理著身上的蠟屑。\n\n蜂巢深處如同一座精密運轉的金色鐘錶，數萬名姐妹的翅膀振動發出和諧的共鳴。當翅膀在溫暖的巢風中徹底晾乾硬化，本能的指令已在神經中樞中啟動——清理巢房、侍奉幼蟲，直到飛向藍天探尋花海，你的一生是無私與奉獻的壯麗史詩。`;
-    }
-
-    if (sId === "common_raven" || species.category === "avian") {
-      return `松枝與羊毛編織的巨巢高懸在冷杉樹冠之巔。破殼而出的那一刻，光禿的頭頂感受到了高空冷冽氣流的激盪。親鳥漆黑如鐵的巨喙銜著腐肉與漿果俯下身來，發出深沉低沉的金屬般咕噥聲。\n\n烏黑的羽管在春風中迅速拔節生長，一對漆黑如黑曜石的敏銳雙眼好奇地審視著大地上的一切動靜。狼群在雪谷中狩獵的喧囂引來了注意——作為荒野中最具智慧的飛行觀察者，你與猛獸共生的傳奇旅程由此啟幕。`;
+      return `山坡樹根下的泥穴裡，散發著乾草與母狐被毛濃郁的野性氣味。柔軟的小爪相互推搡著爭奪乳頭，耳尖微微顫動，捕捉著泥土上方傳來的落葉沙沙聲與晨露滴落的脆響。那一身${appearance || '金赤色的蓬鬆毛皮'}，在昏暗的地穴中宛如跳動的小火苗。\n\n「別鬧了，快把頭低下去！」母狐用前爪輕輕拍了拍你的額頭，警惕地豎起雙耳，「上頭有獵犬的氣味，兩腳獸正扛著會噴火的鐵管穿過樹林。」你緊緊貼著同伴的肚腹，心裡想著：獵犬很可怕嗎？為什麼母親的眼睛裡充滿了緊張？\n\n幾週後，大膽地探出洞口，初升的旭日將你金赤色的皮毛鍍上一層耀眼的金輝。遠處農莊的炊煙在微風中飄散，田埂上的野兔敏銳地跳動。機敏與狡黠的天性在這一刻悄然覺醒，荒野的生存博弈就此拉開序幕。`;
     }
 
     // 通用自然生靈備援（嚴格分段，按生境描寫）
-    return `在${bName}的晨曦微光中，最初的生命脈動悄然甦醒。微風拂過初生的軀體，帶來了泥土、草葉與遠方同伴微弱的氣息，生命的本能在此刻被全面喚醒。\n\n睜開雙眸的那一瞬，浩瀚的天地在眼前鋪展而開。無論前路隱伏著多少風雨與捕食者的陰影，屬於你的這一篇章已然展開，以最純粹的野性力量向荒野致敬。`;
+    return `在${bName}的晨曦微光中，最初的生命脈動悄然甦醒。微風拂過初生的軀體，帶來了泥土、草葉與遠方同伴微弱的氣息，生命的本能在此刻被全面喚醒。你身上帶有${appearance || '適應棲所的獨特皮毛'}，靜靜凝望著浩瀚的天地。\n\n「荒野永遠不會憐憫弱者，」長者的低語似乎隨風拂過耳畔，「但只要你遵從野性的直覺，群星與大地就會為你引路。」心臟在胸腔中有力地跳動著，你深吸了一口這片自由的空氣，心裡燃起了對未知生命的無盡好奇與勇氣。\n\n睜開雙眸的那一瞬，浩瀚的天地在眼前鋪展而開。無論前路隱伏著多少風雨與捕食者的陰影，屬於你的這一篇章已然展開，以最純粹的野性力量向荒野致敬。`;
   },
 
   /**
    * 物種專屬章節生成器（篇名嚴格規定只能是「第一章」、「第二章」…不可有標題）
    */
   generateUniqueChapter(params) {
-    const { species, name, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex, author, mode, experienceMode } = params;
+    const { species, name, gender, appearance, age, biome, countryData, isLast, isChoice, chapterIndex, stepIndex, author, mode, experienceMode } = params;
     const expMode = experienceMode || "story";
     const isHuman = species.isHuman;
-    const title = this.formatChapterTitle(chapterIndex);
+    const title = this.formatChapterTitle(chapterIndex, author);
 
     // 開篇第一章 (誕生與幼年探索)
     if (chapterIndex === 1) {
-      const narrative = this.generateChapterOneNarrative(species, name, biome, countryData, author, mode, expMode);
+      const narrative = this.generateChapterOneNarrative(species, name, biome, countryData, author, mode, expMode, gender, appearance);
       return { age, title, narrative, choices: null };
     }
 
@@ -488,10 +643,10 @@ window.DestinyEngine = {
     if (isLast) {
       const narrative = isHuman
         ? (expMode === "story"
-            ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData ? countryData.name : ''}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意與不捨的淚水。\n\n回顧這一生走過的坎坷、歡笑與深情羈絆，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
+            ? `歲月在鬢角染上霜白，病房的窗櫺外是${countryData ? countryData.name : ''}熟悉的街道夕陽。監護儀器緩慢而規律地震顫著，親人的掌心傳來熟悉的暖意與不捨的淚水。\n\n「別怕，我們都在這裡陪著你……」耳畔傳來輕柔的啜泣與叮嚀。小小的手掌曾抓緊過這世間無數美好與辛酸，如今漸漸舒展開來。\n\n回顧這一生走過的坎坷、歡笑與深情羈絆，心跳漸漸放慢，如同一葉扁舟平穩駛入了無風的港灣，歸於久違的安息。`
             : `在${countryData ? countryData.name : ''}，監護儀數值逐漸衰退，生理機能隨衰老停止運轉，生命走向平靜終局。`)
         : (expMode === "story"
-            ? `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與溫柔。\n\n耳邊彷彿迴盪起年少時手足相依偎的呢喃與母親的低鳴。你緩緩伏下身軀，任由最後一口溫熱吐息化作微風，帶著一生濃烈的記憶奔向群星與先祖的古老獵場。`
+            ? `刺骨的寒風穿過斑白襤褸的皮毛，四肢沉重如鉛。骨骼深處隱隱作痛，但視線中的山嵐與林濤卻透出一種奇異的清澈與溫柔。\n\n「時候到了……」風中彷彿迴盪起年少時手足相依偎的呢喃與母親當年的低鳴，「先祖的群星正在閃爍，回到星族的獵場去吧。」你試圖動一動耳朵，心裡想著：野地將永遠存在，同胞的嚎叫將在山谷中延續。\n\n你緩緩伏下身軀，任由最後一口溫熱吐息化作微風，帶著一生濃烈的記憶奔向群星與先祖的古老獵場。`
             : `刺骨寒風穿透衰老的皮毛，體溫漸降，呼吸止歇於凍土之上，軀體回歸大自然的物質循環。`);
       return { age, title, narrative, choices: null };
     }

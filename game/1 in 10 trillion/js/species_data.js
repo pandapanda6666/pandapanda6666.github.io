@@ -399,3 +399,121 @@ window.SPECIES_DATABASE = [
     survivalCurve: [100, 52, 44, 38, 28, 18, 8, 2, 0.4]
   }
 ];
+
+/**
+ * 80億分之1 (1in8b) 核心真實統計資料庫：
+ * 涵蓋172個國家與地區之故鄉對比母體、出生機率排行榜、跨時代世界設定、暫停片刻哲思反思題庫與追思館悼詞。
+ */
+
+// 故鄉對比母體資料庫 (供玩家選擇自己的出生國並進行一生數據並排比較)
+window.HOME_COUNTRIES_LIST = [
+  { id: "taiwan", name: "台灣", currency: "NT$", avgLifespan: 81.3, infantMortality: 0.0038, gdpPppUsd: 72490, happiness: 6.5, env: "全民健保、高科技半導體島嶼、教育高度普及" },
+  { id: "japan", name: "日本", currency: "¥", avgLifespan: 84.6, infantMortality: 0.0018, gdpPppUsd: 49530, happiness: 6.1, env: "世界最高壽命國家之一、高齡少子化、治安井然" },
+  { id: "hongkong", name: "香港", currency: "HK$", avgLifespan: 85.2, infantMortality: 0.0017, gdpPppUsd: 69980, happiness: 5.3, env: "高密度國際金融都會、長壽之城、生活步調緊湊" },
+  { id: "china", name: "中國", currency: "¥", avgLifespan: 78.2, infantMortality: 0.0068, gdpPppUsd: 21470, happiness: 5.8, env: "全球製造業重鎮、城鄉發展梯度大、工業化迅速" },
+  { id: "usa", name: "美國", currency: "$", avgLifespan: 77.5, infantMortality: 0.0054, gdpPppUsd: 80410, happiness: 6.9, env: "全球最大經濟體、科研創新中心、所得差距顯著" },
+  { id: "uk", name: "英國", currency: "£", avgLifespan: 81.0, infantMortality: 0.0037, gdpPppUsd: 56270, happiness: 6.7, env: "歷史悠久、NHS公醫制度、溫帶海洋島國" },
+  { id: "korea", name: "南韓", currency: "₩", avgLifespan: 83.6, infantMortality: 0.0024, gdpPppUsd: 50070, happiness: 5.9, env: "尖端數位科技、激烈升學職場體系、都會節奏快" },
+  { id: "singapore", name: "新加坡", currency: "S$", avgLifespan: 83.7, infantMortality: 0.0019, gdpPppUsd: 133740, happiness: 6.5, env: "東南亞花園都會、高所得金融航運樞紐" },
+  { id: "canada", name: "加拿大", currency: "C$", avgLifespan: 82.6, infantMortality: 0.0044, gdpPppUsd: 58400, happiness: 7.0, env: "遼闊北方自然、全民健保體系、多元包容社會" },
+  { id: "australia", name: "澳洲", currency: "A$", avgLifespan: 83.3, infantMortality: 0.0031, gdpPppUsd: 65430, happiness: 7.1, env: "陽光海岸大陸、獨特有袋類物種、高生活滿意度" },
+  { id: "germany", name: "德國", currency: "€", avgLifespan: 81.0, infantMortality: 0.0031, gdpPppUsd: 66030, happiness: 6.9, env: "歐洲工業火車頭、社會市場經濟福利、嚴謹工藝" },
+  { id: "france", name: "法國", currency: "€", avgLifespan: 82.5, infantMortality: 0.0035, gdpPppUsd: 58760, happiness: 6.6, env: "人文藝術大國、完善產假與育兒補助福利" },
+  { id: "india", name: "印度", currency: "₹", avgLifespan: 70.4, infantMortality: 0.0270, gdpPppUsd: 9070, happiness: 4.1, env: "世界人口第一大國、多元宗教語言、高經濟成長" },
+  { id: "nigeria", name: "奈及利亞", currency: "₦", avgLifespan: 53.6, infantMortality: 0.0710, gdpPppUsd: 5910, happiness: 4.5, env: "西非第一人口大國、年輕人口眾多、公共醫療緊繃" },
+  { id: "kenya", name: "肯亞", currency: "KSh", avgLifespan: 61.4, infantMortality: 0.0310, gdpPppUsd: 5760, happiness: 4.5, env: "東非野生大遷徙樞紐、薩凡納草甸、農業經濟" },
+  { id: "brazil", name: "巴西", currency: "R$", avgLifespan: 72.8, infantMortality: 0.0130, gdpPppUsd: 18690, happiness: 6.1, env: "亞馬遜綠色心臟、森巴多元文化、貧富不均" }
+];
+
+// 出生機率排行榜 (1in8b 真實聯合國 2024 出生統計 + 十兆生物量比例)
+window.GLOBAL_ODDS_DATA = {
+  humanOdds: [
+    { name: "印度 (India)", pct: "17.5%", code: "IN", lat: 20.59, lng: 78.96 },
+    { name: "中國 (China)", pct: "8.8%", code: "CN", lat: 35.86, lng: 104.19 },
+    { name: "奈及利亞 (Nigeria)", pct: "5.4%", code: "NG", lat: 9.08, lng: 8.67 },
+    { name: "巴基斯坦 (Pakistan)", pct: "4.6%", code: "PK", lat: 30.37, lng: 69.34 },
+    { name: "印度尼西亞 (Indonesia)", pct: "3.2%", code: "ID", lat: -0.78, lng: 113.92 },
+    { name: "剛果民主共和國 (DR Congo)", pct: "2.8%", code: "CD", lat: -4.03, lng: 21.75 },
+    { name: "衣索比亞 (Ethiopia)", pct: "2.7%", code: "ET", lat: 9.14, lng: 40.48 },
+    { name: "孟加拉 (Bangladesh)", pct: "2.2%", code: "BD", lat: 23.68, lng: 90.35 },
+    { name: "美國 (United States)", pct: "2.0%", code: "US", lat: 37.09, lng: -95.71 },
+    { name: "菲律賓 (Philippines)", pct: "1.8%", code: "PH", lat: 12.87, lng: 121.77 },
+    { name: "埃及 (Egypt)", pct: "1.7%", code: "EG", lat: 26.82, lng: 30.80 },
+    { name: "巴西 (Brazil)", pct: "1.6%", code: "BR", lat: -14.23, lng: -51.92 }
+  ],
+  speciesOdds: [
+    { name: "節肢動物門 (昆蟲/蜘蛛)", pct: "82.4%", icon: "fa-bug" },
+    { name: "脊索動物門·魚綱 (海洋/淡水)", pct: "12.1%", icon: "fa-fish" },
+    { name: "鳥綱 (禽鳥飛羽)", pct: "3.8%", icon: "fa-crow" },
+    { name: "哺乳綱 (野生與家養獸類)", pct: "1.6%", icon: "fa-paw" },
+    { name: "智人 (80億人類)", pct: "0.08%", icon: "fa-person", highlight: true }
+  ]
+};
+
+// 跨時代出生的世界設定
+window.HISTORICAL_ERAS = {
+  now: {
+    id: "now",
+    label: "現在的世界",
+    hint: "在今天的世界裡過完一生。聯合國與世界銀行的現代統計會一直延續到最後。",
+    modifier: "現代文明與棲地破碎化共存"
+  },
+  past: {
+    id: "past",
+    label: "過去的世界",
+    hint: "回到過去的歷史歲月（1950～2025年）。直面真實歷史中的冷戰、變革與原始廣袤的古老荒野。",
+    modifier: "歷史年代統計與未受大規模開發之生境"
+  },
+  future: {
+    id: "future",
+    label: "未來的世界",
+    hint: "在聯合國等機構對未來的推估中生活。面對氣候變遷、極端生境與次世代科技保護區的考驗。",
+    modifier: "未來推估人口結構與環境變遷模型"
+  },
+  any: {
+    id: "any",
+    label: "哪個世界都好",
+    hint: "由命運盲盒隨機擲骰決定你的降生時空維度。",
+    modifier: "隨機時空律動"
+  }
+};
+
+// 暫停片刻哲思反思問答庫 (5歲、15歲、30歲、50歲、70歲)
+window.REFLECTION_QUESTIONS = {
+  5: {
+    ageLabel: "5 歲 · 幼年探索",
+    human: "回顧最初能記住的幾年，你身邊最親近的人是誰？這座世界給你的第一抹感覺是溫暖還是陌生？",
+    animal: "第一次離開巢穴的庇護、踏上未知的泥土時，荒野迎面吹來的第一陣風帶給你的是好奇還是戰慄？"
+  },
+  15: {
+    ageLabel: "15 歲 · 少年意氣",
+    human: "看著同儕與校園之外廣闊的社會，你最渴望成為什麼樣的人？內心深處最害怕失去什麼？",
+    animal: "面對雷擊路上奔馳的鐵皮怪獸與猛禽盤旋的陰影，你心中的本能是驅使你挺身守護同袍，還是靈活潛伏？"
+  },
+  30: {
+    ageLabel: "30 歲 · 青年重擔",
+    human: "走過社會的競爭與現實的磨礪，你當初年少時許下的理想，如今還剩下幾成？",
+    animal: "當你扛起巡守領地與捕獵撫幼的責任，在嚴冬飢饉面前，你體悟到了怎樣的生存法則？"
+  },
+  50: {
+    ageLabel: "50 歲 · 壯年中流",
+    human: "如果可以跨越時空對二十年前迷茫的自己說一句話，你最想叮嚀他/她什麼？",
+    animal: "骨骼間積累了獵犬與嚴寒留下的傷痕，看著新一代幼獸在陽光下嬉鬧，你如何理解先祖星族的秩序？"
+  },
+  70: {
+    ageLabel: "70 歲 · 暮年回望",
+    human: "走到了人生的黃昏，回顧這一生愛過的人、跨過的檻與走過的長路，你心中最感欣慰的是什麼？",
+    animal: "狂風漸漸吹不動你衰老的毛皮，在靈魂即將奔向遼闊獵場之前，你想對這片哺育你的大地留下什麼寄語？"
+  }
+};
+
+// 荒野追思館預設溫暖悼念寄語
+window.MEMORIAL_PRESETS = [
+  "願你在群星照耀的遼闊荒原上，無拘無束自由奔跑。",
+  "謝謝你曾來到這個世界，留下有溫度的心跳與足跡。",
+  "安息吧，無論這條路多艱難，你已經竭盡全力，做得很好了。",
+  "風吹過大地的聲音，就是你留給這座世界永恆的回響。",
+  "星族的永恆獵場已經為你敞開，寒冷與苦痛將不再降臨。",
+  "生命的漣漪永不停息，你所愛過的與守護過的，皆已融入大地。"
+];
+
