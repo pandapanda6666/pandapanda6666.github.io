@@ -13,6 +13,7 @@
     <meta property="og:url" content="https://pandapanda6666.github.io/">
     <meta property="og:type" content="website">
     <link rel="search" type="application/opensearchdescription+xml" title="PandaPanda搜尋" href="opensearch.xml">
+    <meta name="google-site-verification" content="YLYlF2aggWq2y6A8xAZuFNkZ--hSTVk2m5OWNiPUuj4" />
 
     <!-- Schema.org 結構化資料：支援 Google 獨立站點搜尋框 (SearchAction) -->
     <script type="application/ld+json">
@@ -521,6 +522,92 @@
         .arrow-icon {
             color: var(--secondary-color);
             flex-shrink: 0;
+        }
+
+        /* 專案分頁控制項樣式 (嚴格無表情符號，現代感卡片主題適配) */
+        .project-pagination-wrapper {
+            margin: 2.5rem 0 1.5rem 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            user-select: none;
+        }
+
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .pagination-btn {
+            min-width: 40px;
+            height: 40px;
+            padding: 0 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            border: 1px solid var(--border-color, #dde8d4);
+            background: var(--card-bg-color, #ffffff);
+            color: var(--text-color, #3d3d3d);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            border-color: var(--primary-color, #2c5e32);
+            color: var(--primary-color, #2c5e32);
+            background: #f1f8ee;
+            transform: translateY(-1px);
+        }
+
+        .pagination-btn.active {
+            background: var(--primary-color, #2c5e32);
+            color: #ffffff;
+            border-color: var(--primary-color, #2c5e32);
+            box-shadow: 0 2px 6px rgba(44, 94, 50, 0.3);
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .pagination-ellipsis {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 40px;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+
+        .pagination-meta {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.88rem;
+            color: #64748b;
+        }
+
+        .pagination-size-select {
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color, #dde8d4);
+            background: var(--card-bg-color, #ffffff);
+            color: var(--text-color, #3d3d3d);
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
         }
 
         #loading-indicator {
@@ -1299,6 +1386,9 @@
                 </div>
                 
                 <div id="project-list"></div>
+                
+                <!-- 專案分頁控制項 (無表情符號，優雅向量圖示與主題適配) -->
+                <div id="project-pagination" class="project-pagination-wrapper"></div>
                 
                 <div id="loading-indicator">
                     <div class="loading-spinner-small"></div>
@@ -2672,22 +2762,46 @@
                 }
             }
 
-            window.renderProjectList = function(list) {
+            // 分頁控制狀態管理
+            window.projectPagination = {
+                currentPage: 1,
+                pageSize: 18,
+                currentList: []
+            };
+
+            window.renderProjectList = function(list, page = 1) {
                 const container = document.getElementById('project-list');
+                const pagContainer = document.getElementById('project-pagination');
                 if (!container) return;
+
+                window.projectPagination.currentList = list || [];
+                const totalItems = window.projectPagination.currentList.length;
+                const pageSize = window.projectPagination.pageSize;
+                const totalPages = Math.ceil(totalItems / pageSize) || 1;
+
+                let curPage = page;
+                if (curPage > totalPages) curPage = totalPages;
+                if (curPage < 1) curPage = 1;
+                window.projectPagination.currentPage = curPage;
+
                 container.innerHTML = '';
 
-                if (!list || list.length === 0) {
+                if (totalItems === 0) {
                     container.innerHTML = `
                         <div style="grid-column: 1/-1; text-align: center; padding: 40px 20px; color: #64748b;">
                             <i class="fas fa-search" style="font-size: 24px; margin-bottom: 8px; display: block; color: #94a3b8;"></i>
                             <div>未找到符合的自製專案</div>
                         </div>
                     `;
+                    if (pagContainer) pagContainer.innerHTML = '';
                     return;
                 }
 
-                list.forEach(item => {
+                const startIndex = (curPage - 1) * pageSize;
+                const endIndex = Math.min(startIndex + pageSize, totalItems);
+                const pageItems = window.projectPagination.currentList.slice(startIndex, endIndex);
+
+                pageItems.forEach(item => {
                     const cardHTML = `
                         <a href="${item.url}" class="project-card">
                             <div class="card-content">
@@ -2711,6 +2825,91 @@
                     tempDiv.innerHTML = cardHTML.trim();
                     container.appendChild(tempDiv.firstChild);
                 });
+
+                renderPaginationControls(totalItems, totalPages, curPage, startIndex + 1, endIndex);
+            };
+
+            function getPageRange(current, total) {
+                if (total <= 7) {
+                    return Array.from({ length: total }, (_, i) => i + 1);
+                }
+                if (current <= 4) {
+                    return [1, 2, 3, 4, 5, '...', total];
+                }
+                if (current >= total - 3) {
+                    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+                }
+                return [1, '...', current - 1, current, current + 1, '...', total];
+            }
+
+            window.renderPaginationControls = function(totalItems, totalPages, curPage, startItem, endItem) {
+                const pagContainer = document.getElementById('project-pagination');
+                if (!pagContainer) return;
+
+                if (totalPages <= 1) {
+                    pagContainer.innerHTML = `
+                        <div class="pagination-meta">
+                            <span>顯示共 ${totalItems} 個專案</span>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '<div class="pagination-bar">';
+
+                // 上一頁按鈕
+                const prevDisabled = curPage === 1 ? 'disabled' : '';
+                html += `<button type="button" class="pagination-btn" ${prevDisabled} onclick="goToProjectPage(${curPage - 1})" title="上一頁"><i class="fas fa-chevron-left"></i></button>`;
+
+                // 頁碼按鈕
+                const pageNumbers = getPageRange(curPage, totalPages);
+                pageNumbers.forEach(p => {
+                    if (p === '...') {
+                        html += `<span class="pagination-ellipsis">&hellip;</span>`;
+                    } else {
+                        const activeClass = p === curPage ? 'active' : '';
+                        html += `<button type="button" class="pagination-btn ${activeClass}" onclick="goToProjectPage(${p})">${p}</button>`;
+                    }
+                });
+
+                // 下一頁按鈕
+                const nextDisabled = curPage === totalPages ? 'disabled' : '';
+                html += `<button type="button" class="pagination-btn ${nextDisabled} onclick="goToProjectPage(${curPage + 1})" title="下一頁"><i class="fas fa-chevron-right"></i></button>`;
+
+                html += '</div>';
+
+                // 底部統計與每頁顯示數量選擇
+                html += `
+                    <div class="pagination-meta">
+                        <span>顯示第 ${startItem}-${endItem} 筆 (共 ${totalItems} 個專案)</span>
+                        <span>|</span>
+                        <span>每頁顯示: 
+                            <select class="pagination-size-select" onchange="changeProjectPageSize(this.value)">
+                                <option value="12" ${window.projectPagination.pageSize === 12 ? 'selected' : ''}>12</option>
+                                <option value="18" ${window.projectPagination.pageSize === 18 ? 'selected' : ''}>18</option>
+                                <option value="24" ${window.projectPagination.pageSize === 24 ? 'selected' : ''}>24</option>
+                                <option value="36" ${window.projectPagination.pageSize === 36 ? 'selected' : ''}>36</option>
+                            </select>
+                        </span>
+                    </div>
+                `;
+
+                pagContainer.innerHTML = html;
+            };
+
+            window.goToProjectPage = function(page) {
+                const totalPages = Math.ceil(window.projectPagination.currentList.length / window.projectPagination.pageSize) || 1;
+                if (page < 1 || page > totalPages) return;
+                renderProjectList(window.projectPagination.currentList, page);
+                const section = document.getElementById('tools');
+                if (section) {
+                    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            };
+
+            window.changeProjectPageSize = function(size) {
+                window.projectPagination.pageSize = parseInt(size, 10) || 18;
+                renderProjectList(window.projectPagination.currentList, 1);
             };
 
             window.handleSiteSearch = function(val) {
@@ -2720,7 +2919,7 @@
 
                 if (!window.allProjectsData) return;
                 if (!kw) {
-                    renderProjectList(window.allProjectsData);
+                    renderProjectList(window.allProjectsData, 1);
                     return;
                 }
 
@@ -2729,7 +2928,7 @@
                            (item.desc && item.desc.toLowerCase().includes(kw)) ||
                            (item.folder && item.folder.toLowerCase().includes(kw));
                 });
-                renderProjectList(filtered);
+                renderProjectList(filtered, 1);
             };
 
             window.clearSiteSearch = function() {
