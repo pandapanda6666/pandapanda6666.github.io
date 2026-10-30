@@ -1,4 +1,46 @@
 
+// --- Domain Migration Check (pandapanda6666.github.io -> pandapandaai.vercel.app) ---
+(function() {
+    if (window.location.hostname === 'pandapanda6666.github.io') {
+        const newUrl = 'https://pandapandaai.vercel.app' + window.location.pathname + window.location.search + window.location.hash;
+        if (!document.getElementById('domain-migration-notice')) {
+            const banner = document.createElement('div');
+            banner.id = 'domain-migration-notice';
+            banner.style.cssText = 'position:fixed; top:0; left:0; width:100%; background:#2c5e32; color:#ffffff; padding:12px 16px; font-size:14px; font-weight:bold; z-index:9999999; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-family:sans-serif; display:flex; align-items:center; justify-content:center; gap:10px;';
+            banner.innerHTML = '<i class="fas fa-exchange-alt"></i> <span>官方網址已正式遷移至全新網域 <strong>pandapandaai.vercel.app</strong>，正在為您自動跳轉...</span> <a href="' + newUrl + '" style="color:#a7f3d0; text-decoration:underline; margin-left:8px;">立即前往</a>';
+            document.documentElement.appendChild(banner);
+        }
+        setTimeout(function() {
+            window.location.replace(newUrl);
+        }, 1200);
+    }
+})();
+
+// --- Seeker Bear Video Fallback Helper ---
+document.addEventListener("DOMContentLoaded", function() {
+    const video = document.querySelector('.bear video');
+    if (video) {
+        let fallback = document.querySelector('.bear-fallback');
+        if (!fallback) {
+            fallback = document.createElement('div');
+            fallback.className = 'bear-fallback';
+            fallback.style.cssText = 'display:none; width:100%; height:100%; align-items:center; justify-content:center;';
+            fallback.innerHTML = '<i class="fas fa-paw" style="font-size:28px; color:#4a6c42;"></i>';
+            if (video.parentNode) video.parentNode.appendChild(fallback);
+        }
+        const triggerFb = () => {
+            video.style.display = 'none';
+            fallback.style.display = 'flex';
+        };
+        video.addEventListener('error', triggerFb);
+        setTimeout(() => {
+            if (!video.videoWidth || video.readyState === 0) {
+                triggerFb();
+            }
+        }, 1200);
+    }
+});
+
 // --- Device Fingerprinting for Online Users ---
 function getSyncFingerprint() {
     let fp = "";
