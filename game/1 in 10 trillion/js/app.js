@@ -220,6 +220,15 @@
     el.readingModeToggleBtn = document.getElementById("readingModeToggleBtn");
     el.readingModeIcon = document.getElementById("readingModeIcon");
     el.readingModeText = document.getElementById("readingModeText");
+    el.pageLayoutToggleBtn = document.getElementById("pageLayoutToggleBtn");
+    el.pageLayoutIcon = document.getElementById("pageLayoutIcon");
+    el.pageLayoutText = document.getElementById("pageLayoutText");
+    el.immersiveToggleBtn = document.getElementById("immersiveToggleBtn");
+    el.immersiveIcon = document.getElementById("immersiveIcon");
+    el.immersiveText = document.getElementById("immersiveText");
+    el.topImmersiveBtn = document.getElementById("topImmersiveBtn");
+    el.topImmersiveIcon = document.getElementById("topImmersiveIcon");
+    el.topImmersiveText = document.getElementById("topImmersiveText");
     el.prevPageBtn = document.getElementById("prevPageBtn");
     el.nextPageBtn = document.getElementById("nextPageBtn");
     el.bookPageIndicator = document.getElementById("bookPageIndicator");
@@ -870,9 +879,22 @@
       });
     }
 
-    // 閱讀模式（保持經典直排紙本書）
+    // 閱讀模式（古典直排 / 現代橫排）
     if (el.readingModeToggleBtn) {
       el.readingModeToggleBtn.addEventListener("click", toggleReadingMode);
+    }
+
+    // 開本排版模式切換 (自動 / 雙頁 / 單頁)
+    if (el.pageLayoutToggleBtn) {
+      el.pageLayoutToggleBtn.addEventListener("click", togglePageLayoutMode);
+    }
+
+    // 沉浸式體驗模式切換 (全螢幕、只留小說與任務、mini-HUD、不滾動)
+    if (el.immersiveToggleBtn) {
+      el.immersiveToggleBtn.addEventListener("click", toggleImmersiveMode);
+    }
+    if (el.topImmersiveBtn) {
+      el.topImmersiveBtn.addEventListener("click", toggleImmersiveMode);
     }
 
     // 書本翻頁按鈕與點擊頁面翻頁支援
@@ -896,10 +918,11 @@
     if (el.bookPageRight) {
       el.bookPageRight.addEventListener("click", () => {
         if (window.getSelection && window.getSelection().toString()) return;
-        if (window.innerWidth <= 768) {
-          // 手機單頁模式：點擊右頁即順暢閱讀推進至左頁或次頁
+        if (!isDoublePageActive()) {
+          // 單頁模式：點擊右頁推進至接續左頁或下一章
           turnPageNext();
         } else {
+          // 雙頁模式：右頁為直排順位之首，點擊翻回前頁
           turnPagePrev();
         }
       });
@@ -911,9 +934,40 @@
       });
     }
 
-    // 視窗大小改變時自適應切換手機單頁 / 桌機雙頁
+    // 視窗大小改變或手機橫放旋轉時自適應切換開本
     window.addEventListener("resize", () => {
+      updatePageLayoutUI();
       renderBookSpread();
+    });
+
+    if (window.matchMedia) {
+      window.matchMedia("(orientation: landscape)").addEventListener("change", () => {
+        setTimeout(() => {
+          updatePageLayoutUI();
+          renderBookSpread();
+        }, 100);
+      });
+    }
+
+    if (window.screen && window.screen.orientation) {
+      window.screen.orientation.addEventListener("change", () => {
+        setTimeout(() => {
+          updatePageLayoutUI();
+          renderBookSpread();
+        }, 150);
+      });
+    }
+
+    // 全螢幕狀態同步
+    document.addEventListener("fullscreenchange", () => {
+      if (!document.fullscreenElement && state.isImmersive) {
+        exitImmersiveMode();
+      }
+    });
+    document.addEventListener("webkitfullscreenchange", () => {
+      if (!document.webkitFullscreenElement && state.isImmersive) {
+        exitImmersiveMode();
+      }
     });
 
     window.addEventListener("keydown", (e) => {
@@ -922,6 +976,9 @@
         turnPageNext();
       } else if (e.key === "ArrowRight") {
         turnPagePrev();
+      } else if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleImmersiveMode();
       }
     });
 
@@ -1907,12 +1964,159 @@
     return best !== -1 ? best : Math.min(targetLen, text.length);
   }
 
-  // 渲染頁面 (紙本書版心規格：單頁嚴格保持 1:1.42 長寬比，手機單頁精緻呈現，電腦桌機雙頁對開)
+  // 判斷當前是否應處於雙頁開本狀態 (支援手機橫向、iPad、Duo 與手動強制切換)
+  function isDoublePageActive() {
+    const mode = state.pageLayoutMode || localStorage.getItem("10t_page_layout_mode") || "auto";
+    if (mode === "double") return true;
+    if (mode === "single") return false;
+
+    // auto 模式自適應：
+    const w = window.innerWidth;
+    const isLandscape = window.matchMedia("(orientation: landscape)").matches || window.innerWidth > window.innerHeight;
+    // 螢幕寬度 >= 768 (iPad, Duo, 電腦) 或 手機橫拿 (>=520 且橫向) 自動雙頁！
+    if (w >= 768) return true;
+    if (isLandscape && w >= 520) return true;
+    return false;
+  }
+
+  function updatePageLayoutUI() {
+    const container = el.bookSpreadContainer || document.getElementById("bookSpreadContainer");
+    const switcher = el.mobilePageSwitcher || document.getElementById("mobilePageSwitcher");
+    const icon = el.pageLayoutIcon || document.getElementById("pageLayoutIcon");
+    const text = el.pageLayoutText || document.getElementById("pageLayoutText");
+    const isDouble = isDoublePageActive();
+    const mode = state.pageLayoutMode || localStorage.getItem("10t_page_layout_mode") || "auto";
+
+    if (container) {
+      if (isDouble) {
+        container.classList.add("layout-double-page");
+        container.classList.remove("layout-single-page");
+      } else {
+        container.classList.add("layout-single-page");
+        container.classList.remove("layout-double-page");
+      }
+    }
+
+    if (switcher) {
+      switcher.style.display = isDouble ? "none" : "flex";
+    }
+
+    if (text) {
+      const t = (typeof GAME_I18N !== "undefined" && GAME_I18N[window.currentGameLang || "zh-TW"]) ? GAME_I18N[window.currentGameLang || "zh-TW"] : null;
+      const doubleLabel = t?.layoutDouble || "雙頁開本";
+      const singleLabel = t?.layoutSingle || "單頁開本";
+      if (mode === "double") {
+        text.textContent = `${doubleLabel}`;
+      } else if (mode === "single") {
+        text.textContent = `${singleLabel}`;
+      } else {
+        text.textContent = isDouble ? `${doubleLabel} (自動)` : `${singleLabel} (自動)`;
+      }
+    }
+
+    if (icon) {
+      icon.className = isDouble ? "fas fa-book-open" : "fas fa-file-lines";
+    }
+  }
+
+  function togglePageLayoutMode() {
+    const current = state.pageLayoutMode || localStorage.getItem("10t_page_layout_mode") || "auto";
+    let next = "double";
+    if (current === "auto") {
+      next = isDoublePageActive() ? "single" : "double";
+    } else if (current === "double") {
+      next = "single";
+    } else {
+      next = "auto";
+    }
+    state.pageLayoutMode = next;
+    try {
+      localStorage.setItem("10t_page_layout_mode", next);
+    } catch (e) {}
+
+    updatePageLayoutUI();
+    renderBookSpread();
+  }
+
+  /* --------------------------------------------------------------------------
+     沉浸式體驗模式 (Immersive Reading Mode)
+     -------------------------------------------------------------------------- */
+  function enterImmersiveMode() {
+    document.body.classList.add("immersive-mode");
+    state.isImmersive = true;
+    try { localStorage.setItem("10t_immersive_mode", "true"); } catch (e) {}
+
+    const docEl = document.documentElement;
+    if (docEl.requestFullscreen) {
+      docEl.requestFullscreen().catch(() => {});
+    } else if (docEl.webkitRequestFullscreen) {
+      docEl.webkitRequestFullscreen();
+    } else if (docEl.msRequestFullscreen) {
+      docEl.msRequestFullscreen();
+    }
+
+    updateImmersiveUI();
+    updatePageLayoutUI();
+    renderBookSpread();
+  }
+
+  function exitImmersiveMode() {
+    document.body.classList.remove("immersive-mode");
+    state.isImmersive = false;
+    try { localStorage.setItem("10t_immersive_mode", "false"); } catch (e) {}
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      }
+    }
+
+    updateImmersiveUI();
+    updatePageLayoutUI();
+    renderBookSpread();
+  }
+
+  function toggleImmersiveMode() {
+    if (document.body.classList.contains("immersive-mode") || state.isImmersive) {
+      exitImmersiveMode();
+    } else {
+      enterImmersiveMode();
+    }
+  }
+
+  function updateImmersiveUI() {
+    const isImm = document.body.classList.contains("immersive-mode") || state.isImmersive;
+    const t = (typeof GAME_I18N !== "undefined" && GAME_I18N[window.currentGameLang || "zh-TW"]) ? GAME_I18N[window.currentGameLang || "zh-TW"] : null;
+    const enterLabel = t?.immersiveEnter || "沉浸模式";
+    const exitLabel = t?.immersiveExit || "退出沉浸";
+
+    const btn = el.immersiveToggleBtn || document.getElementById("immersiveToggleBtn");
+    const icon = el.immersiveIcon || document.getElementById("immersiveIcon");
+    const text = el.immersiveText || document.getElementById("immersiveText");
+
+    if (btn) btn.classList.toggle("active", isImm);
+    if (icon) icon.className = isImm ? "fas fa-compress" : "fas fa-expand";
+    if (text) text.textContent = isImm ? exitLabel : enterLabel;
+
+    const topBtn = el.topImmersiveBtn || document.getElementById("topImmersiveBtn");
+    const topIcon = el.topImmersiveIcon || document.getElementById("topImmersiveIcon");
+    const topText = el.topImmersiveText || document.getElementById("topImmersiveText");
+
+    if (topBtn) topBtn.classList.toggle("active", isImm);
+    if (topIcon) topIcon.className = isImm ? "fas fa-compress" : "fas fa-expand";
+    if (topText) topText.textContent = isImm ? (t?.exitShort || "退出") : (t?.immShort || "沉浸");
+  }
+
+  // 渲染頁面 (紙本書版心規格：單頁 1:1.42，手機橫向/iPad/Duo/桌機雙頁對開，嚴格比例控制)
   function renderBookSpread() {
     const total = state.bookPages.length;
     const rIdx = state.currentSpreadIndex;
     const lIdx = state.currentSpreadIndex + 1;
-    const isMobile = window.innerWidth <= 768;
+    const isDouble = isDoublePageActive();
+
+    updatePageLayoutUI();
 
     const rPage = state.bookPages[rIdx] || { chapterTitle: "第一章", paragraphs: [], isChapterStart: false };
     const lPage = (lIdx < total) ? state.bookPages[lIdx] : { chapterTitle: rPage.chapterTitle, paragraphs: [], isChapterStart: false };
@@ -1948,8 +2152,8 @@
 
     const hasLeftPage = (lIdx < total && (lPage.paragraphs.length > 0 || lPage.isChapterStart));
 
-    if (isMobile) {
-      // 手機版單頁排版模式 (長寬比 1 : 1.42 經典小說開本)
+    if (!isDouble) {
+      // 單頁排版模式 (長寬比 1 : 1.42 經典小說開本)
       if (el.mobilePageSwitcher) el.mobilePageSwitcher.style.display = "flex";
       state.mobilePageSide = state.mobilePageSide || "right";
 
@@ -1984,7 +2188,7 @@
       el.prevPageBtn.disabled = (rIdx <= 0 && state.mobilePageSide === "right");
       el.nextPageBtn.disabled = (!hasLeftPage && rIdx + 2 >= total) || (state.mobilePageSide === "left" && rIdx + 2 >= total);
     } else {
-      // 電腦桌機雙頁對開模式 (各頁均維持 1 : 1.42 比例)
+      // 雙頁對開模式 (手機橫向 / iPad / Duo / 電腦，左右對開 2 : 1.42)
       if (el.mobilePageSwitcher) el.mobilePageSwitcher.style.display = "none";
       el.bookPageRight.classList.remove("mobile-hidden-page", "mobile-active-page");
       el.bookPageLeft.classList.remove("mobile-hidden-page", "mobile-active-page");
@@ -1999,8 +2203,8 @@
   }
 
   function turnPagePrev() {
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
+    const isDouble = isDoublePageActive();
+    if (!isDouble) {
       if (state.mobilePageSide === "left") {
         state.mobilePageSide = "right";
         renderBookSpread();
@@ -2023,13 +2227,13 @@
   }
 
   function turnPageNext() {
-    const isMobile = window.innerWidth <= 768;
+    const isDouble = isDoublePageActive();
     const total = state.bookPages.length;
     const lIdx = state.currentSpreadIndex + 1;
     const lPage = (lIdx < total) ? state.bookPages[lIdx] : null;
     const hasLeftPage = lPage && (lPage.paragraphs.length > 0 || lPage.isChapterStart);
 
-    if (isMobile) {
+    if (!isDouble) {
       if (state.mobilePageSide === "right" && hasLeftPage) {
         state.mobilePageSide = "left";
         renderBookSpread();
@@ -5228,6 +5432,12 @@
       reRoll: "重新投胎",
       rightPage: "📖 右頁",
       leftPage: "📄 左頁",
+      layoutDouble: "雙頁開本",
+      layoutSingle: "單頁開本",
+      immersiveEnter: "沉浸模式",
+      immersiveExit: "退出沉浸",
+      immShort: "沉浸",
+      exitShort: "退出",
       pauseRead: "暫停閱讀",
       resumeRead: "繼續推演",
       abandonLife: "放棄此生",
@@ -5254,6 +5464,12 @@
       reRoll: "重新投胎",
       rightPage: "📖 右頁",
       leftPage: "📄 左頁",
+      layoutDouble: "雙頁開本",
+      layoutSingle: "單頁開本",
+      immersiveEnter: "沉浸模式",
+      immersiveExit: "退出沉浸",
+      immShort: "沉浸",
+      exitShort: "退出",
       pauseRead: "暫停閱讀",
       resumeRead: "繼續推演",
       abandonLife: "放棄此生",
@@ -5280,6 +5496,12 @@
       reRoll: "重新投胎",
       rightPage: "📖 右页",
       leftPage: "📄 左页",
+      layoutDouble: "双页开本",
+      layoutSingle: "单页开本",
+      immersiveEnter: "沉浸模式",
+      immersiveExit: "退出沉浸",
+      immShort: "沉浸",
+      exitShort: "退出",
       pauseRead: "暂停阅读",
       resumeRead: "继续推演",
       abandonLife: "放弃此生",
@@ -5306,6 +5528,12 @@
       reRoll: "Reincarnate",
       rightPage: "📖 Right Page",
       leftPage: "📄 Left Page",
+      layoutDouble: "Double Page",
+      layoutSingle: "Single Page",
+      immersiveEnter: "Immersive",
+      immersiveExit: "Exit Immersive",
+      immShort: "Immersive",
+      exitShort: "Exit",
       pauseRead: "Pause",
       resumeRead: "Resume",
       abandonLife: "Abandon Life",
@@ -5332,6 +5560,12 @@
       reRoll: "転生する",
       rightPage: "📖 右ページ",
       leftPage: "📄 左ページ",
+      layoutDouble: "見開き2ページ",
+      layoutSingle: "単一ページ",
+      immersiveEnter: "没入モード",
+      immersiveExit: "没入終了",
+      immShort: "没入",
+      exitShort: "終了",
       pauseRead: "一時停止",
       resumeRead: "再開",
       abandonLife: "人生を放棄",
@@ -5455,6 +5689,9 @@
 
     const tourFinishBtn = document.getElementById("tourFinishBtn");
     if (tourFinishBtn) tourFinishBtn.textContent = t.finishTour;
+
+    updatePageLayoutUI();
+    updateImmersiveUI();
   }
 
   function initLanguageSelector() {
@@ -5555,6 +5792,9 @@
     // 初始化手機小說頁面切換
     try { initMobilePageSwitcher(); } catch (e) { console.error("initMobilePageSwitcher error:", e); }
 
+    // 初始化排版自適應狀態
+    try { updatePageLayoutUI(); } catch (e) {}
+
     // 暴露核心引擎至 window.__gameEngine 供測試與外掛即時調度
     window.__gameEngine = {
       state,
@@ -5565,6 +5805,10 @@
       executeChoice,
       openOnboardingTour,
       setGameLanguage,
+      toggleImmersiveMode,
+      enterImmersiveMode,
+      exitImmersiveMode,
+      togglePageLayoutMode,
       MultiplayerHabitatEngine,
     };
   });
