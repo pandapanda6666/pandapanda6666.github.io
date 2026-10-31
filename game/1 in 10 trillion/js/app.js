@@ -320,9 +320,6 @@
     // 全螢幕省思文字引言與頁尾
     el.introPrologueOverlay = document.getElementById("introPrologueOverlay");
     el.prologueLine = document.getElementById("prologueLine");
-    el.prologueDots = document.getElementById("prologueDots");
-    el.prologueFinishBtn = document.getElementById("prologueFinishBtn");
-    el.prologueSkipBtn = document.getElementById("prologueSkipBtn");
     el.replayPrologueBtn = document.getElementById("replayPrologueBtn");
     el.replayPrologueBtnDead = document.getElementById("replayPrologueBtnDead");
     el.topPrologueBtn = document.getElementById("topPrologueBtn");
@@ -3426,16 +3423,18 @@
   function initPrologueReflection() {
     const overlay = el.introPrologueOverlay || document.getElementById("introPrologueOverlay");
     const lineEl = el.prologueLine || document.getElementById("prologueLine");
-    const dotsContainer = el.prologueDots || document.getElementById("prologueDots");
-    const finishBtn = el.prologueFinishBtn || document.getElementById("prologueFinishBtn");
-    const skipBtn = el.prologueSkipBtn || document.getElementById("prologueSkipBtn");
     const replayBtn = el.replayPrologueBtn || document.getElementById("replayPrologueBtn");
     const replayBtnDead = el.replayPrologueBtnDead || document.getElementById("replayPrologueBtnDead");
     const topPrologueBtn = el.topPrologueBtn || document.getElementById("topPrologueBtn");
 
     if (!overlay || !lineEl) return;
 
-    const dots = dotsContainer ? dotsContainer.querySelectorAll(".p-dot") : [];
+    function clearTimer() {
+      if (prologueTimer) {
+        clearTimeout(prologueTimer);
+        prologueTimer = null;
+      }
+    }
 
     function showLine(idx) {
       if (idx >= PROLOGUE_REFLECTION_LINES.length) {
@@ -3445,124 +3444,93 @@
       prologueCurrentIdx = idx;
       prologueIsTransitioning = true;
 
-      // 當前文字淡出
-      lineEl.classList.remove("visible");
-      lineEl.classList.add("fading");
+      // 如果有現有文字，先淡出
+      if (lineEl.textContent) {
+        lineEl.classList.remove("visible");
+        lineEl.classList.add("fading");
 
-      setTimeout(() => {
+        setTimeout(() => {
+          lineEl.textContent = PROLOGUE_REFLECTION_LINES[idx];
+          lineEl.classList.remove("fading");
+          // 強制重繪後觸發淡入
+          void lineEl.offsetWidth;
+          lineEl.classList.add("visible");
+          prologueIsTransitioning = false;
+
+          // 停留後自動淡出進入下一句
+          prologueTimer = setTimeout(() => {
+            showLine(idx + 1);
+          }, 2700);
+        }, 800);
+      } else {
+        // 第一句直接淡入
         lineEl.textContent = PROLOGUE_REFLECTION_LINES[idx];
         lineEl.classList.remove("fading");
+        void lineEl.offsetWidth;
         lineEl.classList.add("visible");
         prologueIsTransitioning = false;
 
-        // 更新指示點
-        dots.forEach((dot, dIdx) => {
-          dot.classList.toggle("active", dIdx === idx);
-          dot.classList.toggle("passed", dIdx < idx);
-        });
-
-        // 最後一句特殊處理
-        if (idx === PROLOGUE_REFLECTION_LINES.length - 1) {
-          if (finishBtn) {
-            finishBtn.style.display = "inline-flex";
-            finishBtn.classList.add("pulse-glow");
-          }
-          if (skipBtn) skipBtn.style.display = "none";
-        } else {
-          if (finishBtn) finishBtn.style.display = "none";
-          if (skipBtn) skipBtn.style.display = "inline-block";
-          // 自動推進至下一句 (淡入後停留約 3.2 秒)
-          prologueTimer = setTimeout(() => {
-            showLine(idx + 1);
-          }, 3300);
-        }
-      }, 420);
+        prologueTimer = setTimeout(() => {
+          showLine(idx + 1);
+        }, 2700);
+      }
     }
 
     function advanceNextLine() {
       if (prologueIsTransitioning) return;
-      if (prologueTimer) {
-        clearTimeout(prologueTimer);
-        prologueTimer = null;
-      }
-      if (prologueCurrentIdx === PROLOGUE_REFLECTION_LINES.length - 1) {
+      clearTimer();
+      if (prologueCurrentIdx >= PROLOGUE_REFLECTION_LINES.length - 1) {
         completePrologue();
       } else {
         showLine(prologueCurrentIdx + 1);
       }
     }
 
-    // 只有完整看完，才標記看過並寫入 localStorage！
+    // 只有完整看完最後一句，才標記看過並寫入 localStorage！
     function completePrologue() {
-      if (prologueTimer) {
-        clearTimeout(prologueTimer);
-        prologueTimer = null;
-      }
+      clearTimer();
       try {
         localStorage.setItem("10t_reflection_seen", "true");
       } catch (e) {}
 
-      overlay.classList.add("fade-out-overlay");
-      setTimeout(() => {
-        overlay.style.display = "none";
-        overlay.classList.remove("fade-out-overlay");
-      }, 800);
-    }
+      // 文字先柔和淡出
+      lineEl.classList.remove("visible");
+      lineEl.classList.add("fading");
 
-    // 沒看完點略過：不寫入 localStorage！下次進入時仍會出現！
-    function dismissPrologueWithoutSave() {
-      if (prologueTimer) {
-        clearTimeout(prologueTimer);
-        prologueTimer = null;
-      }
+      // 整體黑幕淡出
       overlay.classList.add("fade-out-overlay");
       setTimeout(() => {
         overlay.style.display = "none";
         overlay.classList.remove("fade-out-overlay");
-      }, 500);
+        lineEl.textContent = "";
+        lineEl.classList.remove("fading", "visible");
+        prologueIsTransitioning = false;
+      }, 1200);
     }
 
     function startPrologue() {
-      if (prologueTimer) {
-        clearTimeout(prologueTimer);
-        prologueTimer = null;
-      }
-      overlay.style.display = "flex";
-      overlay.classList.remove("fade-out-overlay");
+      clearTimer();
       prologueCurrentIdx = 0;
       lineEl.textContent = "";
       lineEl.classList.remove("visible", "fading");
-      if (finishBtn) finishBtn.style.display = "none";
-      if (skipBtn) skipBtn.style.display = "inline-block";
+      overlay.classList.remove("fade-out-overlay");
+      overlay.style.display = "flex";
       showLine(0);
     }
 
-    // 點擊背景任意處快速切換下一句
-    overlay.addEventListener("click", (e) => {
-      if (e.target.closest("#prologueFinishBtn") || e.target.closest("#prologueSkipBtn")) return;
+    // 點擊畫面任意處即可加速推進下一句
+    overlay.addEventListener("click", () => {
       advanceNextLine();
     });
 
-    // 鍵盤導航：空白鍵、Enter 或右鍵前進；Esc 略過
+    // 鍵盤導航：空白鍵、Enter 或方向鍵前進
     document.addEventListener("keydown", (e) => {
       if (overlay.style.display !== "none" && overlay.style.display !== "") {
-        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
+        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight" || e.key === "ArrowDown") {
           e.preventDefault();
           advanceNextLine();
-        } else if (e.key === "Escape") {
-          dismissPrologueWithoutSave();
         }
       }
-    });
-
-    if (finishBtn) finishBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      completePrologue();
-    });
-
-    if (skipBtn) skipBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      dismissPrologueWithoutSave();
     });
 
     // 網站頁尾與導覽列回顧按鈕
