@@ -4058,5 +4058,18 @@
 
     // 初始化物理防略過省思引言
     try { initPrologueReflection(); } catch (e) { console.error("initPrologueReflection error:", e); }
+
+    // 暴露核心引擎至 window.__gameEngine 供測試與外掛即時調度
+    window.__gameEngine = {
+      state,
+      el,
+      pauseGameForChoice,
+      openFateDecisionModal,
+      closeFateDecisionModal,
+      executeChoice,
+      MultiplayerHabitatEngine,
+      enterLifeDashboard
+    };
   });
 })();
+
