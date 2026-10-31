@@ -1111,8 +1111,9 @@ body {
   flex-direction: row-reverse; /* 右頁在右、左頁在左，直排文字由右至左流動 */
   max-width: 740px;
   width: 100%;
-  height: 510px;
-  min-height: 510px;
+  aspect-ratio: 2 / 1.42; /* 左右雙頁開本，各頁 1:1.42 標準實體小說長寬比 */
+  height: auto;
+  min-height: 0;
   margin: 0 auto 14px auto;
   background: #FAF7EE; /* 經典米黃道林紙色澤 */
   border: 1px solid #DFD5C6;
@@ -1142,13 +1143,14 @@ body.theme-dark .book-spine-divider {
   background: linear-gradient(to right, rgba(0,0,0,0.2), rgba(0,0,0,0.6), rgba(0,0,0,0.2));
 }
 
-/* 紙本書單頁 (雙頁始終左右展開，各佔 50%) */
+/* 紙本書單頁 (雙頁始終左右展開，各佔 50%，比例為 1:1.42) */
 .book-page {
   flex: 1 1 50% !important;
   width: calc(50% - 8px) !important;
   max-width: calc(50% - 8px) !important;
   height: 100% !important;
-  padding: 34px 22px 30px 22px;
+  aspect-ratio: 1 / 1.42 !important; /* 單頁標準小說比例 1 : 1.42 */
+  padding: 30px 20px 26px 20px;
   box-sizing: border-box;
   writing-mode: vertical-rl !important;
   text-orientation: upright !important;
@@ -1443,58 +1445,135 @@ body.theme-dark .page-num-tag {
     border-radius: 9999px !important;
   }
 
+  /* 手機版排版順序優化：小說主閱讀區置頂，優先享受沈浸故事與即時抉擇 */
+  .dashboard-grid {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .col-center {
+    order: 1 !important;
+    width: 100% !important;
+  }
+  .col-left {
+    order: 2 !important;
+    width: 100% !important;
+  }
+  .col-right {
+    order: 3 !important;
+    width: 100% !important;
+  }
+
   .book-nav-controls {
-    display: flex;
-    flex-wrap: wrap !important;
-    overflow-x: visible;
-    gap: 6px;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 5px !important;
+    width: auto !important;
   }
 
+  .book-nav-btn {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .page-indicator {
+    font-size: 11px !important;
+    white-space: nowrap !important;
+  }
+
+  /* 小說閱讀器手機版：單頁完整呈現，嚴格遵循 1 : 1.42 標準實體小說長寬比！ */
   .book-spread-container {
-    height: 360px !important;
-    min-height: 360px !important;
-    max-width: 100% !important;
-    margin-bottom: 10px !important;
+    max-width: 360px !important;
+    width: 100% !important;
+    aspect-ratio: 1 / 1.42 !important; /* 寬:高 = 1 : 1.42 經典小說開本比例 */
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 auto 12px auto !important;
+    box-shadow: inset 0 0 30px rgba(120, 95, 60, 0.08), 0 6px 18px rgba(0,0,0,0.08) !important;
+    display: flex !important;
+    overflow: hidden !important;
   }
 
-  .book-page {
-    padding: 16px 12px 24px 12px !important;
-  }
-
-  .book-page-left {
-    display: block !important;
-  }
-
-  .book-page-right {
-    display: block !important;
-  }
-
+  /* 手機版隱藏中縫書脊，單頁全寬展示 */
   .book-spine-divider {
+    display: none !important;
+  }
+
+  /* 手機版單頁填滿容器並保持 1:1.42 */
+  .book-page {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 1 / 1.42 !important;
+    padding: 26px 18px 24px 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 手機版右頁/左頁顯示切換控制 */
+  .book-page.mobile-hidden-page {
+    display: none !important;
+  }
+  .book-page.mobile-active-page {
     display: block !important;
-    width: 12px !important;
+  }
+
+  /* 手機版專屬雙頁快速切換導覽列 (右頁/左頁) */
+  .mobile-page-switcher {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 8px !important;
+    margin: 4px auto 10px auto !important;
+    width: 100% !important;
+    max-width: 360px !important;
+  }
+
+  .mobile-page-tab {
+    flex: 1 1 50% !important;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .mobile-page-tab.active {
+    background: var(--accent-burgundy) !important;
+    color: white !important;
+    border-color: var(--accent-burgundy) !important;
+    box-shadow: 0 2px 8px rgba(140, 29, 60, 0.25);
   }
 
   .novel-para {
-    font-size: 0.82rem !important;
-    line-height: 1.8 !important;
-    letter-spacing: 0.6px !important;
-    margin: 0 0 0 0.7em !important;
+    font-size: 0.88rem !important;
+    line-height: 1.85 !important;
+    letter-spacing: 0.8px !important;
+    margin: 0 0 0 0.8em !important;
   }
 
   .page-num-tag {
-    font-size: 10px !important;
-    bottom: 6px !important;
+    font-size: 10.5px !important;
+    bottom: 8px !important;
   }
 
   .book-page-right .page-num-tag {
-    right: 12px !important;
+    right: 14px !important;
   }
 
   .book-page-left .page-num-tag {
-    left: 12px !important;
+    left: 14px !important;
   }
 }
 
@@ -1646,12 +1725,16 @@ body.theme-dark .choice-incident-card {
 }
 
 .choice-buttons-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  width: 100% !important;
 }
 
 .choice-btn {
+  flex: 1 1 calc(50% - 10px) !important;
+  min-width: 140px !important;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   padding: 10px 14px;
@@ -1659,18 +1742,23 @@ body.theme-dark .choice-incident-card {
   text-align: left;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
 }
 
 .choice-btn:hover {
   border-color: var(--accent-burgundy);
   background: rgba(140, 29, 60, 0.04);
-  transform: translateX(4px);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(140, 29, 60, 0.12);
 }
 
 .choice-btn-title {
   display: block;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-primary);
   margin-bottom: 2px;
 }
@@ -4303,9 +4391,10 @@ body.theme-dark .fate-mp-info {
 }
 
 .fate-choices-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
   gap: 12px;
+  width: 100%;
 }
 
 .fate-choice-card-btn {
@@ -5191,6 +5280,264 @@ body.theme-parchment .room-pill {
   background: var(--primary-accent, #8C1D3C);
   color: #fff;
   border-color: var(--primary-accent, #8C1D3C);
+}
+
+/* ==========================================================================
+   開頭省思動畫：右上角跳過按鈕 (僅第二次開始顯示)
+   ========================================================================== */
+.prologue-skip-btn {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.75);
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 1000000;
+  backdrop-filter: blur(8px);
+}
+
+.prologue-skip-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.15);
+}
+
+/* ==========================================================================
+   頂部導覽列升級：指引性、明顯度與多語言下拉選單
+   ========================================================================== */
+.top-nav {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.04);
+}
+
+.tutorial-pill {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: #f59e0b !important;
+  color: #d97706 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+.tutorial-pill:hover {
+  background: #f59e0b !important;
+  color: white !important;
+  transform: translateY(-1px);
+}
+
+.lang-selector-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.lang-pill {
+  border-color: var(--border-color);
+  font-weight: 600;
+}
+
+.lang-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 6px;
+  min-width: 150px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lang-opt {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 7px 12px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.lang-opt:hover {
+  background: rgba(140, 29, 60, 0.08);
+  color: var(--accent-burgundy);
+  font-weight: 700;
+}
+
+.lang-opt.active {
+  background: var(--accent-burgundy);
+  color: white;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   新手教學引導視窗 (Onboarding Tour Modal)
+   ========================================================================== */
+.tutorial-modal-card {
+  max-width: 660px;
+  width: 92%;
+  padding: 24px 28px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--border-wood, #DFD5C6);
+  background: var(--bg-card);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+.tutorial-icon {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+}
+
+.tour-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 16px 0 20px 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-light);
+  overflow-x: auto;
+  gap: 6px;
+}
+
+.tour-step-dot {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tour-step-dot.active {
+  background: var(--accent-burgundy);
+  color: white;
+  border-color: var(--accent-burgundy);
+  box-shadow: 0 2px 6px rgba(140, 29, 60, 0.25);
+}
+
+.tour-step-divider {
+  flex: 1;
+  height: 2px;
+  background: var(--border-color);
+  min-width: 10px;
+}
+
+.tour-body-content {
+  min-height: 240px;
+}
+
+.tour-step-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeInStep 0.25s ease;
+}
+
+@keyframes fadeInStep {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tour-feature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  background: rgba(140, 29, 60, 0.08);
+  color: var(--accent-burgundy);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tour-step-pane h4 {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.tour-step-pane p {
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.tour-tip-box {
+  background: rgba(16, 185, 129, 0.08);
+  border-left: 3px solid #10b981;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.tour-tip-box i {
+  color: #10b981;
+  margin-top: 2px;
+}
+
+.tour-perm-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tour-perm-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: var(--bg-color);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+
+.tour-step-counter {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
 

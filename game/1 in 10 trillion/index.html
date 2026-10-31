@@ -106,6 +106,10 @@
 <body class="theme-parchment">
     <!-- 首次進入全螢幕省思文字引言 (Prologue Reflection Overlay) - 極簡黑幕，純淨文字淡入淡出，無多餘 UI -->
     <div id="introPrologueOverlay" class="prologue-zen-overlay" style="display:none;" aria-modal="true" role="dialog">
+        <!-- 第二次開始右上角顯示跳過引言按鈕 -->
+        <button type="button" id="skipPrologueBtn" class="prologue-skip-btn" style="display:none;" title="跳過引言">
+            <span>跳過</span> <i class="fas fa-forward-step"></i>
+        </button>
         <div class="prologue-zen-inner">
             <p id="prologueLine" class="prologue-zen-line"></p>
         </div>
@@ -143,6 +147,23 @@
                     <span>跨物種文學演繹</span>
                 </div>
                 <div class="nav-controls">
+                    <!-- 新手教學引導按鈕 -->
+                    <button type="button" id="tutorialBtn" class="pill-btn tutorial-pill" title="觀看十兆生命操作教學與特色指引">
+                        <i class="fas fa-graduation-cap"></i> <span id="tutorialBtnLabel">新手教學</span>
+                    </button>
+                    <!-- 多語言切換選單 (自動偵測 + 5國語言) -->
+                    <div class="lang-selector-wrap" style="position:relative; display:inline-block;">
+                        <button type="button" id="langSelectBtn" class="pill-btn lang-pill" title="切換語言 / Change Language">
+                            <i class="fas fa-globe"></i> <span id="curLangLabel">繁體中文</span> <i class="fas fa-chevron-down" style="font-size:10px;"></i>
+                        </button>
+                        <div class="lang-dropdown" id="langDropdown" style="display:none;">
+                            <button type="button" class="lang-opt" data-lang="zh-TW">繁體中文 (台灣)</button>
+                            <button type="button" class="lang-opt" data-lang="zh-HK">繁體中文 (香港)</button>
+                            <button type="button" class="lang-opt" data-lang="zh-CN">简体中文</button>
+                            <button type="button" class="lang-opt" data-lang="en">English</button>
+                            <button type="button" class="lang-opt" data-lang="ja">日本語</button>
+                        </div>
+                    </div>
                     <!-- 伺服器與多人連線狀態按鈕 -->
                     <button type="button" id="mpToggleBtn" class="pill-btn mp-pill" title="點擊切換多人即時共生模式 / 單人模式">
                         <span class="status-dot online" id="serverStatusDot"></span>
@@ -523,6 +544,11 @@
                             <i class="fas fa-book-reader"></i> <span>閱讀保護</span>
                         </button>
 
+                        <!-- 遊戲頂欄新手教學按鈕 -->
+                        <button type="button" id="gameTutorialBtn" class="ctrl-btn" title="隨時回顧新手操作指引與玩法特色">
+                            <i class="fas fa-graduation-cap"></i> <span>指引</span>
+                        </button>
+
                         <!-- 1in8b 「⋯」更多選單按鈕與下拉選單 -->
                         <div class="more-menu-wrapper" style="position:relative; display:inline-block;">
                             <button type="button" id="moreBtn" class="ctrl-btn" title="更多功能選單">
@@ -708,6 +734,16 @@
                                     <div class="loading-mini-fill"></div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- 手機版單頁閱讀快速切換標籤 (1:1.42 經典開本，左右頁一鍵切換) -->
+                        <div class="mobile-page-switcher" id="mobilePageSwitcher" style="display:none;">
+                            <button type="button" class="mobile-page-tab active" id="mobileTabRight">
+                                <i class="fas fa-bookmark"></i> <span id="mobileTabRightLabel">右頁 (前段)</span>
+                            </button>
+                            <button type="button" class="mobile-page-tab" id="mobileTabLeft">
+                                <span id="mobileTabLeftLabel">左頁 (接續)</span> <i class="fas fa-arrow-right"></i>
+                            </button>
                         </div>
 
                         <!-- 雙頁紙本書開本主體 (右頁 + 書脊 + 左頁，真實紙書段落版心) -->
@@ -1695,6 +1731,87 @@ scout@arctic.org" rows="4"></textarea>
 
                 <!-- 物種卡片容器 (平滑滾動) -->
                 <div id="speciesCardsContainer" style="flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; padding:4px;"></div>
+            </div>
+        </div>
+
+        <!-- 第一次進入新手教學引導視窗 (Onboarding Tour Modal) -->
+        <div id="onboardingTourModal" class="inline-modal-backdrop" style="display:none; z-index:99998;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card tutorial-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon tutorial-icon"><i class="fas fa-compass"></i></div>
+                    <div>
+                        <h3 id="tourModalTitle">歡迎來到十兆分之一 · 新手旅程指引</h3>
+                        <p class="inline-modal-sub" id="tourModalSub">掌握跨物種人生模擬與實體小說開本的四部曲核心</p>
+                    </div>
+                    <button type="button" id="closeTourModalBtn" class="ai-close-btn" title="關閉新手教學">&times;</button>
+                </div>
+
+                <!-- 步驟指示條 -->
+                <div class="tour-stepper">
+                    <div class="tour-step-dot active" data-step="1">1. 命運輪盤</div>
+                    <div class="tour-step-divider"></div>
+                    <div class="tour-step-dot" data-step="2">2. 實體開本</div>
+                    <div class="tour-step-divider"></div>
+                    <div class="tour-step-dot" data-step="3">3. 生存抉擇</div>
+                    <div class="tour-step-divider"></div>
+                    <div class="tour-step-dot" data-step="4">4. 荒野共生</div>
+                </div>
+
+                <!-- 步驟內容本體 -->
+                <div class="tour-body-content" id="tourBodyContent">
+                    <!-- Step 1: 命運輪盤與十兆生靈 -->
+                    <div class="tour-step-pane active" id="tourStep1">
+                        <div class="tour-feature-badge"><i class="fas fa-shuffle"></i> 全球十兆有意識生靈輪盤</div>
+                        <h4>你不再僅是人類，而是地球龐大生態網的一員</h4>
+                        <p>地球上生活著十兆個感知飢餓、寒冷、畏懼死亡的有意識生命。點擊「開啟生命模擬」後，命運輪盤將超越種族與時空，隨機為你抽選一段真實生命的誕生——可能是育空針葉林的狼崽、南極冰原上的企鵝，抑或是都會裡的人類幼童。</p>
+                        <div class="tour-tip-box">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>提示：在首頁可自由設定偏好的世界時代（過去/現在/未來）、人生步調（30/60/90分鐘），以及野生獸或海洋全物種池！</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: 實體書開本 1:1.42 與艾琳·杭特文學 -->
+                    <div class="tour-step-pane" id="tourStep2" style="display:none;">
+                        <div class="tour-feature-badge"><i class="fas fa-book-open"></i> 黃金比例 1 : 1.42 實體小說開本</div>
+                        <h4>典雅道林紙質、古典直排右翻，極致擬真閱讀</h4>
+                        <p>告別生硬的遊戲數值框！本作遵循實體出版經典 1 : 1.42 長寬比，電腦桌機端展現真實雙頁對開（右頁右上角、左頁左上角章節書眉），手機行動端則自動適配為 1 : 1.42 單頁全幅閱讀，搭配上方「右頁/左頁」一鍵無縫翻閱。</p>
+                        <div class="tour-tip-box">
+                            <i class="fas fa-feather-pointed"></i>
+                            <span>文學風格：支援艾琳·杭特《貓戰士》行為擬人冒險風格與沈石溪客觀生態哲理，亦可透過「風格顧問 AI」打造專屬作家筆觸！</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: 即時生存抉擇與先選先贏 -->
+                    <div class="tour-step-pane" id="tourStep3" style="display:none;">
+                        <div class="tour-feature-badge"><i class="fas fa-bolt"></i> 眼前突發情境與自主決策</div>
+                        <h4>大自然毫不留情，時間無法暫停，先選擇先贏！</h4>
+                        <p>每當行至命運分水嶺，小說將自動暫停並彈出全螢幕抉擇面板，為你條列前情大綱、眼前危機重點與應對策略。多人共生模式下，時間將持續推進，野生獵場與庇護資源先選先贏，其他玩家搶佔後將被鎖定！</p>
+                        <div class="tour-tip-box">
+                            <i class="fas fa-keyboard"></i>
+                            <span>自主行動：若選項不合心意，可在下方自訂輸入框親筆寫下你的野性生存策略，由 AI 動態演繹後續命運！</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: 多人荒野共生與專屬房間 -->
+                    <div class="tour-step-pane" id="tourStep4" style="display:none;">
+                        <div class="tour-feature-badge"><i class="fas fa-network-wired"></i> 荒野房間大廳與三大權限體系</div>
+                        <h4>與同伴生活在同一生境，自訂公開、團隊或私人房間</h4>
+                        <p>點擊頂部「房間中心」可隨時瀏覽活躍房間或一鍵開房：</p>
+                        <ul class="tour-perm-list">
+                            <li><strong>1. 任何擁有連結者：</strong>複製邀請連結即可加入，加入時自主決定是否揭露暱稱或 Email。</li>
+                            <li><strong>2. 限團隊房間：</strong>依使用者 @ 後面網域自動驗證，同組織或學校成員專屬。</li>
+                            <li><strong>3. 私人房間：</strong>僅受邀於白名單 Email 的生靈方可探訪。</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 步驟底部按鈕列 -->
+                <div class="inline-modal-actions tour-actions">
+                    <button type="button" id="tourPrevBtn" class="btn-cancel" style="display:none;">上一步</button>
+                    <div class="tour-step-counter"><span id="tourStepIndex">1</span> / 4</div>
+                    <button type="button" id="tourNextBtn" class="cta-btn sm-cta">下一步 <i class="fas fa-arrow-right"></i></button>
+                    <button type="button" id="tourFinishBtn" class="cta-btn sm-cta" style="display:none;">完成教學，開啟探索 <i class="fas fa-check"></i></button>
+                </div>
             </div>
         </div>
     </main>

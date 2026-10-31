@@ -56,6 +56,7 @@
     // 紙本書小說狀態
     bookPages: [],          // 每頁包含之段落數組: [ ["段落1", "段落2"], ... ]
     currentSpreadIndex: 0,  // 當前展開之右頁索引
+    mobilePageSide: "right", // 手機單頁模式當前展示側 ("right" 或 "left")
     fullNovelText: "",      // 完整累積小說文字
     currentChapterTitle: "第一章",
     historyChapters: [],    // 歷來各章節文學紀錄（標題、大意、全文，供前情大綱與全書回顧）
@@ -226,6 +227,11 @@
     el.goToMemorialBtn = document.getElementById("goToMemorialBtn");
 
     el.bookSpreadContainer = document.getElementById("bookSpreadContainer");
+    el.mobilePageSwitcher = document.getElementById("mobilePageSwitcher");
+    el.mobileTabRight = document.getElementById("mobileTabRight");
+    el.mobileTabLeft = document.getElementById("mobileTabLeft");
+    el.mobileTabRightLabel = document.getElementById("mobileTabRightLabel");
+    el.mobileTabLeftLabel = document.getElementById("mobileTabLeftLabel");
     el.novelLoadingBanner = document.getElementById("novelLoadingBanner");
     el.novelLoadingOverlay = document.getElementById("novelLoadingOverlay");
     el.novelLoadingTitle = document.getElementById("novelLoadingTitle");
@@ -873,10 +879,29 @@
     if (el.prevPageBtn) el.prevPageBtn.addEventListener("click", turnPagePrev);
     if (el.nextPageBtn) el.nextPageBtn.addEventListener("click", turnPageNext);
 
+    // 手機版單頁閱讀左右頁標籤切換
+    if (el.mobileTabRight) {
+      el.mobileTabRight.addEventListener("click", () => {
+        state.mobilePageSide = "right";
+        renderBookSpread();
+      });
+    }
+    if (el.mobileTabLeft) {
+      el.mobileTabLeft.addEventListener("click", () => {
+        state.mobilePageSide = "left";
+        renderBookSpread();
+      });
+    }
+
     if (el.bookPageRight) {
       el.bookPageRight.addEventListener("click", () => {
         if (window.getSelection && window.getSelection().toString()) return;
-        turnPagePrev();
+        if (window.innerWidth <= 768) {
+          // 手機單頁模式：點擊右頁即順暢閱讀推進至左頁或次頁
+          turnPageNext();
+        } else {
+          turnPagePrev();
+        }
       });
     }
     if (el.bookPageLeft) {
@@ -885,6 +910,11 @@
         turnPageNext();
       });
     }
+
+    // 視窗大小改變時自適應切換手機單頁 / 桌機雙頁
+    window.addEventListener("resize", () => {
+      renderBookSpread();
+    });
 
     window.addEventListener("keydown", (e) => {
       if (document.activeElement && (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")) return;
@@ -1877,11 +1907,12 @@
     return best !== -1 ? best : Math.min(targetLen, text.length);
   }
 
-  // 渲染雙頁面 (紙本書版心規格：右頁在右、左頁在左，兩頁始終同時呈現且內容接續)
+  // 渲染頁面 (紙本書版心規格：單頁嚴格保持 1:1.42 長寬比，手機單頁精緻呈現，電腦桌機雙頁對開)
   function renderBookSpread() {
     const total = state.bookPages.length;
     const rIdx = state.currentSpreadIndex;
     const lIdx = state.currentSpreadIndex + 1;
+    const isMobile = window.innerWidth <= 768;
 
     const rPage = state.bookPages[rIdx] || { chapterTitle: "第一章", paragraphs: [], isChapterStart: false };
     const lPage = (lIdx < total) ? state.bookPages[lIdx] : { chapterTitle: rPage.chapterTitle, paragraphs: [], isChapterStart: false };
@@ -1915,30 +1946,113 @@
     if (el.headerChapterLeft) el.headerChapterLeft.textContent = lPage.chapterTitle || rPage.chapterTitle || "第一章";
     el.novelChapterTitle.textContent = rPage.chapterTitle || "第一章";
 
-    // 頁碼導航指示器 (阿拉伯數字)
-    const curRightNum = rIdx + 1;
-    const curLeftNum = Math.min(lIdx + 1, total);
-    el.bookPageIndicator.textContent = `第 ${curRightNum}–${curLeftNum} 頁 / 全書共 ${total} 頁`;
+    const hasLeftPage = (lIdx < total && (lPage.paragraphs.length > 0 || lPage.isChapterStart));
 
-    el.prevPageBtn.disabled = (rIdx <= 0);
-    el.nextPageBtn.disabled = (rIdx + 2 >= total);
+    if (isMobile) {
+      // 手機版單頁排版模式 (長寬比 1 : 1.42 經典小說開本)
+      if (el.mobilePageSwitcher) el.mobilePageSwitcher.style.display = "flex";
+      state.mobilePageSide = state.mobilePageSide || "right";
+
+      if (!hasLeftPage && state.mobilePageSide === "left") {
+        state.mobilePageSide = "right";
+      }
+
+      if (state.mobilePageSide === "right") {
+        el.bookPageRight.classList.remove("mobile-hidden-page");
+        el.bookPageRight.classList.add("mobile-active-page");
+        el.bookPageLeft.classList.add("mobile-hidden-page");
+        el.bookPageLeft.classList.remove("mobile-active-page");
+
+        if (el.mobileTabRight) el.mobileTabRight.classList.add("active");
+        if (el.mobileTabLeft) el.mobileTabLeft.classList.remove("active");
+        el.bookPageIndicator.textContent = `第 ${rIdx + 1} 頁 / 全書共 ${total} 頁`;
+      } else {
+        el.bookPageLeft.classList.remove("mobile-hidden-page");
+        el.bookPageLeft.classList.add("mobile-active-page");
+        el.bookPageRight.classList.add("mobile-hidden-page");
+        el.bookPageRight.classList.remove("mobile-active-page");
+
+        if (el.mobileTabRight) el.mobileTabRight.classList.remove("active");
+        if (el.mobileTabLeft) el.mobileTabLeft.classList.add("active");
+        el.bookPageIndicator.textContent = `第 ${lIdx + 1} 頁 / 全書共 ${total} 頁`;
+      }
+
+      if (el.mobileTabRightLabel) el.mobileTabRightLabel.textContent = `右頁 (${rIdx + 1})`;
+      if (el.mobileTabLeftLabel) el.mobileTabLeftLabel.textContent = hasLeftPage ? `左頁 (${lIdx + 1})` : "左頁 (無)";
+      if (el.mobileTabLeft) el.mobileTabLeft.disabled = !hasLeftPage;
+
+      el.prevPageBtn.disabled = (rIdx <= 0 && state.mobilePageSide === "right");
+      el.nextPageBtn.disabled = (!hasLeftPage && rIdx + 2 >= total) || (state.mobilePageSide === "left" && rIdx + 2 >= total);
+    } else {
+      // 電腦桌機雙頁對開模式 (各頁均維持 1 : 1.42 比例)
+      if (el.mobilePageSwitcher) el.mobilePageSwitcher.style.display = "none";
+      el.bookPageRight.classList.remove("mobile-hidden-page", "mobile-active-page");
+      el.bookPageLeft.classList.remove("mobile-hidden-page", "mobile-active-page");
+
+      const curRightNum = rIdx + 1;
+      const curLeftNum = Math.min(lIdx + 1, total);
+      el.bookPageIndicator.textContent = `第 ${curRightNum}–${curLeftNum} 頁 / 全書共 ${total} 頁`;
+
+      el.prevPageBtn.disabled = (rIdx <= 0);
+      el.nextPageBtn.disabled = (rIdx + 2 >= total);
+    }
   }
 
   function turnPagePrev() {
-    if (state.currentSpreadIndex > 0) {
-      state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - 2);
-      renderBookSpread();
-      saveGameState();
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      if (state.mobilePageSide === "left") {
+        state.mobilePageSide = "right";
+        renderBookSpread();
+        saveGameState();
+        return;
+      }
+      if (state.currentSpreadIndex > 0) {
+        state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - 2);
+        state.mobilePageSide = "left";
+        renderBookSpread();
+        saveGameState();
+      }
+    } else {
+      if (state.currentSpreadIndex > 0) {
+        state.currentSpreadIndex = Math.max(0, state.currentSpreadIndex - 2);
+        renderBookSpread();
+        saveGameState();
+      }
     }
   }
 
   function turnPageNext() {
-    if (state.currentSpreadIndex + 2 < state.bookPages.length) {
-      state.currentSpreadIndex = state.currentSpreadIndex + 2;
-      renderBookSpread();
-      saveGameState();
-      if (state.currentSpreadIndex + 2 >= state.bookPages.length && !state.isGameOver) {
-        prefetchUpcomingMilestone();
+    const isMobile = window.innerWidth <= 768;
+    const total = state.bookPages.length;
+    const lIdx = state.currentSpreadIndex + 1;
+    const lPage = (lIdx < total) ? state.bookPages[lIdx] : null;
+    const hasLeftPage = lPage && (lPage.paragraphs.length > 0 || lPage.isChapterStart);
+
+    if (isMobile) {
+      if (state.mobilePageSide === "right" && hasLeftPage) {
+        state.mobilePageSide = "left";
+        renderBookSpread();
+        saveGameState();
+        return;
+      }
+      if (state.currentSpreadIndex + 2 < total) {
+        state.currentSpreadIndex = state.currentSpreadIndex + 2;
+        state.mobilePageSide = "right";
+        renderBookSpread();
+        saveGameState();
+        if (state.currentSpreadIndex + 2 >= total && !state.isGameOver) {
+          prefetchUpcomingMilestone();
+        }
+      }
+    } else {
+      if (state.currentSpreadIndex + 2 < total) {
+        state.currentSpreadIndex = state.currentSpreadIndex + 2;
+        renderBookSpread();
+        saveGameState();
+        if (state.currentSpreadIndex + 2 >= total && !state.isGameOver) {
+          prefetchUpcomingMilestone();
+        }
       }
     }
   }
@@ -3894,16 +4008,40 @@
     },
 
     connectServer(serverUrl) {
-      if (typeof io === "function" && serverUrl) {
+      // 避免失效或無 CORS 支援的 ngrok 網址持續輪詢刷屏拋錯
+      if (typeof serverUrl === "string" && (serverUrl.includes("ngrok") || serverUrl.includes("undefined") || !serverUrl.trim())) {
+        try { localStorage.removeItem("sso_server"); } catch (e) {}
+        serverUrl = "";
+      }
+
+      if (typeof io === "function" && serverUrl && serverUrl.trim()) {
         try {
-          this.socket = io(serverUrl, { transports: ["polling", "websocket"], timeout: 3500 });
+          this.socket = io(serverUrl, {
+            transports: ["websocket", "polling"],
+            timeout: 2500,
+            reconnection: false, // 絕不無限重試避免 CORS 刷屏
+            reconnectionAttempts: 1,
+            autoConnect: true
+          });
+
           this.socket.on("connect", () => {
             this.updateStatusUI(true, "十兆多人共生 (已連線)");
           });
+
+          this.socket.on("connect_error", (err) => {
+            console.warn("自訂通訊伺服器未啟用或跨域限制，平滑轉入十兆荒野生態引擎：", err.message);
+            if (this.socket) {
+              try { this.socket.disconnect(); } catch (e) {}
+              this.socket = null;
+            }
+            this.updateStatusUI(true, "十兆多人共生 (荒野共生網)");
+          });
+
           this.socket.on("disconnect", () => {
             this.updateStatusUI(true, "十兆多人共生 (荒野共生網)");
           });
         } catch (e) {
+          this.socket = null;
           this.updateStatusUI(true, "十兆多人共生 (荒野共生網)");
         }
       } else {
@@ -4845,6 +4983,7 @@
     const replayBtn = el.replayPrologueBtn || document.getElementById("replayPrologueBtn");
     const replayBtnDead = el.replayPrologueBtnDead || document.getElementById("replayPrologueBtnDead");
     const topPrologueBtn = el.topPrologueBtn || document.getElementById("topPrologueBtn");
+    const skipBtn = document.getElementById("skipPrologueBtn");
 
     if (!overlay || !lineEl) return;
 
@@ -4876,10 +5015,10 @@
           lineEl.classList.add("visible");
           prologueIsTransitioning = false;
 
-          // 自動推進至下一句
+          // 自動推進至下一句 (文字緩慢淡出淡入節奏)
           prologueTimer = setTimeout(() => {
             showLine(idx + 1);
-          }, 2700);
+          }, 3200);
         }, 800);
       } else {
         // 第一句直接淡入
@@ -4891,22 +5030,11 @@
 
         prologueTimer = setTimeout(() => {
           showLine(idx + 1);
-        }, 2700);
+        }, 3200);
       }
     }
 
-    function advanceNextLine() {
-      // 防狂點與秒刷冷卻 (至少需閱讀 600ms)
-      if (prologueIsTransitioning || (Date.now() - prologueLastSwitchTime < 600)) return;
-      clearTimer();
-      if (prologueCurrentIdx >= PROLOGUE_REFLECTION_LINES.length - 1) {
-        completePrologue();
-      } else {
-        showLine(prologueCurrentIdx + 1);
-      }
-    }
-
-    // 只有完整看完最後一句，才標記看過並寫入 localStorage！解除鎖定！
+    // 完整看完最後一句或點擊右上角跳過按鈕
     function completePrologue() {
       clearTimer();
       try {
@@ -4925,44 +5053,475 @@
         lineEl.textContent = "";
         lineEl.classList.remove("fading", "visible");
         prologueIsTransitioning = false;
-      }, 1200);
+
+        // 首次進入看完或跳過後，若未看過新手教學，自動彈出新手教學！
+        if (!localStorage.getItem("10t_tutorial_completed")) {
+          openOnboardingTour(1);
+        }
+      }, 1000);
     }
 
     function startPrologue() {
       clearTimer();
-      // 啟動全螢幕阻斷防略過鎖定
       document.body.classList.add("prologue-locked");
       prologueCurrentIdx = 0;
       lineEl.textContent = "";
       lineEl.classList.remove("visible", "fading");
       overlay.classList.remove("fade-out-overlay");
       overlay.style.display = "flex";
+
+      // 檢查是否為第二次開始：若是，右上角顯示跳過按鈕；首次進入則隱藏
+      const hasSeen = localStorage.getItem("10t_reflection_seen") === "true";
+      if (skipBtn) {
+        skipBtn.style.display = hasSeen ? "inline-flex" : "none";
+      }
+
       showLine(0);
     }
 
-    overlay.addEventListener("click", () => {
-      advanceNextLine();
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (overlay.style.display !== "none" && overlay.style.display !== "") {
-        if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight" || e.key === "ArrowDown") {
-          e.preventDefault();
-          advanceNextLine();
-        }
-      }
-    });
+    // 右上角跳過按鈕事件綁定
+    if (skipBtn) {
+      skipBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        completePrologue();
+      });
+    }
 
     // 網站頁尾與導覽列回顧按鈕
     if (replayBtn) replayBtn.addEventListener("click", () => startPrologue());
     if (replayBtnDead) replayBtnDead.addEventListener("click", () => startPrologue());
     if (topPrologueBtn) topPrologueBtn.addEventListener("click", () => startPrologue());
 
-    // 物理防略過檢查：未看過者強制全螢幕阻斷鎖定！重載或關閉視窗下次依然強制從第一句開始！
+    // 物理防略過檢查：未看過者強制全螢幕阻斷鎖定！
     const hasSeen = localStorage.getItem("10t_reflection_seen");
     if (!hasSeen) {
       startPrologue();
     }
+  }
+
+  /* --------------------------------------------------------------------------
+     新手教學 (4 步驟全面導覽系統)
+     -------------------------------------------------------------------------- */
+  let currentTourStep = 1;
+  const TOTAL_TOUR_STEPS = 4;
+
+  function updateTourStepUI(step) {
+    currentTourStep = Math.max(1, Math.min(TOTAL_TOUR_STEPS, step));
+    const modal = document.getElementById("onboardingTourModal");
+    if (!modal) return;
+
+    // 更新導覽卡片顯示
+    const cards = modal.querySelectorAll(".tour-step-pane");
+    cards.forEach((card) => {
+      const cardStep = parseInt(card.getAttribute("data-step"), 10);
+      card.style.display = (cardStep === currentTourStep) ? "flex" : "none";
+    });
+
+    // 更新進度條指示點
+    const dots = modal.querySelectorAll(".tour-step-dot");
+    dots.forEach((dot) => {
+      const dotStep = parseInt(dot.getAttribute("data-step"), 10);
+      if (dotStep === currentTourStep) {
+        dot.classList.add("active");
+      } else {
+        dot.classList.remove("active");
+      }
+    });
+
+    // 更新計步標籤與按鈕可見度
+    const counter = document.getElementById("tourStepIndex") || document.getElementById("tourStepCounter");
+    if (counter) counter.textContent = currentTourStep;
+
+    const prevBtn = document.getElementById("tourPrevBtn");
+    const nextBtn = document.getElementById("tourNextBtn");
+    const finishBtn = document.getElementById("tourFinishBtn");
+
+    if (prevBtn) {
+      prevBtn.style.display = (currentTourStep === 1) ? "none" : "inline-flex";
+    }
+    if (nextBtn) {
+      nextBtn.style.display = (currentTourStep === TOTAL_TOUR_STEPS) ? "none" : "inline-flex";
+    }
+    if (finishBtn) {
+      finishBtn.style.display = (currentTourStep === TOTAL_TOUR_STEPS) ? "inline-flex" : "none";
+    }
+  }
+
+  function openOnboardingTour(step = 1) {
+    const modal = document.getElementById("onboardingTourModal");
+    if (!modal) return;
+    updateTourStepUI(step);
+    modal.style.display = "flex";
+    modal.classList.add("active");
+  }
+
+  function closeOnboardingTour() {
+    const modal = document.getElementById("onboardingTourModal");
+    if (!modal) return;
+    modal.classList.remove("active");
+    modal.style.display = "none";
+    try {
+      localStorage.setItem("10t_tutorial_completed", "true");
+    } catch (e) {}
+  }
+
+  function initOnboardingTour() {
+    const modal = document.getElementById("onboardingTourModal");
+    if (!modal) return;
+
+    const prevBtn = document.getElementById("tourPrevBtn");
+    const nextBtn = document.getElementById("tourNextBtn");
+    const finishBtn = document.getElementById("tourFinishBtn");
+    const closeBtn = document.getElementById("closeTourModalBtn") || document.getElementById("closeTourBtn");
+    const tutorialBtn = document.getElementById("tutorialBtn");
+    const gameTutorialBtn = document.getElementById("gameTutorialBtn");
+
+    if (prevBtn) {
+      prevBtn.addEventListener("click", () => updateTourStepUI(currentTourStep - 1));
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener("click", () => updateTourStepUI(currentTourStep + 1));
+    }
+    if (finishBtn) {
+      finishBtn.addEventListener("click", () => closeOnboardingTour());
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => closeOnboardingTour());
+    }
+
+    if (tutorialBtn) {
+      tutorialBtn.addEventListener("click", () => openOnboardingTour(1));
+    }
+    if (gameTutorialBtn) {
+      gameTutorialBtn.addEventListener("click", () => openOnboardingTour(1));
+    }
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        closeOnboardingTour();
+      }
+    });
+
+    const dots = modal.querySelectorAll(".tour-step-dot");
+    dots.forEach((dot) => {
+      dot.addEventListener("click", () => {
+        const step = parseInt(dot.getAttribute("data-step"), 10);
+        if (!isNaN(step)) updateTourStepUI(step);
+      });
+    });
+  }
+
+  /* --------------------------------------------------------------------------
+     多語言系統 (參考官網 5 國語言架構與自動偵測)
+     -------------------------------------------------------------------------- */
+  const GAME_I18N = {
+    "zh-TW": {
+      langName: "繁體中文 (台灣)",
+      langShort: "繁中",
+      homeNav: "熊貓首頁",
+      tutorialNav: "新手教學",
+      prologueNav: "回顧開端",
+      serverNav: "伺服器",
+      multiNav: "多人世界",
+      startRoll: "🎲 開始命運轉盤",
+      directLife: "直接開始此生",
+      reRoll: "重新投胎",
+      rightPage: "📖 右頁",
+      leftPage: "📄 左頁",
+      pauseRead: "暫停閱讀",
+      resumeRead: "繼續推演",
+      abandonLife: "放棄此生",
+      autoLife: "自動推進",
+      decisionTitle: "命運重大抉擇",
+      decisionPrompt: "命運的巨輪已在此處停駐，請審慎權衡你的生存路徑：",
+      roomTitle: "多人世界共生房間",
+      closeBtn: "關閉",
+      prevStep: "上一步",
+      nextStep: "下一步",
+      finishTour: "開始探索生命",
+      skipPrologue: "跳過",
+    },
+    "zh-HK": {
+      langName: "繁體中文 (香港)",
+      langShort: "港繁",
+      homeNav: "熊貓首頁",
+      tutorialNav: "新手教學",
+      prologueNav: "重溫開端",
+      serverNav: "伺服器",
+      multiNav: "多人世界",
+      startRoll: "🎲 開始命運轉盤",
+      directLife: "即刻開始此生",
+      reRoll: "重新投胎",
+      rightPage: "📖 右頁",
+      leftPage: "📄 左頁",
+      pauseRead: "暫停閱讀",
+      resumeRead: "繼續推演",
+      abandonLife: "放棄此生",
+      autoLife: "自動推進",
+      decisionTitle: "命運重大抉擇",
+      decisionPrompt: "命運嘅巨輪已經喺呢度停低，請審慎權衡你嘅生存路徑：",
+      roomTitle: "多人世界共生房間",
+      closeBtn: "關閉",
+      prevStep: "上一步",
+      nextStep: "下一步",
+      finishTour: "開始探索生命",
+      skipPrologue: "跳過",
+    },
+    "zh-CN": {
+      langName: "简体中文",
+      langShort: "简中",
+      homeNav: "熊猫首页",
+      tutorialNav: "新手教学",
+      prologueNav: "回顾开端",
+      serverNav: "服务器",
+      multiNav: "多人世界",
+      startRoll: "🎲 开始命运转盘",
+      directLife: "直接开始此生",
+      reRoll: "重新投胎",
+      rightPage: "📖 右页",
+      leftPage: "📄 左页",
+      pauseRead: "暂停阅读",
+      resumeRead: "继续推演",
+      abandonLife: "放弃此生",
+      autoLife: "自动推进",
+      decisionTitle: "命运重大抉择",
+      decisionPrompt: "命运的巨轮已在此处停驻，请审慎权衡你的生存路径：",
+      roomTitle: "多人世界共生房间",
+      closeBtn: "关闭",
+      prevStep: "上一步",
+      nextStep: "下一步",
+      finishTour: "开始探索生命",
+      skipPrologue: "跳过",
+    },
+    "en": {
+      langName: "English",
+      langShort: "EN",
+      homeNav: "Home",
+      tutorialNav: "Tutorial",
+      prologueNav: "Prologue",
+      serverNav: "Server",
+      multiNav: "Multiplayer",
+      startRoll: "🎲 Spin the Wheel",
+      directLife: "Begin This Life",
+      reRoll: "Reincarnate",
+      rightPage: "📖 Right Page",
+      leftPage: "📄 Left Page",
+      pauseRead: "Pause",
+      resumeRead: "Resume",
+      abandonLife: "Abandon Life",
+      autoLife: "Auto Mode",
+      decisionTitle: "Critical Fate Decision",
+      decisionPrompt: "The wheel of destiny pauses here. Choose your path wisely:",
+      roomTitle: "Multiplayer Habitat Room",
+      closeBtn: "Close",
+      prevStep: "Previous",
+      nextStep: "Next",
+      finishTour: "Start Life Journey",
+      skipPrologue: "Skip",
+    },
+    "ja": {
+      langName: "日本語",
+      langShort: "日本語",
+      homeNav: "ホーム",
+      tutorialNav: "チュートリアル",
+      prologueNav: "プロローグ",
+      serverNav: "サーバー",
+      multiNav: "マルチプレイ",
+      startRoll: "🎲 運命のルーレット",
+      directLife: "この人生を始める",
+      reRoll: "転生する",
+      rightPage: "📖 右ページ",
+      leftPage: "📄 左ページ",
+      pauseRead: "一時停止",
+      resumeRead: "再開",
+      abandonLife: "人生を放棄",
+      autoLife: "自動進行",
+      decisionTitle: "運命の重大な決断",
+      decisionPrompt: "運命の歯車が止まりました。生存の道を選択してください：",
+      roomTitle: "共生ルーム",
+      closeBtn: "閉じる",
+      prevStep: "前へ",
+      nextStep: "次へ",
+      finishTour: "生命の旅を始める",
+      skipPrologue: "スキップ",
+    }
+  };
+
+  function detectInitialLanguage() {
+    const isSet = localStorage.getItem("preferred_language_set");
+    if (isSet) {
+      return localStorage.getItem("preferred_language") || "zh-TW";
+    }
+    const navLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    let detected = "zh-TW";
+    if (navLang.includes("hk") || navLang.includes("mo")) {
+      detected = "zh-HK";
+    } else if (navLang.includes("cn") || navLang.includes("sg") || navLang === "zh") {
+      detected = "zh-CN";
+    } else if (navLang.includes("ja")) {
+      detected = "ja";
+    } else if (navLang.startsWith("en")) {
+      detected = "en";
+    } else if (navLang.includes("tw")) {
+      detected = "zh-TW";
+    }
+    try {
+      localStorage.setItem("preferred_language", detected);
+      localStorage.setItem("preferred_language_set", "true");
+    } catch (e) {}
+    return detected;
+  }
+
+  function setGameLanguage(lang) {
+    if (!GAME_I18N[lang]) lang = "zh-TW";
+    window.currentGameLang = lang;
+    try {
+      localStorage.setItem("preferred_language", lang);
+      localStorage.setItem("preferred_language_set", "true");
+    } catch (e) {}
+
+    const t = GAME_I18N[lang];
+    const currentLangLabel = document.getElementById("currentLangLabel");
+    if (currentLangLabel) currentLangLabel.textContent = t.langShort;
+
+    const navPandaHome = document.getElementById("navPandaHome");
+    if (navPandaHome) {
+      const span = navPandaHome.querySelector("span");
+      if (span) span.textContent = t.homeNav;
+    }
+
+    const tutorialBtn = document.getElementById("tutorialBtn");
+    if (tutorialBtn) {
+      const span = tutorialBtn.querySelector("span");
+      if (span) span.textContent = t.tutorialNav;
+    }
+
+    const topPrologueBtn = document.getElementById("topPrologueBtn");
+    if (topPrologueBtn) {
+      const span = topPrologueBtn.querySelector("span");
+      if (span) span.textContent = t.prologueNav;
+    }
+
+    const topServerStatusBtn = document.getElementById("topServerStatusBtn");
+    if (topServerStatusBtn) {
+      const span = topServerStatusBtn.querySelector("span");
+      if (span) span.textContent = t.serverNav;
+    }
+
+    const multiHubBtn = document.getElementById("multiHubBtn");
+    if (multiHubBtn) {
+      const span = multiHubBtn.querySelector("span");
+      if (span) span.textContent = t.multiNav;
+    }
+
+    const skipPrologueBtn = document.getElementById("skipPrologueBtn");
+    if (skipPrologueBtn) skipPrologueBtn.textContent = t.skipPrologue;
+
+    const startRollBtn = document.getElementById("startRollBtn");
+    if (startRollBtn) startRollBtn.textContent = t.startRoll;
+
+    const beginLifeBtn = document.getElementById("beginLifeBtn");
+    if (beginLifeBtn) {
+      beginLifeBtn.innerHTML = `<i class="fas fa-play"></i> ${t.directLife}`;
+    }
+
+    const reRollBtn = document.getElementById("reRollBtn");
+    if (reRollBtn) {
+      reRollBtn.innerHTML = `<i class="fas fa-redo"></i> ${t.reRoll}`;
+    }
+
+    const abandonLifeBtn = document.getElementById("abandonLifeBtn");
+    if (abandonLifeBtn) abandonLifeBtn.textContent = t.abandonLife;
+
+    const mobileShowRightPage = document.getElementById("mobileTabRight") || document.getElementById("mobileShowRightPage");
+    if (mobileShowRightPage) {
+      const label = document.getElementById("mobileTabRightLabel");
+      if (label) label.textContent = t.rightPage;
+      else mobileShowRightPage.textContent = t.rightPage;
+    }
+
+    const mobileShowLeftPage = document.getElementById("mobileTabLeft") || document.getElementById("mobileShowLeftPage");
+    if (mobileShowLeftPage) {
+      const label = document.getElementById("mobileTabLeftLabel");
+      if (label) label.textContent = t.leftPage;
+      else mobileShowLeftPage.textContent = t.leftPage;
+    }
+
+    const tourPrevBtn = document.getElementById("tourPrevBtn");
+    if (tourPrevBtn) tourPrevBtn.textContent = t.prevStep;
+
+    const tourNextBtn = document.getElementById("tourNextBtn");
+    if (tourNextBtn) tourNextBtn.textContent = t.nextStep;
+
+    const tourFinishBtn = document.getElementById("tourFinishBtn");
+    if (tourFinishBtn) tourFinishBtn.textContent = t.finishTour;
+  }
+
+  function initLanguageSelector() {
+    const wrap = document.getElementById("langSelectorWrap");
+    const btn = document.getElementById("langSelectBtn");
+    const dropdown = document.getElementById("langDropdown");
+    if (!wrap || !btn || !dropdown) return;
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle("show");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!wrap.contains(e.target)) {
+        dropdown.classList.remove("show");
+      }
+    });
+
+    const opts = dropdown.querySelectorAll(".lang-opt");
+    opts.forEach((opt) => {
+      opt.addEventListener("click", (e) => {
+        const selected = opt.getAttribute("data-lang");
+        setGameLanguage(selected);
+        dropdown.classList.remove("show");
+      });
+    });
+
+    // 啟動時自動偵測語言
+    const initialLang = detectInitialLanguage();
+    setGameLanguage(initialLang);
+  }
+
+  /* --------------------------------------------------------------------------
+     手機版單頁小說閱讀切換控制 (右頁 / 左頁)
+     -------------------------------------------------------------------------- */
+  function initMobilePageSwitcher() {
+    const rightTab = document.getElementById("mobileTabRight") || document.getElementById("mobileShowRightPage");
+    const leftTab = document.getElementById("mobileTabLeft") || document.getElementById("mobileShowLeftPage");
+    const rightPage = document.getElementById("bookPageRight");
+    const leftPage = document.getElementById("bookPageLeft");
+
+    if (!rightTab || !leftTab || !rightPage || !leftPage) return;
+
+    function activateRight() {
+      rightTab.classList.add("active");
+      leftTab.classList.remove("active");
+      rightPage.classList.remove("mobile-hidden-page");
+      rightPage.classList.add("mobile-active-page");
+      leftPage.classList.add("mobile-hidden-page");
+      leftPage.classList.remove("mobile-active-page");
+    }
+
+    function activateLeft() {
+      leftTab.classList.add("active");
+      rightTab.classList.remove("active");
+      leftPage.classList.remove("mobile-hidden-page");
+      leftPage.classList.add("mobile-active-page");
+      rightPage.classList.add("mobile-hidden-page");
+      rightPage.classList.remove("mobile-active-page");
+    }
+
+    rightTab.addEventListener("click", activateRight);
+    leftTab.addEventListener("click", activateLeft);
+
+    // 預設先看右頁
+    activateRight();
   }
 
   window.addEventListener("DOMContentLoaded", () => {
@@ -4987,6 +5546,15 @@
     // 初始化物理防略過省思引言
     try { initPrologueReflection(); } catch (e) { console.error("initPrologueReflection error:", e); }
 
+    // 初始化新手教學引導
+    try { initOnboardingTour(); } catch (e) { console.error("initOnboardingTour error:", e); }
+
+    // 初始化多語言切換與自動偵測
+    try { initLanguageSelector(); } catch (e) { console.error("initLanguageSelector error:", e); }
+
+    // 初始化手機小說頁面切換
+    try { initMobilePageSwitcher(); } catch (e) { console.error("initMobilePageSwitcher error:", e); }
+
     // 暴露核心引擎至 window.__gameEngine 供測試與外掛即時調度
     window.__gameEngine = {
       state,
@@ -4995,8 +5563,9 @@
       openFateDecisionModal,
       closeFateDecisionModal,
       executeChoice,
+      openOnboardingTour,
+      setGameLanguage,
       MultiplayerHabitatEngine,
-      enterLifeDashboard
     };
   });
 })();
