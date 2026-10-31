@@ -2185,22 +2185,20 @@ localStorage.removeItem('panda_session_token');
 
 
 
+        function formatAuthError(error, prefix = "Google 驗證失敗") {
+            if (error && error.code === 'auth/unauthorized-domain') {
+                return `${prefix}：網域未獲授權 (${window.location.hostname})。請至 Firebase 控制台 (Authentication -> Settings -> Authorized domains) 將此網域加入授權白名單。`;
+            }
+            return `${prefix}: ${error ? error.message : '未知錯誤'}`;
+        }
+
         window.handleRegGoogleAuth = async function() {
-
             try {
-
                 const result = await signInWithPopup(auth, provider);
-
                 window.tempRegEmail = result.user.email;
-
                 document.getElementById('googleNotLinked').classList.add('hidden');
-
                 document.getElementById('googleLinked').classList.remove('hidden');
-
                 document.getElementById('linkedGoogleEmail').innerText = window.tempRegEmail;
-
-                
-
                 if(document.getElementById('reg_email')) {
                     document.getElementById('reg_email').value = window.tempRegEmail;
                 }
@@ -2208,17 +2206,12 @@ localStorage.removeItem('panda_session_token');
                 if(regUsername && window.regMode === 'google') {
                     regUsername.value = window.tempRegEmail;
                 }                
-
                 showMsg("已成功連結 Google 帳號！(若登入視窗未自動關閉，請手動關閉)", "success");
-
                 if (socket && socket.connected) socket.emit('clientAction', { action: '操作介面', details: `成功綁定準備註冊的 Google 信箱` });
-
             } catch (error) {
-
-                showMsg("連結 Google 失敗: " + error.message, "error");
-
+                console.error("連結 Google 失敗:", error);
+                showMsg(formatAuthError(error, "連結 Google 失敗"), "error");
             }
-
         };
 
 
@@ -2362,7 +2355,8 @@ localStorage.removeItem('panda_session_token');
                 socket.emit('updateProfile', { email: newEmail });
                 showMsg("已成功綁定新的 Google 帳號！", "success");
             } catch (error) {
-                showMsg("Google 驗證失敗: " + error.message, "error");
+                console.error("Google 驗證失敗:", error);
+                showMsg(formatAuthError(error, "Google 驗證失敗"), "error");
             }
         };
 
@@ -2442,9 +2436,8 @@ localStorage.removeItem('panda_session_token');
                 socket.emit('googleLogin', { email: result.user.email, name: result.user.displayName });
 
             } catch (error) {
-
-                showMsg("Google 登入失敗: " + error.message, "error");
-
+                console.error("Google 登入失敗:", error);
+                showMsg(formatAuthError(error, "Google 登入失敗"), "error");
             }
 
         };

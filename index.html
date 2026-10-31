@@ -2795,12 +2795,17 @@
                 const stored = localStorage.getItem('panda_custom_nav_items');
                 if (stored) {
                     const arr = JSON.parse(stored);
-                    if (Array.isArray(arr) && arr.length > 0) return arr;
+                    if (Array.isArray(arr)) {
+                        // 排除與原生主導覽列重複的項目（例如十兆分之一已有專屬主標籤）
+                        const cleaned = arr.filter(item => item && item.name && item.name !== '十兆分之一' && !item.url.includes('10%20trillion') && !item.url.includes('1 in 10 trillion'));
+                        if (cleaned.length !== arr.length) {
+                            localStorage.setItem('panda_custom_nav_items', JSON.stringify(cleaned));
+                        }
+                        return cleaned;
+                    }
                 }
             } catch(e) {}
-            return [
-                { name: '十兆分之一', url: './game/1 in 10 trillion/', targetBlank: false }
-            ];
+            return [];
         };
 
         window.renderCustomNavItems = function() {
@@ -3423,6 +3428,58 @@
 
                     window.allProjectsData = [];
                     window.rawScannedProjects = [];
+                    window.coreProjectsData = [
+                        {
+                            folder: "game/1 in 10 trillion",
+                            name: "十兆分之一 (1 in 10 Trillion)",
+                            desc: "跨物種人生模擬與荒野紀事。出生為地球生態系中十億生命之一的生存模擬遊戲。",
+                            url: getAbsoluteUrl("./game/1%20in%2010%20trillion/"),
+                            icon: getAbsoluteUrl("./game/1 in 10 trillion/assets/favicon-48x48.png"),
+                            iconType: "fas fa-paw",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "shop",
+                            name: "胖達商城 (Panda Shop)",
+                            desc: "PandaPanda 官方線上商城，支援P幣商品兌換、伺服器特權道具、限定自製週邊。",
+                            url: getAbsoluteUrl("./shop/"),
+                            icon: getAbsoluteUrl("./shop/favicon-48x48.png"),
+                            iconType: "fas fa-shopping-cart",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "Seeker",
+                            name: "探險者系列 (Seeker Series)",
+                            desc: "探險者系列官方整合首頁。匯聚探險者百科、同人創作網、評論文集與文文盃寫作比賽。",
+                            url: getAbsoluteUrl("./Seeker/index.html"),
+                            icon: getAbsoluteUrl("./Seeker/favicon-48x48.png"),
+                            iconType: "fas fa-compass",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "Seeker/Seekerpedia",
+                            name: "探險者百科 (Seekerpedia)",
+                            desc: "探險者文集世界觀設定、百科詞條、原創作品與角色資料庫。",
+                            url: getAbsoluteUrl("./Seeker/Seekerpedia/index.html"),
+                            icon: getAbsoluteUrl("./Seeker/Seekerpedia/favicon-48x48.png"),
+                            iconType: "fas fa-book",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "login-hub",
+                            name: "Panda 登入中心 (Login Hub)",
+                            desc: "全站 SSO 單一登入、帳號資料管理與伺服器連線認證中心。",
+                            url: getAbsoluteUrl("./login-hub/"),
+                            icon: getAbsoluteUrl("./favicon-48x48.png"),
+                            iconType: "fas fa-id-card",
+                            isHidden: false,
+                            isDisabled: false
+                        }
+                    ];
                     container.innerHTML = ''; 
 
                     for (const item of directories) {
@@ -3662,13 +3719,29 @@
                 const clearBtn = document.getElementById('site-search-clear');
                 if (clearBtn) clearBtn.style.display = kw ? 'block' : 'none';
 
-                if (!window.allProjectsData) return;
+                if (!window.allProjectsData) {
+                    if (typeof scanAndLoadFolders === 'function') {
+                        scanAndLoadFolders().then(() => handleSiteSearch(val));
+                    }
+                    return;
+                }
                 if (!kw) {
                     renderProjectList(window.allProjectsData, 1);
                     return;
                 }
 
-                const filtered = window.allProjectsData.filter(item => {
+                // 搜尋範圍涵蓋官方核心獨立站點（十兆分之一、胖達商城、探險者系列等）與所有自製專案
+                const pool = [...(window.coreProjectsData || []), ...window.allProjectsData];
+                const seenUrls = new Set();
+                const uniquePool = [];
+                pool.forEach(item => {
+                    if (item && item.url && !seenUrls.has(item.url)) {
+                        seenUrls.add(item.url);
+                        uniquePool.push(item);
+                    }
+                });
+
+                const filtered = uniquePool.filter(item => {
                     return (item.name && item.name.toLowerCase().includes(kw)) ||
                            (item.desc && item.desc.toLowerCase().includes(kw)) ||
                            (item.folder && item.folder.toLowerCase().includes(kw));
@@ -3688,9 +3761,16 @@
                 if (q) {
                     const input = document.getElementById('site-search-input');
                     if (input) input.value = q;
-                    handleSiteSearch(q);
                     const toolsLink = document.querySelector('nav a[data-page="tools"]');
                     if (toolsLink) toolsLink.click();
+                    if (!projectsLoaded) {
+                        scanAndLoadFolders().then(() => {
+                            projectsLoaded = true;
+                            handleSiteSearch(q);
+                        });
+                    } else {
+                        handleSiteSearch(q);
+                    }
                 }
             };
 
@@ -3713,16 +3793,20 @@
             }
 
             navLinks.forEach(link => {
-    link.addEventListener('click', function(event) {
-        if (this.hasAttribute('data-page')) {
-            event.preventDefault();
-            switchPage(this.dataset.page, true);
-        }
-    });
-});
+                link.addEventListener('click', function(event) {
+                    if (this.hasAttribute('data-page')) {
+                        event.preventDefault();
+                        switchPage(this.dataset.page, true);
+                    }
+                });
+            });
 
             const initialPage = new URLSearchParams(window.location.search).get('page');
-            if (initialPage && document.getElementById(initialPage)) {
+            const initialSearch = new URLSearchParams(window.location.search).get('q') || new URLSearchParams(window.location.search).get('search');
+            if (initialSearch) {
+                switchPage('tools', false);
+                checkUrlSearchParams();
+            } else if (initialPage && document.getElementById(initialPage)) {
                 switchPage(initialPage, false);
             }
 
