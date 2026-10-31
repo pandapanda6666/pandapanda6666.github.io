@@ -67,6 +67,11 @@
     mpPeers: [],
     mpCountdownTimer: null,
     mpCountdownSeconds: 15,
+    isLoggedIn: false,
+    guardianPacts: (() => {
+      try { return JSON.parse(localStorage.getItem('10t_guardian_pacts') || '{}'); } catch(e) { return {}; }
+    })(),
+    mutualProtectionsCount: parseInt(localStorage.getItem('10t_mutual_protections_count') || '0', 10),
     currentUser: {
       username: localStorage.getItem('sso_user') || 'wild_explorer',
       nickname: localStorage.getItem('sso_nickname') || '荒野旅者',
@@ -2852,28 +2857,61 @@
     if (!el.fateModalChoicesGrid) return;
     el.fateModalChoicesGrid.innerHTML = "";
 
-    if (chapter.choices && chapter.choices.length > 0) {
-      chapter.choices.forEach((ch, idx) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "fate-choice-card-btn";
-        btn._choiceObj = ch;
-        btn.innerHTML = `
-          <div class="fate-choice-title">${escapeHtml(ch.text)}</div>
-          <div class="fate-choice-impact"><i class="fas fa-sparkles"></i> 影響：${escapeHtml(ch.impact || '命運轉折')}</div>
-        `;
+    const rawChoices = Array.isArray(chapter.choices) ? [...chapter.choices] : [];
 
-        btn.addEventListener("click", async () => {
-          if (btn.classList.contains("claimed")) {
-            alert(`【先選擇先贏】此項生存資源已被「${btn.dataset.claimedBy || '其他在線同伴'}」搶先佔據！荒野生死交關，請立即選擇其他應對策略！`);
-            return;
-          }
-          await executeChoice(chapter, ch);
-        });
+    // 動物互相保護機制 (Mutual Protection between animals)
+    // 檢查若尚未有守護選項，動態注入專屬守護連攜選項
+    const hasProtectionChoice = rawChoices.some(c => c.isMutualProtection);
+    if (!hasProtectionChoice) {
+      let protectorName = "生境同伴與族群長輩";
+      if (state.guardianPacts && Object.keys(state.guardianPacts).length > 0) {
+        const pact = Object.values(state.guardianPacts)[0];
+        protectorName = `${pact.nickname} (${pact.speciesName})`;
+      } else if (state.isMultiplayer && state.mpPeers && state.mpPeers.length > 0) {
+        const peer = state.mpPeers[0];
+        protectorName = `${peer.name} (${peer.species || '同伴'})`;
+      } else if (state.currentLife?.species?.name) {
+        protectorName = `同族生靈與共生守護者`;
+      }
 
-        el.fateModalChoicesGrid.appendChild(btn);
-      });
+      const mutualProtectionChoice = {
+        text: `【動物互助守護】與 ${protectorName} 互相掩護，合力化解突發危機`,
+        impact: `荒野共生連攜 · 生存機率大幅提升 +45% · 互換警戒視角 · 共同抗敵`,
+        isMutualProtection: true,
+        protector: protectorName,
+        statChange: { health: +12, energy: -4, instinct: +15 }
+      };
+
+      rawChoices.unshift(mutualProtectionChoice);
     }
+
+    rawChoices.forEach((ch, idx) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "fate-choice-card-btn" + (ch.isMutualProtection ? " mutual-protection" : "");
+      btn._choiceObj = ch;
+
+      let badgeHtml = "";
+      if (ch.isMutualProtection) {
+        badgeHtml = `<div class="fate-guardian-badge"><i class="fas fa-shield-halved"></i> 動物互助守護連攜 · 推薦</div>`;
+      }
+
+      btn.innerHTML = `
+        ${badgeHtml}
+        <div class="fate-choice-title">${escapeHtml(ch.text)}</div>
+        <div class="fate-choice-impact"><i class="fas ${ch.isMutualProtection ? 'fa-shield-heart' : 'fa-sparkles'}"></i> 影響：${escapeHtml(ch.impact || '命運轉折')}</div>
+      `;
+
+      btn.addEventListener("click", async () => {
+        if (btn.classList.contains("claimed")) {
+          alert(`【先選擇先贏】此項生存資源已被「${btn.dataset.claimedBy || '其他在線同伴'}」搶先佔據！荒野生死交關，請立即選擇其他應對策略！`);
+          return;
+        }
+        await executeChoice(chapter, ch);
+      });
+
+      el.fateModalChoicesGrid.appendChild(btn);
+    });
   }
 
   // 處理彈窗自訂輸入提交
@@ -2932,7 +2970,15 @@
       state.experienceMode
     );
 
-    state.fullNovelText += `\n\n【抉擇：${choice.text}】\n${followupText}`;
+    let mutualProtectionText = "";
+    if (choice.isMutualProtection) {
+      state.mutualProtectionsCount = (state.mutualProtectionsCount || 0) + 1;
+      localStorage.setItem("10t_mutual_protections_count", state.mutualProtectionsCount.toString());
+      mutualProtectionText = `\n\n【荒野守護奇蹟】面對迫在眉睫的兇險，動物之間展現出跨越恐懼的相守本能！${choice.protector || '守護夥伴'} 沒有退卻，而是以堅定身軀與你形成防護連攜。尖牙與暴風被合力化解，生命在互助中閃耀出最動人的光輝。`;
+      if (typeof saveCloudData === "function") saveCloudData(true);
+    }
+
+    state.fullNovelText += `\n\n【抉擇：${choice.text}】\n${followupText}${mutualProtectionText}`;
     rePaginateBook();
 
     hideNovelLoading();
@@ -2945,7 +2991,11 @@
 
     // 多人模式推播抉擇事件至生態網
     if (state.isMultiplayer && MultiplayerHabitatEngine) {
-      MultiplayerHabitatEngine.broadcastAction(choice.text);
+      if (choice.isMutualProtection) {
+        MultiplayerHabitatEngine.broadcastAction(`與「${choice.protector || '夥伴'}」發動動物互助守護，成功突破致命危機！`);
+      } else {
+        MultiplayerHabitatEngine.broadcastAction(choice.text);
+      }
     }
 
     saveGameState();
@@ -4987,6 +5037,12 @@
 
         const isMe = (m.email?.toLowerCase() === state.currentUser.email?.toLowerCase() || m.nickname === state.currentUser.nickname);
         const canKick = isCreator && !m.isCreator && !isMe;
+        const isProtected = state.guardianPacts && !!state.guardianPacts[m.id];
+        const protectBtn = !isMe ? `
+          <button type="button" class="btn-protect-member ${isProtected ? 'active' : ''}" onclick="MultiplayerHabitatEngine.toggleGuardianPact('${m.id}')" title="${isProtected ? '已建立荒野互助守護同盟' : '與此同伴締結荒野互助守護契約'}">
+            <i class="fas ${isProtected ? 'fa-shield-halved' : 'fa-shield-heart'}"></i> ${isProtected ? '守護同盟' : '互助守護'}
+          </button>
+        ` : '';
 
         li.innerHTML = `
           <div class="member-left">
@@ -4996,12 +5052,14 @@
                 <span>${escapeHtml(displayNick)}</span>
                 ${m.isCreator ? '<span class="room-type-pill" style="font-size:10px; background:#b45309;">房主</span>' : ''}
                 ${isMe ? '<span class="room-type-pill" style="font-size:10px; background:#10b981;">你</span>' : ''}
+                ${isProtected ? '<span class="room-type-pill" style="font-size:10px; background:#059669;"><i class="fas fa-shield-halved"></i> 守護同盟</span>' : ''}
               </div>
               <div class="member-email-sub">${displayEmail}</div>
               <div class="member-species-tag">${escapeHtml(m.speciesName || '生靈')} · ${m.age || 1}歲 · ${escapeHtml(m.gender || '雄性')} · ${escapeHtml(m.status || '在線共生')}</div>
             </div>
           </div>
-          <div class="member-right-status">
+          <div class="member-right-status" style="display:flex; align-items:center; gap:6px;">
+            ${protectBtn}
             ${canKick ? `<button type="button" class="btn-kick-member" onclick="MultiplayerHabitatEngine.kickMember('${m.id}')"><i class="fas fa-user-minus"></i> 請離</button>` : ''}
           </div>
         `;
@@ -5009,10 +5067,95 @@
       });
     },
 
+    toggleGuardianPact(memberId) {
+      if (!state.guardianPacts) state.guardianPacts = {};
+      const room = this.currentRoom;
+      const target = (room?.members || []).find(m => m.id === memberId) || (this.peers || []).find(p => p.id === memberId);
+      const targetName = target?.nickname || target?.name || "同生夥伴";
+      const targetSpecies = target?.speciesName || target?.species || "荒野生靈";
+
+      if (state.guardianPacts[memberId]) {
+        delete state.guardianPacts[memberId];
+        localStorage.setItem("10t_guardian_pacts", JSON.stringify(state.guardianPacts));
+        this.renderRoomMembers(room?.members || []);
+        this.broadcastAction(`解除了與「${targetName}」的荒野互助守護`);
+        alert(`已解除與「${targetName}」的荒野守護契約。`);
+      } else {
+        state.guardianPacts[memberId] = {
+          id: memberId,
+          nickname: targetName,
+          speciesName: targetSpecies,
+          timestamp: Date.now()
+        };
+        localStorage.setItem("10t_guardian_pacts", JSON.stringify(state.guardianPacts));
+        this.renderRoomMembers(room?.members || []);
+        this.broadcastAction(`與「${targetName}（${targetSpecies}）」締結了荒野共生守護同盟！`);
+        if (typeof saveCloudData === "function") saveCloudData(true);
+        alert(`【荒野共生守護契約已締結】\n你與「${targetName}（${targetSpecies}）」正式結盟！\n在遭遇天敵、冰暴等重大生死抉擇時，守護夥伴將挺身而出，解鎖【動物互助守護連攜】選項！`);
+      }
+
+      this.updateGuardianPactsUI();
+    },
+
+    updateGuardianPactsUI() {
+      const countTag = document.getElementById("guardianPactsCountTag");
+      const listPreview = document.getElementById("guardianPactsListPreview");
+      if (!state.guardianPacts) state.guardianPacts = {};
+      const pactList = Object.values(state.guardianPacts);
+
+      if (countTag) countTag.textContent = `${pactList.length} 位守護夥伴`;
+      if (listPreview) {
+        if (pactList.length === 0) {
+          listPreview.innerHTML = `尚未與其他生靈建立互助守護。在多人房間中點擊「互助守護」即可締結契約，生死關頭互相挺身協防！`;
+        } else {
+          listPreview.innerHTML = `已結盟生靈：` + pactList.map(p => `<strong style="color:#059669;">${escapeHtml(p.nickname)} (${escapeHtml(p.speciesName)})</strong>`).join("、") + `。生死抉擇將觸發連攜庇護！`;
+        }
+      }
+    },
+
     openUserProfileModal() {
       if (!el.userProfileModal) return;
       if (el.profileNicknameInput) el.profileNicknameInput.value = state.currentUser.nickname || "";
       if (el.profileEmailInput) el.profileEmailInput.value = state.currentUser.email || "";
+
+      // 渲染 SSO 帳號狀態
+      const ssoName = document.getElementById("ssoStatusName");
+      const ssoEmail = document.getElementById("ssoStatusEmail");
+      const ssoBadge = document.getElementById("ssoAuthBadge");
+      const ssoLoginBtn = document.getElementById("ssoLoginBtn");
+      const ssoProfileEditBtn = document.getElementById("ssoProfileEditBtn");
+      const ssoLogoutBtn = document.getElementById("ssoLogoutBtn");
+      const ssoAvatarImg = document.getElementById("ssoAvatarImg");
+      const ssoAvatarDef = document.getElementById("ssoAvatarDefaultIcon");
+
+      const isLoggedIn = state.isLoggedIn;
+      if (ssoName) ssoName.textContent = state.currentUser.nickname || (isLoggedIn ? "會員冒險者" : "訪客冒險者");
+      if (ssoEmail) ssoEmail.textContent = isLoggedIn ? `SSO 帳號：${state.currentUser.email}` : "訪客模式（本機瀏覽器暫存）";
+      if (ssoBadge) {
+        ssoBadge.textContent = isLoggedIn ? "全站已登入" : "訪客未登入";
+        ssoBadge.style.background = isLoggedIn ? "#d1fae5" : "#e2e8f0";
+        ssoBadge.style.color = isLoggedIn ? "#065f46" : "#64748b";
+      }
+
+      if (ssoLoginBtn) ssoLoginBtn.style.display = isLoggedIn ? "none" : "inline-flex";
+      if (ssoProfileEditBtn) ssoProfileEditBtn.style.display = isLoggedIn ? "inline-flex" : "none";
+      if (ssoLogoutBtn) ssoLogoutBtn.style.display = isLoggedIn ? "inline-flex" : "none";
+
+      if (state.currentUser.avatar) {
+        if (ssoAvatarImg) { ssoAvatarImg.src = state.currentUser.avatar; ssoAvatarImg.style.display = "block"; }
+        if (ssoAvatarDef) ssoAvatarDef.style.display = "none";
+      } else {
+        if (ssoAvatarImg) ssoAvatarImg.style.display = "none";
+        if (ssoAvatarDef) ssoAvatarDef.style.display = "block";
+      }
+
+      // 更新最後同步時間標籤
+      const lastSync = localStorage.getItem("10t_last_sync_time") || "尚未同步";
+      const syncLabel = document.getElementById("lastCloudSyncTime");
+      if (syncLabel) syncLabel.textContent = lastSync;
+
+      this.updateGuardianPactsUI();
+
       el.userProfileModal.style.display = "flex";
     },
 
@@ -5044,7 +5187,9 @@
       this.closeUserProfileModal();
       this.updateCreateRoomPreview();
 
-      alert(`【冒險者身分已更新】\n暱稱：${nick}\n電子郵件：${email}\n團隊網域識別為：@${email.split("@")[1]}`);
+      if (typeof saveCloudData === "function") saveCloudData(true);
+
+      alert(`【冒險者身分已更新】\n暱稱：${nick}\n電子郵件：${email}\n團隊網域識別為：@${email.split("@")[1]}\n已自動備份至雲端快照！`);
     },
 
     setQuickProfile(nick, email) {
@@ -5304,10 +5449,10 @@
   }
 
   /* --------------------------------------------------------------------------
-     新手教學 (4 步驟全面導覽系統)
+     新手教學 (5 步驟全面導覽系統)
      -------------------------------------------------------------------------- */
   let currentTourStep = 1;
-  const TOTAL_TOUR_STEPS = 4;
+  const TOTAL_TOUR_STEPS = 5;
 
   function updateTourStepUI(step) {
     currentTourStep = Math.max(1, Math.min(TOTAL_TOUR_STEPS, step));
@@ -5316,15 +5461,15 @@
 
     // 更新導覽卡片顯示
     const cards = modal.querySelectorAll(".tour-step-pane");
-    cards.forEach((card) => {
-      const cardStep = parseInt(card.getAttribute("data-step"), 10);
+    cards.forEach((card, idx) => {
+      const cardStep = parseInt(card.getAttribute("data-step") || (idx + 1), 10);
       card.style.display = (cardStep === currentTourStep) ? "flex" : "none";
     });
 
     // 更新進度條指示點
     const dots = modal.querySelectorAll(".tour-step-dot");
-    dots.forEach((dot) => {
-      const dotStep = parseInt(dot.getAttribute("data-step"), 10);
+    dots.forEach((dot, idx) => {
+      const dotStep = parseInt(dot.getAttribute("data-step") || (idx + 1), 10);
       if (dotStep === currentTourStep) {
         dot.classList.add("active");
       } else {
@@ -5379,6 +5524,8 @@
     const closeBtn = document.getElementById("closeTourModalBtn") || document.getElementById("closeTourBtn");
     const tutorialBtn = document.getElementById("tutorialBtn");
     const gameTutorialBtn = document.getElementById("gameTutorialBtn");
+    const moreTutorialBtn = document.getElementById("moreTutorialBtn");
+    const moreProfileBtn = document.getElementById("moreProfileBtn");
 
     if (prevBtn) {
       prevBtn.addEventListener("click", () => updateTourStepUI(currentTourStep - 1));
@@ -5399,6 +5546,20 @@
     if (gameTutorialBtn) {
       gameTutorialBtn.addEventListener("click", () => openOnboardingTour(1));
     }
+    if (moreTutorialBtn) {
+      moreTutorialBtn.addEventListener("click", () => {
+        const moreMenu = document.getElementById("moreMenu");
+        if (moreMenu) moreMenu.style.display = "none";
+        openOnboardingTour(1);
+      });
+    }
+    if (moreProfileBtn) {
+      moreProfileBtn.addEventListener("click", () => {
+        const moreMenu = document.getElementById("moreMenu");
+        if (moreMenu) moreMenu.style.display = "none";
+        if (MultiplayerHabitatEngine) MultiplayerHabitatEngine.openUserProfileModal();
+      });
+    }
 
     modal.addEventListener("click", (e) => {
       if (e.target === modal) {
@@ -5407,13 +5568,183 @@
     });
 
     const dots = modal.querySelectorAll(".tour-step-dot");
-    dots.forEach((dot) => {
+    dots.forEach((dot, idx) => {
       dot.addEventListener("click", () => {
-        const step = parseInt(dot.getAttribute("data-step"), 10);
+        const step = parseInt(dot.getAttribute("data-step") || (idx + 1), 10);
         if (!isNaN(step)) updateTourStepUI(step);
       });
     });
+
+    window.openOnboardingTour = openOnboardingTour;
   }
+
+  /* --------------------------------------------------------------------------
+     全站 SSO 登入整合與雲端存檔系統 (SSO Auth & Cloud Sync)
+     -------------------------------------------------------------------------- */
+  function initAuth() {
+    // 1. 處理 URL 帶入之 token 參數（例如自 Login Hub 返回）
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get("token");
+    if (tokenParam) {
+      localStorage.setItem("panda_session_token", tokenParam);
+      localStorage.setItem("sso_auth", "true");
+      urlParams.delete("token");
+      const newSearch = urlParams.toString();
+      const newUrl = window.location.pathname + (newSearch ? "?" + newSearch : "");
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
+    // 2. 檢測 SSO 登入狀態
+    const token = localStorage.getItem("panda_session_token");
+    const isSso = localStorage.getItem("sso_auth") === "true" || !!token;
+    const user = localStorage.getItem("sso_user") || "";
+    const nick = localStorage.getItem("sso_nickname") || localStorage.getItem("panda_nickname") || "";
+    const avatar = localStorage.getItem("sso_avatar") || "";
+    const email = localStorage.getItem("sso_email") || (user.includes("@") ? user : (nick ? `${nick}@pandapanda.ai` : "explorer@pandapanda.ai"));
+
+    if (isSso || token || nick) {
+      state.isLoggedIn = true;
+      state.currentUser.username = user || nick || "member_explorer";
+      state.currentUser.nickname = nick || user || "荒野旅者";
+      state.currentUser.email = email;
+      state.currentUser.avatar = avatar;
+
+      // 更新頂部導覽列身分顯示
+      if (el.userNameLabel) el.userNameLabel.textContent = state.currentUser.nickname;
+      const avatarImg = document.getElementById("userAvatarImg");
+      const avatarIcon = document.getElementById("userAvatarIcon");
+      const loginBadge = document.getElementById("userLoginBadge");
+
+      if (avatar && avatarImg) {
+        avatarImg.src = avatar;
+        avatarImg.style.display = "inline-block";
+        if (avatarIcon) avatarIcon.style.display = "none";
+      }
+      if (loginBadge) {
+        loginBadge.innerHTML = `<i class="fas fa-cloud-check" style="color:#10b981;"></i> 雲端同步`;
+      }
+
+      // 自動安靜嘗試自雲端載入或更新進度
+      loadCloudData(true);
+    } else {
+      state.isLoggedIn = false;
+      if (el.userNameLabel) el.userNameLabel.textContent = "冒險生靈";
+      const loginBadge = document.getElementById("userLoginBadge");
+      if (loginBadge) {
+        loginBadge.innerHTML = `<i class="fas fa-arrow-right-to-bracket"></i> 登入`;
+      }
+    }
+  }
+
+  function loginWithSso() {
+    const fromUrl = encodeURIComponent(window.location.href);
+    window.location.href = `../../login-hub/?require=1&from=${fromUrl}`;
+  }
+
+  function logoutSso() {
+    if (!confirm("確定要登出全站帳號嗎？（本機進度仍會安全保留）")) return;
+    localStorage.removeItem("panda_session_token");
+    localStorage.setItem("sso_auth", "false");
+    state.isLoggedIn = false;
+    state.currentUser.nickname = "訪客旅人";
+    state.currentUser.email = "guest@nature.net";
+    state.currentUser.avatar = "";
+
+    initAuth();
+    if (el.userProfileModal) el.userProfileModal.style.display = "none";
+    alert("已成功登出。當前為訪客模式。");
+  }
+
+  function saveCloudData(silent = false) {
+    const cloudPayload = {
+      appId: "1_in_10_trillion",
+      version: "1.0",
+      savedAt: new Date().toISOString(),
+      user: {
+        nickname: state.currentUser.nickname,
+        email: state.currentUser.email,
+        avatar: state.currentUser.avatar
+      },
+      stats: {
+        totalLives: state.totalLivesCount || 1,
+        stars: state.starsCount || 0,
+        mutualProtections: state.mutualProtectionsCount || 0,
+        unlockedAchievements: state.unlockedAchievements || []
+      },
+      memorialHall: JSON.parse(localStorage.getItem("10t_hall_memories") || "[]"),
+      guardianPacts: state.guardianPacts || {},
+      currentLife: state.currentLife ? {
+        species: state.currentLife.species?.name,
+        name: state.currentLife.name,
+        age: state.currentAge,
+        biome: state.currentLife.biome
+      } : null
+    };
+
+    // 1. 本地雲端鏡像持久化
+    const emailKey = state.currentUser.email || "guest";
+    localStorage.setItem(`10t_cloud_data_${emailKey}`, JSON.stringify(cloudPayload));
+    localStorage.setItem("10t_last_sync_time", new Date().toLocaleTimeString());
+
+    // 2. 若 Socket 連通且支援 saveAppData 則傳輸
+    if (MultiplayerHabitatEngine && MultiplayerHabitatEngine.socket && MultiplayerHabitatEngine.socket.connected) {
+      try {
+        MultiplayerHabitatEngine.socket.emit("saveAppData", {
+          appId: "1_in_10_trillion",
+          data: cloudPayload
+        });
+      } catch (e) {
+        console.warn("Socket cloud sync skipped:", e);
+      }
+    }
+
+    const syncLabel = document.getElementById("lastCloudSyncTime");
+    if (syncLabel) syncLabel.textContent = new Date().toLocaleTimeString();
+
+    if (!silent) {
+      alert(`【雲端儲存成功】\n已備份帳號：${state.currentUser.nickname} (${state.currentUser.email})\n同步時間：${new Date().toLocaleTimeString()}\n星數：${cloudPayload.stats.stars} · 守護契約：${Object.keys(cloudPayload.guardianPacts).length} 筆`);
+    }
+  }
+
+  function loadCloudData(silent = false) {
+    const emailKey = state.currentUser.email || "guest";
+    const raw = localStorage.getItem(`10t_cloud_data_${emailKey}`) || localStorage.getItem("10t_cloud_data_guest");
+    if (!raw) {
+      if (!silent) alert("目前尚未找到此帳號的雲端備份存檔。請點擊「立即備份至雲端」！");
+      return;
+    }
+
+    try {
+      const data = JSON.parse(raw);
+      if (data.stats) {
+        if (data.stats.stars !== undefined) state.starsCount = data.stats.stars;
+        if (data.stats.mutualProtections !== undefined) state.mutualProtectionsCount = data.stats.mutualProtections;
+        if (data.stats.unlockedAchievements) state.unlockedAchievements = data.stats.unlockedAchievements;
+      }
+      if (data.guardianPacts) {
+        state.guardianPacts = { ...state.guardianPacts, ...data.guardianPacts };
+        localStorage.setItem("10t_guardian_pacts", JSON.stringify(state.guardianPacts));
+      }
+      if (data.memorialHall && Array.isArray(data.memorialHall)) {
+        localStorage.setItem("10t_hall_memories", JSON.stringify(data.memorialHall));
+      }
+
+      const syncLabel = document.getElementById("lastCloudSyncTime");
+      if (syncLabel && data.savedAt) syncLabel.textContent = new Date(data.savedAt).toLocaleTimeString();
+
+      if (!silent) {
+        alert(`【雲端資料還原成功】\n已還原帳號「${state.currentUser.nickname}」之存檔！\n星數：${state.starsCount} · 互助守護：${state.mutualProtectionsCount} 次`);
+      }
+    } catch (e) {
+      console.error("Cloud load error:", e);
+    }
+  }
+
+  // 暴露全域給視圖與按鈕調用
+  window.loginWithSso = loginWithSso;
+  window.logoutSso = logoutSso;
+  window.saveCloudData = saveCloudData;
+  window.loadCloudData = loadCloudData;
 
   /* --------------------------------------------------------------------------
      多語言系統 (參考官網 5 國語言架構與自動偵測)
@@ -5777,6 +6108,9 @@
       if (el.introSec) el.introSec.style.display = "block";
     }
 
+    // 初始化全站 SSO 身分與雲端資料中心
+    try { initAuth(); } catch (e) { console.error("initAuth error:", e); }
+
     // 初始化多人即時共生引擎
     try { MultiplayerHabitatEngine.init(); } catch (e) { console.error("MultiplayerEngine error:", e); }
 
@@ -5804,6 +6138,11 @@
       closeFateDecisionModal,
       executeChoice,
       openOnboardingTour,
+      initAuth,
+      loginWithSso,
+      logoutSso,
+      saveCloudData,
+      loadCloudData,
       setGameLanguage,
       toggleImmersiveMode,
       enterImmersiveMode,

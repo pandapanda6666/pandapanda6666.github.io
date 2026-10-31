@@ -174,10 +174,12 @@
                         <i class="fas fa-door-open"></i>
                         <span id="currentRoomTag">荒野公共大廳</span>
                     </button>
-                    <!-- SSO 登入身分與電子郵件 -->
-                    <div id="userProfileTag" class="pill-btn user-pill" title="點擊設定冒險者暱稱與電子郵件（團隊網域識別）">
+                    <!-- SSO 登入身分與電子郵件 / 雲端儲存中心 -->
+                    <div id="userProfileTag" class="pill-btn user-pill" title="點擊設定冒險者身分、全站登入與雲端儲存中心">
+                        <img id="userAvatarImg" src="" alt="頭像" class="user-avatar-mini" style="display:none; width:18px; height:18px; border-radius:50%; object-fit:cover;">
                         <i class="fas fa-user-circle" id="userAvatarIcon"></i>
                         <span id="userNameLabel">冒險生靈</span>
+                        <span id="userLoginBadge" class="user-login-badge"><i class="fas fa-cloud-arrow-up"></i> 雲端</span>
                     </div>
                     <button type="button" id="topPrologueBtn" class="pill-btn" title="回顧生命省思引言">
                         <i class="fas fa-feather-pointed"></i> 省思引言
@@ -560,6 +562,8 @@
                                 <i class="fas fa-ellipsis"></i> <span>更多</span>
                             </button>
                             <div class="more-dropdown" id="moreMenu" style="display:none;">
+                                <button type="button" id="moreTutorialBtn" class="more-item"><i class="fas fa-graduation-cap"></i> <span>網站導覽 · 玩法教學</span></button>
+                                <button type="button" id="moreProfileBtn" class="more-item"><i class="fas fa-cloud-arrow-up"></i> <span>帳號身分與雲端儲存</span></button>
                                 <button type="button" id="autoBtn" class="more-item"><i class="fas fa-robot"></i> <span>自動抉擇：關閉</span></button>
                                 <div class="more-item music-item">
                                     <button type="button" class="music-toggle-btn" id="musicToggleBtn"><i class="fas fa-music"></i> <span>自然音效</span></button>
@@ -1672,28 +1676,99 @@ scout@arctic.org" rows="4"></textarea>
 
         <!-- 冒險者身分與電子郵件設定視窗 (User Profile Modal) -->
         <div id="userProfileModal" class="inline-modal-backdrop" style="display:none; z-index:99996;" role="dialog" aria-modal="true">
-            <div class="inline-modal-card profile-modal-card">
+            <div class="inline-modal-card profile-modal-card" style="max-width:540px; width:92%;">
                 <div class="inline-modal-header">
                     <div class="inline-modal-icon profile-icon"><i class="fas fa-id-card-clip"></i></div>
                     <div>
-                        <h3 id="userProfileModalTitle">冒險者身分與帳號設定</h3>
-                        <p class="inline-modal-sub">設定在十兆荒野生態中展示的暱稱，以及團隊網域與白名單驗證用的電子郵件</p>
+                        <h3 id="userProfileModalTitle">冒險者身分、全站登入與雲端儲存中心</h3>
+                        <p class="inline-modal-sub">全站 SSO 帳號整合 · 多人連線暱稱 · 動物互助守護同盟 · 雲端存檔同步</p>
                     </div>
                     <button type="button" id="closeUserProfileModalBtn" class="ai-close-btn" title="關閉">&times;</button>
                 </div>
                 <div class="inline-modal-body">
+                    <!-- 1. SSO 帳號與全站登入狀態卡片 -->
+                    <div class="sso-status-card" id="ssoStatusCard" style="background:var(--bg-parchment-deep, rgba(0,0,0,0.03)); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:14px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <div id="ssoAvatarBox" style="width:42px; height:42px; border-radius:50%; background:#10b981; color:#fff; display:flex; align-items:center; justify-content:center; font-size:20px; overflow:hidden; border:2px solid #a7f3d0; flex-shrink:0;">
+                                    <i class="fas fa-user-ninja" id="ssoAvatarDefaultIcon"></i>
+                                    <img id="ssoAvatarImg" src="" style="display:none; width:100%; height:100%; object-fit:cover;">
+                                </div>
+                                <div>
+                                    <div style="font-weight:bold; font-size:15px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                                        <span id="ssoStatusName">訪客冒險者</span>
+                                        <span id="ssoAuthBadge" style="font-size:11px; padding:2px 8px; border-radius:12px; background:#e2e8f0; color:#64748b; font-weight:600;">未登入</span>
+                                    </div>
+                                    <div id="ssoStatusEmail" style="font-size:12px; color:var(--text-secondary); margin-top:2px;">訪客模式（資料暫存於本瀏覽器）</div>
+                                </div>
+                            </div>
+                            <div id="ssoAccountActions" style="display:flex; gap:6px;">
+                                <button type="button" id="ssoLoginBtn" class="pill-btn sm" onclick="loginWithSso()" style="background:#10b981; color:#fff; border:none; padding:6px 12px; font-weight:bold; cursor:pointer;" title="跳轉至官方 Login Hub 登入或註冊">
+                                    <i class="fas fa-arrow-right-to-bracket"></i> 登入 / 註冊
+                                </button>
+                                <button type="button" id="ssoProfileEditBtn" class="pill-btn sm" onclick="window.location.href='../../login-hub/?action=editProfile&from='+encodeURIComponent(window.location.href)" style="display:none; background:#0284c7; color:#fff; border:none; padding:6px 10px; font-weight:bold; cursor:pointer;" title="前往會員中心編輯資料">
+                                    <i class="fas fa-gear"></i> 會員中心
+                                </button>
+                                <button type="button" id="ssoLogoutBtn" class="pill-btn sm" onclick="logoutSso()" style="display:none; background:#ef4444; color:#fff; border:none; padding:6px 10px; font-weight:bold; cursor:pointer;" title="登出當前帳號">
+                                    <i class="fas fa-arrow-right-from-bracket"></i> 登出
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. 雲端儲存與跨裝置同步區塊 -->
+                    <div class="cloud-sync-card" style="background:var(--bg-parchment-deep, rgba(0,0,0,0.02)); border:1px dashed var(--border-color); border-radius:10px; padding:14px; margin-bottom:14px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:6px;">
+                            <div style="font-weight:bold; font-size:14px; color:var(--text-primary); display:flex; align-items:center; gap:6px;">
+                                <i class="fas fa-cloud-arrow-up" style="color:#0284c7;"></i> 十兆生命雲端儲存中心
+                            </div>
+                            <div style="font-size:11px; color:var(--text-secondary);">
+                                上次備份：<span id="lastCloudSyncTime" style="font-weight:bold; color:#0284c7;">尚未同步</span>
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+                            <button type="button" class="btn-cloud-action" onclick="saveCloudData()" style="padding:8px 12px; border-radius:8px; border:1px solid #0284c7; background:rgba(2,132,199,0.08); color:#0284c7; font-weight:bold; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                                <i class="fas fa-cloud-arrow-up"></i> 立即備份至雲端
+                            </button>
+                            <button type="button" class="btn-cloud-action" onclick="loadCloudData()" style="padding:8px 12px; border-radius:8px; border:1px solid #64748b; background:rgba(100,116,139,0.08); color:var(--text-primary); font-weight:bold; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                                <i class="fas fa-cloud-arrow-down"></i> 自雲端還原資料
+                            </button>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-secondary); line-height:1.4;">
+                            <i class="fas fa-shield-halved" style="color:#10b981;"></i> 自動安全同步：解鎖之成就、歷代荒野追思回憶、星數與荒野互助守護契約。
+                        </div>
+                    </div>
+
+                    <!-- 3. 多人連線冒險者暱稱與電子郵件 -->
                     <div class="form-group">
-                        <label for="profileNicknameInput"><i class="fas fa-user"></i> 冒險者暱稱：</label>
+                        <label for="profileNicknameInput"><i class="fas fa-user-tag"></i> 冒險者展示暱稱：</label>
                         <input type="text" id="profileNicknameInput" class="room-input" placeholder="請輸入暱稱..." maxlength="20">
                     </div>
                     <div class="form-group">
-                        <label for="profileEmailInput"><i class="fas fa-envelope"></i> 電子郵件信箱 (Email)：</label>
+                        <label for="profileEmailInput"><i class="fas fa-envelope"></i> 冒險者電子郵件 (團隊網域與白名單驗證)：</label>
                         <input type="email" id="profileEmailInput" class="room-input" placeholder="例如: yourname@company.org" required>
-                        <small class="helper-text"><i class="fas fa-info-circle"></i> 「限團隊房間」將自動提取 @ 後面網域作為通行證；「私人房間」依此信箱驗證白名單資格。</small>
+                        <small class="helper-text"><i class="fas fa-info-circle"></i> 「限團隊房間」依 @ 後面網域作為通行證；「私人房間」依此信箱驗證白名單資格。</small>
                     </div>
-                    <!-- 快速身分模擬切換 (方便使用者與測試切換不同帳號體驗) -->
-                    <div class="quick-profile-switch">
-                        <span class="quick-label"><i class="fas fa-shuffle"></i> 快速切換測試身分：</span>
+
+                    <!-- 4. 荒野動物互助守護契約資訊 -->
+                    <div class="guardian-pacts-preview-box" style="background:rgba(16,185,129,0.06); border:1px solid #10b981; border-radius:8px; padding:10px 12px; margin-top:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:bold; color:#059669; margin-bottom:4px;">
+                            <span><i class="fas fa-shield-heart"></i> 動物互助守護同盟</span>
+                            <span id="guardianPactsCountTag">0 位守護夥伴</span>
+                        </div>
+                        <div id="guardianPactsListPreview" style="font-size:11px; color:var(--text-secondary);">
+                            尚未與其他生靈建立互助守護。在多人房間中點擊「互助守護」即可締結契約，生死關頭互相挺身協防！
+                        </div>
+                    </div>
+
+                    <!-- 5. 快捷身分切換與手動開啟導覽 -->
+                    <div class="quick-profile-switch" style="margin-top:14px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span class="quick-label"><i class="fas fa-shuffle"></i> 快速切換測試身分：</span>
+                            <button type="button" class="btn-text-link" onclick="openOnboardingTour(1)" style="font-size:12px; color:#b45309; text-decoration:underline; cursor:pointer; background:none; border:none; font-weight:bold;">
+                                <i class="fas fa-graduation-cap"></i> 隨時開啟網站導覽
+                            </button>
+                        </div>
                         <div class="quick-btns-row">
                             <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('PandaPanda', 'pandapanda@pandapanda.ai')">Panda (@pandapanda.ai)</button>
                             <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('極地雪狼', 'wolf@arctic.org')">雪狼 (@arctic.org)</button>
@@ -1704,7 +1779,7 @@ scout@arctic.org" rows="4"></textarea>
                 </div>
                 <div class="inline-modal-actions">
                     <button type="button" id="cancelUserProfileBtn" class="btn-cancel">取消</button>
-                    <button type="button" id="saveUserProfileBtn" class="cta-btn sm-cta">儲存身分設定</button>
+                    <button type="button" id="saveUserProfileBtn" class="cta-btn sm-cta">儲存身分與雲端資料</button>
                 </div>
             </div>
         </div>
@@ -1765,13 +1840,15 @@ scout@arctic.org" rows="4"></textarea>
                     <div class="tour-step-divider"></div>
                     <div class="tour-step-dot" data-step="3">3. 生存抉擇</div>
                     <div class="tour-step-divider"></div>
-                    <div class="tour-step-dot" data-step="4">4. 荒野共生</div>
+                    <div class="tour-step-dot" data-step="4">4. 動物互助</div>
+                    <div class="tour-step-divider"></div>
+                    <div class="tour-step-dot" data-step="5">5. 登入與雲端</div>
                 </div>
 
                 <!-- 步驟內容本體 -->
                 <div class="tour-body-content" id="tourBodyContent">
                     <!-- Step 1: 命運輪盤與十兆生靈 -->
-                    <div class="tour-step-pane active" id="tourStep1">
+                    <div class="tour-step-pane active" id="tourStep1" data-step="1">
                         <div class="tour-feature-badge"><i class="fas fa-shuffle"></i> 全球十兆有意識生靈輪盤</div>
                         <h4>你不再僅是人類，而是地球龐大生態網的一員</h4>
                         <p>地球上生活著十兆個感知飢餓、寒冷、畏懼死亡的有意識生命。點擊「開啟生命模擬」後，命運輪盤將超越種族與時空，隨機為你抽選一段真實生命的誕生——可能是育空針葉林的狼崽、南極冰原上的企鵝，抑或是都會裡的人類幼童。</p>
@@ -1782,10 +1859,10 @@ scout@arctic.org" rows="4"></textarea>
                     </div>
 
                     <!-- Step 2: 實體書開本 1:1.42 與艾琳·杭特文學 -->
-                    <div class="tour-step-pane" id="tourStep2" style="display:none;">
+                    <div class="tour-step-pane" id="tourStep2" style="display:none;" data-step="2">
                         <div class="tour-feature-badge"><i class="fas fa-book-open"></i> 黃金比例 1 : 1.42 實體小說開本</div>
                         <h4>典雅道林紙質、古典直排右翻，極致擬真閱讀</h4>
-                        <p>告別生硬的遊戲數值框！本作遵循實體出版經典 1 : 1.42 長寬比，電腦桌機端展現真實雙頁對開（右頁右上角、左頁左上角章節書眉），手機行動端則自動適配為 1 : 1.42 單頁全幅閱讀，搭配上方「右頁/左頁」一鍵無縫翻閱。</p>
+                        <p>告別生硬的遊戲數值框！本作遵循實體出版經典 1 : 1.42 長寬比，電腦桌機端展現真實雙頁對開（右頁右上角、左頁左上角章節書眉），手機行動端則自動適配為 1 : 1.42 單頁全幅閱讀，搭配上方「雙頁/單頁」手動切換與「全螢幕沉浸體驗」模式！</p>
                         <div class="tour-tip-box">
                             <i class="fas fa-feather-pointed"></i>
                             <span>文學風格：支援艾琳·杭特《貓戰士》行為擬人冒險風格與沈石溪客觀生態哲理，亦可透過「風格顧問 AI」打造專屬作家筆觸！</span>
@@ -1793,7 +1870,7 @@ scout@arctic.org" rows="4"></textarea>
                     </div>
 
                     <!-- Step 3: 即時生存抉擇與先選先贏 -->
-                    <div class="tour-step-pane" id="tourStep3" style="display:none;">
+                    <div class="tour-step-pane" id="tourStep3" style="display:none;" data-step="3">
                         <div class="tour-feature-badge"><i class="fas fa-bolt"></i> 眼前突發情境與自主決策</div>
                         <h4>大自然毫不留情，時間無法暫停，先選擇先贏！</h4>
                         <p>每當行至命運分水嶺，小說將自動暫停並彈出全螢幕抉擇面板，為你條列前情大綱、眼前危機重點與應對策略。多人共生模式下，時間將持續推進，野生獵場與庇護資源先選先贏，其他玩家搶佔後將被鎖定！</p>
@@ -1803,23 +1880,33 @@ scout@arctic.org" rows="4"></textarea>
                         </div>
                     </div>
 
-                    <!-- Step 4: 多人荒野共生與專屬房間 -->
-                    <div class="tour-step-pane" id="tourStep4" style="display:none;">
-                        <div class="tour-feature-badge"><i class="fas fa-network-wired"></i> 荒野房間大廳與三大權限體系</div>
-                        <h4>與同伴生活在同一生境，自訂公開、團隊或私人房間</h4>
-                        <p>點擊頂部「房間中心」可隨時瀏覽活躍房間或一鍵開房：</p>
-                        <ul class="tour-perm-list">
-                            <li><strong>1. 任何擁有連結者：</strong>複製邀請連結即可加入，加入時自主決定是否揭露暱稱或 Email。</li>
-                            <li><strong>2. 限團隊房間：</strong>依使用者 @ 後面網域自動驗證，同組織或學校成員專屬。</li>
-                            <li><strong>3. 私人房間：</strong>僅受邀於白名單 Email 的生靈方可探訪。</li>
-                        </ul>
+                    <!-- Step 4: 動物互助守護與共生連攜 -->
+                    <div class="tour-step-pane" id="tourStep4" style="display:none;" data-step="4">
+                        <div class="tour-feature-badge"><i class="fas fa-shield-heart"></i> 動物互助守護與共生連攜</div>
+                        <h4>大自然不只有弱肉強食，更閃耀著動物相守的生命溫度</h4>
+                        <p>在殘酷荒野中，動物常會互相保護：象群圓陣庇護幼象、狼群合圍迎敵、海葵與小丑魚共生防禦。多人模式下，你可與同房夥伴締結「共生守護同盟」；每當重大危機降臨，守護同伴將挺身協防，解鎖金色連攜選項，大幅提升生還率並在小說中銘刻守護篇章！</p>
+                        <div class="tour-tip-box">
+                            <i class="fas fa-paw"></i>
+                            <span>連攜特權：重大生死抉擇時將自動解鎖「【動物互助守護】」選項，獲得族群與同伴掩護，化解致命險境！</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: 房間權限、全站登入與雲端存檔 -->
+                    <div class="tour-step-pane" id="tourStep5" style="display:none;" data-step="5">
+                        <div class="tour-feature-badge"><i class="fas fa-cloud-arrow-up"></i> 帳號登入、三人房間與雲端存檔</div>
+                        <h4>同步十兆生命歷程、跨裝置繼承星數與荒野回憶</h4>
+                        <p>登入 PandaPanda 全站帳號後，將自動帶入你的專屬冒險者暱稱與電子郵件。支援三大房間權限（公開連結、限團隊 @ 網域、私人白名單），並提供一鍵雲端儲存，確保你的生命進度、追思館回憶與解鎖成就永不遺失！</p>
+                        <div class="tour-tip-box">
+                            <i class="fas fa-compass"></i>
+                            <span>隨時回顧：網站導覽隨時可透過上方頂欄「新手教學/指引」或閱讀器「⋯ 更多選單」手動重啟！</span>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 步驟底部按鈕列 -->
                 <div class="inline-modal-actions tour-actions">
                     <button type="button" id="tourPrevBtn" class="btn-cancel" style="display:none;">上一步</button>
-                    <div class="tour-step-counter"><span id="tourStepIndex">1</span> / 4</div>
+                    <div class="tour-step-counter"><span id="tourStepIndex">1</span> / 5</div>
                     <button type="button" id="tourNextBtn" class="cta-btn sm-cta">下一步 <i class="fas fa-arrow-right"></i></button>
                     <button type="button" id="tourFinishBtn" class="cta-btn sm-cta" style="display:none;">完成教學，開啟探索 <i class="fas fa-check"></i></button>
                 </div>
