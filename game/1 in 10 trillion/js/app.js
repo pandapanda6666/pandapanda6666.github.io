@@ -58,6 +58,19 @@
     currentSpreadIndex: 0,  // 當前展開之右頁索引
     fullNovelText: "",      // 完整累積小說文字
     currentChapterTitle: "第一章",
+    historyChapters: [],    // 歷來各章節文學紀錄（標題、大意、全文，供前情大綱與全書回顧）
+
+    // 多人即時荒野共生狀態 (不可暫停時間、先選先贏)
+    isMultiplayer: true,
+    mpRoomId: "",
+    mpPeers: [],
+    mpCountdownTimer: null,
+    mpCountdownSeconds: 15,
+    currentUser: {
+      username: localStorage.getItem('sso_user') || 'wild_explorer',
+      nickname: localStorage.getItem('sso_nickname') || '荒野旅者',
+      avatar: localStorage.getItem('sso_avatar') || ''
+    },
     feedEvents: [],
     eulogy: "",
     isDeathNoticed: false,
@@ -245,6 +258,40 @@
     el.customChoiceWrap = document.getElementById("customChoiceWrap");
     el.customChoiceInput = document.getElementById("customChoiceInput");
     el.submitCustomChoiceBtn = document.getElementById("submitCustomChoiceBtn");
+
+    // 命運抉擇自動彈窗 (Fate Decision Modal)
+    el.fateDecisionModal = document.getElementById("fateDecisionModal");
+    el.fateModalChapterTitle = document.getElementById("fateModalChapterTitle");
+    el.fateModalBiome = document.getElementById("fateModalBiome");
+    el.fateModalSpecies = document.getElementById("fateModalSpecies");
+    el.fateModalCrisisTitle = document.getElementById("fateModalCrisisTitle");
+    el.fateMultiplayerNoticeBar = document.getElementById("fateMultiplayerNoticeBar");
+    el.fateCountdownBar = document.getElementById("fateCountdownBar");
+    el.fateCountdownSec = document.getElementById("fateCountdownSec");
+    el.fatePeersStatusList = document.getElementById("fatePeersStatusList");
+    el.fateModalSynopsisText = document.getElementById("fateModalSynopsisText");
+    el.fateModalIncidentText = document.getElementById("fateModalIncidentText");
+    el.fateNovelDrawer = document.getElementById("fateNovelDrawer");
+    el.fateNovelFullContent = document.getElementById("fateNovelFullContent");
+    el.toggleNovelExpandBtn = document.getElementById("toggleNovelExpandBtn");
+    el.novelExpandBtnLabel = document.getElementById("novelExpandBtnLabel");
+    el.closeNovelDrawerBtn = document.getElementById("closeNovelDrawerBtn");
+    el.fateModalChoicesGrid = document.getElementById("fateModalChoicesGrid");
+    el.fateModalCustomWrap = document.getElementById("fateModalCustomWrap");
+    el.fateModalCustomInput = document.getElementById("fateModalCustomInput");
+    el.fateModalCustomSubmitBtn = document.getElementById("fateModalCustomSubmitBtn");
+
+    // 伺服器與多人連線元件
+    el.mpToggleBtn = document.getElementById("mpToggleBtn");
+    el.serverStatusDot = document.getElementById("serverStatusDot");
+    el.mpStatusText = document.getElementById("mpStatusText");
+    el.userProfileTag = document.getElementById("userProfileTag");
+    el.userNameLabel = document.getElementById("userNameLabel");
+    el.multiplayerCard = document.getElementById("multiplayerCard");
+    el.mpPeersList = document.getElementById("mpPeersList");
+    el.mpLiveFeed = document.getElementById("mpLiveFeed");
+    el.mpCurrentBiomeName = document.getElementById("mpCurrentBiomeName");
+    el.mpPeersCountBadge = document.getElementById("mpPeersCountBadge");
 
     el.focusChipsContainer = document.getElementById("focusChipsContainer");
     el.eventFeedList = document.getElementById("eventFeedList");
@@ -1511,7 +1558,18 @@
       state.currentChapterTitle = "第一章";
       el.novelChapterTitle.textContent = "第一章";
       state.fullNovelText = `【第一章】\n${firstChapter.narrative}`;
+      state.historyChapters = [{
+        title: "第一章",
+        narrative: firstChapter.narrative || "",
+        age: 0
+      }];
       rePaginateBook();
+    }
+
+    // 多人模式生境同步
+    if (MultiplayerHabitatEngine) {
+      const bName = (state.currentLife.biome && state.currentLife.biome.name) || state.currentLife.biome || "荒野生態系";
+      MultiplayerHabitatEngine.syncBiome(bName);
     }
 
     await delay(600);
@@ -2045,6 +2103,10 @@
   }
 
   function togglePause() {
+    if (state.isMultiplayer) {
+      alert("【十兆多人即時共生中】時間為全生境物種共同流逝，無法暫停！面對突發危機先選擇先贏！");
+      return;
+    }
     setPauseState(!state.isPaused);
     if (!state.isPaused) {
       restartSimulationTimer();
@@ -2171,11 +2233,65 @@
     }
   }
 
-  // 抉擇暫停面板 (支援預設選項與「其他」自主行動自由輸入)
-  function pauseGameForChoice(chapter) {
-    setPauseState(true);
+  // --------------------------------------------------------------------------
+  // 前情大綱與整本小說展開生成器
+  // --------------------------------------------------------------------------
+  function generateStorySynopsis() {
+    const chapters = (state.historyChapters && state.historyChapters.length > 0)
+      ? state.historyChapters
+      : [];
 
-    // 填充突發情境敘述，讓玩家明確知道發生了什麼危機事件
+    const spName = (state.currentLife && state.currentLife.species && state.currentLife.species.name) || "這隻生靈";
+    const biomeName = (state.currentLife && state.currentLife.biome) || state.currentBiome || "荒野生態系";
+
+    if (chapters.length === 0) {
+      return `你誕生於【${biomeName}】，作為一隻初入世間的【${spName}】，在父母的溫暖庇護與寒風的咆哮間初破卵殼，初次睜開雙眼感知天地。如今你已踏出巢穴，迎來生命的第一道嚴峻考驗。`;
+    }
+
+    const recaps = chapters.map((c, i) => {
+      const title = c.title || `第${i+1}章`;
+      const text = (c.narrative || "").replace(/【抉擇.*?】/g, "").trim();
+      const firstLine = text.split(/\n+/)[0] || "";
+      return `【${title}】${firstLine.slice(0, 52)}...`;
+    });
+
+    return `你在【${biomeName}】歷經歲月考驗：` + recaps.join(" ") + ` 如今，生死存亡的關鍵時刻已然逼近。`;
+  }
+
+  function renderFullNovelToDrawer() {
+    if (!el.fateNovelFullContent) return;
+    el.fateNovelFullContent.innerHTML = "";
+
+    const chapters = (state.historyChapters && state.historyChapters.length > 0)
+      ? state.historyChapters
+      : [];
+
+    if (chapters.length === 0 && state.fullNovelText) {
+      const p = document.createElement("p");
+      p.textContent = state.fullNovelText;
+      el.fateNovelFullContent.appendChild(p);
+      return;
+    }
+
+    chapters.forEach(c => {
+      const sec = document.createElement("div");
+      sec.style.marginBottom = "16px";
+      const h5 = document.createElement("h5");
+      h5.textContent = c.title || "篇章回顧";
+      const p = document.createElement("p");
+      p.style.whiteSpace = "pre-wrap";
+      p.textContent = c.narrative || "";
+      sec.appendChild(h5);
+      sec.appendChild(p);
+      el.fateNovelFullContent.appendChild(sec);
+    });
+  }
+
+  // 命運抉擇專屬視窗 (Fate Decision Modal - 突發危機自動彈出)
+  function pauseGameForChoice(chapter) {
+    state.currentActiveChapter = chapter;
+
+    // 填充突發情境敘述
     let incidentText = (chapter && chapter.dilemma) ? chapter.dilemma.trim() : "";
     if (!incidentText && chapter && chapter.narrative) {
       const paras = chapter.narrative.split(/\n+/).map(p => p.trim()).filter(Boolean);
@@ -2185,70 +2301,207 @@
       incidentText = "你在命運的荒野中面臨生死去向的重大時刻，情勢緊迫，你的每一步都將決定未來的生存軌跡。";
     }
 
-    if (el.choiceIncidentText) {
-      el.choiceIncidentText.textContent = incidentText;
-    }
-    if (el.choiceChapterBadge) {
-      el.choiceChapterBadge.textContent = state.currentChapterTitle || (chapter && chapter.title) || "當前危機";
-    }
+    // 填充原舊有按鈕與文字 (備用相容)
+    if (el.choiceIncidentText) el.choiceIncidentText.textContent = incidentText;
+    if (el.choiceChapterBadge) el.choiceChapterBadge.textContent = state.currentChapterTitle || (chapter && chapter.title) || "當前危機";
 
-    el.choiceContainer.style.display = "block";
-    el.choiceButtonsGrid.innerHTML = "";
-
-    if (chapter.choices && chapter.choices.length > 0) {
-      chapter.choices.forEach(ch => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "choice-btn";
-        btn.innerHTML = `
-          <span class="choice-btn-title">${escapeHtml(ch.text)}</span>
-          <span class="choice-btn-impact"><i class="fas fa-sparkles"></i> 影響：${escapeHtml(ch.impact || '命運轉折')}</span>
-        `;
-        btn.addEventListener("click", async () => {
-          await executeChoice(chapter, ch);
-        });
-        el.choiceButtonsGrid.appendChild(btn);
-      });
-    }
-
-    // 「其他」自主行動格 (AI 決定或預設開放)
-    if (el.customChoiceWrap) {
-      const allowCustom = chapter.allowCustom !== false;
-      el.customChoiceWrap.style.display = allowCustom ? "block" : "none";
-      if (el.customChoiceInput) {
-        el.customChoiceInput.value = "";
-        el.customChoiceInput.placeholder = chapter.customPromptHint || "輸入你想採取的自主行動策略...";
-      }
-    }
-
-    // 輕柔滾動至可視區域，確保上方小說與下方抉擇卡片皆完整可見，不遮擋小說
-    el.choiceContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
-
-    // 1in8b 自動抉擇模式支援 (若使用者開啟 autoDecision，延遲 1.2 秒自動順應本能抉擇)
-    if (state.autoDecision) {
-      setTimeout(async () => {
-        if (state.isGameOver || el.choiceContainer.style.display === "none") return;
-        if (chapter.choices && chapter.choices.length > 0) {
-          await executeChoice(chapter, chapter.choices[0]);
-        } else {
-          await executeChoice(chapter, { text: "順應野性直覺行動", impact: "自動生存應對" });
-        }
-      }, 1200);
-    }
+    // 開啟專屬全螢幕抉擇彈窗 (Fate Decision Modal)
+    openFateDecisionModal(chapter, incidentText);
 
     saveGameState();
   }
 
-  // 處理自訂輸入提交
-  async function handleCustomChoiceSubmit() {
-    if (!el.customChoiceInput) return;
-    const customText = el.customChoiceInput.value.trim();
+  function openFateDecisionModal(chapter, incidentText) {
+    if (!el.fateDecisionModal) return;
+
+    // 單人模式暫停時間；多人模式時間不暫停！
+    if (state.isMultiplayer) {
+      setPauseState(false); // 多人模式：時間持續流動
+    } else {
+      setPauseState(true);  // 單人模式：暫停思考
+    }
+
+    // 1. 頂部資訊
+    if (el.fateModalChapterTitle) {
+      el.fateModalChapterTitle.textContent = state.currentChapterTitle || (chapter && chapter.title) || "危機章節";
+    }
+    if (el.fateModalBiome) {
+      el.fateModalBiome.innerHTML = `<i class="fas fa-mountain"></i> ${state.currentLife?.biome || "未知生境"}`;
+    }
+    if (el.fateModalSpecies) {
+      const sp = state.currentLife?.species;
+      const g = state.currentLife?.gender ? ` · ${state.currentLife.gender}` : "";
+      el.fateModalSpecies.textContent = `${sp ? sp.name : "未知物種"} (${state.currentAge}歲${g})`;
+    }
+    if (el.fateModalCrisisTitle) {
+      el.fateModalCrisisTitle.textContent = (chapter && chapter.dilemmaTitle) || "生死分水嶺 · 關鍵抉擇";
+    }
+
+    // 2. 前情大綱
+    if (el.fateModalSynopsisText) {
+      el.fateModalSynopsisText.textContent = generateStorySynopsis();
+    }
+
+    // 3. 現在重點狀況
+    if (el.fateModalIncidentText) {
+      el.fateModalIncidentText.textContent = incidentText;
+    }
+
+    // 4. 整本小說展開區準備
+    renderFullNovelToDrawer();
+    if (el.fateNovelDrawer) el.fateNovelDrawer.style.display = "none";
+    if (el.novelExpandBtnLabel) el.novelExpandBtnLabel.textContent = "回顧整本小說";
+
+    // 5. 多人連線狀態與即時先選先贏搶奪倒數
+    if (state.isMultiplayer) {
+      if (el.fateMultiplayerNoticeBar) el.fateMultiplayerNoticeBar.style.display = "flex";
+      startFateMultiplayerCountdown(chapter);
+    } else {
+      if (el.fateMultiplayerNoticeBar) el.fateMultiplayerNoticeBar.style.display = "none";
+      clearFateCountdown();
+    }
+
+    // 6. 渲染抉擇按鈕群
+    renderFateModalChoices(chapter);
+
+    // 7. 自主行動輸入
+    if (el.fateModalCustomWrap) {
+      const allowCustom = chapter.allowCustom !== false;
+      el.fateModalCustomWrap.style.display = allowCustom ? "block" : "none";
+      if (el.fateModalCustomInput) {
+        el.fateModalCustomInput.value = "";
+        el.fateModalCustomInput.placeholder = chapter.customPromptHint || "輸入你想採取的自主生存策略...";
+      }
+    }
+
+    // 顯示彈窗
+    el.fateDecisionModal.style.display = "flex";
+  }
+
+  function closeFateDecisionModal() {
+    clearFateCountdown();
+    if (el.fateDecisionModal) {
+      el.fateDecisionModal.style.display = "none";
+    }
+    if (el.choiceContainer) {
+      el.choiceContainer.style.display = "none";
+    }
+  }
+
+  function clearFateCountdown() {
+    if (state.mpCountdownTimer) {
+      clearInterval(state.mpCountdownTimer);
+      state.mpCountdownTimer = null;
+    }
+  }
+
+  // 多人即時倒數與先選先贏搶奪
+  function startFateMultiplayerCountdown(chapter) {
+    clearFateCountdown();
+    state.mpCountdownSeconds = 15;
+    if (el.fateCountdownSec) el.fateCountdownSec.textContent = "15s";
+    if (el.fateCountdownBar) el.fateCountdownBar.style.width = "100%";
+
+    // 模擬或連線同生地區同胞爭奪事件 (在第 5 秒搶佔某個公共選項)
+    let hasSimulatedClaim = false;
+    const claimDelaySec = Math.floor(Math.random() * 4) + 4; // 4-7秒搶奪
+
+    state.mpCountdownTimer = setInterval(() => {
+      state.mpCountdownSeconds--;
+      if (el.fateCountdownSec) el.fateCountdownSec.textContent = `${state.mpCountdownSeconds}s`;
+      if (el.fateCountdownBar) {
+        const pct = Math.max(0, (state.mpCountdownSeconds / 15) * 100);
+        el.fateCountdownBar.style.width = `${pct}%`;
+      }
+
+      // 先選先贏模擬爭奪
+      if (!hasSimulatedClaim && state.mpCountdownSeconds <= (15 - claimDelaySec)) {
+        hasSimulatedClaim = true;
+        simulatePeerClaimingChoice(chapter);
+      }
+
+      // 倒數歸零自動依野性本能抉擇
+      if (state.mpCountdownSeconds <= 0) {
+        clearFateCountdown();
+        autoDecideFateChoice(chapter);
+      }
+    }, 1000);
+  }
+
+  function simulatePeerClaimingChoice(chapter) {
+    if (!el.fateModalChoicesGrid || !chapter.choices || chapter.choices.length <= 1) return;
+    const btns = Array.from(el.fateModalChoicesGrid.querySelectorAll(".fate-choice-card-btn:not(.claimed)"));
+    if (btns.length > 1) {
+      // 隨機搶佔最後一個或中間一個選項
+      const targetBtn = btns[btns.length - 1];
+      const peerName = state.mpPeers && state.mpPeers.length > 0
+        ? state.mpPeers[Math.floor(Math.random() * state.mpPeers.length)].name
+        : "同生境同胞";
+
+      targetBtn.classList.add("claimed");
+      targetBtn.dataset.claimedBy = peerName;
+      const tag = document.createElement("span");
+      tag.className = "fate-claimed-tag";
+      tag.innerHTML = `<i class="fas fa-lock"></i> 已被 ${escapeHtml(peerName)} 搶先奪取！`;
+      targetBtn.appendChild(tag);
+
+      // 動態播報
+      if (el.mpLiveFeed) {
+        el.mpLiveFeed.innerHTML = `<span class="mp-feed-item"><i class="fas fa-bolt" style="color:#eab308;"></i> 【先選先贏】${escapeHtml(peerName)} 搶先佔據了生存資源！</span>`;
+      }
+    }
+  }
+
+  function autoDecideFateChoice(chapter) {
+    if (state.isGameOver) return;
+    const availableBtn = el.fateModalChoicesGrid ? el.fateModalChoicesGrid.querySelector(".fate-choice-card-btn:not(.claimed)") : null;
+    if (availableBtn && availableBtn._choiceObj) {
+      executeChoice(chapter, availableBtn._choiceObj);
+    } else if (chapter.choices && chapter.choices.length > 0) {
+      executeChoice(chapter, chapter.choices[0]);
+    } else {
+      executeChoice(chapter, { text: "順應野性本能求生", impact: "急迫生存應變" });
+    }
+  }
+
+  function renderFateModalChoices(chapter) {
+    if (!el.fateModalChoicesGrid) return;
+    el.fateModalChoicesGrid.innerHTML = "";
+
+    if (chapter.choices && chapter.choices.length > 0) {
+      chapter.choices.forEach((ch, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "fate-choice-card-btn";
+        btn._choiceObj = ch;
+        btn.innerHTML = `
+          <div class="fate-choice-title">${escapeHtml(ch.text)}</div>
+          <div class="fate-choice-impact"><i class="fas fa-sparkles"></i> 影響：${escapeHtml(ch.impact || '命運轉折')}</div>
+        `;
+
+        btn.addEventListener("click", async () => {
+          if (btn.classList.contains("claimed")) {
+            alert(`【先選擇先贏】此項生存資源已被「${btn.dataset.claimedBy || '其他在線同伴'}」搶先佔據！荒野生死交關，請立即選擇其他應對策略！`);
+            return;
+          }
+          await executeChoice(chapter, ch);
+        });
+
+        el.fateModalChoicesGrid.appendChild(btn);
+      });
+    }
+  }
+
+  // 處理彈窗自訂輸入提交
+  async function handleFateModalCustomSubmit() {
+    if (!el.fateModalCustomInput) return;
+    const customText = el.fateModalCustomInput.value.trim();
     if (!customText) return;
 
     const chapter = state.currentActiveChapter || { title: state.currentChapterTitle };
     const customChoiceObj = {
       text: customText,
-      impact: "自主抉擇",
+      impact: "自主策略應對",
       isCustom: true
     };
 
@@ -2259,7 +2512,17 @@
   async function executeChoice(chapter, choice) {
     state.choicesMadeCount++;
     state.recentChoices.push(choice.text);
-    el.choiceContainer.style.display = "none";
+
+    // 記錄本章至小說歷史
+    state.historyChapters.push({
+      title: state.currentChapterTitle || (chapter && chapter.title) || `第${state.historyChapters.length + 1}章`,
+      narrative: (chapter && chapter.narrative) || "",
+      age: state.currentAge,
+      choiceText: choice.text
+    });
+
+    // 關閉抉擇視窗與倒數計時
+    closeFateDecisionModal();
 
     showNovelLoading("AI 正在根據你的自主抉擇推演後續...", "正在根據你的行動計算生存反饋與心理震撼...");
 
@@ -2295,6 +2558,11 @@
       type: "milestone",
       text: `作出自主行動抉擇：「${choice.text}」。${choice.impact || ''}`
     });
+
+    // 多人模式推播抉擇事件至生態網
+    if (state.isMultiplayer && MultiplayerHabitatEngine) {
+      MultiplayerHabitatEngine.broadcastAction(choice.text);
+    }
 
     saveGameState();
 
@@ -3405,7 +3673,229 @@
   });
 
   // ============================================================================
-  // 首次進入全螢幕省思文字引言 (Prologue Reflection Screen)
+  // 多人連線即時共生引擎 (Multiplayer Habitat Sync & SSO Server Integration)
+  // ============================================================================
+  const MultiplayerHabitatEngine = {
+    socket: null,
+    currentBiome: "",
+    peers: [],
+    feedTimer: null,
+
+    init() {
+      // 讀取 SSO 登入帳號或本地身分
+      const savedUser = localStorage.getItem("sso_user") || localStorage.getItem("panda_session_user");
+      const savedNick = localStorage.getItem("sso_nickname") || localStorage.getItem("panda_nickname") || savedUser || "荒野旅者";
+      const savedServer = localStorage.getItem("sso_server") || "";
+
+      state.currentUser.username = savedUser || "wild_" + Math.floor(Math.random() * 8999 + 1000);
+      state.currentUser.nickname = savedNick;
+
+      if (el.userNameLabel) {
+        el.userNameLabel.textContent = state.currentUser.nickname;
+      }
+
+      // 嘗試連線 SSO / 遊戲通訊伺服器
+      this.connectServer(savedServer);
+
+      // 綁定多人模式切換鈕
+      if (el.mpToggleBtn) {
+        el.mpToggleBtn.addEventListener("click", () => {
+          this.toggleMultiplayerMode();
+        });
+      }
+
+      // 綁定使用者暱稱自訂彈窗
+      if (el.userProfileTag) {
+        el.userProfileTag.addEventListener("click", () => {
+          this.promptChangeNickname();
+        });
+      }
+
+      // 綁定抉擇彈窗小說抽屜切換
+      if (el.toggleNovelExpandBtn) {
+        el.toggleNovelExpandBtn.addEventListener("click", () => {
+          this.toggleNovelDrawer();
+        });
+      }
+      if (el.closeNovelDrawerBtn) {
+        el.closeNovelDrawerBtn.addEventListener("click", () => {
+          this.toggleNovelDrawer(false);
+        });
+      }
+
+      // 綁定抉擇彈窗自訂策略提交
+      if (el.fateModalCustomSubmitBtn) {
+        el.fateModalCustomSubmitBtn.addEventListener("click", () => {
+          handleFateModalCustomSubmit();
+        });
+      }
+      if (el.fateModalCustomInput) {
+        el.fateModalCustomInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") handleFateModalCustomSubmit();
+        });
+      }
+    },
+
+    connectServer(serverUrl) {
+      if (typeof io === "function" && serverUrl) {
+        try {
+          this.socket = io(serverUrl, { transports: ["polling", "websocket"], timeout: 3500 });
+          this.socket.on("connect", () => {
+            this.updateStatusUI(true, "十兆多人共生 (已連線)");
+          });
+          this.socket.on("disconnect", () => {
+            this.updateStatusUI(true, "十兆多人共生 (荒野共生網)");
+          });
+        } catch (e) {
+          this.updateStatusUI(true, "十兆多人共生 (荒野共生網)");
+        }
+      } else {
+        this.updateStatusUI(true, "十兆多人共生 (荒野共生網)");
+      }
+    },
+
+    updateStatusUI(online, text) {
+      if (el.serverStatusDot) {
+        el.serverStatusDot.className = "status-dot " + (online ? "online" : "offline");
+      }
+      if (el.mpStatusText) {
+        el.mpStatusText.textContent = text || (state.isMultiplayer ? "十兆多人共生" : "單機沉浸模式");
+      }
+      if (el.mpToggleBtn) {
+        el.mpToggleBtn.classList.toggle("single-mode", !state.isMultiplayer);
+      }
+    },
+
+    toggleMultiplayerMode() {
+      state.isMultiplayer = !state.isMultiplayer;
+      this.updateStatusUI(true, state.isMultiplayer ? "十兆多人共生" : "單機沉浸模式");
+      alert(state.isMultiplayer
+        ? "【十兆多人即時共生已開啟】\n你將與同生境的其他物種玩家共同生活在同個世界，時間無法暫停，突發抉擇先選擇先贏！"
+        : "【已切換為單人沉浸模式】\n你可自由掌控時間推演與閱讀步調。"
+      );
+    },
+
+    promptChangeNickname() {
+      const cur = state.currentUser.nickname || "荒野旅者";
+      const name = prompt("請設定你的荒野生命冒險者暱稱（將即時展示給同生境同胞）：", cur);
+      if (name && name.trim()) {
+        state.currentUser.nickname = name.trim();
+        localStorage.setItem("sso_nickname", state.currentUser.nickname);
+        if (el.userNameLabel) el.userNameLabel.textContent = state.currentUser.nickname;
+      }
+    },
+
+    toggleNovelDrawer(forceState) {
+      if (!el.fateNovelDrawer) return;
+      const willShow = forceState !== undefined ? forceState : (el.fateNovelDrawer.style.display === "none");
+      el.fateNovelDrawer.style.display = willShow ? "block" : "none";
+      if (el.novelExpandBtnLabel) {
+        el.novelExpandBtnLabel.textContent = willShow ? "收合整本小說" : "回顧整本小說";
+      }
+    },
+
+    syncBiome(biomeName) {
+      this.currentBiome = biomeName || (state.currentLife && state.currentLife.biome) || "浩瀚荒野";
+      if (el.mpCurrentBiomeName) {
+        el.mpCurrentBiomeName.textContent = this.currentBiome;
+      }
+      this.generateHabitatPeers();
+    },
+
+    generateHabitatPeers() {
+      // 依當前生境，動態維護 3~5 隻不同物種的同胞生靈
+      const biome = this.currentBiome;
+      const sampleNames = ["影爪", "長風", "白尾", "疾蹄", "夜羽", "雪瞳", "霜牙", "破曉", "星紋", "幽林"];
+      const genders = ["雄性", "雌性"];
+
+      // 挑選與當前物種不同或同生境的動物
+      const allSpecies = (window.SPECIES_DATABASE || []).filter(s => {
+        if (!state.currentLife || !state.currentLife.species) return true;
+        return s.name !== state.currentLife.species.name;
+      });
+
+      const peerCount = Math.floor(Math.random() * 3) + 3; // 3-5 隻
+      this.peers = [];
+
+      for (let i = 0; i < peerCount; i++) {
+        const randSp = allSpecies[Math.floor(Math.random() * allSpecies.length)] || { name: "野性生靈" };
+        const randName = sampleNames[Math.floor(Math.random() * sampleNames.length)] + (i + 1);
+        const randGender = genders[Math.floor(Math.random() * genders.length)];
+        const randAge = Math.floor(Math.random() * 8) + 1;
+        const statuses = ["在近處警戒覓食", "穿梭於灌木林地", "探尋水源地", "盤旋巡視領地", "警惕隱匿穴中"];
+        const randStatus = statuses[Math.floor(Math.random() * statuses.length)];
+
+        this.peers.push({
+          name: randName,
+          speciesName: randSp.name,
+          gender: randGender,
+          age: randAge,
+          status: randStatus
+        });
+      }
+
+      state.mpPeers = this.peers;
+      this.renderPeersUI();
+      this.startLiveFeedLoop();
+    },
+
+    renderPeersUI() {
+      if (!el.mpPeersList) return;
+      el.mpPeersList.innerHTML = "";
+      if (el.mpPeersCountBadge) {
+        el.mpPeersCountBadge.textContent = `${this.peers.length} 隻共生中`;
+      }
+
+      this.peers.forEach(p => {
+        const li = document.createElement("li");
+        li.className = "mp-peer-item";
+        li.innerHTML = `
+          <div class="mp-peer-left">
+            <i class="fas fa-paw mp-peer-avatar"></i>
+            <div class="mp-peer-info">
+              <span class="mp-peer-name">${escapeHtml(p.name)}</span>
+              <span class="mp-peer-species">${escapeHtml(p.speciesName)} · ${p.age}歲 · ${escapeHtml(p.gender)}</span>
+            </div>
+          </div>
+          <span class="mp-peer-status-tag">${escapeHtml(p.status)}</span>
+        `;
+        el.mpPeersList.appendChild(li);
+      });
+    },
+
+    startLiveFeedLoop() {
+      if (this.feedTimer) clearInterval(this.feedTimer);
+      const feeds = [
+        "正在下風處謹慎移動，提防天敵動靜",
+        "剛剛成功發現了一處避風的岩縫！",
+        "在飲水點附近警惕張望，與同族保持聯絡",
+        "發出低沉呼喚，確認領地邊界安寧",
+        "搶先抓獲了冰原下的微弱獵物",
+        "察覺到暴風雪將至，正加速往巢穴奔馳"
+      ];
+
+      this.feedTimer = setInterval(() => {
+        if (!el.mpLiveFeed || this.peers.length === 0) return;
+        const p = this.peers[Math.floor(Math.random() * this.peers.length)];
+        const act = feeds[Math.floor(Math.random() * feeds.length)];
+        el.mpLiveFeed.innerHTML = `
+          <span class="mp-feed-item"><i class="fas fa-bolt" style="color:#10b981;"></i> [${escapeHtml(p.speciesName)}] <strong>${escapeHtml(p.name)}</strong> ${escapeHtml(act)}</span>
+        `;
+      }, 7000);
+    },
+
+    broadcastAction(actionText) {
+      if (!el.mpLiveFeed) return;
+      const nick = state.currentUser.nickname || "你";
+      const spName = (state.currentLife && state.currentLife.species && state.currentLife.species.name) || "生靈";
+      el.mpLiveFeed.innerHTML = `
+        <span class="mp-feed-item"><i class="fas fa-sparkles" style="color:#eab308;"></i> [${escapeHtml(spName)}] <strong>${escapeHtml(nick)}</strong> 作出果斷生存抉擇：「${escapeHtml(actionText)}」！</span>
+      `;
+    }
+  };
+
+  // ============================================================================
+  // 首次進入全螢幕省思文字引言 (Prologue Reflection Screen) - 物理防略過升級
   // ============================================================================
   const PROLOGUE_REFLECTION_LINES = [
     "這個世界上，約有十兆個有意識的生命。",
@@ -3419,6 +3909,7 @@
   let prologueCurrentIdx = 0;
   let prologueTimer = null;
   let prologueIsTransitioning = false;
+  let prologueLastSwitchTime = 0;
 
   function initPrologueReflection() {
     const overlay = el.introPrologueOverlay || document.getElementById("introPrologueOverlay");
@@ -3443,6 +3934,7 @@
       }
       prologueCurrentIdx = idx;
       prologueIsTransitioning = true;
+      prologueLastSwitchTime = Date.now();
 
       // 如果有現有文字，先淡出
       if (lineEl.textContent) {
@@ -3452,12 +3944,11 @@
         setTimeout(() => {
           lineEl.textContent = PROLOGUE_REFLECTION_LINES[idx];
           lineEl.classList.remove("fading");
-          // 強制重繪後觸發淡入
           void lineEl.offsetWidth;
           lineEl.classList.add("visible");
           prologueIsTransitioning = false;
 
-          // 停留後自動淡出進入下一句
+          // 自動推進至下一句
           prologueTimer = setTimeout(() => {
             showLine(idx + 1);
           }, 2700);
@@ -3477,7 +3968,8 @@
     }
 
     function advanceNextLine() {
-      if (prologueIsTransitioning) return;
+      // 防狂點與秒刷冷卻 (至少需閱讀 600ms)
+      if (prologueIsTransitioning || (Date.now() - prologueLastSwitchTime < 600)) return;
       clearTimer();
       if (prologueCurrentIdx >= PROLOGUE_REFLECTION_LINES.length - 1) {
         completePrologue();
@@ -3486,18 +3978,18 @@
       }
     }
 
-    // 只有完整看完最後一句，才標記看過並寫入 localStorage！
+    // 只有完整看完最後一句，才標記看過並寫入 localStorage！解除鎖定！
     function completePrologue() {
       clearTimer();
       try {
         localStorage.setItem("10t_reflection_seen", "true");
       } catch (e) {}
 
-      // 文字先柔和淡出
+      document.body.classList.remove("prologue-locked");
+
       lineEl.classList.remove("visible");
       lineEl.classList.add("fading");
 
-      // 整體黑幕淡出
       overlay.classList.add("fade-out-overlay");
       setTimeout(() => {
         overlay.style.display = "none";
@@ -3510,6 +4002,8 @@
 
     function startPrologue() {
       clearTimer();
+      // 啟動全螢幕阻斷防略過鎖定
+      document.body.classList.add("prologue-locked");
       prologueCurrentIdx = 0;
       lineEl.textContent = "";
       lineEl.classList.remove("visible", "fading");
@@ -3518,12 +4012,10 @@
       showLine(0);
     }
 
-    // 點擊畫面任意處即可加速推進下一句
     overlay.addEventListener("click", () => {
       advanceNextLine();
     });
 
-    // 鍵盤導航：空白鍵、Enter 或方向鍵前進
     document.addEventListener("keydown", (e) => {
       if (overlay.style.display !== "none" && overlay.style.display !== "") {
         if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight" || e.key === "ArrowDown") {
@@ -3538,7 +4030,7 @@
     if (replayBtnDead) replayBtnDead.addEventListener("click", () => startPrologue());
     if (topPrologueBtn) topPrologueBtn.addEventListener("click", () => startPrologue());
 
-    // 檢查是否初次進入且尚未完整看完
+    // 物理防略過檢查：未看過者強制全螢幕阻斷鎖定！重載或關閉視窗下次依然強制從第一句開始！
     const hasSeen = localStorage.getItem("10t_reflection_seen");
     if (!hasSeen) {
       startPrologue();
@@ -3561,6 +4053,23 @@
       if (el.introSec) el.introSec.style.display = "block";
     }
 
+    // 初始化多人即時共生引擎
+    try { MultiplayerHabitatEngine.init(); } catch (e) { console.error("MultiplayerEngine error:", e); }
+
+    // 初始化物理防略過省思引言
     try { initPrologueReflection(); } catch (e) { console.error("initPrologueReflection error:", e); }
+
+    // 暴露核心引擎至 window.__gameEngine 供測試與外掛即時調度
+    window.__gameEngine = {
+      state,
+      el,
+      pauseGameForChoice,
+      openFateDecisionModal,
+      closeFateDecisionModal,
+      executeChoice,
+      MultiplayerHabitatEngine,
+      enterLifeDashboard
+    };
   });
 })();
+
