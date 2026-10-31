@@ -3752,30 +3752,32 @@ body.theme-dark .helpline-num-btn {
   font-family: var(--font-serif);
   font-size: clamp(1.4rem, 4.2vw, 2.35rem);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.94);
+  color: #ffffff;
   line-height: 2.1;
   letter-spacing: 0.16em;
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.95), 0 0 40px rgba(212, 175, 55, 0.18);
   margin: 0;
   opacity: 0;
-  transform: translateY(16px);
-  filter: blur(6px);
-  transition: opacity 1.2s cubic-bezier(0.2, 1, 0.35, 1), transform 1.2s cubic-bezier(0.2, 1, 0.35, 1), filter 1.2s ease;
+  filter: brightness(0.1) blur(3px);
+  text-shadow: 0 0 0px transparent;
+  transition: opacity 1.3s ease-in-out, filter 1.3s ease-in-out, text-shadow 1.3s ease-in-out;
   word-break: normal;
   overflow-wrap: break-word;
+  transform: none !important; /* 徹底杜絕上下位移，純粹文字慢慢變亮再慢慢變暗 */
 }
 
 .prologue-zen-line.visible {
   opacity: 1;
-  transform: translateY(0);
-  filter: blur(0);
+  filter: brightness(1) blur(0px);
+  text-shadow: 0 0 22px rgba(255, 255, 255, 0.8), 0 0 45px rgba(212, 175, 55, 0.35);
+  transform: none !important;
 }
 
 .prologue-zen-line.fading {
   opacity: 0;
-  transform: translateY(-14px);
-  filter: blur(6px);
-  transition: opacity 0.8s ease, transform 0.8s ease, filter 0.8s ease;
+  filter: brightness(0.1) blur(3px);
+  text-shadow: 0 0 0px transparent;
+  transition: opacity 1.0s ease-in-out, filter 1.0s ease-in-out, text-shadow 1.0s ease-in-out;
+  transform: none !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -4401,4 +4403,795 @@ body.prologue-locked {
 body.prologue-locked .prologue-zen-overlay {
   pointer-events: auto !important;
 }
+
+/* ==========================================================================
+   多人房間系統與權限架構 (Multiplayer Room Hub & Permissions)
+   ========================================================================== */
+
+/* 導覽列房間膠囊按鈕 */
+.room-pill {
+  background: rgba(14, 165, 233, 0.12) !important;
+  border: 1px solid #0ea5e9 !important;
+  color: #0284c7 !important;
+  font-weight: 600;
+  white-space: nowrap !important;
+}
+
+body.theme-parchment .room-pill {
+  background: rgba(180, 83, 9, 0.1) !important;
+  border-color: #b45309 !important;
+  color: #92400e !important;
+}
+
+/* 右欄房間狀態資訊橫幅 */
+.mp-card-room-bar {
+  margin: 6px 0 10px 0;
+  padding: 8px 10px;
+  background: var(--bg-parchment-deep, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mp-room-tag-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.mp-room-name-badge {
+  font-weight: 700;
+  color: var(--primary-accent, #8C1D3C);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mp-room-perm-badge {
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  font-weight: 600;
+  white-space: nowrap !important;
+}
+
+.mp-room-perm-badge.team {
+  background: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
+}
+
+.mp-room-perm-badge.private {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+.mp-room-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mp-btn-mini {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg, #fff);
+  color: var(--text-color, #333);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap !important;
+}
+
+.mp-btn-mini:hover {
+  background: var(--bg-parchment-deep, #f8f6f0);
+}
+
+.mp-btn-mini.highlight {
+  border-color: #0ea5e9;
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.mp-btn-mini.danger {
+  border-color: #f87171;
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* 房間中心主視窗 (Room Hub Modal) */
+.room-hub-card {
+  max-width: 860px;
+  width: 94%;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px;
+}
+
+.room-hub-title-block h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+/* 當前房間狀態條 */
+.room-active-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-top: 10px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(140, 29, 60, 0.06) 100%);
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.room-status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.room-type-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: #0ea5e9;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap !important;
+}
+
+.room-status-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-room-action {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg, #fff);
+  color: var(--text-color);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  white-space: nowrap !important;
+  transition: all 0.2s;
+}
+
+.btn-room-action:hover {
+  background: var(--primary-accent, #8C1D3C);
+  color: #fff;
+  border-color: var(--primary-accent, #8C1D3C);
+}
+
+.btn-room-action.danger:hover {
+  background: #dc2626 !important;
+  color: #fff !important;
+  border-color: #dc2626 !important;
+}
+
+/* 房間 Tab 切換列 */
+.room-tabs-nav {
+  display: flex;
+  gap: 6px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 2px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+.room-tab-btn {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap !important;
+  transition: all 0.2s ease;
+  margin-bottom: -2px;
+}
+
+.room-tab-btn:hover {
+  color: var(--primary-accent, #8C1D3C);
+}
+
+.room-tab-btn.active {
+  color: var(--primary-accent, #8C1D3C);
+  border-bottom-color: var(--primary-accent, #8C1D3C);
+}
+
+.room-tabs-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.room-tab-pane {
+  display: none;
+}
+
+.room-tab-pane.active {
+  display: block;
+}
+
+/* 團隊推薦專區 */
+.team-rooms-showcase {
+  background: rgba(14, 165, 233, 0.06);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.team-showcase-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.team-rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+/* 房間列表頭部與搜尋 */
+.rooms-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rooms-list-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rooms-search-box {
+  position: relative;
+  min-width: 200px;
+}
+
+.rooms-search-box i {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.rooms-search-box input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 12px 6px 28px;
+  font-size: 12.5px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-parchment-deep, #fff);
+  color: var(--text-color);
+  outline: none;
+}
+
+/* 房間卡片格線 */
+.rooms-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.room-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg, #fff);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.room-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary-accent, #8C1D3C);
+}
+
+.room-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.room-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.room-card-biome {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.room-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  border-top: 1px dashed var(--border-color);
+  padding-top: 8px;
+}
+
+.room-creator-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.room-join-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  border-radius: 6px;
+  border: none;
+  background: var(--primary-accent, #8C1D3C);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.2s;
+}
+
+.room-join-btn:hover {
+  opacity: 0.9;
+}
+
+/* 建立房間表單樣式 */
+.create-room-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.room-input, .room-select, .room-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-parchment-deep, #fff);
+  color: var(--text-color);
+  outline: none;
+  font-family: inherit;
+}
+
+.room-textarea {
+  resize: vertical;
+}
+
+.perm-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.perm-radio-card {
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  background: var(--card-bg, #fff);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  transition: all 0.2s ease;
+}
+
+.perm-radio-card:hover {
+  border-color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.03);
+}
+
+.perm-radio-card.active, .perm-radio-card input:checked ~ .perm-card-content {
+  border-color: var(--primary-accent, #8C1D3C);
+}
+
+.perm-radio-card input[type="radio"] {
+  margin-top: 3px;
+  cursor: pointer;
+}
+
+.perm-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.perm-card-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.perm-sub-panel {
+  padding: 12px;
+  background: var(--bg-parchment-deep, rgba(0, 0, 0, 0.02));
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.team-domain-preview {
+  font-size: 13px;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-text-link {
+  background: none;
+  border: none;
+  color: var(--primary-accent, #8C1D3C);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.helper-text {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.room-submit-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 代碼輸入加入面板 */
+.join-code-box {
+  padding: 16px;
+  background: var(--bg-parchment-deep, rgba(0,0,0,0.02));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.join-input-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 14px;
+}
+
+.join-tips {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.join-tips h6 {
+  margin: 0 0 6px 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.join-tips ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* 目前房間成員面板 */
+.members-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+
+.members-info-left h4 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+}
+
+.members-access-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(14, 165, 233, 0.15);
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.creator-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.members-role-notice {
+  font-size: 12px;
+  color: #0284c7;
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px dashed rgba(14, 165, 233, 0.4);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.members-cards-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-card-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--card-bg, #fff);
+  gap: 12px;
+}
+
+.member-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.member-avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-parchment-deep, #e2e8f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--primary-accent, #8C1D3C);
+}
+
+.member-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.member-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.member-email-sub {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.member-species-tag {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.member-right-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-kick-member {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+  border: 1px solid #f87171;
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  cursor: pointer;
+}
+
+/* 加入房間身分揭露授權確認視窗 (Consent Modal) */
+.consent-modal-card {
+  max-width: 500px;
+  width: 90%;
+  padding: 22px 24px;
+}
+
+.consent-notice-box {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid rgba(14, 165, 233, 0.3);
+  font-size: 12.5px;
+  color: #0369a1;
+  line-height: 1.5;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.consent-options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.consent-option-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-parchment-deep, #fff);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.consent-option-row:hover {
+  border-color: var(--primary-accent, #8C1D3C);
+}
+
+.consent-option-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.consent-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.consent-option-text .option-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.consent-option-text .option-val {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.consent-error-msg {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #f87171;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 使用者 Profile 視窗 */
+.profile-modal-card {
+  max-width: 480px;
+  width: 90%;
+  padding: 22px 24px;
+}
+
+.quick-profile-switch {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.quick-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.quick-btns-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-quick-tag {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-parchment-deep, #fff);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap !important;
+}
+
+.btn-quick-tag:hover {
+  background: var(--primary-accent, #8C1D3C);
+  color: #fff;
+  border-color: var(--primary-accent, #8C1D3C);
+}
+
+
 

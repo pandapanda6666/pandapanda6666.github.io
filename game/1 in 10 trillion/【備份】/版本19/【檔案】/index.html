@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>十兆分之一 · 跨物種人生模擬與荒野紀事 (1 in 10 Trillion)</title>
+    <meta name="description" content="十兆分之一（1 in 10 Trillion）。隨機出生為地球生態系中十億生命之一，在自然演化、食物鏈與人類文明的真實生態統計中，透過艾琳·杭特式半互動小說，活過僅此一次的生命。支援物種檔案單獨搜尋。">
+    <meta name="keywords" content="十兆分之一, 1 in 10 trillion, 跨物種人生模擬, 荒野紀事, 生態小說, 物種百科, 艾琳杭特, 生命模擬, PandaPanda">
+    <link rel="canonical" href="https://pandapanda6666.github.io/game/1%20in%2010%20trillion/">
+    <meta property="og:title" content="十兆分之一 · 跨物種人生模擬與荒野紀事 (1 in 10 Trillion)">
+    <meta property="og:description" content="隨機出生為地球生態系中十億生命之一，在自然演化、食物鏈與人類文明的真實生態統計中，活過僅此一次的生命。支援物種檔案即時獨立搜尋。">
+    <meta property="og:url" content="https://pandapanda6666.github.io/game/1%20in%2010%20trillion/">
+    <meta property="og:type" content="game">
+
+    <!-- Schema.org 結構化資料：宣告支援獨立單獨搜尋 -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "十兆分之一 (1 in 10 Trillion)",
+      "url": "https://pandapanda6666.github.io/game/1%20in%2010%20trillion/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://pandapanda6666.github.io/game/1%20in%2010%20trillion/?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <!-- 引入字型與圖示庫 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Noto+Serif+TC:wght@400;600;700;900&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- 網站圖示 (十兆分之一專屬星宿羅盤狼爪圖騰 Favicon) -->
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=299">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png?v=299">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png?v=299">
+    <link rel="icon" type="image/png" sizes="48x48" href="assets/favicon-48x48.png?v=299">
+    <link rel="icon" type="image/png" sizes="256x256" href="assets/favicon-256x256.png?v=299">
+    <link rel="shortcut icon" href="assets/favicon.ico?v=299">
+    <link rel="apple-touch-icon" href="assets/favicon-256x256.png?v=299">
+    
+    <!-- 遊戲樣式 -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- SSO 與多人即時通訊 (Socket.io) -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        .footer-status-bar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 6px;
+        }
+        .status-chip {
+            background: transparent !important;
+            padding: 4px 10px;
+            border-radius: 0;
+            font-size: 13px;
+            color: #166534;
+            font-weight: bold;
+            box-shadow: none !important;
+            border: none !important;
+            display: inline-flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            text-align: center;
+            font-family: inherit;
+        }
+        #system-monitor {
+            background: transparent !important;
+            padding: 4px 10px;
+            border-radius: 0;
+            font-size: 13px;
+            color: #166534;
+            font-weight: bold;
+            box-shadow: none !important;
+            border: none !important;
+            display: inline-flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            line-height: normal;
+            font-family: inherit;
+        }
+        .stat-divider {
+            display: inline-block;
+            width: 2px;
+            height: 12px;
+            background: #166534;
+            margin: 0 5px;
+            opacity: 0.35;
+        }
+    </style>
+</head>
+<body class="theme-parchment">
+    <!-- 首次進入全螢幕省思文字引言 (Prologue Reflection Overlay) - 極簡黑幕，純淨文字淡入淡出，無多餘 UI -->
+    <div id="introPrologueOverlay" class="prologue-zen-overlay" style="display:none;" aria-modal="true" role="dialog">
+        <div class="prologue-zen-inner">
+            <p id="prologueLine" class="prologue-zen-line"></p>
+        </div>
+    </div>
+
+    <!-- 頂端 AI 運算進度條 (參考 pandapanda6666 首頁公告管理工具) -->
+    <div id="admin-ai-progress-bar" style="display:none;">
+        <div class="ai-prog-inner">
+            <div class="ai-prog-left">
+                <i class="fas fa-robot fa-spin" style="color:#6ee7b7;"></i>
+                <span id="ai-progress-badge" class="ai-badge">生態與小說生成</span>
+                <span id="ai-progress-status">AI 正在計算生命軌跡...</span>
+            </div>
+            <div class="ai-prog-right">
+                <div class="ai-bar-track">
+                    <div id="ai-progress-fill" style="width:10%;"></div>
+                </div>
+                <span id="ai-progress-pct">10%</span>
+                <button type="button" onclick="document.getElementById('admin-ai-progress-bar').style.display='none'" class="ai-close-btn" title="收合進度列"><i class="fas fa-xmark"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主應用容器 -->
+    <main id="app">
+        <!-- 1. 首頁介紹視圖 (Intro Section) -->
+        <section id="intro" class="view-section">
+            <nav class="top-nav">
+                <div class="brand-tag">
+                    <img src="assets/logo.svg" alt="十兆分之一 LOGO" class="brand-logo-img">
+                    <span class="version-pill">v1.0 生態小說版</span>
+                    <span class="dot-sep">•</span>
+                    <span>十兆生命模擬</span>
+                    <span class="dot-sep">•</span>
+                    <span>跨物種文學演繹</span>
+                </div>
+                <div class="nav-controls">
+                    <!-- 伺服器與多人連線狀態按鈕 -->
+                    <button type="button" id="mpToggleBtn" class="pill-btn mp-pill" title="點擊切換多人即時共生模式 / 單人模式">
+                        <span class="status-dot online" id="serverStatusDot"></span>
+                        <span id="mpStatusText">十兆多人共生</span>
+                    </button>
+                    <!-- 多人房間大廳與權限管理按鈕 -->
+                    <button type="button" id="roomHubBtn" class="pill-btn room-pill" title="瀏覽、建立多人專屬/團隊/公開房間或複製邀請連結">
+                        <i class="fas fa-door-open"></i>
+                        <span id="currentRoomTag">荒野公共大廳</span>
+                    </button>
+                    <!-- SSO 登入身分與電子郵件 -->
+                    <div id="userProfileTag" class="pill-btn user-pill" title="點擊設定冒險者暱稱與電子郵件（團隊網域識別）">
+                        <i class="fas fa-user-circle" id="userAvatarIcon"></i>
+                        <span id="userNameLabel">冒險生靈</span>
+                    </div>
+                    <button type="button" id="topPrologueBtn" class="pill-btn" title="回顧生命省思引言">
+                        <i class="fas fa-feather-pointed"></i> 省思引言
+                    </button>
+                    <button type="button" id="speciesSearchBtn" class="pill-btn" onclick="openSpeciesSearchModal()" title="單獨搜尋十兆生命物種檔案" style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #10b981; font-weight: bold;">
+                        <i class="fas fa-search"></i> 搜尋生態物種
+                    </button>
+                    <button type="button" id="ambientSoundBtn" class="pill-btn" title="切換荒野環境氛圍音效">
+                        <i class="fas fa-music"></i> <span id="ambientSoundLabel">自然音效：關閉</span>
+                    </button>
+                    <button type="button" id="themeToggleBtn" class="pill-btn" title="切換明暗模式">
+                        <i id="themeIcon" class="fas fa-circle-half-stroke"></i> 明暗主題
+                    </button>
+                    <a href="../../" class="pill-btn" title="返回 PandaPanda 的 AI 日常官網首頁" style="text-decoration:none; color:inherit;">
+                        <i class="fas fa-home"></i> 官網首頁
+                    </a>
+                </div>
+            </nav>
+
+            <div class="hero-container">
+                <div class="hero-text-block">
+                    <div class="sub-header">地球生態系與人類文明跨物種模擬 · 根據172個國家與地區真實統計</div>
+                    <h1 class="main-title">十兆分之<em class="accent-word">1</em></h1>
+                    <p class="hero-quote">
+                        就在此刻，每秒大約有四個嬰兒誕生，荒野裡也有數萬生靈降生：森林深處的狼崽、浮冰下的幼企鵝、珊瑚礁裡的魚苗、以及產房裡的嬰兒。
+                        你將成為其中一個，把僅此一次的人生走到最後。在哪裡出生、成為誰的孩子，都無法選擇。就像你當初一樣。
+                    </p>
+
+                    <div class="live-counters">
+                        <div class="counter-card">
+                            <span class="counter-num" id="cBirth">0</span>
+                            <span class="counter-label">打開這個頁面後出生的嬰兒與生靈</span>
+                        </div>
+                        <div class="counter-card">
+                            <span class="counter-num" id="cDeath">0</span>
+                            <span class="counter-label">同一段時間裡離世的人與生靈</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-side-card">
+                    <div class="odds-header">
+                        <h3 id="oddsTitle"><i class="fas fa-globe"></i> 如果你是此刻出生的生靈</h3>
+                        <p class="odds-sub" id="oddsSub">依據聯合國真實出生統計與地球生物量分佈</p>
+                    </div>
+                    <div class="tg-map-wrap">
+                        <canvas id="tgMap" width="280" height="120" aria-label="世界地圖出生熱點"></canvas>
+                    </div>
+                    <ul class="odds-list" id="oddsList">
+                        <!-- JS 填充 -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 出生設定面板 (整合 1in8b 全套參數) -->
+            <div class="setup-panel">
+                <div class="option-grid">
+                    <!-- 1in8b: 出生的世界 (Era) -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-clock-rotate-left"></i> 出生的世界</label>
+                        <div class="seg-btn-group" id="eraGroup">
+                            <button type="button" class="seg-btn" data-era="past">過去的世界</button>
+                            <button type="button" class="seg-btn active" data-era="now">現在的世界</button>
+                            <button type="button" class="seg-btn" data-era="future">未來的世界</button>
+                            <button type="button" class="seg-btn" data-era="any">哪個世界都好</button>
+                        </div>
+                        <div class="erayr-row" id="eraYrRow" style="display:none; margin-top:8px;">
+                            <label for="eraYr" style="font-size:12.5px; color:var(--ink-muted); margin-right:6px;">出生年份：</label>
+                            <select id="eraYr" class="custom-select-sm"></select>
+                        </div>
+                        <span class="opt-hint" id="eraHint">在今天的世界裡過完一生。現在的統計會一直延續到最後。</span>
+                    </div>
+
+                    <!-- 1in8b: 出生地的抽選方式 -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-shuffle"></i> 出生地的抽選方式</label>
+                        <div class="seg-btn-group" id="drawModeGroup">
+                            <button type="button" class="seg-btn active" data-draw="birth">此刻出生的嬰兒/生靈</button>
+                            <button type="button" class="seg-btn" data-draw="pop">現在活著的80億人/現存群體</button>
+                        </div>
+                        <span class="opt-hint" id="drawModeHint">依出生抽選時，按各地每年的出生人數；依人口抽選時，按人口比例。無論哪一種，人生都從0歲開始。</span>
+                    </div>
+
+                    <!-- 1in8b: 一段人生的長度 -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-hourglass-half"></i> 一段人生的長度</label>
+                        <div class="seg-btn-group" id="paceGroup">
+                            <button type="button" class="seg-btn" data-pace="30">約30分鐘</button>
+                            <button type="button" class="seg-btn active" data-pace="60">約1小時</button>
+                            <button type="button" class="seg-btn" data-pace="90">約1小時30分鐘</button>
+                        </div>
+                        <span class="opt-hint" id="paceHint">活到當地平均壽命所需的時間。以1小時來說，一年約40～60秒。過程中可隨時暫停或加速。</span>
+                    </div>
+
+                    <!-- 1in8b: 你實際出生的國家或地區（選填） -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-house-chimney"></i> 你實際出生的國家或地區（選填）</label>
+                        <select id="homeSel" class="custom-select-block">
+                            <option value="">不指定故鄉對比</option>
+                            <option value="taiwan" selected>台灣 (Taiwan)</option>
+                            <option value="japan">日本 (Japan)</option>
+                            <option value="hongkong">香港 (Hong Kong)</option>
+                            <option value="china">中國 (China)</option>
+                            <option value="usa">美國 (United States)</option>
+                            <option value="uk">英國 (United Kingdom)</option>
+                            <option value="korea">南韓 (South Korea)</option>
+                            <option value="singapore">新加坡 (Singapore)</option>
+                            <option value="canada">加拿大 (Canada)</option>
+                            <option value="australia">澳洲 (Australia)</option>
+                            <option value="germany">德國 (Germany)</option>
+                            <option value="france">法國 (France)</option>
+                            <option value="india">印度 (India)</option>
+                            <option value="nigeria">奈及利亞 (Nigeria)</option>
+                            <option value="kenya">肯亞 (Kenya)</option>
+                            <option value="brazil">巴西 (Brazil)</option>
+                        </select>
+                        <span class="opt-hint">選了之後，會把這一生和你自己的人生並排比較。只會儲存在這個裝置上。</span>
+                    </div>
+
+                    <!-- 降生物種池 -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-paw"></i> 降生物種池</label>
+                        <div class="seg-btn-group" id="speciesPoolGroup">
+                            <button type="button" class="seg-btn active" data-pool="all">十兆生靈 (全物種)</button>
+                            <button type="button" class="seg-btn" data-pool="wild">野生陸生獸</button>
+                            <button type="button" class="seg-btn" data-pool="marine">海洋與天空</button>
+                            <button type="button" class="seg-btn" data-pool="human">指定智人 (人類)</button>
+                        </div>
+                        <span class="opt-hint">選擇十兆生靈時，有千分之一以內的真實機率降生為人類。</span>
+                    </div>
+
+                    <!-- 內容敘事模式 -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-book-bookmark"></i> 內容敘事模式</label>
+                        <div class="seg-btn-group" id="contentModeGroup">
+                            <button type="button" class="seg-btn active" data-mode="normal" title="適時省略，詳述重要段落，簡述日常">普通 (適時省略)</button>
+                            <button type="button" class="seg-btn" data-mode="full" title="事無巨細、每分每秒感官描摹，時長較長">完整 (一字不漏)</button>
+                            <button type="button" class="seg-btn" data-mode="compact" title="原版80億事件敘述，重大事件才抉擇，時長較短">精簡 (事件敘述)</button>
+                        </div>
+                        <span class="opt-hint" id="modeHintText">普通模式：採用小說適度剪輯，詳細描述重要段落，其他簡述帶過。</span>
+                    </div>
+
+                    <!-- 生命體驗維度 -->
+                    <div class="option-item">
+                        <label class="opt-label"><i class="fas fa-heart-pulse"></i> 生命體驗維度</label>
+                        <div class="seg-btn-group" id="experienceModeGroup">
+                            <button type="button" class="seg-btn active" data-exp="story" title="深度刻畫情感羈絆與內心波瀾，身歷其境，後續命運衝擊更強烈">故事模式 (深層情感)</button>
+                            <button type="button" class="seg-btn" data-exp="realism" title="遵循大自然客觀殘酷的生態生存法則，冷靜寫實記錄物種生存">現實模式 (客觀生態)</button>
+                        </div>
+                        <span class="opt-hint" id="experienceHintText">故事模式：故意加深對角色與同伴的情感描摹，身歷其境，使每一次抉擇與離別產生強烈共鳴。</span>
+                    </div>
+
+                    <!-- 參考作家風格 -->
+                    <div class="option-item" style="grid-column: 1 / -1;">
+                        <label class="opt-label"><i class="fas fa-feather-pointed"></i> 參考作家風格</label>
+                        <div class="author-bar">
+                            <div class="seg-btn-group" id="authorGroup">
+                                <button type="button" class="seg-btn active" data-author="erinhunter">艾琳·杭特 (貓戰士/冒險)</button>
+                                <button type="button" class="seg-btn" data-author="shenshixi">沈石溪 (動物小說/生存哲理)</button>
+                            </div>
+                            <button type="button" id="addCustomAuthorBtn" class="pill-btn" style="margin-left:8px;">
+                                <i class="fas fa-plus"></i> 自訂作家
+                            </button>
+                            <button type="button" id="openStyleTunerBtn" class="pill-btn" style="margin-left:8px; border-color:var(--accent-burgundy); color:var(--accent-burgundy);">
+                                <i class="fas fa-wand-magic-sparkles"></i> 風格設定顧問 AI
+                            </button>
+                        </div>
+                        <div id="customAuthorInline" class="custom-author-inline" style="display:none;">
+                            <div class="custom-author-row">
+                                <input type="text" id="customAuthorInput" class="custom-author-input" placeholder="請輸入你想參考的作家或文學風格（例如：傑克·倫敦、法布爾、卡夫卡...）" maxlength="30" />
+                                <button type="button" id="confirmCustomAuthorBtn" class="pill-btn" style="background:var(--accent-burgundy); color:#fff;"><i class="fas fa-check"></i> 確定新增</button>
+                                <button type="button" id="cancelCustomAuthorBtn" class="pill-btn"><i class="fas fa-xmark"></i> 取消</button>
+                            </div>
+                        </div>
+                        <span class="opt-hint" id="authorHintText">目前風格：艾琳·杭特（感官細膩、野性本能、10+ 半馬賽克少年文學，個體具自主思維）。</span>
+                    </div>
+                </div>
+
+                <div class="cta-row">
+                    <button type="button" id="startRollBtn" class="cta-btn pulse-glow">
+                        <i class="fas fa-dice"></i> 出生 (開始這一生)
+                    </button>
+                    <span class="cta-subnote">設定不用改，直接出生也沒關係。由真實統計與指定文學模型演繹一生。</span>
+                </div>
+            </div>
+
+            <!-- 1in8b 沉重話題提醒與過濾開關 -->
+            <div class="warnline-bar">
+                <span id="heavy1"><i class="fas fa-shield-heart"></i> 死亡、疾病、暴力這類沉重的事，也會照實際統計發生。不會描寫畫面，並會一併告訴你可以求助的地方。</span>
+                <button type="button" class="lnk-btn" id="softBtn2"><i class="fas fa-feather"></i> 略過可怕的情節</button>
+                <button type="button" class="lnk-btn" id="careLinkBtn" style="margin-left:10px;"><i class="fas fa-heart"></i> 心裡難受時</button>
+            </div>
+
+            <!-- 首頁追思館預覽卡片 (Hero Memorial Preview) -->
+            <div class="hero-memo-card" id="heroMemo">
+                <div class="hero-memo-head">
+                    <span><i class="fas fa-monument"></i> 安放在追思館的人生</span>
+                    <button type="button" class="ghost-btn sm" id="heroMemoAll">查看全部</button>
+                </div>
+                <div class="hero-memo-row" id="heroMemoRow">
+                    <!-- JS 填充近期追思的人生卡片 -->
+                </div>
+            </div>
+
+            <!-- 前世紀錄面板 (Past Lives) -->
+            <div class="pastlives-preview" id="pastLives">
+                <div class="pastlives-head">
+                    <h4><i class="fas fa-book-sparkles"></i> 前世紀錄 <small id="pastSum">(已在本地瀏覽器度過 0 段人生)</small></h4>
+                    <div class="pastlives-actions">
+                        <button type="button" class="ghost-btn sm" id="moveBtnIntro"><i class="fas fa-file-export"></i> 移轉紀錄</button>
+                        <button type="button" class="ghost-btn sm" id="clearPastBtn"><i class="fas fa-trash-can"></i> 整理紀錄</button>
+                    </div>
+                </div>
+                <ul class="pastlives-list" id="pastLivesList">
+                    <!-- JS 填充最近過去的人生 -->
+                </ul>
+            </div>
+
+            <!-- 網站頁尾 (Footer 與 訪客統計) -->
+            <footer class="site-footer">
+                <div class="footer-inner" style="display:flex; flex-direction:column; gap:12px; align-items:center;">
+                    <div class="footer-status-bar">
+                        <div id="gameVisitorStats" class="status-chip"></div>
+                        <div id="system-monitor" class="status-chip"></div>
+                    </div>
+                    
+                    <div style="display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px;">
+                        <button type="button" id="replayPrologueBtn" class="footer-link-btn" title="重新回顧最初的省思文字">
+                            <i class="fas fa-feather-pointed"></i> 回顧省思引言
+                        </button>
+                        <span class="footer-sep">•</span>
+                        <span>十兆分之 1 · 跨物種人生模擬與荒野紀事</span>
+                        <span class="footer-sep">•</span>
+                        <a href="../../" style="color:inherit; text-decoration:underline;">PandaPanda 的 AI 日常官網</a>
+                    </div>
+                </div>
+            </footer>
+        </section>
+
+        <!-- 2. 輪盤抽選與出生登記證 (Rolling & Birth Certificate) -->
+        <section id="roll" class="view-section" style="display:none;">
+            <!-- 抽選動畫中 -->
+            <div id="rollerBox" class="roller-container">
+                <div class="roller-spinner"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="roller-title">命運輪盤轉動中...</div>
+                <div id="rollerDisplay" class="roller-name">正在從十兆生命中抽選...</div>
+                <div id="rollerBiome" class="roller-sub">匹配適生生態系與氣候...</div>
+            </div>
+
+            <!-- 出生登記證 (Birth Certificate) -->
+            <div id="certCard" class="cert-container" style="display:none;">
+                <div class="cert-guilloche">
+                    <div class="cert-header">
+                        <span class="cert-badge">生靈登錄證書 · BIRTH CERTIFICATE</span>
+                        <span class="cert-serial" id="certSerialNo">NO. 10T-88294</span>
+                    </div>
+
+                    <div class="cert-body">
+                        <div class="cert-identity-row">
+                            <div class="cert-avatar-box" id="certAvatarBox">
+                                <i class="fas fa-paw" id="certAvatarIcon"></i>
+                            </div>
+                            <div class="cert-name-block">
+                                <span class="cert-label">被賦予之名 / NAME</span>
+                                <h2 class="cert-char-name" id="certCharName"></h2>
+                                <div class="cert-multi-names" id="certMultiNames"></div>
+                                <div class="cert-species-line" id="certSpeciesLine">
+                                    <span class="cert-species-cn">灰狼</span>
+                                    <span class="cert-species-sci">(Canis lupus)</span>
+                                    <span class="cert-gender-badge" id="certGenderBadge"><i class="fas fa-venus-mars"></i> 雄性</span>
+                                    <span class="cert-exp-badge" id="certExpBadge"><i class="fas fa-heart"></i> 故事體驗</span>
+                                </div>
+                                <div class="cert-appearance-box" id="certAppearanceBox">
+                                    <span class="cert-appearance-label"><i class="fas fa-eye"></i> 樣貌特徵：</span>
+                                    <span class="cert-appearance-text" id="certAppearanceText">毛色與體貌特徵生成中...</span>
+                                </div>
+                                <div class="cert-bio-science-box" id="certBioScienceBox">
+                                    <div class="cert-bio-science-title"><i class="fas fa-microscope"></i> 外表科普與辨識指南</div>
+                                    <div class="cert-bio-lookalike" id="certBioLookalike"></div>
+                                    <div class="cert-bio-science-text" id="certBioScienceText">科普知識載入中...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 物種與棲地詳細數據 -->
+                        <div class="cert-fields-grid" id="certFieldsGrid">
+                            <!-- 動態填充：如果是動物顯示生態棲地，若是人類顯示國家與貨幣 -->
+                        </div>
+
+                        <!-- 1in8b 故鄉數據並排比較卡片 -->
+                        <div class="homecmp-card" id="certHome" style="display:none;">
+                            <div class="homecmp-title"><i class="fas fa-scale-balanced"></i> 與你的故鄉數據並排比較</div>
+                            <div class="homecmp-body" id="certHomeBody"></div>
+                        </div>
+
+                        <!-- 1in8b 出生地世界地圖定位標記 -->
+                        <figure class="certmap-box" id="certMapF">
+                            <canvas id="certMap" width="320" height="130" aria-label="世界地圖出生坐標"></canvas>
+                            <figcaption id="certMapC">全球地理與生態坐標定位</figcaption>
+                        </figure>
+
+                        <!-- 艾琳·杭特風格小說序幕 -->
+                        <div class="cert-prologue-box">
+                            <div class="prologue-title"><i class="fas fa-feather-pointed"></i> 序幕 · 初誕之微光</div>
+                            <p class="prologue-text" id="certPrologueText">載入中...</p>
+                        </div>
+                    </div>
+
+                    <div class="cert-footer">
+                        <button type="button" id="reRollBtn" class="ghost-btn">
+                            <i class="fas fa-redo"></i> 重新投胎
+                        </button>
+                        <button type="button" id="certCardBtn" class="ghost-btn">
+                            <i class="fas fa-share-nodes"></i> 分享出生卡
+                        </button>
+                        <button type="button" id="beginLifeBtn" class="cta-btn">
+                            <i class="fas fa-play"></i> 開啟這段生命之旅
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 主遊戲儀表板 (Life Dashboard) -->
+        <section id="lifeview" class="view-section" style="display:none;">
+            <!-- 頂部時間控制列 -->
+            <header class="game-topbar">
+                <div class="topbar-inner">
+                    <div class="topbar-brand">
+                        <img src="assets/logo.svg" alt="LOGO" class="topbar-logo-img">
+                        十兆分之<em>1</em>
+                    </div>
+
+                    <div class="age-tracker">
+                        <div class="age-display" id="topAgeDisplay">
+                            0 <small id="topAgeUnit">歲</small>
+                        </div>
+                        <div class="timeline-bar-wrapper">
+                            <span class="season-badge" id="topSeasonBadge">初誕之季</span>
+                            <div class="timeline-track">
+                                <div class="timeline-fill" id="topTimelineFill" style="width:0%;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="playback-controls">
+                        <div class="ctrl-group">
+                            <button type="button" id="pauseBtn" class="ctrl-btn active" title="暫停/繼續生命推演">
+                                <i id="pauseIcon" class="fas fa-pause"></i> <span>暫停</span>
+                            </button>
+                            <div class="speed-btn-group" id="spSet">
+                                <button type="button" class="sp-btn" data-sp="1">1×</button>
+                                <button type="button" class="sp-btn active" data-sp="2">2×</button>
+                                <button type="button" class="sp-btn" data-sp="4">4×</button>
+                                <button type="button" class="sp-btn" data-sp="8">8×</button>
+                                <button type="button" class="sp-btn" data-sp="12">12×</button>
+                                <button type="button" class="sp-btn" data-sp="16">16×</button>
+                            </div>
+                        </div>
+                        <button type="button" id="ffBtn" class="ctrl-btn" title="快轉推進到下一個抉擇">
+                            <span class="fftx">快轉抉擇</span> <i class="fas fa-angles-right"></i>
+                        </button>
+                        <button type="button" id="readPauseToggleBtn" class="ctrl-btn active" title="新篇章自動暫停，提供充裕閱讀時間">
+                            <i class="fas fa-book-reader"></i> <span>閱讀保護</span>
+                        </button>
+
+                        <!-- 1in8b 「⋯」更多選單按鈕與下拉選單 -->
+                        <div class="more-menu-wrapper" style="position:relative; display:inline-block;">
+                            <button type="button" id="moreBtn" class="ctrl-btn" title="更多功能選單">
+                                <i class="fas fa-ellipsis"></i> <span>更多</span>
+                            </button>
+                            <div class="more-dropdown" id="moreMenu" style="display:none;">
+                                <button type="button" id="autoBtn" class="more-item"><i class="fas fa-robot"></i> <span>自動抉擇：關閉</span></button>
+                                <div class="more-item music-item">
+                                    <button type="button" class="music-toggle-btn" id="musicToggleBtn"><i class="fas fa-music"></i> <span>自然音效</span></button>
+                                    <input type="range" class="vol" id="musicVolSlider" min="0" max="100" step="5" value="70" title="音量調節" />
+                                </div>
+                                <button type="button" id="pauseQ" class="more-item active"><i class="fas fa-pen-nib"></i> <span>寫下想法 (反思問答)</span></button>
+                                <button type="button" id="softBtn" class="more-item"><i class="fas fa-feather"></i> <span>略過可怕的情節</span></button>
+                                <button type="button" id="themeBtn2" class="more-item"><i class="fas fa-circle-half-stroke"></i> <span>畫面明暗</span></button>
+                                <button type="button" id="careBtn" class="more-item"><i class="fas fa-heart"></i> <span>心裡難受時</span></button>
+                                <button type="button" id="goFam" class="more-item"><i class="fas fa-people-roof"></i> <span>查看家人與生活</span></button>
+                                <button type="button" id="goShop" class="more-item"><i class="fas fa-coins"></i> <span>花錢 · 資源投資</span></button>
+                                <button type="button" id="abandonLifeBtn" class="more-item danger-item"><i class="fas fa-arrow-right-from-bracket"></i> <span>放棄重設人生</span></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 核心三欄版面 -->
+            <div class="dashboard-grid">
+                <!-- 左欄：生物身分證與狀態值 -->
+                <aside class="col-left">
+                    <div class="card id-card">
+                        <div class="id-card-top">
+                            <div class="id-avatar" id="dashAvatar">
+                                <i class="fas fa-paw"></i>
+                            </div>
+                            <div class="id-info">
+                                <h3 id="dashName"></h3>
+                                <div class="dash-multi-names" id="dashMultiNames"></div>
+                                <div class="id-species-line">
+                                    <span class="id-species" id="dashSpecies">灰狼</span>
+                                    <span class="id-gender-tag" id="dashGenderBadge"><i class="fas fa-venus-mars"></i> 雄性</span>
+                                    <span class="id-exp-tag" id="dashExpBadge"><i class="fas fa-heart"></i> 故事沉浸</span>
+                                </div>
+                                <span class="id-rank-tag" id="dashRank">幼體 (Pup)</span>
+                            </div>
+                        </div>
+
+                        <div class="id-specs">
+                            <div class="spec-row">
+                                <span class="spec-k">棲所 / 國家：</span>
+                                <span class="spec-v" id="dashBiome">北美育空針葉林</span>
+                            </div>
+                            <div class="spec-row spec-appearance-row">
+                                <span class="spec-k">外貌特徵：</span>
+                                <span class="spec-v" id="dashAppearanceText">毛色與樣貌特徵</span>
+                            </div>
+                            <div class="spec-row spec-bio-science-row" id="dashBioScienceRow">
+                                <span class="spec-k">外表科普：</span>
+                                <span class="spec-v" id="dashBioScienceText">科普知識載入中...</span>
+                            </div>
+                            <div class="spec-row" id="dashHumanEcoRow" style="display:none;">
+                                <span class="spec-k">當地貨幣：</span>
+                                <span class="spec-v" id="dashCurrency">TWD</span>
+                            </div>
+                            <div class="spec-row">
+                                <span class="spec-k">社會群體：</span>
+                                <span class="spec-v" id="dashSocialType">狼群成員</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 狀態數值條 (0-100) -->
+                    <div class="card stats-card">
+                        <h4 class="card-title"><i class="fas fa-heart-pulse"></i> 生存狀態指標</h4>
+                        
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span>體魄健康</span>
+                                <strong id="valHealth">90/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-health" id="barHealth" style="width:90%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span id="labelEnergy">飽足精力</span>
+                                <strong id="valEnergy">85/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-energy" id="barEnergy" style="width:85%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span id="labelInstinct">野性直覺</span>
+                                <strong id="valInstinct">75/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-instinct" id="barInstinct" style="width:75%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="stat-group">
+                            <div class="stat-label-row">
+                                <span id="labelSocial">族群羈絆</span>
+                                <strong id="valSocial">80/100</strong>
+                            </div>
+                            <div class="bar-track">
+                                <div class="bar-fill fill-social" id="barSocial" style="width:80%;"></div>
+                            </div>
+                        </div>
+
+                        <div class="resource-box">
+                            <span class="res-k" id="labelResource">領地掌控度：</span>
+                            <span class="res-v" id="valResource">50%</span>
+                        </div>
+                    </div>
+
+                    <!-- 1in8b 家人與生活面板 (Family & Life) -->
+                    <div class="card fam-card" id="famCard">
+                        <div class="fam-header">
+                            <h4 class="card-title"><i class="fas fa-people-roof"></i> 家人與社群羈絆</h4>
+                            <span class="fam-count" id="famCount">4 位家庭成員</span>
+                        </div>
+                        <ul class="fam-list" id="famList">
+                            <!-- JS 填充家人成員 -->
+                        </ul>
+                    </div>
+
+                    <!-- 1in8b 故鄉對照面板 (儀表板版) -->
+                    <div class="card homecmp-side-card" id="dashHomeCard" style="display:none;">
+                        <h4 class="card-title"><i class="fas fa-scale-balanced"></i> 故鄉數據對比</h4>
+                        <div class="dash-home-body" id="dashHomeBody"></div>
+                    </div>
+                </aside>
+
+                <!-- 中欄：紙本小說閱讀器 & AI 事件流 -->
+                <main class="col-center">
+                    <!-- 典雅紙本書開本小說館 (左右兩面・真實書籍版心排版) -->
+                    <div class="card novel-book-card" id="novelBookCard">
+                        <div class="novel-header">
+                            <div class="novel-title-wrap">
+                                <i class="fas fa-book-bookmark"></i>
+                                <h3 id="novelChapterTitle">第一章</h3>
+                            </div>
+                            <div class="book-nav-controls">
+                                <button type="button" id="readingModeToggleBtn" class="book-nav-btn" title="切換橫排 / 古典直排">
+                                    <i id="readingModeIcon" class="fas fa-table-columns"></i> <span id="readingModeText">切換橫排</span>
+                                </button>
+                                <button type="button" id="prevPageBtn" class="book-nav-btn" title="回看較早章節">
+                                    <i class="fas fa-chevron-right"></i> <span>前頁</span>
+                                </button>
+                                <span class="page-indicator" id="bookPageIndicator">第 1–2 頁 / 共 2 頁</span>
+                                <button type="button" id="nextPageBtn" class="book-nav-btn" title="接續後續章節">
+                                    <span>次頁</span> <i class="fas fa-chevron-left"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 死亡過程閱讀通知橫幅 (確保讀者看完全部死亡小說後才前往追思館) -->
+                        <div id="novelDeathNotice" class="novel-death-notice" style="display:none;">
+                            <div class="death-notice-info">
+                                <i class="fas fa-moon" style="color:#C28D38;"></i>
+                                <span>生命已迎來終暮！請靜心閱讀最後的長眠小說篇章：</span>
+                            </div>
+                            <button type="button" id="goToMemorialBtn" class="cta-btn sm-cta">
+                                前往荒野追思館結算 <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+
+                        <!-- 生成中載入橫幅：位於書頁上方專屬橫條，絕不覆蓋或破壞下方書頁排版 -->
+                        <div id="novelLoadingBanner" class="novel-loading-banner" style="display:none;">
+                            <div class="novel-loading-banner-inner">
+                                <div class="novel-loading-left">
+                                    <i class="fas fa-feather-pointed fa-bounce" style="color:var(--accent-burgundy); font-size:1.3rem;"></i>
+                                    <div class="novel-loading-texts">
+                                        <h4 class="novel-loading-title" id="novelLoadingTitle">AI 正在構思開篇生靈小說...</h4>
+                                        <p class="novel-loading-desc" id="novelLoadingDesc">正在編織最初的感官與野性本能。生成完成前時鐘暫停，請稍候...</p>
+                                    </div>
+                                </div>
+                                <div class="loading-mini-bar">
+                                    <div class="loading-mini-fill"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 雙頁紙本書開本主體 (右頁 + 書脊 + 左頁，真實紙書段落版心) -->
+                        <div class="book-spread-container" id="bookSpreadContainer">
+                            <!-- 右頁 (Page A - 順位在先，紙本書版心排版) -->
+                            <div class="book-page book-page-right" id="bookPageRight" title="點擊翻回前頁">
+                                <div class="page-header-top-right"><span class="header-chapter-title" id="headerChapterRight">第一章</span></div>
+                                <div class="paper-novel-body" id="pageContentRight"></div>
+                                <div class="page-num-tag page-num-right" id="pageNumRight">1</div>
+                            </div>
+
+                            <!-- 中縫書脊立體摺痕 -->
+                            <div class="book-spine-divider"></div>
+
+                            <!-- 左頁 (Page B - 順位在後，紙本書版心排版) -->
+                            <div class="book-page book-page-left" id="bookPageLeft" title="點擊翻至次頁">
+                                <div class="page-header-top-left"><span class="header-chapter-title" id="headerChapterLeft">第一章</span></div>
+                                <div class="paper-novel-body" id="pageContentLeft"></div>
+                                <div class="page-num-tag page-num-left" id="pageNumLeft">2</div>
+                            </div>
+                        </div>
+
+                        <!-- 抉擇分支卡片 (當遇到抉擇時動態顯示，排版緊湊優雅，絕不遮擋上方小說) -->
+                        <div class="choice-container" id="choiceContainer" style="display:none;">
+                            <div class="choice-incident-card">
+                                <div class="incident-badge-row">
+                                    <span class="incident-badge"><i class="fas fa-bolt"></i> 眼前突發情境</span>
+                                    <span class="incident-chapter-tag" id="choiceChapterBadge">第一章</span>
+                                </div>
+                                <p class="incident-text" id="choiceIncidentText">突發情境載入中...</p>
+                            </div>
+                            <div class="choice-prompt-bar">
+                                <i class="fas fa-compass"></i>
+                                <span id="choicePromptText">面對眼前抉擇，你的應對策略是：</span>
+                            </div>
+                            <div class="choice-buttons-grid" id="choiceButtonsGrid">
+                                <!-- 抉擇按鈕由 JS 填充 -->
+                            </div>
+                            <!-- 自訂/其他自主行動輸入格 (AI 判斷是否開放或純填空) -->
+                            <div class="custom-choice-wrap" id="customChoiceWrap">
+                                <div class="custom-choice-label"><i class="fas fa-pen-fancy"></i> 其他自主行動（自行決定行動策略）：</div>
+                                <div class="custom-choice-row">
+                                    <input type="text" id="customChoiceInput" class="custom-choice-input" placeholder="輸入你想採取的特別行動或心境應對...">
+                                    <button type="button" id="submitCustomChoiceBtn" class="cta-btn sm-cta">執行行動</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 當季生活重心切換 -->
+                    <div class="card focus-card">
+                        <div class="focus-title">
+                            <span><i class="fas fa-compass"></i> 當前生活重心</span>
+                            <small id="focusHint">重心將微幅影響生存數值增減</small>
+                        </div>
+                        <div class="focus-chips" id="focusChipsContainer">
+                            <!-- 動物與人類專屬籌碼 -->
+                        </div>
+                    </div>
+
+                    <!-- AI 去重潤色後的統計事件歷史流 (Feed) -->
+                    <div class="card feed-card">
+                        <div class="feed-header">
+                            <h4 class="card-title">
+                                <i class="fas fa-list-check"></i> 人生紀錄年表
+                                <small class="feed-subnote">(最新在前 · 點選一行即可珍藏)</small>
+                            </h4>
+                            <div class="feed-actions">
+                                <button type="button" id="filterStarredBtn" class="pill-btn sm" title="切換顯示珍藏事件">
+                                    <i class="far fa-star"></i> <span>只看珍藏</span>
+                                </button>
+                            </div>
+                        </div>
+                        <ul class="event-feed-list" id="eventFeedList">
+                            <!-- 事件由 JS 即時滾動插入 -->
+                        </ul>
+                    </div>
+                </main>
+
+                <!-- 右欄：同刻降生夥伴、生命地圖與存活曲線 -->
+                <aside class="col-right">
+                    <!-- 同生地點在線生靈 (十兆多人即時共生 / 房間生態) -->
+                    <div class="card multiplayer-card" id="multiplayerCard">
+                        <div class="mp-card-header">
+                            <h4 class="card-title">
+                                <i class="fas fa-globe-americas"></i> <span id="mpCardTitle">同生地區在線生命</span>
+                            </h4>
+                            <span class="mp-badge-count" id="mpPeersCountBadge">3 隻共生中</span>
+                        </div>
+                        <div class="mp-card-room-bar" id="mpCardRoomBar">
+                            <div class="mp-room-tag-line">
+                                <span class="mp-room-name-badge" id="mpRoomNameBadge"><i class="fas fa-door-open"></i> <span id="mpRoomNameText">荒野全域大廳</span></span>
+                                <span class="mp-room-perm-badge" id="mpRoomPermBadge">公開</span>
+                            </div>
+                            <div class="mp-room-actions">
+                                <button type="button" id="mpCardOpenHubBtn" class="mp-btn-mini" title="房間管理與成員名單"><i class="fas fa-users-gear"></i> 房間中心</button>
+                                <button type="button" id="mpCardShareBtn" class="mp-btn-mini highlight" title="複製房間邀請連結"><i class="fas fa-link"></i> 複製連結</button>
+                                <button type="button" id="mpCardLeaveBtn" class="mp-btn-mini danger" title="退出當前房間返回公共大廳" style="display:none;"><i class="fas fa-arrow-right-from-bracket"></i> 退出</button>
+                            </div>
+                        </div>
+                        <p class="comp-subnote">同生活在 <strong id="mpCurrentBiomeName">棲所生境</strong> 的其他物種生命</p>
+                        <ul class="mp-peers-list" id="mpPeersList">
+                            <!-- JS 即時渲染同生地點其他在線玩家/同伴 -->
+                        </ul>
+                        <div class="mp-live-feed" id="mpLiveFeed">
+                            <span class="mp-feed-item"><i class="fas fa-sparkles"></i> 荒野生態感知同步中...</span>
+                        </div>
+                    </div>
+
+                    <!-- 同一秒誕生的十兆生靈 -->
+                    <div class="card companions-card">
+                        <h4 class="card-title"><i class="fas fa-users-rays"></i> 同一刻誕生的生靈</h4>
+                        <p class="comp-subnote">與你同一秒降生的同胞生命現狀</p>
+                        <ul class="companions-list" id="companionsList">
+                            <!-- JS 填充 -->
+                        </ul>
+                    </div>
+
+                    <!-- 生命地圖 (10x10 格子) -->
+                    <div class="card grid-card">
+                        <div class="grid-header">
+                            <h4 class="card-title"><i class="fas fa-border-all"></i> 生命地圖</h4>
+                            <span class="grid-scale" id="gridScaleLabel">一格 = 1年</span>
+                        </div>
+                        <div class="life-grid-100" id="lifeGridContainer">
+                            <!-- 100 格 -->
+                        </div>
+                    </div>
+
+                    <!-- 存活曲線圖 -->
+                    <div class="card chart-card">
+                        <h4 class="card-title"><i class="fas fa-chart-line"></i> 生態存活率曲線</h4>
+                        <div class="chart-box">
+                            <svg id="survivalSvg" viewBox="0 0 300 130" class="survival-svg">
+                                <path id="svgCurvePath" d="" fill="none" stroke="#8C1D3C" stroke-width="2.5"></path>
+                                <circle id="svgAgeMarker" cx="0" cy="0" r="4.5" fill="#2c5e32"></circle>
+                            </svg>
+                        </div>
+                        <div class="chart-caption" id="chartCaption">當前存活機率分位點計算中...</div>
+                    </div>
+
+                    <!-- 物種生態與人類經濟統計卡 -->
+                    <div class="card eco-stats-card">
+                        <h4 class="card-title"><i class="fas fa-circle-info"></i> 生態母體背景數據</h4>
+                        <div class="eco-data-content" id="ecoDataContent">
+                            <!-- JS 填充 -->
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </section>
+
+        <!-- 4. 荒野追思館 (Memorial Hall / End Screen) -->
+        <section id="dead" class="view-section" style="display:none;">
+            <div class="memorial-container">
+                <div class="memorial-paper">
+                    <div class="memorial-wreath"><i class="fas fa-leaf"></i></div>
+                    <div class="memorial-badge">安放在荒野追思館的生靈</div>
+                    
+                    <h2 class="memorial-title" id="memoCharTitle">霜原的孤高守護者 · 霜爪</h2>
+                    <div class="memorial-lifespan" id="memoLifespan">享年 8 歲 (北美育空針葉林)</div>
+
+                    <div class="memorial-eulogy-box">
+                        <p class="memorial-eulogy-text" id="memoEulogyText">
+                            <!-- 艾琳·杭特悼念詞 -->
+                        </p>
+                    </div>
+
+                    <div class="memorial-stats-summary">
+                        <div class="sum-item">
+                            <span class="sum-k">終幕死因</span>
+                            <span class="sum-v" id="memoDeathCause">衰老力竭回歸大地</span>
+                        </div>
+                        <div class="sum-item">
+                            <span class="sum-k">存活超越</span>
+                            <span class="sum-v" id="memoPercentile">78% 的同族生靈</span>
+                        </div>
+                        <div class="sum-item">
+                            <span class="sum-k">歷經抉擇</span>
+                            <span class="sum-v" id="memoChoicesCount">3 次關鍵抉擇</span>
+                        </div>
+                        <div class="sum-item">
+                            <span class="sum-k">體驗維度</span>
+                            <span class="sum-v" id="memoExpMode">故事模式 (深層情感)</span>
+                        </div>
+                    </div>
+
+                    <!-- 1in8b 點燃蠟燭區 -->
+                    <div class="candle-section" id="candleSection">
+                        <div class="candle-holder">
+                            <div class="candle-wax">
+                                <div class="candle-flame" id="candleFlame"></div>
+                            </div>
+                        </div>
+                        <div class="candle-controls">
+                            <button type="button" id="lightCandleBtn" class="pill-btn candle-btn">
+                                <i class="fas fa-fire"></i> 點亮一支心燈
+                            </button>
+                            <span class="candle-counter" id="candleCount">已點亮 1 支心燈</span>
+                        </div>
+                    </div>
+
+                    <!-- 1in8b 留下一句話區 -->
+                    <div class="memo-msg-section" id="leaveMsgSection">
+                        <h4 class="memo-sec-title"><i class="fas fa-message"></i> 留下一句話悼念</h4>
+                        <div class="memo-presets-row" id="memoPresetsRow">
+                            <!-- JS 填充預設悼詞 pills -->
+                        </div>
+                        <div class="memo-input-row">
+                            <input type="text" id="memoMsgInput" class="memo-msg-input" placeholder="留下一句話送別這個生命..." maxlength="60" />
+                            <button type="button" id="sendMemoMsgBtn" class="cta-btn sm-cta"><i class="fas fa-paper-plane"></i> 留言</button>
+                        </div>
+                        <div class="memo-wall" id="memoWall">
+                            <!-- 留言列表 -->
+                        </div>
+                    </div>
+
+                    <div class="memorial-nav-buttons">
+                        <button type="button" id="memoRandBtn" class="ghost-btn"><i class="fas fa-shuffle"></i> 隨機遇見一段人生</button>
+                        <button type="button" id="memoMineBtn" class="ghost-btn"><i class="fas fa-book-bookmark"></i> 我的追思館</button>
+                        <button type="button" id="moveRecordsBtn" class="ghost-btn"><i class="fas fa-file-export"></i> 移轉紀錄</button>
+                        <button type="button" id="shareMemorialBtn" class="cta-btn"><i class="fas fa-share-nodes"></i> 分享人生卡</button>
+                    </div>
+
+                    <div class="memorial-actions">
+                        <button type="button" id="reviewNovelBtn" class="ghost-btn" style="margin-right:12px;">
+                            <i class="fas fa-book-open"></i> 翻閱此生完整雙頁小說
+                        </button>
+                        <button type="button" id="restartGameBtn" class="cta-btn">
+                            <i class="fas fa-rotate-right"></i> 開啟下一段十兆生命
+                        </button>
+                    </div>
+
+                    <!-- 追思館內嵌完整小說檢視區 -->
+                    <div id="memorialNovelContainer" class="memorial-novel-box" style="display:none; margin-top:24px; text-align:left;">
+                        <div class="memorial-novel-header">
+                            <h4><i class="fas fa-scroll"></i> 此生荒野全篇紀事</h4>
+                            <button type="button" id="closeMemoNovelBtn" class="ghost-btn sm" style="padding:3px 10px;">收合</button>
+                        </div>
+                        <div class="memorial-novel-text" id="memoFullNovelText"></div>
+                    </div>
+
+                    <!-- 1in8b 前世紀錄歷史書架 (Past Lives Shelf) -->
+                    <div class="past-shelf-section" id="pastShelfSection">
+                        <div class="past-shelf-header">
+                            <h4><i class="fas fa-book-sparkles"></i> 前世紀錄書架 (過去人生)</h4>
+                            <span class="past-count" id="pastShelfCount">已典藏 0 段生命</span>
+                        </div>
+                        <div class="past-shelf-grid" id="pastShelfGrid">
+                            <!-- 卡片列表，每張卡片附「再看一次」按鈕 -->
+                        </div>
+                    </div>
+                </div>
+                <!-- 追思館頁尾 -->
+                <footer class="site-footer memorial-footer">
+                    <div class="footer-inner">
+                        <button type="button" id="replayPrologueBtnDead" class="footer-link-btn" title="重新回顧最初的省思文字">
+                            <i class="fas fa-feather-pointed"></i> 回顧省思引言
+                        </button>
+                        <span class="footer-sep">•</span>
+                        <span>十兆分之 1 · 願荒野與生靈永恆安息</span>
+                    </div>
+                </footer>
+            </div>
+        </section>
+
+        <!-- 內建確認對話視窗：放棄此生確認 (Inline Modal) -->
+        <div id="abandonConfirmModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="abandonModalTitle">
+            <div class="inline-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon warning-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                    <h3 id="abandonModalTitle">放棄當前生命進度？</h3>
+                </div>
+                <div class="inline-modal-body">
+                    <p>確定要放棄此生並重新開始投胎嗎？</p>
+                    <p class="inline-modal-sub">所有未儲存的歷程、小說篇章與生態存活曲線都將重置回起點。</p>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="confirmAbandonNoBtn" class="pill-btn">
+                        <i class="fas fa-arrow-left"></i> 取消，繼續生命
+                    </button>
+                    <button type="button" id="confirmAbandonYesBtn" class="cta-btn danger-cta" style="padding:6px 16px; font-size:13px;">
+                        <i class="fas fa-rotate-left"></i> 確定放棄重置
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 內建對話視窗：風格設定顧問 AI (Style Tuner AI Modal) -->
+        <div id="styleTunerModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="styleTunerTitle">
+            <div class="inline-modal-card style-tuner-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon tuner-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                    <div class="tuner-title-box">
+                        <h3 id="styleTunerTitle">風格設定顧問 AI</h3>
+                        <span class="tuner-subtitle">透過對話調校專屬作家筆觸、特定書籍世界觀或生物用語</span>
+                    </div>
+                    <button type="button" id="closeStyleTunerBtn" class="ai-close-btn" style="margin-left:auto;" title="關閉"><i class="fas fa-xmark"></i></button>
+                </div>
+
+                <div class="tuner-presets-row">
+                    <span class="tuner-preset-label">快速推薦：</span>
+                    <button type="button" class="preset-pill-btn" data-preset="《貓戰士：荒野部落》">貓戰士：荒野部落</button>
+                    <button type="button" class="preset-pill-btn" data-preset="《熊行者：大荒野》">熊行者：大荒野</button>
+                    <button type="button" class="preset-pill-btn" data-preset="沈石溪《狼王夢》">沈石溪：狼王夢</button>
+                    <button type="button" class="preset-pill-btn" data-preset="傑克·倫敦《白牙》">傑克倫敦：白牙</button>
+                </div>
+
+                <div class="tuner-chat-container" id="styleTunerChatBox">
+                    <div class="tuner-msg bot-msg">
+                        <div class="tuner-bubble">
+                            您好！我是您的荒野文學風格顧問。您可以告訴我你想參考哪位作家的筆調、特定的經典書籍（例如艾琳杭特的《貓戰士》、《熊行者》或是沈石溪的《狼王夢》），或者希望如何呈現動物的擬人化話語、章節命名方式與情緒張力。我們隨時可以將調校好的風格套用到遊戲中！
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tuner-input-row">
+                    <input type="text" id="styleTunerInput" class="tuner-input" placeholder="告訴我你想指定的作家、某本書的風格或對話要求..." maxlength="80">
+                    <button type="button" id="styleTunerSendBtn" class="cta-btn sm-cta">
+                        <i class="fas fa-paper-plane"></i> 發送
+                    </button>
+                </div>
+
+                <div class="inline-modal-actions tuner-actions">
+                    <span id="currentTunedStyleSummary" class="tuner-summary-tag">當前風格：艾琳·杭特 (標準野生冒險)</span>
+                    <button type="button" id="applyTunedStyleBtn" class="cta-btn" style="padding:6px 16px; font-size:13px;">
+                        <i class="fas fa-check"></i> 套用此風格設定
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 內建對話視窗：生命終暮結算提示視窗 (Death Settlement Modal) -->
+        <div id="deathSettlementModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="deathSettlementTitle">
+            <div class="inline-modal-card death-settlement-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon death-icon"><i class="fas fa-moon"></i></div>
+                    <div class="settle-title-box">
+                        <h3 id="deathSettlementTitle">生靈長眠 · 荒野終局</h3>
+                        <span class="settle-subtitle" id="deathSettlementSub">你的生命歷程已迎來最後的篇章</span>
+                    </div>
+                </div>
+                <div class="inline-modal-body">
+                    <div class="settle-info-card">
+                        <div class="settle-info-row">
+                            <span class="settle-k">終幕死因：</span>
+                            <span class="settle-v" id="settleCauseText">衰老力竭回歸大地</span>
+                        </div>
+                        <div class="settle-info-row">
+                            <span class="settle-k">存活超越：</span>
+                            <span class="settle-v" id="settlePercentileText">78% 同族生靈</span>
+                        </div>
+                        <div class="settle-info-row">
+                            <span class="settle-k">歷經章節：</span>
+                            <span class="settle-v" id="settleChaptersText">共 4 個章節已編織完成</span>
+                        </div>
+                    </div>
+                    <p class="settle-guide-text">AI 已為您完成最終的長眠篇章與荒野悼詞。您可以留在書頁中細細閱讀長眠過程，或前往荒野追思館進行全生靈生涯結算：</p>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="stayReadDeathBtn" class="pill-btn">
+                        <i class="fas fa-book-open"></i> 留在書頁閱讀長眠章節
+                    </button>
+                    <button type="button" id="confirmGoMemorialBtn" class="cta-btn" style="padding:7px 18px; font-size:13.5px;">
+                        前往荒野追思館結算 <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1in8b 內建對話視窗：暫停片刻反思問答 (Milestone Reflection Pause Modal) -->
+        <div id="questionPauseModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="reflectModalTitle">
+            <div class="inline-modal-card reflection-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon reflect-icon"><i class="fas fa-hourglass-start"></i></div>
+                    <div class="reflect-title-box">
+                        <h3 id="reflectModalTitle">暫停片刻 · 人生叩問</h3>
+                        <span class="reflect-subtitle" id="reflectAgeTag">在生命的關鍵節點停下腳步</span>
+                    </div>
+                </div>
+                <div class="inline-modal-body">
+                    <p class="reflection-prompt" id="reflectQuestionText">回顧最初能記住的幾年，這座世界給你的第一抹感覺是溫暖還是陌生？</p>
+                    <div class="reflection-input-wrap">
+                        <textarea id="reflectAnswerInput" class="reflection-textarea" rows="3" placeholder="把這個生靈的人生和你自己的人生放在一起想一想，願意的話就留下一行字（選填）..." maxlength="120"></textarea>
+                    </div>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="skipReflectBtn" class="pill-btn">
+                        <i class="fas fa-forward"></i> 跳過，繼續生命
+                    </button>
+                    <button type="button" id="submitReflectBtn" class="cta-btn" style="padding:7px 18px; font-size:13.5px;">
+                        <i class="fas fa-feather"></i> 銘記並繼續
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1in8b 內建對話視窗：花錢 · 投資與資源運用 (Shop / Invest Modal) -->
+        <div id="shopModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="shopModalTitle">
+            <div class="inline-modal-card shop-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon shop-icon"><i class="fas fa-coins"></i></div>
+                    <div class="shop-title-box">
+                        <h3 id="shopModalTitle">花錢 · 資源投資與生活改善</h3>
+                        <span class="shop-subtitle" id="shopBalanceLabel">當前可用資源：NT$ 96,000</span>
+                    </div>
+                    <button type="button" id="closeShopBtn" class="ai-close-btn" style="margin-left:auto;"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="inline-modal-body">
+                    <div class="shop-grid">
+                        <div class="shop-item-card" data-shop="health">
+                            <div class="shop-item-icon"><i class="fas fa-heart-pulse"></i></div>
+                            <div class="shop-item-info">
+                                <h4>醫療體檢 / 草藥自療</h4>
+                                <p>定期健康篩檢或尋覓高嶺草藥，體魄健康 +10~15</p>
+                                <span class="shop-item-cost">消耗 <strong id="costHealth">NT$ 12,000</strong></span>
+                            </div>
+                            <button type="button" class="pill-btn sm shop-buy-btn" data-type="health">執行</button>
+                        </div>
+                        <div class="shop-item-card" data-shop="study">
+                            <div class="shop-item-icon"><i class="fas fa-graduation-cap"></i></div>
+                            <div class="shop-item-info">
+                                <h4>進修深造 / 磨練野性</h4>
+                                <p>購買經典典籍或磨礪利爪獠牙，知識與直覺 +12</p>
+                                <span class="shop-item-cost">消耗 <strong id="costStudy">NT$ 18,000</strong></span>
+                            </div>
+                            <button type="button" class="pill-btn sm shop-buy-btn" data-type="study">執行</button>
+                        </div>
+                        <div class="shop-item-card" data-shop="family">
+                            <div class="shop-item-icon"><i class="fas fa-people-roof"></i></div>
+                            <div class="shop-item-info">
+                                <h4>家庭旅行 / 族群盛宴</h4>
+                                <p>帶家人度假放鬆或與族群分享豐沛獵物，幸福與羈絆 +15</p>
+                                <span class="shop-item-cost">消耗 <strong id="costFamily">NT$ 25,000</strong></span>
+                            </div>
+                            <button type="button" class="pill-btn sm shop-buy-btn" data-type="family">執行</button>
+                        </div>
+                        <div class="shop-item-card" data-shop="invest">
+                            <div class="shop-item-icon"><i class="fas fa-chart-line-up"></i></div>
+                            <div class="shop-item-info">
+                                <h4>穩健理財 / 標記領地</h4>
+                                <p>配置穩健基金或標記邊界岩石，有機會產生長期收益與安全收益</p>
+                                <span class="shop-item-cost">投入 <strong id="costInvest">NT$ 30,000</strong></span>
+                            </div>
+                            <button type="button" class="pill-btn sm shop-buy-btn" data-type="invest">投資</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1in8b 內建對話視窗：心裡難受時 (Care Helpline Modal) -->
+        <div id="careModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="careModalTitle">
+            <div class="inline-modal-card care-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon care-icon"><i class="fas fa-hand-holding-heart"></i></div>
+                    <div class="care-title-box">
+                        <h3 id="careModalTitle">心裡難受時 · 願有溫暖守護你</h3>
+                        <span class="care-subtitle">真實世界裡，總有願意耐心傾聽你的人</span>
+                    </div>
+                    <button type="button" id="closeCareModalBtn" class="ai-close-btn" style="margin-left:auto;"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="inline-modal-body">
+                    <p class="care-intro-text">
+                        模擬裡出現的沉重與苦難，來自大自然與人類歷史真實的統計。若這些文字觸動了你內心的傷痛或不安，請記得放下螢幕休息片刻，喝一杯溫水。生命中總有崎嶇，但你絕非孤身一人。
+                    </p>
+                    <div class="helpline-list">
+                        <div class="helpline-item">
+                            <span class="hl-region">台灣</span>
+                            <div class="hl-contacts">
+                                <strong>衛福部安心專線：1925 (依舊愛我，24小時免費)</strong>
+                                <span>生命線協談專線：1995 · 張老師諮商專線：1980</span>
+                            </div>
+                        </div>
+                        <div class="helpline-item">
+                            <span class="hl-region">香港</span>
+                            <div class="hl-contacts">
+                                <strong>撒瑪利亞防止自殺會：2389 2222</strong>
+                                <span>生命熱線：2382 0000 · 明愛向晴軒：18288</span>
+                            </div>
+                        </div>
+                        <div class="helpline-item">
+                            <span class="hl-region">全球各地</span>
+                            <div class="hl-contacts">
+                                <span>國際防止自殺協會 (IASP)：<a href="https://www.befrienders.org" target="_blank" rel="noopener">www.befrienders.org</a></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="ackCareBtn" class="cta-btn" style="padding:6px 20px;">
+                        <i class="fas fa-check"></i> 我知道了，謝謝這份溫柔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1in8b 內建對話視窗：分享出生卡 / 紀念卡 (Share Card Modal) -->
+        <div id="shareCardModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+            <div class="inline-modal-card share-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon share-icon"><i class="fas fa-share-nodes"></i></div>
+                    <div class="share-title-box">
+                        <h3 id="shareModalTitle">分享生命紀錄卡</h3>
+                        <span class="share-subtitle">一鍵複製格式化文字或發布分享</span>
+                    </div>
+                    <button type="button" id="closeShareModalBtn" class="ai-close-btn" style="margin-left:auto;"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="inline-modal-body">
+                    <div class="share-card-visual" id="shareCardVisual">
+                        <div class="sc-header">
+                            <span class="sc-badge">十兆分之1 · 生命紀錄</span>
+                            <span class="sc-id" id="scSerial">NO. 10T-88294</span>
+                        </div>
+                        <div class="sc-body">
+                            <h2 id="scTitle" class="sc-title">灰狼 · 霜爪</h2>
+                            <p id="scMeta" class="sc-meta">享年 8 歲 · 北美育空針葉林 · 雄性</p>
+                            <p id="scStory" class="sc-story">荒野中的一生...</p>
+                            <div class="sc-stats" id="scStats">
+                                <span>超越 78% 同儕</span>
+                                <span>3 次關鍵抉擇</span>
+                            </div>
+                        </div>
+                        <div class="sc-footer">
+                            <span>十兆分之一生命模擬 · 1in8b.life</span>
+                        </div>
+                    </div>
+                    <div class="share-text-box">
+                        <textarea id="shareTextContent" class="share-textarea" rows="3" readonly></textarea>
+                    </div>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="copyShareBtn" class="cta-btn">
+                        <i class="fas fa-copy"></i> 複製分享文字與連結
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1in8b 內建對話視窗：移轉紀錄 (Record Transfer Modal) -->
+        <div id="moveModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="moveModalTitle">
+            <div class="inline-modal-card move-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon move-icon"><i class="fas fa-file-export"></i></div>
+                    <div class="move-title-box">
+                        <h3 id="moveModalTitle">移轉紀錄 · 跨裝置轉移</h3>
+                        <span class="move-subtitle">在不同瀏覽器或手機之間無縫轉移你活過的人生</span>
+                    </div>
+                    <button type="button" id="closeMoveModalBtn" class="ai-close-btn" style="margin-left:auto;"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="inline-modal-body">
+                    <div class="move-section">
+                        <h4><i class="fas fa-arrow-up-from-bracket"></i> 匯出此裝置紀錄代碼</h4>
+                        <p class="move-hint">複製下方代碼，可在其他手機或電腦的「匯入代碼」中還原歷史人生：</p>
+                        <textarea id="exportCodeArea" class="move-textarea" rows="3" readonly></textarea>
+                        <button type="button" id="copyExportCodeBtn" class="pill-btn sm" style="margin-top:6px;">
+                            <i class="fas fa-copy"></i> 複製代碼
+                        </button>
+                    </div>
+                    <hr class="move-divider" />
+                    <div class="move-section">
+                        <h4><i class="fas fa-arrow-down-to-bracket"></i> 匯入其他裝置紀錄代碼</h4>
+                        <p class="move-hint">將從其他裝置複製的代碼貼在下方：</p>
+                        <textarea id="importCodeArea" class="move-textarea" rows="3" placeholder="貼上轉移代碼..."></textarea>
+                        <button type="button" id="confirmImportBtn" class="cta-btn sm-cta" style="margin-top:6px;">
+                            <i class="fas fa-check"></i> 確認匯入並合併
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1in8b 內建對話視窗：我的追思館 (My Memorial List Modal) -->
+        <div id="myMemorialModal" class="inline-modal-backdrop" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="myMemoTitle">
+            <div class="inline-modal-card mymemo-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon memo-icon"><i class="fas fa-book-bookmark"></i></div>
+                    <div class="mymemo-title-box">
+                        <h3 id="myMemoTitle">我的荒野追思館</h3>
+                        <span class="mymemo-subtitle">安放於此的所有逝去生靈紀錄</span>
+                    </div>
+                    <button type="button" id="closeMyMemorialBtn" class="ai-close-btn" style="margin-left:auto;"><i class="fas fa-xmark"></i></button>
+                </div>
+                <div class="inline-modal-body">
+                    <ul class="mymemo-list" id="myMemorialListContainer">
+                        <!-- JS 填充 -->
+                    </ul>
+                </div>
+            </div>
+        <!-- 命運抉擇專屬彈窗 (Fate Decision Modal - 突發事件自動跳出，含前情大綱、當前重點狀況、整本小說回顧與多人搶先抉擇) -->
+        <div id="fateDecisionModal" class="modal-overlay fate-modal-overlay" style="display:none;" aria-modal="true" role="dialog">
+            <div class="modal-card fate-modal-card">
+                <!-- 頂端標頭 -->
+                <div class="fate-modal-header">
+                    <div class="fate-header-title-block">
+                        <div class="fate-badge-row">
+                            <span class="fate-crisis-badge"><i class="fas fa-triangle-exclamation"></i> 生死抉擇時刻</span>
+                            <span class="fate-chapter-badge" id="fateModalChapterTitle">第 一 章</span>
+                            <span class="fate-biome-badge" id="fateModalBiome"><i class="fas fa-mountain"></i> 棲所生境</span>
+                            <span class="fate-species-badge" id="fateModalSpecies">生靈檔案</span>
+                        </div>
+                        <h2 class="fate-modal-main-title" id="fateModalCrisisTitle">命運分水嶺 · 生死抉擇</h2>
+                    </div>
+                    <div class="fate-header-actions">
+                        <button type="button" id="toggleNovelExpandBtn" class="pill-btn sm" title="展開或收合整本小說歷程">
+                            <i class="fas fa-book-open"></i> <span id="novelExpandBtnLabel">回顧整本小說</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 多人即時共生狀態條 (多人模式時顯示倒數與先選先贏搶奪) -->
+                <div id="fateMultiplayerNoticeBar" class="fate-mp-bar" style="display:none;">
+                    <div class="fate-mp-info">
+                        <i class="fas fa-bolt-lightning" style="color:#eab308;"></i>
+                        <span>十兆多人即時共生中 · 時間無法暫停 · <strong>先選擇先贏！</strong></span>
+                    </div>
+                    <div class="fate-countdown-wrap">
+                        <div class="fate-countdown-track">
+                            <div id="fateCountdownBar" class="fate-countdown-fill" style="width:100%;"></div>
+                        </div>
+                        <span id="fateCountdownSec" class="fate-sec-num">15s</span>
+                    </div>
+                    <div class="fate-peers-status" id="fatePeersStatusList">
+                        <!-- 同生境其他在線生靈動態 -->
+                    </div>
+                </div>
+
+                <div class="fate-modal-body">
+                    <!-- 1. 前情大綱 (Synopsis) -->
+                    <div class="fate-synopsis-card">
+                        <div class="fate-section-header">
+                            <i class="fas fa-scroll"></i> <strong>前情大綱 · 荒野歷程回顧</strong>
+                        </div>
+                        <p class="fate-synopsis-text" id="fateModalSynopsisText">
+                            命運軌跡整理中...
+                        </p>
+                    </div>
+
+                    <!-- 2. 現在重點狀況 (Current Crisis / Situation) -->
+                    <div class="fate-crisis-card">
+                        <div class="fate-section-header crisis-header">
+                            <i class="fas fa-skull-crossbones"></i> <strong>當前重大險境與生態焦點</strong>
+                        </div>
+                        <div class="fate-crisis-content" id="fateModalIncidentText">
+                            突發危機敘述載入中...
+                        </div>
+                    </div>
+
+                    <!-- 3. 整本小說內嵌展開區 (Full Novel Chronology) -->
+                    <div class="fate-novel-drawer" id="fateNovelDrawer" style="display:none;">
+                        <div class="fate-drawer-header">
+                            <div class="drawer-title"><i class="fas fa-feather-pointed"></i> 荒野紀事完整歷程 (整本小說全文)</div>
+                            <button type="button" class="drawer-close-link" id="closeNovelDrawerBtn">收合小說全文 <i class="fas fa-chevron-up"></i></button>
+                        </div>
+                        <div class="fate-novel-scroll-box" id="fateNovelFullContent">
+                            <!-- 完整小說章節渲染 -->
+                        </div>
+                    </div>
+
+                    <!-- 4. 命運抉擇按鈕群 -->
+                    <div class="fate-choices-block">
+                        <div class="fate-choices-prompt">
+                            <i class="fas fa-paw"></i> 面對當前險境，請決定你的生存策略（先選先贏）：
+                        </div>
+                        <div class="fate-choices-grid" id="fateModalChoicesGrid">
+                            <!-- JS 動態生成抉擇卡片 -->
+                        </div>
+
+                        <!-- 自主行動輸入 -->
+                        <div class="fate-custom-wrap" id="fateModalCustomWrap">
+                            <div class="fate-custom-label"><i class="fas fa-pen-nib"></i> 其他自主行動（自行決定行動策略）：</div>
+                            <div class="fate-custom-row">
+                                <input type="text" id="fateModalCustomInput" class="custom-choice-input" placeholder="輸入你想採取的特別行動或策略...">
+                                <button type="button" id="fateModalCustomSubmitBtn" class="cta-btn sm-cta">執行自主策略</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <!-- 多人房間大廳與管理中心 (Multiplayer Room Hub Modal) -->
+        <div id="roomHubModal" class="inline-modal-backdrop" style="display:none; z-index:99990;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card room-hub-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon room-icon"><i class="fas fa-network-wired"></i></div>
+                    <div class="room-hub-title-block">
+                        <h3 id="roomHubModalTitle">多人荒野共生 · 房間中心</h3>
+                        <p class="inline-modal-sub">與夥伴生活在同一片生境天地，自訂公開、團隊或專屬私人房間</p>
+                    </div>
+                    <button type="button" id="closeRoomHubModalBtn" class="ai-close-btn" title="關閉">&times;</button>
+                </div>
+
+                <!-- 當前活躍房間橫幅 -->
+                <div class="room-active-status-bar" id="roomActiveStatusBar">
+                    <div class="room-status-left">
+                        <span class="room-status-indicator"><i class="fas fa-signal"></i> 連線狀態：</span>
+                        <strong id="activeRoomNameLabel">荒野公共大廳</strong>
+                        <span class="room-type-pill" id="activeRoomTypePill">公共荒野</span>
+                    </div>
+                    <div class="room-status-actions" id="activeRoomActions">
+                        <button type="button" id="copyActiveRoomLinkBtn" class="btn-room-action" title="複製邀請連結"><i class="fas fa-link"></i> 複製邀請連結</button>
+                        <button type="button" id="leaveActiveRoomBtn" class="btn-room-action danger" style="display:none;" title="退出當前房間返回公共大廳"><i class="fas fa-arrow-right-from-bracket"></i> 退出房間</button>
+                    </div>
+                </div>
+
+                <!-- 導覽分頁按鈕 -->
+                <div class="room-tabs-nav">
+                    <button type="button" class="room-tab-btn active" data-tab="browseRooms"><i class="fas fa-list-ul"></i> 房間大廳瀏覽</button>
+                    <button type="button" class="room-tab-btn" data-tab="createRoom"><i class="fas fa-plus-circle"></i> 建立新房間</button>
+                    <button type="button" class="room-tab-btn" data-tab="joinRoom"><i class="fas fa-key"></i> 代碼 / 連結加入</button>
+                    <button type="button" class="room-tab-btn" data-tab="roomMembers" id="tabRoomMembersBtn"><i class="fas fa-users"></i> 目前成員名單 (<span id="roomMembersCount">0</span>)</button>
+                </div>
+
+                <div class="room-tabs-content">
+                    <!-- Tab 1: 房間大廳瀏覽 -->
+                    <div class="room-tab-pane active" id="paneBrowseRooms">
+                        <!-- 團隊專屬房間推薦區 (符合當前使用者 @網域 且設為公開顯示) -->
+                        <div class="team-rooms-showcase" id="teamRoomsShowcase" style="display:none;">
+                            <div class="team-showcase-title">
+                                <i class="fas fa-building-user"></i> <span>你的團隊專屬房間 (<strong id="myTeamDomainTag">@domain</strong>)</span>
+                            </div>
+                            <div class="team-rooms-grid" id="teamRoomsGrid">
+                                <!-- JS 動態填充 -->
+                            </div>
+                        </div>
+
+                        <!-- 全部公開與活躍房間列表 -->
+                        <div class="rooms-list-header">
+                            <span class="rooms-list-title"><i class="fas fa-earth-americas"></i> 活躍荒野房間列表</span>
+                            <div class="rooms-search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="roomsSearchInput" placeholder="搜尋房間名稱或生境..." oninput="MultiplayerHabitatEngine.filterRoomList(this.value)">
+                            </div>
+                        </div>
+                        <div class="rooms-cards-grid" id="publicRoomsGrid">
+                            <!-- JS 動態填充房間卡片 -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: 建立新房間 -->
+                    <div class="room-tab-pane" id="paneCreateRoom">
+                        <form id="createRoomForm" class="create-room-form" onsubmit="event.preventDefault(); MultiplayerHabitatEngine.handleCreateRoomSubmit();">
+                            <div class="form-group">
+                                <label for="createRoomName"><i class="fas fa-tag"></i> 房間名稱：</label>
+                                <input type="text" id="createRoomName" class="room-input" placeholder="例如：雪原狼群與北極狐共生盟約" required maxlength="40">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="createRoomBiome"><i class="fas fa-mountain-sun"></i> 指定棲所生境：</label>
+                                <select id="createRoomBiome" class="room-select">
+                                    <option value="all">不限生境 (全荒野跨物種共生)</option>
+                                    <option value="極地苔原生態系">極地苔原生態系</option>
+                                    <option value="針葉林與溫帶林地">針葉林與溫帶林地</option>
+                                    <option value="熱帶雨林生態系">熱帶雨林生態系</option>
+                                    <option value="非洲熱帶稀樹草原">非洲熱帶稀樹草原</option>
+                                    <option value="深海與珊瑚礁遠洋">深海與珊瑚礁遠洋</option>
+                                    <option value="全球人類文明都會">全球人類文明都會</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-shield-halved"></i> 權限與存取設定：</label>
+                                <div class="perm-options-grid">
+                                    <!-- 權限 1: 任何擁有連結的使用者 -->
+                                    <label class="perm-radio-card active">
+                                        <input type="radio" name="roomAccessType" value="link" checked onchange="MultiplayerHabitatEngine.onAccessTypeChanged(this.value)">
+                                        <div class="perm-card-content">
+                                            <div class="perm-card-title"><i class="fas fa-globe"></i> 1. 任何擁有連結的使用者</div>
+                                            <p class="perm-card-desc">分享連結後，大家都能加入。房間創建者可看到加入者的電子郵件與暱稱（加入者可自主決定揭露項目）。</p>
+                                        </div>
+                                    </label>
+
+                                    <!-- 權限 2: 限團隊 -->
+                                    <label class="perm-radio-card">
+                                        <input type="radio" name="roomAccessType" value="team" onchange="MultiplayerHabitatEngine.onAccessTypeChanged(this.value)">
+                                        <div class="perm-card-content">
+                                            <div class="perm-card-title"><i class="fas fa-building-user"></i> 2. 限團隊 (相同 @網域)</div>
+                                            <p class="perm-card-desc">跟使用者電子郵件 @ 後面相同的取得連結後都可加入；亦可勾選在同網域成員的大廳中公開展示。</p>
+                                        </div>
+                                    </label>
+
+                                    <!-- 權限 3: 私人 -->
+                                    <label class="perm-radio-card">
+                                        <input type="radio" name="roomAccessType" value="private" onchange="MultiplayerHabitatEngine.onAccessTypeChanged(this.value)">
+                                        <div class="perm-card-content">
+                                            <div class="perm-card-title"><i class="fas fa-lock"></i> 3. 私人房間 (指定名單)</div>
+                                            <p class="perm-card-desc">只有加入受邀名單內的特定帳號（電子郵件）才能進入查看。</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 限團隊專屬附加設定 -->
+                            <div class="perm-sub-panel" id="permSubTeam" style="display:none;">
+                                <div class="perm-sub-box">
+                                    <div class="team-domain-preview">
+                                        <i class="fas fa-at"></i> 當前團隊網域：<strong id="creatorTeamDomainPreview">@pandapanda.ai</strong>
+                                        <button type="button" class="btn-text-link" onclick="MultiplayerHabitatEngine.openUserProfileModal()">[修改信箱]</button>
+                                    </div>
+                                    <label class="checkbox-label" style="margin-top:8px;">
+                                        <input type="checkbox" id="teamPublicListingCheck" checked>
+                                        <span>在電子郵件 @ 後面相同的團隊成員大廳中<strong>公開顯示</strong>此房間（無需連結即可看見並加入）</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 私人專屬附加設定 (電子郵件白名單) -->
+                            <div class="perm-sub-panel" id="permSubPrivate" style="display:none;">
+                                <div class="perm-sub-box">
+                                    <label for="privateAllowedEmails"><i class="fas fa-envelope-circle-check"></i> 允許進入的電子郵件白名單（每行一個，或逗號分隔）：</label>
+                                    <textarea id="privateAllowedEmails" class="room-textarea" placeholder="例如：
+alice@example.com
+bob@company.org
+scout@arctic.org" rows="4"></textarea>
+                                    <small class="helper-text"><i class="fas fa-info-circle"></i> 只有名單上的電子郵件在登入後允許加入，未列入者將被阻擋。</small>
+                                </div>
+                            </div>
+
+                            <div class="form-actions-row">
+                                <button type="submit" class="cta-btn room-submit-btn"><i class="fas fa-check-circle"></i> 建立房間並複製邀請連結</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Tab 3: 代碼 / 連結加入 -->
+                    <div class="room-tab-pane" id="paneJoinRoom">
+                        <div class="join-code-box">
+                            <label for="joinRoomCodeInput"><i class="fas fa-link"></i> 輸入房間代碼或邀請連結：</label>
+                            <div class="join-input-row">
+                                <input type="text" id="joinRoomCodeInput" class="room-input" placeholder="例如: room_abc123 或貼上完整邀請網址...">
+                                <button type="button" class="cta-btn sm-cta" onclick="MultiplayerHabitatEngine.handleJoinByInput()"><i class="fas fa-arrow-right-to-bracket"></i> 驗證並加入</button>
+                            </div>
+                            <div class="join-tips">
+                                <h6><i class="fas fa-lightbulb"></i> 快速提示：</h6>
+                                <ul>
+                                    <li><strong>公開/連結房間</strong>：持有連結即可進入，加入時可設定向房主揭露的資訊。</li>
+                                    <li><strong>團隊房間</strong>：需使用相同網域（@ 後相同）的電子郵件帳號。</li>
+                                    <li><strong>私人房間</strong>：需先由房主將你的電子郵件加入許可名單。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: 目前房間成員名單 -->
+                    <div class="room-tab-pane" id="paneRoomMembers">
+                        <div class="members-pane-header">
+                            <div class="members-info-left">
+                                <h4 id="membersRoomTitle">荒野公共大廳</h4>
+                                <span class="members-access-badge" id="membersRoomAccessBadge">公開連線</span>
+                            </div>
+                            <div class="members-info-right">
+                                <span class="creator-badge" id="membersRoomCreatorBadge"><i class="fas fa-crown"></i> 房主：系統生態網</span>
+                                <button type="button" class="btn-room-action" onclick="MultiplayerHabitatEngine.copyCurrentRoomLink()"><i class="fas fa-link"></i> 複製連結</button>
+                            </div>
+                        </div>
+
+                        <!-- 房主檢視說明與名單 -->
+                        <div class="members-role-notice" id="membersRoleNotice">
+                            <i class="fas fa-eye"></i> <strong>房主特權說明</strong>：身為房間創建者，你可依成員授權查看其電子郵件與暱稱。
+                        </div>
+
+                        <div class="members-table-wrap">
+                            <ul class="members-cards-list" id="roomMembersCardsList">
+                                <!-- JS 動態填充成員卡片 -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加入房間身分揭露授權確認視窗 (Room Join Consent Modal) -->
+        <div id="roomJoinConsentModal" class="inline-modal-backdrop" style="display:none; z-index:99995;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card consent-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon consent-icon"><i class="fas fa-user-shield"></i></div>
+                    <div>
+                        <h3 id="consentModalTitle">加入房間身分授權確認</h3>
+                        <p class="inline-modal-sub" id="consentModalSub">你即將進入【某某房間】，創建者依規定可查看成員身分資訊</p>
+                    </div>
+                    <button type="button" id="closeConsentModalBtn" class="ai-close-btn" title="關閉">&times;</button>
+                </div>
+                <div class="consent-modal-body">
+                    <div class="consent-notice-box">
+                        <i class="fas fa-circle-info"></i>
+                        <span>請決定你是否願意讓房間創建者看見你的<strong>電子郵件</strong>或<strong>暱稱</strong>（<strong>最少選擇一個，最多兩個</strong>）：</span>
+                    </div>
+
+                    <div class="consent-options-group">
+                        <label class="consent-option-row">
+                            <input type="checkbox" id="consentCheckNickname" checked onchange="MultiplayerHabitatEngine.validateConsentInputs()">
+                            <div class="consent-option-text">
+                                <span class="option-title"><i class="fas fa-user-tag"></i> 冒險者暱稱</span>
+                                <span class="option-val" id="consentNicknameVal">冒險生靈</span>
+                            </div>
+                        </label>
+                        <label class="consent-option-row">
+                            <input type="checkbox" id="consentCheckEmail" onchange="MultiplayerHabitatEngine.validateConsentInputs()">
+                            <div class="consent-option-text">
+                                <span class="option-title"><i class="fas fa-envelope"></i> 電子郵件信箱</span>
+                                <span class="option-val" id="consentEmailVal">explorer@pandapanda.ai</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="consent-error-msg" id="consentErrorMsg" style="display:none;">
+                        <i class="fas fa-triangle-exclamation"></i> 最少必須選擇一項（暱稱或電子郵件）揭露給房間創建者！
+                    </div>
+                </div>
+                <div class="inline-modal-actions consent-actions">
+                    <button type="button" id="cancelConsentBtn" class="btn-cancel">取消</button>
+                    <button type="button" id="confirmConsentJoinBtn" class="cta-btn sm-cta">同意並踏入房間</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 冒險者身分與電子郵件設定視窗 (User Profile Modal) -->
+        <div id="userProfileModal" class="inline-modal-backdrop" style="display:none; z-index:99996;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card profile-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon profile-icon"><i class="fas fa-id-card-clip"></i></div>
+                    <div>
+                        <h3 id="userProfileModalTitle">冒險者身分與帳號設定</h3>
+                        <p class="inline-modal-sub">設定在十兆荒野生態中展示的暱稱，以及團隊網域與白名單驗證用的電子郵件</p>
+                    </div>
+                    <button type="button" id="closeUserProfileModalBtn" class="ai-close-btn" title="關閉">&times;</button>
+                </div>
+                <div class="inline-modal-body">
+                    <div class="form-group">
+                        <label for="profileNicknameInput"><i class="fas fa-user"></i> 冒險者暱稱：</label>
+                        <input type="text" id="profileNicknameInput" class="room-input" placeholder="請輸入暱稱..." maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileEmailInput"><i class="fas fa-envelope"></i> 電子郵件信箱 (Email)：</label>
+                        <input type="email" id="profileEmailInput" class="room-input" placeholder="例如: yourname@company.org" required>
+                        <small class="helper-text"><i class="fas fa-info-circle"></i> 「限團隊房間」將自動提取 @ 後面網域作為通行證；「私人房間」依此信箱驗證白名單資格。</small>
+                    </div>
+                    <!-- 快速身分模擬切換 (方便使用者與測試切換不同帳號體驗) -->
+                    <div class="quick-profile-switch">
+                        <span class="quick-label"><i class="fas fa-shuffle"></i> 快速切換測試身分：</span>
+                        <div class="quick-btns-row">
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('PandaPanda', 'pandapanda@pandapanda.ai')">Panda (@pandapanda.ai)</button>
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('極地雪狼', 'wolf@arctic.org')">雪狼 (@arctic.org)</button>
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('深海虎鯨', 'orca@ocean.org')">虎鯨 (@ocean.org)</button>
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('訪客旅人', 'guest@nature.net')">訪客 (@nature.net)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="cancelUserProfileBtn" class="btn-cancel">取消</button>
+                    <button type="button" id="saveUserProfileBtn" class="cta-btn sm-cta">儲存身分設定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 物種生態檔案獨立搜尋視窗 (Species Search Modal) -->
+        <div id="speciesSearchModal" class="inline-modal-backdrop" style="display:none; z-index:99999;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card" style="max-width:850px; width:92%; max-height:85vh; display:flex; flex-direction:column; padding:24px; background:var(--card-bg, #fff); color:var(--text-color, #222); border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:15px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-book-atlas" style="font-size:22px; color:#10b981;"></i>
+                        <div>
+                            <h3 style="margin:0; font-size:18px;">十兆生命 · 生態物種檔案獨立搜尋</h3>
+                            <div style="font-size:12px; color:#64748b;">檢索真實生態統計數據庫與跨物種檔案</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="closeSpeciesSearchModal()" style="background:none; border:none; font-size:20px; cursor:pointer; color:#94a3b8;"><i class="fas fa-times"></i></button>
+                </div>
+
+                <!-- 搜尋與分類列 -->
+                <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
+                    <div style="position:relative;">
+                        <i class="fas fa-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#94a3b8;"></i>
+                        <input type="text" id="speciesSearchInput" placeholder="搜尋物種名稱 (例如: 灰狼、智人、座頭鯨)、學名、生境或天敵..." style="width:100%; box-sizing:border-box; padding:10px 14px 10px 38px; border-radius:20px; border:1px solid #cbd5e1; font-size:14px; outline:none;" oninput="filterSpeciesArchive(this.value)">
+                    </div>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap; font-size:12px;" id="speciesCatFilters">
+                        <button type="button" class="pill-btn sm active" onclick="setSpeciesCat('all', this)">全部物種</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('mammal', this)">哺乳綱</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('human', this)">智人文明</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('bird', this)">鳥綱</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('ocean', this)">海洋生態</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('reptile', this)">爬蟲類</button>
+                        <button type="button" class="pill-btn sm" onclick="setSpeciesCat('insect', this)">節肢與昆蟲</button>
+                    </div>
+                </div>
+
+                <!-- 物種卡片容器 (平滑滾動) -->
+                <div id="speciesCardsContainer" style="flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:12px; padding:4px;"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 腳本引入 -->
+    <script src="js/species_data.js"></script>
+    <script src="js/destiny_engine.js"></script>
+    <script src="js/ai_service.js"></script>
+    <script src="js/app.js"></script>
+
+    <script>
+        window.currentSpeciesCat = 'all';
+        window.currentSpeciesQuery = '';
+
+        window.openSpeciesSearchModal = function(initialQuery) {
+            const modal = document.getElementById('speciesSearchModal');
+            if (modal) modal.style.display = 'flex';
+            if (initialQuery !== undefined) {
+                const inp = document.getElementById('speciesSearchInput');
+                if (inp) inp.value = initialQuery;
+                window.currentSpeciesQuery = initialQuery;
+            }
+            renderSpeciesCards();
+        };
+
+        window.closeSpeciesSearchModal = function() {
+            const modal = document.getElementById('speciesSearchModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.setSpeciesCat = function(cat, btn) {
+            window.currentSpeciesCat = cat;
+            document.querySelectorAll('#speciesCatFilters button').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            renderSpeciesCards();
+        };
+
+        window.filterSpeciesArchive = function(val) {
+            window.currentSpeciesQuery = (val || '').trim().toLowerCase();
+            renderSpeciesCards();
+        };
+
+        window.renderSpeciesCards = function() {
+            const container = document.getElementById('speciesCardsContainer');
+            if (!container || !window.SPECIES_DATABASE) return;
+
+            const q = window.currentSpeciesQuery;
+            const cat = window.currentSpeciesCat;
+
+            const filtered = window.SPECIES_DATABASE.filter(sp => {
+                if (cat !== 'all' && sp.category !== cat) return false;
+                if (!q) return true;
+                const matchName = (sp.name || '').toLowerCase().includes(q);
+                const matchSci = (sp.scientificName || '').toLowerCase().includes(q);
+                const matchBiomes = (sp.biomes || []).some(b => (b.name + b.climate).toLowerCase().includes(q));
+                const matchThreats = (sp.threats || []).some(t => t.toLowerCase().includes(q));
+                return matchName || matchSci || matchBiomes || matchThreats;
+            });
+
+            container.innerHTML = '';
+            if (filtered.length === 0) {
+                container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:30px; color:#94a3b8;">無符合「${escapeHtml(q)}」的物種檔案</div>`;
+                return;
+            }
+
+            filtered.forEach(sp => {
+                const card = document.createElement('div');
+                card.style.cssText = 'background:rgba(0,0,0,0.03); border:1px solid rgba(0,0,0,0.1); border-radius:8px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; gap:6px;';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight:bold; font-size:15px; color:#10b981;">${escapeHtml(sp.name)}</div>
+                        <div style="font-size:11px; font-style:italic; color:#64748b; margin-bottom:4px;">${escapeHtml(sp.scientificName)}</div>
+                        <div style="font-size:12px; color:#475569; line-height:1.4;">
+                            <div><i class="fas fa-weight-hanging" style="color:#10b981; margin-right:4px;"></i>均重: <strong>${sp.weightKg} kg</strong> • <i class="fas fa-hourglass-half" style="color:#10b981; margin-left:6px; margin-right:4px;"></i>壽命: <strong>${sp.maxAge} ${sp.unit}</strong></div>
+                            <div><i class="fas fa-globe-americas" style="color:#10b981; margin-right:4px;"></i>典型生境: <strong>${escapeHtml((sp.biomes && sp.biomes[0]) ? sp.biomes[0].name : '全球')}</strong></div>
+                            <div style="margin-top:2px;"><i class="fas fa-exclamation-triangle" style="color:#f59e0b; margin-right:4px;"></i>天敵威脅: <span style="font-size:11px; color:#b91c1c;">${escapeHtml((sp.threats || []).slice(0, 2).join('、'))}</span></div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // 荒野探險風專屬訪客統計
+        function getGameVisitorStats(pageKey = '1in10t') {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const dateKey = `pv_${pageKey}_date`;
+            const lastDate = localStorage.getItem(dateKey);
+            let todayVisits = parseInt(localStorage.getItem(`pv_${pageKey}_today_visits`) || '0', 10);
+            let todayUniques = parseInt(localStorage.getItem(`pv_${pageKey}_today_uniques`) || '0', 10);
+            let totalVisits = parseInt(localStorage.getItem(`pv_${pageKey}_total_visits`) || '530', 10);
+            let totalUniques = parseInt(localStorage.getItem(`pv_${pageKey}_total_uniques`) || '76', 10);
+
+            if (lastDate !== todayStr) {
+                localStorage.setItem(dateKey, todayStr);
+                todayVisits = 0;
+                todayUniques = 0;
+            }
+
+            const sessionKey = `has_visited_${pageKey}_${todayStr}`;
+            todayVisits += 1;
+            totalVisits += 1;
+            if (!sessionStorage.getItem(sessionKey)) {
+                sessionStorage.setItem(sessionKey, '1');
+                todayUniques += 1;
+                totalUniques += 1;
+            }
+
+            localStorage.setItem(`pv_${pageKey}_today_visits`, todayVisits);
+            localStorage.setItem(`pv_${pageKey}_today_uniques`, todayUniques);
+            localStorage.setItem(`pv_${pageKey}_total_visits`, totalVisits);
+            localStorage.setItem(`pv_${pageKey}_total_uniques`, totalUniques);
+
+            return { todayVisits, todayUniqueIps: todayUniques, totalVisits, totalUniqueIps: totalUniques, onlineUsers: 1 };
+        }
+
+        window.updateGameSystemMonitor = function() {
+            const innerW = window.innerWidth;
+            const innerH = window.innerHeight;
+            const screenW = window.screen.width;
+            const screenH = window.screen.height;
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || innerW < 768;
+            const type = isMobile ? '行動裝置' : '電腦';
+
+            const monitorEl = document.getElementById('system-monitor');
+            if (monitorEl) {
+                const devIcon = isMobile ? '<i class="fas fa-mobile-alt"></i>' : '<i class="fas fa-desktop"></i>';
+                monitorEl.innerHTML = `<span style="white-space:nowrap;">${devIcon} ${type}</span> <span class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-expand-arrows-alt"></i> 螢幕: ${screenW}×${screenH}</span> <span class="stat-divider"></span> <span style="white-space:nowrap;"><i class="fas fa-window-maximize"></i> 視窗: ${innerW}×${innerH}</span>`;
+            }
+        };
+
+        window.renderGameVisitorStats = function() {
+            const el = document.getElementById('gameVisitorStats');
+            if (!el) return;
+            const stats = getGameVisitorStats('1in10t');
+            el.innerHTML = `
+                <span style="white-space:nowrap;"><i class="fas fa-circle" style="color:#10b981; font-size:10px;"></i> 目前在線人數: ${stats.onlineUsers || 1}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-user-check"></i> 本日進入人數: ${stats.todayUniqueIps}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-calendar-check"></i> 本日進入次數: ${stats.todayVisits}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-users"></i> 總曾進入人數: ${stats.totalUniqueIps}</span>
+                <span class="stat-divider"></span>
+                <span style="white-space:nowrap;"><i class="fas fa-chart-line"></i> 總網站進入次數: ${stats.totalVisits}</span>
+            `;
+            if (window.updateGameSystemMonitor) window.updateGameSystemMonitor();
+        };
+
+        window.addEventListener('resize', () => {
+            if (window.updateGameSystemMonitor) window.updateGameSystemMonitor();
+        });
+
+        // 支援 URL 參數 ?q=... 自動打開物種獨立搜尋
+        document.addEventListener("DOMContentLoaded", () => {
+            if (window.renderGameVisitorStats) window.renderGameVisitorStats();
+            if (window.updateGameSystemMonitor) window.updateGameSystemMonitor();
+            const params = new URLSearchParams(window.location.search);
+            const q = params.get('q') || params.get('search');
+            if (q) {
+                openSpeciesSearchModal(q);
+            }
+        });
+    </script>
+</body>
+</html>

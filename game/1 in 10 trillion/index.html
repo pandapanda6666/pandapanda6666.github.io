@@ -148,8 +148,13 @@
                         <span class="status-dot online" id="serverStatusDot"></span>
                         <span id="mpStatusText">十兆多人共生</span>
                     </button>
-                    <!-- SSO 登入身分 -->
-                    <div id="userProfileTag" class="pill-btn user-pill" title="點擊切換/設定冒險者暱稱">
+                    <!-- 多人房間大廳與權限管理按鈕 -->
+                    <button type="button" id="roomHubBtn" class="pill-btn room-pill" title="瀏覽、建立多人專屬/團隊/公開房間或複製邀請連結">
+                        <i class="fas fa-door-open"></i>
+                        <span id="currentRoomTag">荒野公共大廳</span>
+                    </button>
+                    <!-- SSO 登入身分與電子郵件 -->
+                    <div id="userProfileTag" class="pill-btn user-pill" title="點擊設定冒險者暱稱與電子郵件（團隊網域識別）">
                         <i class="fas fa-user-circle" id="userAvatarIcon"></i>
                         <span id="userNameLabel">冒險生靈</span>
                     </div>
@@ -784,13 +789,24 @@
 
                 <!-- 右欄：同刻降生夥伴、生命地圖與存活曲線 -->
                 <aside class="col-right">
-                    <!-- 同生地點在線生靈 (十兆多人即時共生) -->
+                    <!-- 同生地點在線生靈 (十兆多人即時共生 / 房間生態) -->
                     <div class="card multiplayer-card" id="multiplayerCard">
                         <div class="mp-card-header">
                             <h4 class="card-title">
-                                <i class="fas fa-globe-americas"></i> <span>同生地區在線生命</span>
+                                <i class="fas fa-globe-americas"></i> <span id="mpCardTitle">同生地區在線生命</span>
                             </h4>
                             <span class="mp-badge-count" id="mpPeersCountBadge">3 隻共生中</span>
+                        </div>
+                        <div class="mp-card-room-bar" id="mpCardRoomBar">
+                            <div class="mp-room-tag-line">
+                                <span class="mp-room-name-badge" id="mpRoomNameBadge"><i class="fas fa-door-open"></i> <span id="mpRoomNameText">荒野全域大廳</span></span>
+                                <span class="mp-room-perm-badge" id="mpRoomPermBadge">公開</span>
+                            </div>
+                            <div class="mp-room-actions">
+                                <button type="button" id="mpCardOpenHubBtn" class="mp-btn-mini" title="房間管理與成員名單"><i class="fas fa-users-gear"></i> 房間中心</button>
+                                <button type="button" id="mpCardShareBtn" class="mp-btn-mini highlight" title="複製房間邀請連結"><i class="fas fa-link"></i> 複製連結</button>
+                                <button type="button" id="mpCardLeaveBtn" class="mp-btn-mini danger" title="退出當前房間返回公共大廳" style="display:none;"><i class="fas fa-arrow-right-from-bracket"></i> 退出</button>
+                            </div>
                         </div>
                         <p class="comp-subnote">同生活在 <strong id="mpCurrentBiomeName">棲所生境</strong> 的其他物種生命</p>
                         <ul class="mp-peers-list" id="mpPeersList">
@@ -1369,6 +1385,279 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        <!-- 多人房間大廳與管理中心 (Multiplayer Room Hub Modal) -->
+        <div id="roomHubModal" class="inline-modal-backdrop" style="display:none; z-index:99990;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card room-hub-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon room-icon"><i class="fas fa-network-wired"></i></div>
+                    <div class="room-hub-title-block">
+                        <h3 id="roomHubModalTitle">多人荒野共生 · 房間中心</h3>
+                        <p class="inline-modal-sub">與夥伴生活在同一片生境天地，自訂公開、團隊或專屬私人房間</p>
+                    </div>
+                    <button type="button" id="closeRoomHubModalBtn" class="ai-close-btn" title="關閉">&times;</button>
+                </div>
+
+                <!-- 當前活躍房間橫幅 -->
+                <div class="room-active-status-bar" id="roomActiveStatusBar">
+                    <div class="room-status-left">
+                        <span class="room-status-indicator"><i class="fas fa-signal"></i> 連線狀態：</span>
+                        <strong id="activeRoomNameLabel">荒野公共大廳</strong>
+                        <span class="room-type-pill" id="activeRoomTypePill">公共荒野</span>
+                    </div>
+                    <div class="room-status-actions" id="activeRoomActions">
+                        <button type="button" id="copyActiveRoomLinkBtn" class="btn-room-action" title="複製邀請連結"><i class="fas fa-link"></i> 複製邀請連結</button>
+                        <button type="button" id="leaveActiveRoomBtn" class="btn-room-action danger" style="display:none;" title="退出當前房間返回公共大廳"><i class="fas fa-arrow-right-from-bracket"></i> 退出房間</button>
+                    </div>
+                </div>
+
+                <!-- 導覽分頁按鈕 -->
+                <div class="room-tabs-nav">
+                    <button type="button" class="room-tab-btn active" data-tab="browseRooms"><i class="fas fa-list-ul"></i> 房間大廳瀏覽</button>
+                    <button type="button" class="room-tab-btn" data-tab="createRoom"><i class="fas fa-plus-circle"></i> 建立新房間</button>
+                    <button type="button" class="room-tab-btn" data-tab="joinRoom"><i class="fas fa-key"></i> 代碼 / 連結加入</button>
+                    <button type="button" class="room-tab-btn" data-tab="roomMembers" id="tabRoomMembersBtn"><i class="fas fa-users"></i> 目前成員名單 (<span id="roomMembersCount">0</span>)</button>
+                </div>
+
+                <div class="room-tabs-content">
+                    <!-- Tab 1: 房間大廳瀏覽 -->
+                    <div class="room-tab-pane active" id="paneBrowseRooms">
+                        <!-- 團隊專屬房間推薦區 (符合當前使用者 @網域 且設為公開顯示) -->
+                        <div class="team-rooms-showcase" id="teamRoomsShowcase" style="display:none;">
+                            <div class="team-showcase-title">
+                                <i class="fas fa-building-user"></i> <span>你的團隊專屬房間 (<strong id="myTeamDomainTag">@domain</strong>)</span>
+                            </div>
+                            <div class="team-rooms-grid" id="teamRoomsGrid">
+                                <!-- JS 動態填充 -->
+                            </div>
+                        </div>
+
+                        <!-- 全部公開與活躍房間列表 -->
+                        <div class="rooms-list-header">
+                            <span class="rooms-list-title"><i class="fas fa-earth-americas"></i> 活躍荒野房間列表</span>
+                            <div class="rooms-search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="roomsSearchInput" placeholder="搜尋房間名稱或生境..." oninput="MultiplayerHabitatEngine.filterRoomList(this.value)">
+                            </div>
+                        </div>
+                        <div class="rooms-cards-grid" id="publicRoomsGrid">
+                            <!-- JS 動態填充房間卡片 -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: 建立新房間 -->
+                    <div class="room-tab-pane" id="paneCreateRoom">
+                        <form id="createRoomForm" class="create-room-form" onsubmit="event.preventDefault(); MultiplayerHabitatEngine.handleCreateRoomSubmit();">
+                            <div class="form-group">
+                                <label for="createRoomName"><i class="fas fa-tag"></i> 房間名稱：</label>
+                                <input type="text" id="createRoomName" class="room-input" placeholder="例如：雪原狼群與北極狐共生盟約" required maxlength="40">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="createRoomBiome"><i class="fas fa-mountain-sun"></i> 指定棲所生境：</label>
+                                <select id="createRoomBiome" class="room-select">
+                                    <option value="all">不限生境 (全荒野跨物種共生)</option>
+                                    <option value="極地苔原生態系">極地苔原生態系</option>
+                                    <option value="針葉林與溫帶林地">針葉林與溫帶林地</option>
+                                    <option value="熱帶雨林生態系">熱帶雨林生態系</option>
+                                    <option value="非洲熱帶稀樹草原">非洲熱帶稀樹草原</option>
+                                    <option value="深海與珊瑚礁遠洋">深海與珊瑚礁遠洋</option>
+                                    <option value="全球人類文明都會">全球人類文明都會</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="fas fa-shield-halved"></i> 權限與存取設定：</label>
+                                <div class="perm-options-grid">
+                                    <!-- 權限 1: 任何擁有連結的使用者 -->
+                                    <label class="perm-radio-card active">
+                                        <input type="radio" name="roomAccessType" value="link" checked onchange="MultiplayerHabitatEngine.onAccessTypeChanged(this.value)">
+                                        <div class="perm-card-content">
+                                            <div class="perm-card-title"><i class="fas fa-globe"></i> 1. 任何擁有連結的使用者</div>
+                                            <p class="perm-card-desc">分享連結後，大家都能加入。房間創建者可看到加入者的電子郵件與暱稱（加入者可自主決定揭露項目）。</p>
+                                        </div>
+                                    </label>
+
+                                    <!-- 權限 2: 限團隊 -->
+                                    <label class="perm-radio-card">
+                                        <input type="radio" name="roomAccessType" value="team" onchange="MultiplayerHabitatEngine.onAccessTypeChanged(this.value)">
+                                        <div class="perm-card-content">
+                                            <div class="perm-card-title"><i class="fas fa-building-user"></i> 2. 限團隊 (相同 @網域)</div>
+                                            <p class="perm-card-desc">跟使用者電子郵件 @ 後面相同的取得連結後都可加入；亦可勾選在同網域成員的大廳中公開展示。</p>
+                                        </div>
+                                    </label>
+
+                                    <!-- 權限 3: 私人 -->
+                                    <label class="perm-radio-card">
+                                        <input type="radio" name="roomAccessType" value="private" onchange="MultiplayerHabitatEngine.onAccessTypeChanged(this.value)">
+                                        <div class="perm-card-content">
+                                            <div class="perm-card-title"><i class="fas fa-lock"></i> 3. 私人房間 (指定名單)</div>
+                                            <p class="perm-card-desc">只有加入受邀名單內的特定帳號（電子郵件）才能進入查看。</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 限團隊專屬附加設定 -->
+                            <div class="perm-sub-panel" id="permSubTeam" style="display:none;">
+                                <div class="perm-sub-box">
+                                    <div class="team-domain-preview">
+                                        <i class="fas fa-at"></i> 當前團隊網域：<strong id="creatorTeamDomainPreview">@pandapanda.ai</strong>
+                                        <button type="button" class="btn-text-link" onclick="MultiplayerHabitatEngine.openUserProfileModal()">[修改信箱]</button>
+                                    </div>
+                                    <label class="checkbox-label" style="margin-top:8px;">
+                                        <input type="checkbox" id="teamPublicListingCheck" checked>
+                                        <span>在電子郵件 @ 後面相同的團隊成員大廳中<strong>公開顯示</strong>此房間（無需連結即可看見並加入）</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 私人專屬附加設定 (電子郵件白名單) -->
+                            <div class="perm-sub-panel" id="permSubPrivate" style="display:none;">
+                                <div class="perm-sub-box">
+                                    <label for="privateAllowedEmails"><i class="fas fa-envelope-circle-check"></i> 允許進入的電子郵件白名單（每行一個，或逗號分隔）：</label>
+                                    <textarea id="privateAllowedEmails" class="room-textarea" placeholder="例如：
+alice@example.com
+bob@company.org
+scout@arctic.org" rows="4"></textarea>
+                                    <small class="helper-text"><i class="fas fa-info-circle"></i> 只有名單上的電子郵件在登入後允許加入，未列入者將被阻擋。</small>
+                                </div>
+                            </div>
+
+                            <div class="form-actions-row">
+                                <button type="submit" class="cta-btn room-submit-btn"><i class="fas fa-check-circle"></i> 建立房間並複製邀請連結</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Tab 3: 代碼 / 連結加入 -->
+                    <div class="room-tab-pane" id="paneJoinRoom">
+                        <div class="join-code-box">
+                            <label for="joinRoomCodeInput"><i class="fas fa-link"></i> 輸入房間代碼或邀請連結：</label>
+                            <div class="join-input-row">
+                                <input type="text" id="joinRoomCodeInput" class="room-input" placeholder="例如: room_abc123 或貼上完整邀請網址...">
+                                <button type="button" class="cta-btn sm-cta" onclick="MultiplayerHabitatEngine.handleJoinByInput()"><i class="fas fa-arrow-right-to-bracket"></i> 驗證並加入</button>
+                            </div>
+                            <div class="join-tips">
+                                <h6><i class="fas fa-lightbulb"></i> 快速提示：</h6>
+                                <ul>
+                                    <li><strong>公開/連結房間</strong>：持有連結即可進入，加入時可設定向房主揭露的資訊。</li>
+                                    <li><strong>團隊房間</strong>：需使用相同網域（@ 後相同）的電子郵件帳號。</li>
+                                    <li><strong>私人房間</strong>：需先由房主將你的電子郵件加入許可名單。</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: 目前房間成員名單 -->
+                    <div class="room-tab-pane" id="paneRoomMembers">
+                        <div class="members-pane-header">
+                            <div class="members-info-left">
+                                <h4 id="membersRoomTitle">荒野公共大廳</h4>
+                                <span class="members-access-badge" id="membersRoomAccessBadge">公開連線</span>
+                            </div>
+                            <div class="members-info-right">
+                                <span class="creator-badge" id="membersRoomCreatorBadge"><i class="fas fa-crown"></i> 房主：系統生態網</span>
+                                <button type="button" class="btn-room-action" onclick="MultiplayerHabitatEngine.copyCurrentRoomLink()"><i class="fas fa-link"></i> 複製連結</button>
+                            </div>
+                        </div>
+
+                        <!-- 房主檢視說明與名單 -->
+                        <div class="members-role-notice" id="membersRoleNotice">
+                            <i class="fas fa-eye"></i> <strong>房主特權說明</strong>：身為房間創建者，你可依成員授權查看其電子郵件與暱稱。
+                        </div>
+
+                        <div class="members-table-wrap">
+                            <ul class="members-cards-list" id="roomMembersCardsList">
+                                <!-- JS 動態填充成員卡片 -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 加入房間身分揭露授權確認視窗 (Room Join Consent Modal) -->
+        <div id="roomJoinConsentModal" class="inline-modal-backdrop" style="display:none; z-index:99995;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card consent-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon consent-icon"><i class="fas fa-user-shield"></i></div>
+                    <div>
+                        <h3 id="consentModalTitle">加入房間身分授權確認</h3>
+                        <p class="inline-modal-sub" id="consentModalSub">你即將進入【某某房間】，創建者依規定可查看成員身分資訊</p>
+                    </div>
+                    <button type="button" id="closeConsentModalBtn" class="ai-close-btn" title="關閉">&times;</button>
+                </div>
+                <div class="consent-modal-body">
+                    <div class="consent-notice-box">
+                        <i class="fas fa-circle-info"></i>
+                        <span>請決定你是否願意讓房間創建者看見你的<strong>電子郵件</strong>或<strong>暱稱</strong>（<strong>最少選擇一個，最多兩個</strong>）：</span>
+                    </div>
+
+                    <div class="consent-options-group">
+                        <label class="consent-option-row">
+                            <input type="checkbox" id="consentCheckNickname" checked onchange="MultiplayerHabitatEngine.validateConsentInputs()">
+                            <div class="consent-option-text">
+                                <span class="option-title"><i class="fas fa-user-tag"></i> 冒險者暱稱</span>
+                                <span class="option-val" id="consentNicknameVal">冒險生靈</span>
+                            </div>
+                        </label>
+                        <label class="consent-option-row">
+                            <input type="checkbox" id="consentCheckEmail" onchange="MultiplayerHabitatEngine.validateConsentInputs()">
+                            <div class="consent-option-text">
+                                <span class="option-title"><i class="fas fa-envelope"></i> 電子郵件信箱</span>
+                                <span class="option-val" id="consentEmailVal">explorer@pandapanda.ai</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="consent-error-msg" id="consentErrorMsg" style="display:none;">
+                        <i class="fas fa-triangle-exclamation"></i> 最少必須選擇一項（暱稱或電子郵件）揭露給房間創建者！
+                    </div>
+                </div>
+                <div class="inline-modal-actions consent-actions">
+                    <button type="button" id="cancelConsentBtn" class="btn-cancel">取消</button>
+                    <button type="button" id="confirmConsentJoinBtn" class="cta-btn sm-cta">同意並踏入房間</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 冒險者身分與電子郵件設定視窗 (User Profile Modal) -->
+        <div id="userProfileModal" class="inline-modal-backdrop" style="display:none; z-index:99996;" role="dialog" aria-modal="true">
+            <div class="inline-modal-card profile-modal-card">
+                <div class="inline-modal-header">
+                    <div class="inline-modal-icon profile-icon"><i class="fas fa-id-card-clip"></i></div>
+                    <div>
+                        <h3 id="userProfileModalTitle">冒險者身分與帳號設定</h3>
+                        <p class="inline-modal-sub">設定在十兆荒野生態中展示的暱稱，以及團隊網域與白名單驗證用的電子郵件</p>
+                    </div>
+                    <button type="button" id="closeUserProfileModalBtn" class="ai-close-btn" title="關閉">&times;</button>
+                </div>
+                <div class="inline-modal-body">
+                    <div class="form-group">
+                        <label for="profileNicknameInput"><i class="fas fa-user"></i> 冒險者暱稱：</label>
+                        <input type="text" id="profileNicknameInput" class="room-input" placeholder="請輸入暱稱..." maxlength="20">
+                    </div>
+                    <div class="form-group">
+                        <label for="profileEmailInput"><i class="fas fa-envelope"></i> 電子郵件信箱 (Email)：</label>
+                        <input type="email" id="profileEmailInput" class="room-input" placeholder="例如: yourname@company.org" required>
+                        <small class="helper-text"><i class="fas fa-info-circle"></i> 「限團隊房間」將自動提取 @ 後面網域作為通行證；「私人房間」依此信箱驗證白名單資格。</small>
+                    </div>
+                    <!-- 快速身分模擬切換 (方便使用者與測試切換不同帳號體驗) -->
+                    <div class="quick-profile-switch">
+                        <span class="quick-label"><i class="fas fa-shuffle"></i> 快速切換測試身分：</span>
+                        <div class="quick-btns-row">
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('PandaPanda', 'pandapanda@pandapanda.ai')">Panda (@pandapanda.ai)</button>
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('極地雪狼', 'wolf@arctic.org')">雪狼 (@arctic.org)</button>
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('深海虎鯨', 'orca@ocean.org')">虎鯨 (@ocean.org)</button>
+                            <button type="button" class="btn-quick-tag" onclick="MultiplayerHabitatEngine.setQuickProfile('訪客旅人', 'guest@nature.net')">訪客 (@nature.net)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="inline-modal-actions">
+                    <button type="button" id="cancelUserProfileBtn" class="btn-cancel">取消</button>
+                    <button type="button" id="saveUserProfileBtn" class="cta-btn sm-cta">儲存身分設定</button>
                 </div>
             </div>
         </div>

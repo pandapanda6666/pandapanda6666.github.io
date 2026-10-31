@@ -69,7 +69,14 @@
     currentUser: {
       username: localStorage.getItem('sso_user') || 'wild_explorer',
       nickname: localStorage.getItem('sso_nickname') || '荒野旅者',
+      email: localStorage.getItem('sso_email') || 'explorer@pandapanda.ai',
       avatar: localStorage.getItem('sso_avatar') || ''
+    },
+    activeRoom: null,          // 當前房間物件，null 表示在公共荒野大廳
+    pendingJoinRoom: null,     // 等待授權確認的目標房間
+    consentPreferences: {
+      showNickname: true,
+      showEmail: false
     },
     feedEvents: [],
     eulogy: "",
@@ -285,13 +292,66 @@
     el.mpToggleBtn = document.getElementById("mpToggleBtn");
     el.serverStatusDot = document.getElementById("serverStatusDot");
     el.mpStatusText = document.getElementById("mpStatusText");
+    el.roomHubBtn = document.getElementById("roomHubBtn");
+    el.currentRoomTag = document.getElementById("currentRoomTag");
     el.userProfileTag = document.getElementById("userProfileTag");
     el.userNameLabel = document.getElementById("userNameLabel");
     el.multiplayerCard = document.getElementById("multiplayerCard");
+    el.mpCardTitle = document.getElementById("mpCardTitle");
+    el.mpRoomNameText = document.getElementById("mpRoomNameText");
+    el.mpRoomPermBadge = document.getElementById("mpRoomPermBadge");
+    el.mpCardOpenHubBtn = document.getElementById("mpCardOpenHubBtn");
+    el.mpCardShareBtn = document.getElementById("mpCardShareBtn");
+    el.mpCardLeaveBtn = document.getElementById("mpCardLeaveBtn");
     el.mpPeersList = document.getElementById("mpPeersList");
     el.mpLiveFeed = document.getElementById("mpLiveFeed");
     el.mpCurrentBiomeName = document.getElementById("mpCurrentBiomeName");
     el.mpPeersCountBadge = document.getElementById("mpPeersCountBadge");
+
+    // 房間中心視窗
+    el.roomHubModal = document.getElementById("roomHubModal");
+    el.closeRoomHubModalBtn = document.getElementById("closeRoomHubModalBtn");
+    el.activeRoomNameLabel = document.getElementById("activeRoomNameLabel");
+    el.activeRoomTypePill = document.getElementById("activeRoomTypePill");
+    el.copyActiveRoomLinkBtn = document.getElementById("copyActiveRoomLinkBtn");
+    el.leaveActiveRoomBtn = document.getElementById("leaveActiveRoomBtn");
+    el.teamRoomsShowcase = document.getElementById("teamRoomsShowcase");
+    el.myTeamDomainTag = document.getElementById("myTeamDomainTag");
+    el.teamRoomsGrid = document.getElementById("teamRoomsGrid");
+    el.publicRoomsGrid = document.getElementById("publicRoomsGrid");
+    el.roomsSearchInput = document.getElementById("roomsSearchInput");
+    el.creatorTeamDomainPreview = document.getElementById("creatorTeamDomainPreview");
+    el.teamPublicListingCheck = document.getElementById("teamPublicListingCheck");
+    el.privateAllowedEmails = document.getElementById("privateAllowedEmails");
+    el.permSubTeam = document.getElementById("permSubTeam");
+    el.permSubPrivate = document.getElementById("permSubPrivate");
+    el.joinRoomCodeInput = document.getElementById("joinRoomCodeInput");
+    el.roomMembersCardsList = document.getElementById("roomMembersCardsList");
+    el.roomMembersCount = document.getElementById("roomMembersCount");
+    el.membersRoomTitle = document.getElementById("membersRoomTitle");
+    el.membersRoomAccessBadge = document.getElementById("membersRoomAccessBadge");
+    el.membersRoomCreatorBadge = document.getElementById("membersRoomCreatorBadge");
+    el.membersRoleNotice = document.getElementById("membersRoleNotice");
+
+    // 授權揭露視窗
+    el.roomJoinConsentModal = document.getElementById("roomJoinConsentModal");
+    el.closeConsentModalBtn = document.getElementById("closeConsentModalBtn");
+    el.cancelConsentBtn = document.getElementById("cancelConsentBtn");
+    el.confirmConsentJoinBtn = document.getElementById("confirmConsentJoinBtn");
+    el.consentModalSub = document.getElementById("consentModalSub");
+    el.consentCheckNickname = document.getElementById("consentCheckNickname");
+    el.consentCheckEmail = document.getElementById("consentCheckEmail");
+    el.consentNicknameVal = document.getElementById("consentNicknameVal");
+    el.consentEmailVal = document.getElementById("consentEmailVal");
+    el.consentErrorMsg = document.getElementById("consentErrorMsg");
+
+    // 使用者身分視窗
+    el.userProfileModal = document.getElementById("userProfileModal");
+    el.closeUserProfileModalBtn = document.getElementById("closeUserProfileModalBtn");
+    el.cancelUserProfileBtn = document.getElementById("cancelUserProfileBtn");
+    el.saveUserProfileBtn = document.getElementById("saveUserProfileBtn");
+    el.profileNicknameInput = document.getElementById("profileNicknameInput");
+    el.profileEmailInput = document.getElementById("profileEmailInput");
 
     el.focusChipsContainer = document.getElementById("focusChipsContainer");
     el.eventFeedList = document.getElementById("eventFeedList");
@@ -838,7 +898,13 @@
     // 前往追思館按鈕
     if (el.goToMemorialBtn) el.goToMemorialBtn.addEventListener("click", showMemorialHall);
 
-    // 自訂/其他自主行動輸入按鈕
+    // 自訂/其他自主行動輸入按鈕 (支援彈窗與舊版相容)
+    async function handleCustomChoiceSubmit() {
+      if (typeof handleFateModalCustomSubmit === "function") {
+        await handleFateModalCustomSubmit();
+      }
+    }
+
     if (el.submitCustomChoiceBtn) {
       el.submitCustomChoiceBtn.addEventListener("click", handleCustomChoiceSubmit);
     }
@@ -3679,61 +3745,152 @@
     socket: null,
     currentBiome: "",
     peers: [],
+    rooms: [],
     feedTimer: null,
 
     init() {
-      // 讀取 SSO 登入帳號或本地身分
+      // 1. 讀取 SSO 登入帳號或本地身分
       const savedUser = localStorage.getItem("sso_user") || localStorage.getItem("panda_session_user");
       const savedNick = localStorage.getItem("sso_nickname") || localStorage.getItem("panda_nickname") || savedUser || "荒野旅者";
+      const savedEmail = localStorage.getItem("sso_email") || "explorer@pandapanda.ai";
       const savedServer = localStorage.getItem("sso_server") || "";
 
       state.currentUser.username = savedUser || "wild_" + Math.floor(Math.random() * 8999 + 1000);
       state.currentUser.nickname = savedNick;
+      state.currentUser.email = savedEmail;
 
       if (el.userNameLabel) {
         el.userNameLabel.textContent = state.currentUser.nickname;
       }
 
-      // 嘗試連線 SSO / 遊戲通訊伺服器
+      // 2. 初始化房間數據庫
+      this.initRooms();
+
+      // 3. 嘗試連線 SSO / 遊戲通訊伺服器
       this.connectServer(savedServer);
 
-      // 綁定多人模式切換鈕
-      if (el.mpToggleBtn) {
-        el.mpToggleBtn.addEventListener("click", () => {
-          this.toggleMultiplayerMode();
-        });
-      }
+      // 4. 綁定按鈕與事件
+      this.bindRoomEvents();
 
-      // 綁定使用者暱稱自訂彈窗
-      if (el.userProfileTag) {
-        el.userProfileTag.addEventListener("click", () => {
-          this.promptChangeNickname();
-        });
-      }
+      // 5. 檢查網址參數 ?room=ROOM_ID 自動加入
+      this.checkUrlRoomParam();
+    },
 
-      // 綁定抉擇彈窗小說抽屜切換
-      if (el.toggleNovelExpandBtn) {
-        el.toggleNovelExpandBtn.addEventListener("click", () => {
-          this.toggleNovelDrawer();
-        });
-      }
-      if (el.closeNovelDrawerBtn) {
-        el.closeNovelDrawerBtn.addEventListener("click", () => {
-          this.toggleNovelDrawer(false);
-        });
-      }
+    initRooms() {
+      let saved = null;
+      try {
+        saved = JSON.parse(localStorage.getItem("10t_custom_rooms"));
+      } catch (e) {}
 
-      // 綁定抉擇彈窗自訂策略提交
-      if (el.fateModalCustomSubmitBtn) {
-        el.fateModalCustomSubmitBtn.addEventListener("click", () => {
-          handleFateModalCustomSubmit();
-        });
+      if (Array.isArray(saved) && saved.length > 0) {
+        this.rooms = saved;
+      } else {
+        // 預設三大特色房間（對應三大權限設定）
+        this.rooms = [
+          {
+            id: "room_arctic_expedition",
+            name: "極地冰原生存盟約",
+            creator: {
+              username: "arctic_elder",
+              nickname: "極地守護者",
+              email: "alpha@arctic.org"
+            },
+            createdAt: Date.now() - 3600000,
+            biome: "極地苔原生態系",
+            accessType: "link", // 權限 1: 任何擁有連結的使用者
+            teamDomain: "@arctic.org",
+            isPublicToTeam: true,
+            allowedEmails: [],
+            members: [
+              {
+                id: "mem_elder",
+                nickname: "極地守護者",
+                email: "alpha@arctic.org",
+                speciesName: "北極狼",
+                age: 5,
+                gender: "雄性",
+                status: "巡視極地生境領地邊界",
+                isCreator: true,
+                disclosure: { showNickname: true, showEmail: true }
+              },
+              {
+                id: "mem_scout",
+                nickname: "雪原偵察者",
+                email: "scout@arctic.org",
+                speciesName: "北極狐",
+                age: 2,
+                gender: "雌性",
+                status: "在浮冰裂隙警戒搜尋獵物",
+                isCreator: false,
+                disclosure: { showNickname: true, showEmail: false }
+              }
+            ]
+          },
+          {
+            id: "room_panda_team",
+            name: "PandaPanda 核心生態研發組",
+            creator: {
+              username: "pandapanda",
+              nickname: "PandaPanda",
+              email: "pandapanda@pandapanda.ai"
+            },
+            createdAt: Date.now() - 7200000,
+            biome: "all",
+            accessType: "team", // 權限 2: 限團隊
+            teamDomain: "@pandapanda.ai",
+            isPublicToTeam: true, // 公開顯示在同 @ 網域成員的大廳
+            allowedEmails: [],
+            members: [
+              {
+                id: "mem_panda",
+                nickname: "PandaPanda",
+                email: "pandapanda@pandapanda.ai",
+                speciesName: "智人（人類）",
+                age: 26,
+                gender: "雄性",
+                status: "監控十兆生靈共生網絡演繹",
+                isCreator: true,
+                disclosure: { showNickname: true, showEmail: true }
+              }
+            ]
+          },
+          {
+            id: "room_secret_haven",
+            name: "深海遠古隱秘庇護所",
+            creator: {
+              username: "deep_abyss",
+              nickname: "深海引路人",
+              email: "deep@ocean.org"
+            },
+            createdAt: Date.now() - 10800000,
+            biome: "深海與珊瑚礁遠洋",
+            accessType: "private", // 權限 3: 私人房間 (指定名單)
+            teamDomain: "@ocean.org",
+            isPublicToTeam: false,
+            allowedEmails: ["deep@ocean.org", "pandapanda@pandapanda.ai", "orca@ocean.org"],
+            members: [
+              {
+                id: "mem_deep",
+                nickname: "深海引路人",
+                email: "deep@ocean.org",
+                speciesName: "座頭鯨",
+                age: 18,
+                gender: "雌性",
+                status: "在千米深淵發出次聲波共鳴",
+                isCreator: true,
+                disclosure: { showNickname: true, showEmail: true }
+              }
+            ]
+          }
+        ];
+        this.saveRooms();
       }
-      if (el.fateModalCustomInput) {
-        el.fateModalCustomInput.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") handleFateModalCustomSubmit();
-        });
-      }
+    },
+
+    saveRooms() {
+      try {
+        localStorage.setItem("10t_custom_rooms", JSON.stringify(this.rooms));
+      } catch (e) {}
     },
 
     connectServer(serverUrl) {
@@ -3775,14 +3932,782 @@
       );
     },
 
-    promptChangeNickname() {
-      const cur = state.currentUser.nickname || "荒野旅者";
-      const name = prompt("請設定你的荒野生命冒險者暱稱（將即時展示給同生境同胞）：", cur);
-      if (name && name.trim()) {
-        state.currentUser.nickname = name.trim();
-        localStorage.setItem("sso_nickname", state.currentUser.nickname);
-        if (el.userNameLabel) el.userNameLabel.textContent = state.currentUser.nickname;
+    bindRoomEvents() {
+      // 導覽列房間中心按鈕
+      if (el.roomHubBtn) {
+        el.roomHubBtn.addEventListener("click", () => this.openRoomHubModal());
       }
+      if (el.mpCardOpenHubBtn) {
+        el.mpCardOpenHubBtn.addEventListener("click", () => this.openRoomHubModal());
+      }
+      if (el.closeRoomHubModalBtn) {
+        el.closeRoomHubModalBtn.addEventListener("click", () => this.closeRoomHubModal());
+      }
+      if (el.roomHubModal) {
+        el.roomHubModal.addEventListener("click", (e) => {
+          if (e.target === el.roomHubModal) this.closeRoomHubModal();
+        });
+      }
+
+      // Tab 切換
+      const tabBtns = document.querySelectorAll(".room-tab-btn");
+      tabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset.tab;
+          this.switchTab(tab);
+        });
+      });
+
+      // 複製當前活躍房間連結按鈕
+      if (el.copyActiveRoomLinkBtn) {
+        el.copyActiveRoomLinkBtn.addEventListener("click", () => this.copyActiveRoomLink());
+      }
+      if (el.mpCardShareBtn) {
+        el.mpCardShareBtn.addEventListener("click", () => this.copyActiveRoomLink());
+      }
+      if (el.leaveActiveRoomBtn) {
+        el.leaveActiveRoomBtn.addEventListener("click", () => this.leaveCurrentRoom());
+      }
+      if (el.mpCardLeaveBtn) {
+        el.mpCardLeaveBtn.addEventListener("click", () => this.leaveCurrentRoom());
+      }
+
+      // 授權揭露彈窗按鈕
+      if (el.closeConsentModalBtn) {
+        el.closeConsentModalBtn.addEventListener("click", () => this.closeConsentModal());
+      }
+      if (el.cancelConsentBtn) {
+        el.cancelConsentBtn.addEventListener("click", () => this.closeConsentModal());
+      }
+      if (el.confirmConsentJoinBtn) {
+        el.confirmConsentJoinBtn.addEventListener("click", () => this.confirmConsentJoin());
+      }
+
+      // 使用者身分彈窗按鈕
+      if (el.closeUserProfileModalBtn) {
+        el.closeUserProfileModalBtn.addEventListener("click", () => this.closeUserProfileModal());
+      }
+      if (el.cancelUserProfileBtn) {
+        el.cancelUserProfileBtn.addEventListener("click", () => this.closeUserProfileModal());
+      }
+      if (el.saveUserProfileBtn) {
+        el.saveUserProfileBtn.addEventListener("click", () => this.saveUserProfileFromModal());
+      }
+      if (el.userProfileTag) {
+        el.userProfileTag.addEventListener("click", () => this.openUserProfileModal());
+      }
+
+      // 綁定多人模式切換鈕
+      if (el.mpToggleBtn) {
+        el.mpToggleBtn.addEventListener("click", () => this.toggleMultiplayerMode());
+      }
+
+      // 綁定抉擇彈窗小說抽屜切換
+      if (el.toggleNovelExpandBtn) {
+        el.toggleNovelExpandBtn.addEventListener("click", () => this.toggleNovelDrawer());
+      }
+      if (el.closeNovelDrawerBtn) {
+        el.closeNovelDrawerBtn.addEventListener("click", () => this.toggleNovelDrawer(false));
+      }
+
+      // 綁定自訂行動提交
+      if (el.fateModalCustomSubmitBtn) {
+        el.fateModalCustomSubmitBtn.addEventListener("click", () => handleFateModalCustomSubmit());
+      }
+      if (el.fateModalCustomInput) {
+        el.fateModalCustomInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") handleFateModalCustomSubmit();
+        });
+      }
+    },
+
+    // 檢查網址 ?room=ROOM_ID 參數
+    checkUrlRoomParam() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get("room") || (window.location.hash.includes("room=") ? window.location.hash.split("room=")[1].split("&")[0] : null);
+        if (roomId) {
+          const targetRoom = this.rooms.find(r => r.id === roomId);
+          if (targetRoom) {
+            setTimeout(() => {
+              this.requestJoinRoom(targetRoom);
+            }, 800);
+          }
+        }
+      } catch (e) {}
+    },
+
+    openRoomHubModal(defaultTab = "browseRooms") {
+      if (!el.roomHubModal) return;
+      this.updateRoomHubHeaderUI();
+      this.switchTab(defaultTab);
+      el.roomHubModal.style.display = "flex";
+    },
+
+    closeRoomHubModal() {
+      if (el.roomHubModal) el.roomHubModal.style.display = "none";
+    },
+
+    switchTab(tabName) {
+      const tabBtns = document.querySelectorAll(".room-tab-btn");
+      tabBtns.forEach(b => b.classList.toggle("active", b.dataset.tab === tabName));
+
+      const panes = {
+        browseRooms: el.paneBrowseRooms || document.getElementById("paneBrowseRooms"),
+        createRoom: el.paneCreateRoom || document.getElementById("paneCreateRoom"),
+        joinRoom: el.paneJoinRoom || document.getElementById("paneJoinRoom"),
+        roomMembers: el.paneRoomMembers || document.getElementById("paneRoomMembers")
+      };
+
+      Object.keys(panes).forEach(k => {
+        if (panes[k]) panes[k].classList.toggle("active", k === tabName);
+      });
+
+      if (tabName === "browseRooms") {
+        this.renderRoomBrowsePane();
+      } else if (tabName === "createRoom") {
+        this.updateCreateRoomPreview();
+      } else if (tabName === "roomMembers") {
+        this.renderRoomMembersPane();
+      }
+    },
+
+    updateRoomHubHeaderUI() {
+      const room = state.activeRoom;
+      if (el.activeRoomNameLabel) {
+        el.activeRoomNameLabel.textContent = room ? room.name : "荒野公共大廳 (全域共生)";
+      }
+      if (el.activeRoomTypePill) {
+        if (room) {
+          const permMap = { link: "任何擁有連結者", team: `限團隊 (${room.teamDomain || "@team"})`, private: "私人專屬 (白名單)" };
+          el.activeRoomTypePill.textContent = permMap[room.accessType] || "房間共生";
+          el.activeRoomTypePill.className = "room-type-pill " + room.accessType;
+        } else {
+          el.activeRoomTypePill.textContent = "全域公共";
+          el.activeRoomTypePill.className = "room-type-pill";
+        }
+      }
+      if (el.leaveActiveRoomBtn) {
+        el.leaveActiveRoomBtn.style.display = room ? "inline-flex" : "none";
+      }
+      if (el.copyActiveRoomLinkBtn) {
+        el.copyActiveRoomLinkBtn.style.display = room ? "inline-flex" : "inline-flex";
+      }
+    },
+
+    updateCreateRoomPreview() {
+      const userEmail = (state.currentUser.email || "explorer@pandapanda.ai").trim();
+      const domain = userEmail.includes("@") ? ("@" + userEmail.split("@")[1]) : "@team.org";
+      if (el.creatorTeamDomainPreview) {
+        el.creatorTeamDomainPreview.textContent = domain;
+      }
+    },
+
+    onAccessTypeChanged(accessType) {
+      if (el.permSubTeam) el.permSubTeam.style.display = accessType === "team" ? "block" : "none";
+      if (el.permSubPrivate) el.permSubPrivate.style.display = accessType === "private" ? "block" : "none";
+
+      document.querySelectorAll(".perm-radio-card").forEach(c => {
+        const rad = c.querySelector('input[type="radio"]');
+        c.classList.toggle("active", rad && rad.checked);
+      });
+    },
+
+    // 建立新房間表單提交
+    handleCreateRoomSubmit() {
+      const nameInput = document.getElementById("createRoomName");
+      const biomeSelect = document.getElementById("createRoomBiome");
+      const accessRadio = document.querySelector('input[name="roomAccessType"]:checked');
+
+      const roomName = nameInput ? nameInput.value.trim() : "";
+      if (!roomName) {
+        alert("請輸入房間名稱！");
+        return;
+      }
+
+      const accessType = accessRadio ? accessRadio.value : "link";
+      const biome = biomeSelect ? biomeSelect.value : "all";
+
+      const userEmail = (state.currentUser.email || "explorer@pandapanda.ai").trim();
+      const teamDomain = userEmail.includes("@") ? ("@" + userEmail.split("@")[1]) : "@nature.org";
+      const isPublicToTeam = el.teamPublicListingCheck ? el.teamPublicListingCheck.checked : true;
+
+      let allowedEmails = [userEmail.toLowerCase()];
+      if (accessType === "private" && el.privateAllowedEmails) {
+        const raw = el.privateAllowedEmails.value;
+        const parsed = raw.split(/[\n,;]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+        allowedEmails = Array.from(new Set([...allowedEmails, ...parsed]));
+      }
+
+      const newRoom = {
+        id: "room_" + Math.random().toString(36).substring(2, 9),
+        name: roomName,
+        creator: {
+          username: state.currentUser.username,
+          nickname: state.currentUser.nickname,
+          email: userEmail
+        },
+        createdAt: Date.now(),
+        biome,
+        accessType,
+        teamDomain,
+        isPublicToTeam,
+        allowedEmails,
+        members: [
+          {
+            id: "mem_" + state.currentUser.username,
+            nickname: state.currentUser.nickname,
+            email: userEmail,
+            speciesName: (state.currentLife && state.currentLife.species && state.currentLife.species.name) || "冒險生靈",
+            age: state.currentAge || 1,
+            gender: (state.currentLife && state.currentLife.gender) || "雄性",
+            status: "創建房間並守候夥伴",
+            isCreator: true,
+            disclosure: { showNickname: true, showEmail: true }
+          }
+        ]
+      };
+
+      this.rooms.unshift(newRoom);
+      this.saveRooms();
+
+      // 自動進入此房間
+      state.activeRoom = newRoom;
+      this.updateRoomBannerUI();
+      this.updateRoomHubHeaderUI();
+
+      // 產生並複製邀請連結
+      this.copyRoomInviteLink(newRoom);
+
+      alert(`【房間建立成功！】\n房間名稱：${newRoom.name}\n權限類型：${this.getAccessTypeName(newRoom.accessType)}\n邀請連結已自動複製至剪貼簿！`);
+
+      this.switchTab("roomMembers");
+    },
+
+    getAccessTypeName(type) {
+      if (type === "link") return "1. 任何擁有連結的使用者";
+      if (type === "team") return "2. 限團隊 (相同 @網域)";
+      if (type === "private") return "3. 私人房間 (指定名單)";
+      return "公共大廳";
+    },
+
+    // 瀏覽房間大廳渲染
+    renderRoomBrowsePane() {
+      const publicGrid = el.publicRoomsGrid || document.getElementById("publicRoomsGrid");
+      const teamGrid = el.teamRoomsGrid || document.getElementById("teamRoomsGrid");
+      const teamShowcase = el.teamRoomsShowcase || document.getElementById("teamRoomsShowcase");
+
+      if (!publicGrid) return;
+      publicGrid.innerHTML = "";
+      if (teamGrid) teamGrid.innerHTML = "";
+
+      const userEmail = (state.currentUser.email || "").trim().toLowerCase();
+      const userDomain = userEmail.includes("@") ? ("@" + userEmail.split("@")[1]) : "";
+
+      if (el.myTeamDomainTag) el.myTeamDomainTag.textContent = userDomain || "@team";
+
+      let teamRoomsCount = 0;
+
+      this.rooms.forEach(room => {
+        // 判斷是否為同網域且公開展示的團隊房
+        const isMyTeamRoom = room.accessType === "team" && room.isPublicToTeam && userDomain && room.teamDomain.toLowerCase() === userDomain;
+
+        const card = this.createRoomCardElement(room);
+
+        if (isMyTeamRoom && teamGrid) {
+          teamRoomsCount++;
+          teamGrid.appendChild(card.cloneNode(true));
+          // 重新綁定加入事件
+          const btn = teamGrid.lastElementChild.querySelector(".room-join-btn");
+          if (btn) btn.addEventListener("click", () => this.requestJoinRoom(room));
+        }
+
+        // 私人房間如果在名單中才可見，或者在私人模式下只列出受邀者
+        if (room.accessType === "private") {
+          const isAllowed = (room.allowedEmails || []).map(e => e.toLowerCase()).includes(userEmail);
+          const isCreator = room.creator?.email?.toLowerCase() === userEmail;
+          if (isAllowed || isCreator) {
+            publicGrid.appendChild(card);
+            const btn = card.querySelector(".room-join-btn");
+            if (btn) btn.addEventListener("click", () => this.requestJoinRoom(room));
+          }
+        } else {
+          publicGrid.appendChild(card);
+          const btn = card.querySelector(".room-join-btn");
+          if (btn) btn.addEventListener("click", () => this.requestJoinRoom(room));
+        }
+      });
+
+      if (teamShowcase) {
+        teamShowcase.style.display = (teamRoomsCount > 0) ? "block" : "none";
+      }
+    },
+
+    createRoomCardElement(room) {
+      const card = document.createElement("div");
+      card.className = "room-card";
+
+      const permBadgeMap = {
+        link: '<span class="mp-room-perm-badge">公開連結</span>',
+        team: `<span class="mp-room-perm-badge team">限團隊 ${escapeHtml(room.teamDomain)}</span>`,
+        private: '<span class="mp-room-perm-badge private">私人白名單</span>'
+      };
+
+      const memberCount = (room.members && room.members.length) || 1;
+      const isCurrentActive = state.activeRoom && state.activeRoom.id === room.id;
+
+      card.innerHTML = `
+        <div>
+          <div class="room-card-head">
+            <h5 class="room-card-title">${escapeHtml(room.name)}</h5>
+            ${permBadgeMap[room.accessType] || '<span class="mp-room-perm-badge">房間</span>'}
+          </div>
+          <div class="room-card-biome">
+            <i class="fas fa-tree"></i> 生境：${escapeHtml(room.biome === 'all' ? '全荒野通用' : room.biome)}
+          </div>
+        </div>
+        <div>
+          <div class="room-card-meta">
+            <span class="room-creator-tag"><i class="fas fa-crown" style="color:#b45309;"></i> 房主: ${escapeHtml(room.creator?.nickname || '冒險者')}</span>
+            <span><i class="fas fa-users"></i> ${memberCount} 隻在線</span>
+          </div>
+          <button type="button" class="room-join-btn" ${isCurrentActive ? 'disabled style="opacity:0.6; background:#64748b;"' : ''}>
+            <i class="fas ${isCurrentActive ? 'fa-check' : 'fa-arrow-right-to-bracket'}"></i>
+            ${isCurrentActive ? '目前已在此房間' : '進入此房間'}
+          </button>
+        </div>
+      `;
+      return card;
+    },
+
+    filterRoomList(keyword) {
+      const q = (keyword || "").toLowerCase().trim();
+      document.querySelectorAll("#publicRoomsGrid .room-card").forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(q) ? "flex" : "none";
+      });
+    },
+
+    handleJoinByInput() {
+      const val = el.joinRoomCodeInput ? el.joinRoomCodeInput.value.trim() : "";
+      if (!val) {
+        alert("請輸入房間代碼或貼上邀請連結！");
+        return;
+      }
+
+      let roomId = val;
+      if (val.includes("room=")) {
+        roomId = val.split("room=")[1].split("&")[0];
+      }
+
+      const target = this.rooms.find(r => r.id === roomId || r.id === val);
+      if (!target) {
+        alert(`【查無此房間】未找到代碼為「${roomId}」的房間。請確認代碼或邀請網址是否正確。`);
+        return;
+      }
+
+      this.requestJoinRoom(target);
+    },
+
+    // 核心權限檢驗邏輯
+    validateRoomAccess(room, user) {
+      if (!room) return { allowed: false, reason: "房間不存在或已解散！" };
+
+      // 房主本人一律無條件允許進入
+      const userEmail = (user.email || "").trim().toLowerCase();
+      if (room.creator && (room.creator.email?.toLowerCase() === userEmail || room.creator.username === user.username)) {
+        return { allowed: true, isCreator: true };
+      }
+
+      // 權限 1: 任何擁有連結的使用者 (link)
+      if (room.accessType === "link") {
+        return { allowed: true, isCreator: false };
+      }
+
+      // 權限 2: 限團隊 (team)
+      if (room.accessType === "team") {
+        const userDomain = userEmail.includes("@") ? ("@" + userEmail.split("@")[1]) : "";
+        const targetDomain = (room.teamDomain || "").trim().toLowerCase();
+
+        if (userDomain && targetDomain && userDomain === targetDomain) {
+          return { allowed: true, isCreator: false };
+        } else {
+          return {
+            allowed: false,
+            reason: `【限團隊權限受限】此房間僅限 ${room.teamDomain} 團隊成員進入！\n你當前帳號的電子郵件為「${user.email || "未設定"}」，網域（${userDomain || "無"}）不符合此團隊資格。\n請點擊右上角身分卡切換為符合該團隊網域的電子郵件後再試。`
+          };
+        }
+      }
+
+      // 權限 3: 私人房間 (private)
+      if (room.accessType === "private") {
+        const allowedList = (room.allowedEmails || []).map(e => e.trim().toLowerCase());
+
+        if (userEmail && allowedList.includes(userEmail)) {
+          return { allowed: true, isCreator: false };
+        } else {
+          return {
+            allowed: false,
+            reason: `【私人房間限制】此為私人專屬房間，僅限房主授權名單內的特定帳號（電子郵件）才能進入查看！\n你的電子郵件「${user.email || "未設定"}」不在受邀名單中。\n請聯繫房間創建者（${room.creator?.nickname || "房主"}）將你的信箱加入許可名單。`
+          };
+        }
+      }
+
+      return { allowed: true, isCreator: false };
+    },
+
+    // 請求加入房間（觸發權限檢驗與授權確認）
+    requestJoinRoom(room) {
+      const auth = this.validateRoomAccess(room, state.currentUser);
+      if (!auth.allowed) {
+        alert(auth.reason);
+        return;
+      }
+
+      // 若使用者就是房主本人，直接進入無需再次自選揭露
+      if (auth.isCreator) {
+        this.executeJoinRoom(room, { showNickname: true, showEmail: true });
+        return;
+      }
+
+      // 彈出身分揭露授權確認視窗 (最少選一個，最多選兩個)
+      state.pendingJoinRoom = room;
+      if (el.consentModalSub) {
+        el.consentModalSub.textContent = `你即將進入【${room.name}】，創建者（${room.creator?.nickname || "房主"}）依規定可查看成員身分資訊`;
+      }
+      if (el.consentNicknameVal) {
+        el.consentNicknameVal.textContent = state.currentUser.nickname || "冒險生靈";
+      }
+      if (el.consentEmailVal) {
+        el.consentEmailVal.textContent = state.currentUser.email || "explorer@pandapanda.ai";
+      }
+
+      // 預設勾選
+      if (el.consentCheckNickname) el.consentCheckNickname.checked = state.consentPreferences.showNickname;
+      if (el.consentCheckEmail) el.consentCheckEmail.checked = state.consentPreferences.showEmail;
+
+      this.validateConsentInputs();
+
+      if (el.roomJoinConsentModal) {
+        el.roomJoinConsentModal.style.display = "flex";
+      }
+    },
+
+    validateConsentInputs() {
+      const nickChecked = el.consentCheckNickname ? el.consentCheckNickname.checked : false;
+      const emailChecked = el.consentCheckEmail ? el.consentCheckEmail.checked : false;
+
+      // 最少選擇一個，最多兩個 (核取方塊天然滿足最多兩個)
+      const valid = nickChecked || emailChecked;
+      if (el.consentErrorMsg) {
+        el.consentErrorMsg.style.display = valid ? "none" : "flex";
+      }
+      if (el.confirmConsentJoinBtn) {
+        el.confirmConsentJoinBtn.disabled = !valid;
+        el.confirmConsentJoinBtn.style.opacity = valid ? "1" : "0.5";
+        el.confirmConsentJoinBtn.style.cursor = valid ? "pointer" : "not-allowed";
+      }
+      return valid;
+    },
+
+    confirmConsentJoin() {
+      if (!this.validateConsentInputs()) return;
+
+      const nickChecked = el.consentCheckNickname ? el.consentCheckNickname.checked : true;
+      const emailChecked = el.consentCheckEmail ? el.consentCheckEmail.checked : false;
+
+      state.consentPreferences.showNickname = nickChecked;
+      state.consentPreferences.showEmail = emailChecked;
+
+      const room = state.pendingJoinRoom;
+      if (!room) return;
+
+      this.closeConsentModal();
+      this.executeJoinRoom(room, { showNickname: nickChecked, showEmail: emailChecked });
+    },
+
+    closeConsentModal() {
+      if (el.roomJoinConsentModal) el.roomJoinConsentModal.style.display = "none";
+      state.pendingJoinRoom = null;
+    },
+
+    executeJoinRoom(room, disclosure) {
+      state.activeRoom = room;
+
+      // 將當前使用者加入房間成員名單
+      const userEmail = (state.currentUser.email || "").trim();
+      const existingIdx = (room.members || []).findIndex(m => m.email === userEmail || m.nickname === state.currentUser.nickname);
+
+      const memberObj = {
+        id: "mem_" + state.currentUser.username,
+        nickname: state.currentUser.nickname,
+        email: userEmail,
+        speciesName: (state.currentLife && state.currentLife.species && state.currentLife.species.name) || "冒險生靈",
+        age: state.currentAge || 1,
+        gender: (state.currentLife && state.currentLife.gender) || "雄性",
+        status: "剛剛踏入房間共同生活",
+        isCreator: room.creator?.email === userEmail,
+        disclosure: disclosure || { showNickname: true, showEmail: false }
+      };
+
+      if (!room.members) room.members = [];
+      if (existingIdx >= 0) {
+        room.members[existingIdx] = memberObj;
+      } else {
+        room.members.push(memberObj);
+      }
+      this.saveRooms();
+
+      // 更新 URL
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set("room", room.id);
+        window.history.replaceState({}, "", url.toString());
+      } catch (e) {}
+
+      // 更新畫面與右欄狀態
+      this.updateRoomBannerUI();
+      this.updateRoomHubHeaderUI();
+
+      // 若在房間中心，切換至成員分頁
+      this.switchTab("roomMembers");
+
+      // 同步生境同胞顯示房間成員
+      this.syncRoomPeersToUI();
+
+      alert(`【成功進入房間】\n你已進入「${room.name}」！\n你已設定向創建者揭露：${disclosure.showNickname ? '[暱稱]' : ''} ${disclosure.showEmail ? '[電子郵件]' : ''}`);
+    },
+
+    syncRoomPeersToUI() {
+      if (!state.activeRoom) {
+        this.generateHabitatPeers();
+        return;
+      }
+
+      // 轉換房間成員至 peers 清單
+      const room = state.activeRoom;
+      this.peers = (room.members || []).map(m => ({
+        name: m.nickname,
+        speciesName: m.speciesName,
+        gender: m.gender,
+        age: m.age,
+        status: m.status
+      }));
+
+      state.mpPeers = this.peers;
+      this.renderPeersUI();
+      if (el.mpCardTitle) el.mpCardTitle.textContent = `【${room.name}】在線成員`;
+    },
+
+    updateRoomBannerUI() {
+      const room = state.activeRoom;
+      if (el.currentRoomTag) {
+        el.currentRoomTag.textContent = room ? room.name : "荒野公共大廳";
+      }
+      if (el.mpRoomNameText) {
+        el.mpRoomNameText.textContent = room ? room.name : "荒野全域大廳";
+      }
+      if (el.mpRoomPermBadge) {
+        if (room) {
+          const permMap = { link: "公開連結", team: `限團隊 ${room.teamDomain}`, private: "私人專屬" };
+          el.mpRoomPermBadge.textContent = permMap[room.accessType] || "房間";
+          el.mpRoomPermBadge.className = "mp-room-perm-badge " + room.accessType;
+        } else {
+          el.mpRoomPermBadge.textContent = "公共";
+          el.mpRoomPermBadge.className = "mp-room-perm-badge";
+        }
+      }
+      if (el.mpCardLeaveBtn) {
+        el.mpCardLeaveBtn.style.display = room ? "inline-flex" : "none";
+      }
+    },
+
+    leaveCurrentRoom() {
+      if (!state.activeRoom) return;
+      const roomName = state.activeRoom.name;
+
+      state.activeRoom = null;
+
+      // 清除網址 room 參數
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("room");
+        window.history.replaceState({}, "", url.toString());
+      } catch (e) {}
+
+      this.updateRoomBannerUI();
+      this.updateRoomHubHeaderUI();
+      this.generateHabitatPeers();
+      if (el.mpCardTitle) el.mpCardTitle.textContent = "同生地區在線生命";
+
+      this.switchTab("browseRooms");
+      alert(`已退出「${roomName}」，返回荒野公共全域大廳。`);
+    },
+
+    copyActiveRoomLink() {
+      const room = state.activeRoom || this.rooms[0];
+      if (room) {
+        this.copyRoomInviteLink(room);
+      }
+    },
+
+    copyCurrentRoomLink() {
+      const room = state.activeRoom || this.rooms[0];
+      if (room) {
+        this.copyRoomInviteLink(room);
+      }
+    },
+
+    copyRoomInviteLink(room) {
+      if (!room) return;
+      const link = `${window.location.origin}${window.location.pathname}?room=${room.id}`;
+      try {
+        navigator.clipboard.writeText(link).then(() => {
+          alert(`【邀請連結已複製到剪貼簿】\n房間：${room.name}\n網址：${link}\n發送給夥伴即可一起共生生存！`);
+        }).catch(() => {
+          prompt("請複製以下房間邀請連結：", link);
+        });
+      } catch (e) {
+        prompt("請複製以下房間邀請連結：", link);
+      }
+    },
+
+    kickMember(memberId) {
+      const room = state.activeRoom;
+      if (!room || !room.members) return;
+
+      const idx = room.members.findIndex(m => m.id === memberId);
+      if (idx >= 0) {
+        const kicked = room.members.splice(idx, 1)[0];
+        this.saveRooms();
+        this.renderRoomMembersPane();
+        this.syncRoomPeersToUI();
+        alert(`已將成員「${kicked.nickname}」請離此房間。`);
+      }
+    },
+
+    renderRoomMembersPane() {
+      if (!el.roomMembersCardsList) return;
+      el.roomMembersCardsList.innerHTML = "";
+
+      const room = state.activeRoom || this.rooms[0];
+      const isCreator = room && room.creator && (room.creator.email?.toLowerCase() === state.currentUser.email?.toLowerCase() || room.creator.username === state.currentUser.username);
+
+      if (el.membersRoomTitle) el.membersRoomTitle.textContent = room ? room.name : "荒野公共大廳";
+      if (el.membersRoomAccessBadge) {
+        const permMap = { link: "任何擁有連結者", team: `限團隊 (${room?.teamDomain || "@team"})`, private: "私人專屬 (白名單)" };
+        el.membersRoomAccessBadge.textContent = permMap[room?.accessType] || "公開連線";
+      }
+      if (el.membersRoomCreatorBadge) {
+        el.membersRoomCreatorBadge.innerHTML = `<i class="fas fa-crown"></i> 房主：${escapeHtml(room?.creator?.nickname || "系統生態網")}`;
+      }
+      if (el.membersRoleNotice) {
+        if (isCreator) {
+          el.membersRoleNotice.innerHTML = `<i class="fas fa-crown"></i> <strong>你是此房間創建者</strong>：依使用者授權，你可查看成員的電子郵件與暱稱。`;
+          el.membersRoleNotice.style.background = "rgba(180, 83, 9, 0.1)";
+          el.membersRoleNotice.style.borderColor = "rgba(180, 83, 9, 0.4)";
+          el.membersRoleNotice.style.color = "#92400e";
+        } else {
+          el.membersRoleNotice.innerHTML = `<i class="fas fa-user-check"></i> <strong>成員視角</strong>：你目前在此房間中共生生存，已依你的偏好向創建者揭露身分。`;
+          el.membersRoleNotice.style.background = "rgba(14, 165, 233, 0.08)";
+          el.membersRoleNotice.style.borderColor = "rgba(14, 165, 233, 0.3)";
+          el.membersRoleNotice.style.color = "#0284c7";
+        }
+      }
+
+      const members = (room && room.members && room.members.length > 0) ? room.members : [];
+      if (el.roomMembersCount) el.roomMembersCount.textContent = members.length;
+
+      members.forEach((m) => {
+        const li = document.createElement("li");
+        li.className = "member-card-item";
+
+        // 身分揭露邏輯 (房主可見授權的暱稱與 Email)
+        let displayNick = m.nickname || "冒險生靈";
+        let displayEmail = "(成員未揭露信箱)";
+
+        if (isCreator) {
+          // 房主視角：成員若決定不給看暱稱/信箱
+          if (m.disclosure?.showNickname === false) {
+            displayNick = "(成員選擇隱藏暱稱)";
+          }
+          if (m.disclosure?.showEmail && m.email) {
+            displayEmail = `<i class="fas fa-envelope"></i> ${escapeHtml(m.email)}`;
+          }
+        } else {
+          // 普通成員視角
+          if (m.isCreator) {
+            displayEmail = `<i class="fas fa-crown" style="color:#eab308;"></i> 房間創建者`;
+          } else {
+            displayEmail = `<i class="fas fa-shield-cat"></i> 同生境夥伴`;
+          }
+        }
+
+        const isMe = (m.email?.toLowerCase() === state.currentUser.email?.toLowerCase() || m.nickname === state.currentUser.nickname);
+        const canKick = isCreator && !m.isCreator && !isMe;
+
+        li.innerHTML = `
+          <div class="member-left">
+            <div class="member-avatar-circle"><i class="fas ${m.isCreator ? 'fa-crown' : 'fa-paw'}"></i></div>
+            <div class="member-info-col">
+              <div class="member-name-row">
+                <span>${escapeHtml(displayNick)}</span>
+                ${m.isCreator ? '<span class="room-type-pill" style="font-size:10px; background:#b45309;">房主</span>' : ''}
+                ${isMe ? '<span class="room-type-pill" style="font-size:10px; background:#10b981;">你</span>' : ''}
+              </div>
+              <div class="member-email-sub">${displayEmail}</div>
+              <div class="member-species-tag">${escapeHtml(m.speciesName || '生靈')} · ${m.age || 1}歲 · ${escapeHtml(m.gender || '雄性')} · ${escapeHtml(m.status || '在線共生')}</div>
+            </div>
+          </div>
+          <div class="member-right-status">
+            ${canKick ? `<button type="button" class="btn-kick-member" onclick="MultiplayerHabitatEngine.kickMember('${m.id}')"><i class="fas fa-user-minus"></i> 請離</button>` : ''}
+          </div>
+        `;
+        el.roomMembersCardsList.appendChild(li);
+      });
+    },
+
+    openUserProfileModal() {
+      if (!el.userProfileModal) return;
+      if (el.profileNicknameInput) el.profileNicknameInput.value = state.currentUser.nickname || "";
+      if (el.profileEmailInput) el.profileEmailInput.value = state.currentUser.email || "";
+      el.userProfileModal.style.display = "flex";
+    },
+
+    closeUserProfileModal() {
+      if (el.userProfileModal) el.userProfileModal.style.display = "none";
+    },
+
+    saveUserProfileFromModal() {
+      const nick = el.profileNicknameInput ? el.profileNicknameInput.value.trim() : "";
+      const email = el.profileEmailInput ? el.profileEmailInput.value.trim() : "";
+
+      if (!nick) {
+        alert("請輸入暱稱！");
+        return;
+      }
+      if (!email || !email.includes("@")) {
+        alert("請輸入有效的電子郵件地址（包含 @ 與網域）！");
+        return;
+      }
+
+      state.currentUser.nickname = nick;
+      state.currentUser.email = email;
+
+      localStorage.setItem("sso_nickname", nick);
+      localStorage.setItem("sso_email", email);
+
+      if (el.userNameLabel) el.userNameLabel.textContent = nick;
+
+      this.closeUserProfileModal();
+      this.updateCreateRoomPreview();
+
+      alert(`【冒險者身分已更新】\n暱稱：${nick}\n電子郵件：${email}\n團隊網域識別為：@${email.split("@")[1]}`);
+    },
+
+    setQuickProfile(nick, email) {
+      if (el.profileNicknameInput) el.profileNicknameInput.value = nick;
+      if (el.profileEmailInput) el.profileEmailInput.value = email;
     },
 
     toggleNovelDrawer(forceState) {
@@ -3799,7 +4724,11 @@
       if (el.mpCurrentBiomeName) {
         el.mpCurrentBiomeName.textContent = this.currentBiome;
       }
-      this.generateHabitatPeers();
+      if (state.activeRoom) {
+        this.syncRoomPeersToUI();
+      } else {
+        this.generateHabitatPeers();
+      }
     },
 
     generateHabitatPeers() {
@@ -3808,7 +4737,6 @@
       const sampleNames = ["影爪", "長風", "白尾", "疾蹄", "夜羽", "雪瞳", "霜牙", "破曉", "星紋", "幽林"];
       const genders = ["雄性", "雌性"];
 
-      // 挑選與當前物種不同或同生境的動物
       const allSpecies = (window.SPECIES_DATABASE || []).filter(s => {
         if (!state.currentLife || !state.currentLife.species) return true;
         return s.name !== state.currentLife.species.name;
