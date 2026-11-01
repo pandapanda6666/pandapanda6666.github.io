@@ -17,6 +17,15 @@ import tkinter as tk
 from tkinter import filedialog
 import ctypes
 
+class NullWriter:
+    def write(self, *args, **kwargs): pass
+    def flush(self, *args, **kwargs): pass
+
+if sys.stdout is None:
+    sys.stdout = NullWriter()
+if sys.stderr is None:
+    sys.stderr = NullWriter()
+
 TOOL_NAME = "字幕編輯工具"
 MAGIC_NAME = f"PandaPanda的AI日常___{TOOL_NAME}"
 
@@ -35,19 +44,19 @@ def get_resource_file(filename):
     if hasattr(sys, '_MEIPASS'):
         p = os.path.join(sys._MEIPASS, filename)
         if os.path.exists(p): return p
-    # 2. 尋找執行檔同目錄
+    # 2. 優先尋找 Edit/Video/Add subtitles/ 子目錄 (git 專案開發環境)
     base_dir = get_base_dir()
-    p = os.path.join(base_dir, filename)
-    if os.path.exists(p): return p
-    # 3. 尋找 Edit/Video/Add subtitles/ 子目錄
     p_sub = os.path.join(base_dir, "Edit", "Video", "Add subtitles", filename)
     if os.path.exists(p_sub): return p_sub
+    # 3. 尋找執行檔同目錄 (安裝後 PandaSubtitleEditor 目錄)
+    p = os.path.join(base_dir, filename)
+    if os.path.exists(p): return p
     # 4. 尋找原始碼同目錄
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    p_dev = os.path.join(script_dir, filename)
-    if os.path.exists(p_dev): return p_dev
     p_dev_sub = os.path.join(script_dir, "Edit", "Video", "Add subtitles", filename)
     if os.path.exists(p_dev_sub): return p_dev_sub
+    p_dev = os.path.join(script_dir, filename)
+    if os.path.exists(p_dev): return p_dev
     return p
 
 def get_ffmpeg_path():
@@ -94,6 +103,15 @@ def ensure_ffmpeg_async():
 class DesktopAPIHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
+    def log_message(self, format, *args):
+        pass
+
+    def log_request(self, code='-', size='-'):
+        pass
+
+    def log_error(self, format, *args):
+        pass
+
     def send_json(self, data):
         body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(200)
@@ -104,6 +122,7 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
         self.wfile.write(body)
+        self.close_connection = True
         
     def do_OPTIONS(self):
         self.send_response(200)
@@ -113,8 +132,23 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.send_header("Connection", "close")
         self.end_headers()
+        self.close_connection = True
         
     def do_GET(self):
+        try:
+            self._handle_get()
+        except Exception:
+            try:
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", "0")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.close_connection = True
+            except Exception:
+                pass
+
+    def _handle_get(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         qs = urllib.parse.parse_qs(parsed.query)
@@ -147,7 +181,11 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
         if path == "/media":
             media_path = qs.get("path", [""])[0]
             if not os.path.exists(media_path):
-                self.send_error(404)
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.send_header("Connection", "close")
+                self.end_headers()
+                self.close_connection = True
                 return
                 
             size = os.path.getsize(media_path)
@@ -234,11 +272,27 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
             self.send_header("Connection", "close")
             self.end_headers()
             self.wfile.write(content)
+            self.close_connection = True
             return
         else:
-            self.send_error(404, f"File Not Found: {req_file}")
+            self.send_response(404)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", "0")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            return
 
     def do_POST(self):
+        try:
+            self._handle_post()
+        except Exception as e:
+            try:
+                self.send_json({"status": "error", "error": str(e)}, 500)
+            except Exception:
+                pass
+
+    def _handle_post(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         length = int(self.headers.get('Content-Length', 0))
@@ -459,6 +513,9 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
 class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
+
+    def handle_error(self, request, client_address):
+        pass
 
 def start_http_server(port=8848):
     global actual_server_port, server_started_successfully

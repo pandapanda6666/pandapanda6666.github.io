@@ -193,6 +193,7 @@ $btnInstall.Add_Click({
             "run.pyw",
             "index.html",
             "tailwindcss.js",
+            "favicon.ico",
             "啟動字幕編輯器.bat"
         )
 
