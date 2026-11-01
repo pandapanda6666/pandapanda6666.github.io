@@ -130,21 +130,56 @@ window.DestinyEngine = {
       const gdpDiff = countryData.gdpPppUsd - home.gdpPppUsd;
 
       return {
+        homeCountry: {
+          name: home.name,
+          lifespan: home.avgLifespan,
+          infantMortality: (home.infantMortality * 100).toFixed(2) + "%",
+          gdpOrResource: "$" + home.gdpPppUsd.toLocaleString()
+        },
+        birthEnvironment: {
+          name: countryData.name,
+          lifespan: countryData.avgLifespan,
+          infantMortality: (countryData.infantMortality * 100).toFixed(2) + "%",
+          gdpOrResource: "$" + countryData.gdpPppUsd.toLocaleString()
+        },
+        lifespanDelta: parseFloat(diffLifespan),
+        infantRiskRatio: infantRatio,
+        wealthRatio: gdpDiff >= 0 ? `+${(countryData.gdpPppUsd / Math.max(1, home.gdpPppUsd)).toFixed(1)}x` : `${(countryData.gdpPppUsd / Math.max(1, home.gdpPppUsd)).toFixed(1)}x`,
+        summary: `若你在${home.name}成長，平均預期壽命為 ${home.avgLifespan} 歲（${home.env}）；而降生在${countryData.name}，你將在${countryData.description || countryData.name}中展開一生。`,
         homeName: home.name,
         targetName: countryData.name,
         diffLifespan: diffLifespan > 0 ? `+${diffLifespan} 歲` : `${diffLifespan} 歲`,
         lifespanVerdict: diffLifespan >= 0 ? `比${home.name}多活約 ${diffLifespan} 歲` : `比${home.name}少活約 ${Math.abs(diffLifespan)} 歲`,
         infantComparison: infantRatio > 1.2 ? `嬰兒死亡風險約為${home.name}的 ${infantRatio} 倍` : (infantRatio < 0.8 ? `嬰兒死亡率比${home.name}更低` : `與${home.name}相近`),
         economicVerdict: gdpDiff >= 0 ? `人均GDP高於${home.name} (約高 $${gdpDiff.toLocaleString()})` : `人均GDP低於${home.name} (約低 $${Math.abs(gdpDiff).toLocaleString()})`,
-        summaryText: `若你在${home.name}成長，平均預期壽命為 ${home.avgLifespan} 歲（${home.env}）；而降生在${countryData.name}，你將在${countryData.description}中展開一生。`
+        summaryText: `若你在${home.name}成長，平均預期壽命為 ${home.avgLifespan} 歲（${home.env}）；而降生在${countryData.name}，你將在${countryData.description || countryData.name}中展開一生。`
       };
     } else {
       const wildAvg = species.avgAgeWild;
       const wildUnit = species.unit;
       const infantSurvival = (species.infantSurvivalRate * 100).toFixed(1);
+      const infantMortalityRate = Math.max(0.01, 1 - (species.infantSurvivalRate || 0.3));
       const homeLifespan = home.avgLifespan;
+      const diffLifespan = (wildAvg - homeLifespan).toFixed(1);
+      const infantRatio = (infantMortalityRate / Math.max(0.0001, home.infantMortality)).toFixed(1);
 
       return {
+        homeCountry: {
+          name: home.name,
+          lifespan: home.avgLifespan,
+          infantMortality: (home.infantMortality * 100).toFixed(2) + "%",
+          gdpOrResource: "$" + home.gdpPppUsd.toLocaleString()
+        },
+        birthEnvironment: {
+          name: `${species.name} (${biome ? biome.name : '自然荒野'})`,
+          lifespan: `${wildAvg} ${wildUnit}`,
+          infantMortality: `${(infantMortalityRate * 100).toFixed(1)}%`,
+          gdpOrResource: "領地生態代謝"
+        },
+        lifespanDelta: parseFloat(diffLifespan),
+        infantRiskRatio: infantRatio,
+        wealthRatio: "生態位獵場",
+        summary: `你在文明社會${home.name}習慣了庇護與醫療；而作為${biome ? biome.name : '自然荒野'}中的${species.name}，每一步都將在寒冬、天敵與野性直覺的真實洗禮中渡過。`,
         homeName: home.name,
         targetName: `${species.name} (${biome ? biome.name : '荒野生境'})`,
         diffLifespan: `${wildAvg} ${wildUnit}`,

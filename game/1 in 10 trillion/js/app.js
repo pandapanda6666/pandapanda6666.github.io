@@ -1614,13 +1614,24 @@
       return;
     }
     el.certHome.style.display = "block";
-    const deltaSign = cmp.lifespanDelta >= 0 ? `+${cmp.lifespanDelta}` : `${cmp.lifespanDelta}`;
-    const badgeClass = cmp.lifespanDelta >= 0 ? "cmp-badge-better" : "cmp-badge-worse";
+    const delta = cmp.lifespanDelta != null ? cmp.lifespanDelta : (parseFloat(cmp.diffLifespan) || 0);
+    const deltaSign = delta >= 0 ? `+${delta}` : `${delta}`;
+    const badgeClass = delta >= 0 ? "cmp-badge-better" : "cmp-badge-worse";
+    const homeName = cmp.homeCountry?.name || cmp.homeName || "母國";
+    const homeLifespan = cmp.homeCountry?.lifespan ?? (window.HOME_COUNTRIES_LIST ? window.HOME_COUNTRIES_LIST[0].avgLifespan : 80);
+    const homeMortality = cmp.homeCountry?.infantMortality ?? "0.38%";
+    const homeGdp = cmp.homeCountry?.gdpOrResource ?? "$72,490";
+    const envLifespan = cmp.birthEnvironment?.lifespan ?? (life.species.isHuman ? (life.countryData?.avgLifespan + " 歲") : (life.species.avgAgeWild + " " + life.species.unit));
+    const envMortality = cmp.birthEnvironment?.infantMortality ?? "—";
+    const envGdp = cmp.birthEnvironment?.gdpOrResource ?? "—";
+    const infantRatio = cmp.infantRiskRatio ?? "1.0";
+    const wealthRatio = cmp.wealthRatio ?? "—";
+    const summary = cmp.summary || cmp.summaryText || "";
 
     el.certHome.innerHTML = `
       <div class="home-cmp-title">
         <i class="fas fa-scale-balanced"></i>
-        <span>與你的母國（${escapeHtml(cmp.homeCountry.name)}）命運對照</span>
+        <span>與你的母國（${escapeHtml(homeName)}）命運對照</span>
       </div>
       <table class="cmp-table">
         <thead>
@@ -1634,26 +1645,26 @@
         <tbody>
           <tr>
             <td><strong>預期壽命</strong></td>
-            <td>${cmp.birthEnvironment.lifespan} 歲</td>
-            <td>${cmp.homeCountry.lifespan} 歲</td>
+            <td>${envLifespan}</td>
+            <td>${homeLifespan}</td>
             <td><span class="cmp-badge ${badgeClass}">${deltaSign} 歲</span></td>
           </tr>
           <tr>
             <td><strong>幼年夭折風險</strong></td>
-            <td>${cmp.birthEnvironment.infantMortality}</td>
-            <td>${cmp.homeCountry.infantMortality}</td>
-            <td><span class="cmp-badge ${cmp.birthEnvironment.infantMortality > cmp.homeCountry.infantMortality ? 'cmp-badge-worse' : 'cmp-badge-better'}">${cmp.infantRiskRatio}x 倍率</span></td>
+            <td>${envMortality}</td>
+            <td>${homeMortality}</td>
+            <td><span class="cmp-badge ${parseFloat(infantRatio) > 1.2 ? 'cmp-badge-worse' : 'cmp-badge-better'}">${infantRatio}x 倍率</span></td>
           </tr>
           <tr>
             <td><strong>物質/領地資源</strong></td>
-            <td>${cmp.birthEnvironment.gdpOrResource}</td>
-            <td>${cmp.homeCountry.gdpOrResource}</td>
-            <td><span class="cmp-badge cmp-badge-neutral">${cmp.wealthRatio}</span></td>
+            <td>${envGdp}</td>
+            <td>${homeGdp}</td>
+            <td><span class="cmp-badge cmp-badge-neutral">${wealthRatio}</span></td>
           </tr>
           <tr>
             <td><strong>生存環境評估</strong></td>
             <td colspan="3" style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.5; padding-top: 6px;">
-              ${escapeHtml(cmp.summary)}
+              ${escapeHtml(summary)}
             </td>
           </tr>
         </tbody>
@@ -3399,15 +3410,18 @@
       return;
     }
     el.dashHomeCard.style.display = "block";
-    const deltaSign = cmp.lifespanDelta >= 0 ? `+${cmp.lifespanDelta}` : `${cmp.lifespanDelta}`;
+    const homeName = cmp.homeCountry?.name || cmp.homeName || "母國";
+    const delta = cmp.lifespanDelta != null ? cmp.lifespanDelta : (parseFloat(cmp.diffLifespan) || 0);
+    const deltaSign = delta >= 0 ? `+${delta}` : `${delta}`;
+    const infantRatio = cmp.infantRiskRatio ?? "1.0";
 
     el.dashHomeCard.innerHTML = `
       <div style="font-size:11.5px; font-weight:700; color:var(--accent-gold); margin-bottom:6px; display:flex; align-items:center; gap:5px;">
-        <i class="fas fa-earth-americas"></i> 母國命運參照 (${escapeHtml(cmp.homeCountry.name)})
+        <i class="fas fa-earth-americas"></i> 母國命運參照 (${escapeHtml(homeName)})
       </div>
       <div style="font-size:12px; color:var(--text-secondary); line-height:1.5;">
         預期壽命差：<strong style="color:var(--accent-burgundy);">${deltaSign} 歲</strong><br>
-        幼體存活率：<strong>${cmp.infantRiskRatio}x</strong> 差異
+        幼體存活率：<strong>${infantRatio}x</strong> 差異
       </div>
     `;
   }
