@@ -1,18 +1,99 @@
 
-// --- Domain Migration Check (pandapanda6666.github.io -> pandapandaai.vercel.app) ---
+// --- Domain Migration Check & Copyright Links (pandapanda6666.github.io -> pandapandaai.vercel.app) ---
 (function() {
+    function updateCopyrightLinks() {
+        const newSiteUrl = 'https://pandapandaai.vercel.app/';
+        const links = document.querySelectorAll('footer a, .copyright a, [data-i18n*="copyright"] a, [data-i18n*="footer"] a, #footer-copyright a');
+        links.forEach(a => {
+            const href = a.getAttribute('href');
+            if (href === './' || href === '../' || href === '/' || (href && href.includes('pandapanda6666.github.io'))) {
+                a.href = newSiteUrl;
+                a.target = '_blank';
+                a.rel = 'noopener';
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', updateCopyrightLinks);
+    } else {
+        updateCopyrightLinks();
+    }
+
     if (window.location.hostname === 'pandapanda6666.github.io') {
         const newUrl = 'https://pandapandaai.vercel.app' + window.location.pathname + window.location.search + window.location.hash;
+
+        function showFooterNewSiteButton() {
+            let container = document.getElementById('footer-new-site-container') || document.getElementById('new-site-footer-btn-container');
+            if (!container) {
+                const footer = document.querySelector('footer') || document.body;
+                container = document.createElement('div');
+                container.id = 'footer-new-site-container';
+                container.style.cssText = 'margin-top: 14px; text-align: center;';
+                footer.appendChild(container);
+            }
+            container.style.display = 'block';
+            if (!container.querySelector('a')) {
+                container.innerHTML = '<a href="' + newUrl + '" id="footer-new-site-btn" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:6px; padding:7px 20px; background:#2c5e32; color:#ffffff !important; border-radius:24px; font-weight:bold; text-decoration:none !important; font-size:13px; border:1.5px solid #dde8d4; box-shadow:0 2px 6px rgba(0,0,0,0.15); transition:all 0.2s ease;">' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>' +
+                    '<span>切換到新網站 (pandapandaai.vercel.app)</span></a>';
+            }
+        }
+
+        if (sessionStorage.getItem('migration_dismissed') === 'true') {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', showFooterNewSiteButton);
+            } else {
+                showFooterNewSiteButton();
+            }
+            return;
+        }
+
         if (!document.getElementById('domain-migration-notice')) {
             const banner = document.createElement('div');
             banner.id = 'domain-migration-notice';
-            banner.style.cssText = 'position:fixed; top:0; left:0; width:100%; background:#2c5e32; color:#ffffff; padding:12px 16px; font-size:14px; font-weight:bold; z-index:9999999; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-family:sans-serif; display:flex; align-items:center; justify-content:center; gap:10px;';
-            banner.innerHTML = '<i class="fas fa-exchange-alt"></i> <span>官方網址已正式遷移至全新網域 <strong>pandapandaai.vercel.app</strong>，正在為您自動跳轉...</span> <a href="' + newUrl + '" style="color:#a7f3d0; text-decoration:underline; margin-left:8px;">立即前往</a>';
+            banner.style.cssText = 'position:fixed; top:0; left:0; width:100%; background:#2c5e32; color:#ffffff; padding:12px 18px; font-size:14px; font-weight:bold; z-index:9999999; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.3); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:12px;';
+            
+            banner.innerHTML = '<div style="display:flex; align-items:center; gap:8px;">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>' +
+                '<span>官方網址已正式遷移至全新網域 <strong>pandapandaai.vercel.app</strong>，即將在 <strong id="migration-timer-count" style="color:#fef08a; font-size:16px;">5</strong> 秒後自動切換...</span>' +
+                '</div>' +
+                '<div style="display:flex; align-items:center; gap:8px;">' +
+                '<button id="migration-confirm-btn" style="background:#10b981; color:#ffffff; border:none; padding:5px 15px; border-radius:18px; font-weight:bold; cursor:pointer; font-size:13px; transition:0.2s;">立即切換</button>' +
+                '<button id="migration-cancel-btn" style="background:rgba(255,255,255,0.18); color:#ffffff; border:1px solid rgba(255,255,255,0.5); padding:5px 15px; border-radius:18px; font-weight:bold; cursor:pointer; font-size:13px; transition:0.2s;">取消 (留在本站)</button>' +
+                '</div>';
             document.documentElement.appendChild(banner);
+
+            let secondsLeft = 5;
+            let timer = null;
+
+            const doSwitch = function() {
+                if (timer) clearInterval(timer);
+                window.location.replace(newUrl);
+            };
+
+            const doCancel = function() {
+                if (timer) clearInterval(timer);
+                sessionStorage.setItem('migration_dismissed', 'true');
+                banner.remove();
+                showFooterNewSiteButton();
+            };
+
+            const confirmBtn = banner.querySelector('#migration-confirm-btn');
+            const cancelBtn = banner.querySelector('#migration-cancel-btn');
+            const timerSpan = banner.querySelector('#migration-timer-count');
+
+            if (confirmBtn) confirmBtn.onclick = doSwitch;
+            if (cancelBtn) cancelBtn.onclick = doCancel;
+
+            timer = setInterval(function() {
+                secondsLeft--;
+                if (timerSpan) timerSpan.textContent = secondsLeft;
+                if (secondsLeft <= 0) {
+                    doSwitch();
+                }
+            }, 1000);
         }
-        setTimeout(function() {
-            window.location.replace(newUrl);
-        }, 1200);
     }
 })();
 
