@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -208,7 +208,13 @@
 
     </style>
     
-    <script src="../../../custom_ui.js"></script>
+    <script>
+        if (window.location.hostname.includes('pandapanda6666.github.io') || window.location.hostname.includes('github.io')) {
+            const s = document.createElement('script');
+            s.src = '../../../custom_ui.js';
+            document.head.appendChild(s);
+        }
+    </script>
 </head>
 <body class="flex flex-col h-screen relative bg-slate-900">
 
@@ -220,7 +226,7 @@
                     <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                     線上字幕編輯器
                 </h1>
-                <div id="downloadDesktopBtns" class="ml-4 flex items-center gap-2">
+                <div id="downloadDesktopBtns" class="ml-4 flex items-center gap-2" style="display: none;">
                     <a href="https://raw.githubusercontent.com/pandapanda6666/pandapanda6666.github.io/main/PandaPanda%E7%9A%84AI%E6%97%A5%E5%B8%B8___%E5%AD%97%E5%B9%95%E7%B7%A8%E8%BC%AF%E5%B7%A5%E5%85%B7_%E5%AE%89%E8%A3%9D%E7%89%88.exe" download class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-1.5 rounded-lg text-xs md:text-sm transition shadow-lg shadow-blue-900/20 font-medium" title="推薦：一鍵安裝精靈，自動建立桌面捷徑與解除安裝">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                         下載安裝版 (.exe)
@@ -596,7 +602,7 @@
                     匯出本機草稿
                 </button>
                 <div class="h-6 w-px bg-slate-700 mx-1"></div>
-                <label class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded cursor-pointer text-sm transition">
+                <label id="lblLoadMedia" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded cursor-pointer text-sm transition">
                     載入媒體
                     <input type="file" id="mediaInput" accept="video/*,audio/*" class="hidden">
                 </label>
@@ -1285,6 +1291,12 @@
         let exportStartTime = 0;
         // --- 影片合成匯出邏輯 ---
         document.addEventListener('START_EXPORT', async () => {
+            if (window.isDesktop) {
+                if (typeof window.triggerDesktopExport === 'function') {
+                    window.triggerDesktopExport();
+                }
+                return;
+            }
             if (!mediaFile.blob || mediaFile.isMissing) {
                 showToast("請先載入有效的影片檔案", true);
                 return;
@@ -3387,7 +3399,7 @@ if(window.showLoading) window.showLoading("正在合成影片與字幕，請耐�
                     });
                 }
             } catch (e) {
-                console.log('Local fonts not available:', e);
+                // Local fonts query requires user activation in modern Chromium
             }
         }
         loadLocalFonts();
@@ -3588,7 +3600,7 @@ self.onmessage = async (e) => {
                     if (aiPipBtn) {
                         aiPipBtn.style.opacity = '1';
                         aiPipBtn.style.pointerEvents = 'auto';
-                        aiPipBtn.innerText = '<i class="fas fa-thumbtack"></i> 子母畫面監看';
+                        aiPipBtn.innerHTML = '<i class="fas fa-thumbtack"></i> 子母畫面監看';
                     }
                 });
                 
@@ -3721,7 +3733,7 @@ self.onmessage = async (e) => {
             if (typeof aiTimer !== 'undefined' && aiTimer) clearInterval(aiTimer);
             aiState = 'idle';
             
-            document.getElementById('aiStatusText').innerText = '<i class="fas fa-stop-circle text-danger"></i> 已停止辨識';
+            document.getElementById('aiStatusText').innerHTML = '<i class="fas fa-stop-circle text-danger"></i> 已停止辨識';
             aiCurrentStatusStr = '已停止';
             aiCurrentProgress = 0;
             const pb = document.getElementById('aiProgressBar');
@@ -4331,7 +4343,7 @@ self.onmessage = async (e) => {
                         aiSubtitlesList.appendChild(div);
                     });
                     
-                    aiStatusText.innerText = '<i class="fas fa-sparkles"></i> 雲端 API 辨識完成！請點擊套用。';
+                    aiStatusText.innerHTML = '<i class="fas fa-sparkles"></i> 雲端 API 辨識完成！請點擊套用。';
                     aiProgressBar.style.width = '100%';
                     aiApplyBtn.disabled = false;
                     clearInterval(aiTimer);
@@ -4432,156 +4444,250 @@ self.onmessage = async (e) => {
         let ffmpeg = null;
         
         exportVideoBtn.addEventListener('click', async () => {
+            if (window.isDesktop && typeof window.triggerDesktopExport === 'function') {
+                window.triggerDesktopExport();
+                return;
+            }
             document.dispatchEvent(new CustomEvent('START_EXPORT'));
         });
     </script>
     <!-- Desktop Mode Detection & API Overrides -->
     <script>
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+    async function initDesktopMode() {
+        let isDesk = false;
+        let apiBase = '';
+        
+        // Check URL flags
+        if (window.location.search.includes('desktop=1')) {
+            isDesk = true;
+        }
+        
+        // Check hostname
+        if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+            try {
                 let res = await fetch('/api/is_desktop');
-                if (res.ok) window.isDesktop = true;
+                if (res.ok) isDesk = true;
+            } catch(e) {}
+        } else if (window.location.protocol === 'file:') {
+            for (let port of [8848, 8849, 8850]) {
+                try {
+                    let res = await fetch(`http://127.0.0.1:${port}/api/is_desktop`);
+                    if (res.ok) {
+                        isDesk = true;
+                        apiBase = `http://127.0.0.1:${port}`;
+                        break;
+                    }
+                } catch(e) {}
             }
-            if (!window.isDesktop) return;
-            console.log("Desktop mode enabled!");
-            // Desktop window closes via app browser process wait
-            const downloadBtns = document.getElementById('downloadDesktopBtns');
-            if (downloadBtns) downloadBtns.style.display = 'none';
+            if (!isDesk) {
+                isDesk = true;
+                apiBase = 'http://127.0.0.1:8848';
+            }
+        }
+        
+        window.isDesktop = isDesk;
+        window.apiBaseUrl = apiBase;
+        
+        const downloadBtns = document.getElementById('downloadDesktopBtns');
+        if (downloadBtns) {
+            if ((window.location.hostname.includes('github.io') || window.location.hostname.includes('vercel.app')) && !isDesk && !window.location.search.includes('desktop=1')) {
+                downloadBtns.style.display = 'flex';
+            } else {
+                downloadBtns.style.display = 'none';
+            }
+        }
+        
+        if (!isDesk) return;
+        console.log("Desktop mode active! API Base:", apiBase || "(relative)");
+        
+        // 1. Helper to load desktop media
+        window.loadDesktopMedia = function(filePath, fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            const isAudio = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg'].includes(ext);
+            const mediaType = isAudio ? 'audio' : 'video';
+            const mediaUrl = (window.apiBaseUrl || '') + '/media?path=' + encodeURIComponent(filePath);
             
-            // 1. Override Video Upload
-            const btnUploadVideo = document.getElementById('btnUploadVideo');
-            const newBtnVideo = btnUploadVideo.cloneNode(true);
-            btnUploadVideo.parentNode.replaceChild(newBtnVideo, btnUploadVideo);
-            newBtnVideo.addEventListener('click', async () => {
-                try {
-                    let r = await fetch('/api/select_video');
-                    let data = await r.json();
-                    if (data.path) {
-                        window.mediaFile = { type: 'video', name: data.filename, file: null, url: '/media?path=' + encodeURIComponent(data.path), path: data.path, offset: 0, isMissing: false };
-                        document.getElementById('videoNameDisplay').innerText = data.filename;
-                        const mainVideo = document.getElementById('mainVideo');
-                        mainVideo.src = window.mediaFile.url;
-                        mainVideo.classList.remove('hidden');
-                        if (window.showToast) window.showToast("已載入影片 (本地高速模式)");
-                        if (window.initTimeline) window.initTimeline();
-                        document.getElementById('initialHelp').classList.add('hidden');
-                    }
-                } catch(e) { console.error(e); }
-            });
-
-            // 2. Override Audio Upload
-            const btnUploadAudio = document.getElementById('btnUploadAudio');
-            const newBtnAudio = btnUploadAudio.cloneNode(true);
-            btnUploadAudio.parentNode.replaceChild(newBtnAudio, btnUploadAudio);
-            newBtnAudio.addEventListener('click', async () => {
-                try {
-                    let r = await fetch('/api/select_audio');
-                    let data = await r.json();
-                    if (data.path) {
-                        window.mediaFile = { type: 'audio', name: data.filename, file: null, url: '/media?path=' + encodeURIComponent(data.path), path: data.path, offset: 0, isMissing: false };
-                        document.getElementById('videoNameDisplay').innerText = data.filename;
-                        const mainAudio = document.getElementById('mainAudio');
-                        mainAudio.src = window.mediaFile.url;
-                        document.getElementById('audioPlaceholder').classList.remove('hidden');
-                        if (window.showToast) window.showToast("已載入音檔 (本地高速模式)");
-                        if (window.initTimeline) window.initTimeline();
-                        document.getElementById('initialHelp').classList.add('hidden');
-                    }
-                } catch(e) { console.error(e); }
-            });
-
-            // 3. Override Export Video Button
-            const exportVideoBtn = document.getElementById('exportVideoBtn');
-            const newExpVidBtn = exportVideoBtn.cloneNode(true);
-            exportVideoBtn.parentNode.replaceChild(newExpVidBtn, exportVideoBtn);
-            newExpVidBtn.addEventListener('click', async () => {
-                if (!window.mediaFile || !window.mediaFile.path) {
-                    if (window.showToast) window.showToast("請先載入影片！");
-                    return;
-                }
-                if (window.showLoading) if (window.showLoading) window.showLoading("正在呼叫背景高速運算引擎...");
-                try {
-                    let assContent = window.generateASS(); 
-                    let res = document.getElementById('exportResolution').value;
-                    
-                    let r = await fetch('/api/export_video', {
-                        method: 'POST',
-                        body: JSON.stringify({ video_path: window.mediaFile.path, ass_content: assContent, resolution: res, crf: 28 })
-                    });
-                    let data = await r.json();
-                    let taskId = data.task_id;
-                    
-                    window.ffmpegExportStartTime = Date.now();
-                    while (true) {
-                        await new Promise(res => setTimeout(res, 1000));
-                        let statRes = await fetch('/api/export_status?task_id=' + taskId);
-                        let stat = await statRes.json();
-                        if (stat.status === 'error') throw new Error(stat.error);
-                        if (stat.status === 'done') {
-                            if(window.showToast) window.showToast("影片匯出成功！(已儲存至原影片同目錄)");
-                            if (window.hideLoading) if (window.hideLoading) window.hideLoading();
-                            return; 
-                        }
-                        if (window.updateLoadingProgress && stat.progress) {
-                            let prog = stat.progress; 
-                            let percent = prog * 100;
-                            let elapsed = (Date.now() - window.ffmpegExportStartTime) / 1000;
-                            let eta = -1;
-                            if (prog > 0 && elapsed > 5) {
-                                eta = (1/ (prog / elapsed)) - elapsed;
-                            }
-                            window.updateLoadingProgress(percent, eta, stat.size, prog);
-                        }
-                    }
-                } catch(e) {
-                    console.error(e);
-                    if (window.handleError) window.handleError(e, "高速匯出失敗");
-                    if (window.hideLoading) if (window.hideLoading) window.hideLoading();
-                }
-            });
-
-            // 4. Desktop Save File Helper
-            window.saveFileToDisk = async function(filename, content, type = 'text') {
-                try {
-                    await fetch('/api/save_file', {
-                        method: 'POST',
-                        body: JSON.stringify({ filename: filename, content: type === 'text' ? content : btoa(String.fromCharCode.apply(null, new Uint8Array(content))), type: type })
-                    });
-                    if(window.showToast) window.showToast("檔案已儲存");
-                    return true;
-                } catch(e) { console.error(e); return false; }
+            window.mediaFile = {
+                type: mediaType,
+                name: fileName,
+                path: filePath,
+                blob: null,
+                url: mediaUrl,
+                offset: 0,
+                isMissing: false
             };
-
-            const exportSrtBtn = document.getElementById('exportSrtBtn');
-            const newExpSrt = exportSrtBtn.cloneNode(true);
-            exportSrtBtn.parentNode.replaceChild(newExpSrt, exportSrtBtn);
-            newExpSrt.addEventListener('click', () => {
+            
+            const mainVideo = document.getElementById('mainVideo');
+            const mainAudio = document.getElementById('mainAudio');
+            const placeholderText = document.getElementById('placeholderText');
+            const pipBtn = document.getElementById('pipBtn');
+            const durationDisplay = document.getElementById('durationDisplay');
+            
+            if (placeholderText) placeholderText.classList.add('hidden');
+            
+            if (mediaType === 'video') {
+                mainVideo.src = mediaUrl;
+                mainVideo.classList.remove('hidden');
+                mainAudio.classList.add('hidden');
+                if (pipBtn) pipBtn.classList.remove('hidden');
+            } else {
+                mainAudio.src = mediaUrl;
+                mainAudio.classList.remove('hidden');
+                mainVideo.classList.add('hidden');
+                if (pipBtn) pipBtn.classList.add('hidden');
+            }
+            
+            const player = mediaType === 'video' ? mainVideo : mainAudio;
+            player.onloadedmetadata = () => {
+                window.mediaFile.duration = player.duration;
+                if (durationDisplay && typeof window.formatTimeCode === 'function') {
+                    durationDisplay.innerText = window.formatTimeCode(player.duration);
+                }
+                if (typeof updateAiEtaHint === 'function') updateAiEtaHint();
+                let maxEnd = 0;
+                (window.subtitles || []).forEach(s => { if (s.end > maxEnd) maxEnd = s.end; });
+                if (typeof window.renderRuler === 'function') {
+                    window.renderRuler(Math.max(window.mediaFile.duration, maxEnd));
+                }
+                if (typeof window.renderMediaBlock === 'function') {
+                    window.renderMediaBlock();
+                }
+            };
+            
+            if (window.showToast) window.showToast("已載入媒體 (本地高速模式)：" + fileName);
+        };
+        
+        // 2. Intercept "載入媒體"
+        const lblLoadMedia = document.getElementById('lblLoadMedia');
+        if (lblLoadMedia) {
+            lblLoadMedia.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                    let r = await fetch((window.apiBaseUrl || '') + '/api/select_video');
+                    let data = await r.json();
+                    if (data && data.path) {
+                        window.loadDesktopMedia(data.path, data.filename);
+                    }
+                } catch(err) {
+                    console.error("Select video error:", err);
+                }
+            }, true);
+        }
+        
+        // 3. Desktop Native Export Implementation
+        window.triggerDesktopExport = async function() {
+            if (!window.mediaFile || !window.mediaFile.path) {
+                if (window.showToast) window.showToast("請先載入本地影片！", true);
+                return;
+            }
+            if (window.showLoading) window.showLoading("正在呼叫本機高效運算核心...", false);
+            try {
+                let assContent = typeof window.generateASS === 'function' ? window.generateASS() : '';
+                let qualityEl = document.getElementById('exportQuality');
+                let res = qualityEl ? qualityEl.value : '1080';
+                
+                let r = await fetch((window.apiBaseUrl || '') + '/api/export_video', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ video_path: window.mediaFile.path, ass_content: assContent, resolution: res, crf: 28 })
+                });
+                let data = await r.json();
+                if (data.status === 'error') throw new Error(data.error);
+                let taskId = data.task_id;
+                
+                window.ffmpegExportStartTime = Date.now();
+                while (true) {
+                    await new Promise(res => setTimeout(res, 1000));
+                    let statRes = await fetch((window.apiBaseUrl || '') + '/api/export_status?task_id=' + taskId);
+                    let stat = await statRes.json();
+                    if (stat.status === 'error') throw new Error(stat.error);
+                    if (stat.status === 'done') {
+                        if (window.showToast) window.showToast("影片匯出成功！(已儲存至原影片同目錄)");
+                        if (window.hideLoading) window.hideLoading();
+                        return;
+                    }
+                    if (window.updateLoadingProgress && typeof stat.progress !== 'undefined') {
+                        let prog = stat.progress;
+                        let percent = prog * 100;
+                        let elapsed = (Date.now() - window.ffmpegExportStartTime) / 1000;
+                        let eta = -1;
+                        if (prog > 0 && elapsed > 3) {
+                            eta = (elapsed / prog) - elapsed;
+                        }
+                        window.updateLoadingProgress(percent, eta, stat.size, prog);
+                    }
+                }
+            } catch(e) {
+                console.error("Desktop export error:", e);
+                if (window.handleError) window.handleError(e, "本機匯出失敗");
+                if (window.hideLoading) window.hideLoading();
+            }
+        };
+        
+        // 4. Desktop Save File Helper
+        window.saveFileToDisk = async function(filename, content, type = 'text') {
+            try {
+                let r = await fetch((window.apiBaseUrl || '') + '/api/save_file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: filename,
+                        content: type === 'text' ? content : btoa(String.fromCharCode.apply(null, new Uint8Array(content))),
+                        type: type
+                    })
+                });
+                let data = await r.json();
+                if (data.status === 'ok') {
+                    if (window.showToast) window.showToast("檔案已儲存至：" + data.path);
+                    return true;
+                }
+                return false;
+            } catch(e) {
+                console.error("Save file error:", e);
+                return false;
+            }
+        };
+        
+        // 5. Intercept "導出 SRT"
+        const exportBtn = document.getElementById('exportBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 let content = "";
-                window.subtitles.forEach((sub, i) => {
-                    content += (i + 1) + "\\n";
-                    content += window.formatSrtTime(sub.start) + " --> " + window.formatSrtTime(sub.end) + "\\n";
-                    content += sub.text + "\\n\\n";
+                (window.subtitles || []).forEach((sub, i) => {
+                    content += (i + 1) + "\n";
+                    content += window.formatSrtTime(sub.start) + " --> " + window.formatSrtTime(sub.end) + "\n";
+                    content += sub.text + "\n\n";
                 });
                 let title = window.mediaFile ? window.mediaFile.name.replace(/\.[^/.]+$/, "") : "subtitles";
                 window.saveFileToDisk(title + '.srt', content, 'text');
-            });
-
-            const exportDraftBtn = document.getElementById('exportDraftBtn');
-            const newExpDraft = exportDraftBtn.cloneNode(true);
-            exportDraftBtn.parentNode.replaceChild(newExpDraft, exportDraftBtn);
-            newExpDraft.addEventListener('click', () => {
+            }, true);
+        }
+        
+        // 6. Intercept "匯出本機草稿"
+        const exportDraftBtn = document.getElementById('exportDraftBtn');
+        if (exportDraftBtn) {
+            exportDraftBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 let exportData = {
                     version: 2,
-                    subtitles: window.subtitles,
-                    styles: window.globalStyles
+                    subtitles: window.subtitles || [],
+                    styles: window.globalStyles || {}
                 };
                 let title = window.mediaFile ? window.mediaFile.name.replace(/\.[^/.]+$/, "") : "project";
                 window.saveFileToDisk(title + '.json', JSON.stringify(exportData, null, 2), 'text');
-            });
-            
-        } catch(e) {}
-    });
+            }, true);
+        }
+    }
+    
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDesktopMode);
+    } else {
+        initDesktopMode();
+    }
     </script>
 </body>
 </html>

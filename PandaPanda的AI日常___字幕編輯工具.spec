@@ -5,7 +5,7 @@ a = Analysis(
     ['run.pyw'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('Edit/Video/Add subtitles/index.html', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='NONE',
+    icon=['favicon.ico'],
 )

@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import shutil
 import subprocess
@@ -96,8 +96,16 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "*")
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
+        
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.end_headers()
         
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -136,45 +144,59 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
                 return
                 
             size = os.path.getsize(media_path)
-            self.send_response(206)
-            
             ext = os.path.splitext(media_path)[1].lower()
             ctype = "video/mp4"
             if ext == ".mp3": ctype = "audio/mpeg"
             elif ext == ".webm": ctype = "video/webm"
             elif ext == ".wav": ctype = "audio/wav"
             elif ext == ".ogg": ctype = "audio/ogg"
-            
-            self.send_header('Content-Type', ctype)
-            self.send_header('Accept-Ranges', 'bytes')
+            elif ext == ".m4a": ctype = "audio/mp4"
+            elif ext == ".aac": ctype = "audio/aac"
+            elif ext == ".flac": ctype = "audio/flac"
             
             range_header = self.headers.get('Range', None)
-            start = 0
-            end = size - 1
             if range_header:
+                start = 0
+                end = size - 1
                 range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
                 if range_match:
                     start = int(range_match.group(1))
                     if range_match.group(2):
                         end = int(range_match.group(2))
-            
-            length = end - start + 1
-            self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
-            self.send_header('Content-Length', str(length))
-            self.end_headers()
-            
-            with open(media_path, 'rb') as f:
-                f.seek(start)
-                chunk_size = 65536
-                remaining = length
-                while remaining > 0:
-                    chunk = f.read(min(chunk_size, remaining))
-                    if not chunk: break
-                    try:
-                        self.wfile.write(chunk)
-                    except Exception:
-                        break
-                    remaining -= len(chunk)
+                
+                length = end - start + 1
+                self.send_response(206)
+                self.send_header('Content-Type', ctype)
+                self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+                self.send_header('Content-Length', str(length))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Headers", "*")
+                self.end_headers()
+                
+                with open(media_path, 'rb') as f:
+                    f.seek(start)
+                    chunk_size = 65536
+                    remaining = length
+                    while remaining > 0:
+                        chunk = f.read(min(chunk_size, remaining))
+                        if not chunk: break
+                        try:
+                            self.wfile.write(chunk)
+                        except Exception:
+                            break
+                        remaining -= len(chunk)
+            else:
+                self.send_response(200)
+                self.send_header('Content-Type', ctype)
+                self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Content-Length', str(size))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Headers", "*")
+                self.end_headers()
+                
+                with open(media_path, 'rb') as f:
+                    shutil.copyfileobj(f, self.wfile)
             return
 
         # 靜態檔案服務 (支援 index.html, js, css, 圖示等)
@@ -246,32 +268,38 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
         if path == "/api/export_video":
             try:
                 data = json.loads(body)
-                video_path = data.get("video_path")
+                video_path = os.path.abspath(data.get("video_path"))
                 ass_content = data.get("ass_content")
-                resolution = data.get("resolution")
+                resolution = str(data.get("resolution", "1080")).replace("p", "").strip()
                 crf = data.get("crf", 28)
 
-                ass_path = os.path.join(os.path.dirname(video_path), f"temp_subs_{uuid.uuid4().hex[:6]}.ass")
-                with open(ass_path, 'w', encoding='utf-8') as f:
+                video_dir = os.path.dirname(video_path)
+                video_file = os.path.basename(video_path)
+                video_stem, _ = os.path.splitext(video_file)
+
+                temp_ass = f"temp_subs_{uuid.uuid4().hex[:6]}.ass"
+                ass_full_path = os.path.join(video_dir, temp_ass)
+                with open(ass_full_path, 'w', encoding='utf-8') as f:
                     f.write(ass_content)
 
-                out_path = os.path.join(os.path.dirname(video_path), f"exported_{resolution}p.mp4")
+                out_file = f"{video_stem}_含字幕_{resolution}p.mp4"
+                out_path = os.path.join(video_dir, out_file)
 
                 task_id = str(uuid.uuid4())
                 tasks[task_id] = {"status": "running", "progress": 0, "size": ""}
 
                 def run_ffmpeg():
                     ffmpeg_bin = get_ffmpeg_path()
-                    safe_ass = ass_path.replace('\\', '/')
+                    vf_filter = f"scale=-2:{resolution},ass='{temp_ass}'"
                     cmd = [
-                        ffmpeg_bin, "-y", "-i", video_path,
-                        "-vf", f"scale=-2:{resolution},ass='{safe_ass.replace(':', chr(92)+':')}'",
+                        ffmpeg_bin, "-y", "-i", video_file,
+                        "-vf", vf_filter,
                         "-c:v", "libx264", "-preset", "fast", "-crf", str(crf),
-                        "-c:a", "copy", out_path
+                        "-c:a", "copy", out_file
                     ]
 
-                    dur_cmd = [ffmpeg_bin, "-i", video_path]
-                    dur_proc = subprocess.Popen(dur_cmd, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+                    dur_cmd = [ffmpeg_bin, "-i", video_file]
+                    dur_proc = subprocess.Popen(dur_cmd, cwd=video_dir, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
                     _, err = dur_proc.communicate()
                     duration = 1
                     dur_match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})", err)
@@ -279,7 +307,7 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
                         h, m, s = dur_match.groups()
                         duration = float(h)*3600 + float(m)*60 + float(s)
 
-                    proc = subprocess.Popen(cmd, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+                    proc = subprocess.Popen(cmd, cwd=video_dir, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
                     for line in proc.stderr:
                         time_match = re.search(r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})", line)
                         if time_match:
@@ -292,8 +320,8 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
                             tasks[task_id]["size"] = size
 
                     proc.wait()
-                    if os.path.exists(ass_path):
-                        try: os.remove(ass_path)
+                    if os.path.exists(ass_full_path):
+                        try: os.remove(ass_full_path)
                         except Exception: pass
 
                     if proc.returncode == 0:
@@ -350,16 +378,16 @@ def main():
         try:
             test_resp = urllib.request.urlopen(f'http://127.0.0.1:{actual_server_port}/api/is_desktop', timeout=1.5)
             if test_resp.status == 200:
-                target_url = f'http://127.0.0.1:{actual_server_port}/index.html'
+                target_url = f'http://127.0.0.1:{actual_server_port}/index.html?desktop=1'
         except Exception:
             target_url = None
 
     if not target_url:
         # 降級保底：若 HTTP 綁定受防火牆阻擋，直接載入檔案
         if os.path.exists(index_file):
-            target_url = "file:///" + index_file.replace("\\", "/")
+            target_url = "file:///" + index_file.replace("\\", "/") + "?desktop=1"
         else:
-            target_url = f'http://127.0.0.1:{actual_server_port}/index.html'
+            target_url = f'http://127.0.0.1:{actual_server_port}/index.html?desktop=1'
 
     # 尋找 Edge 或 Chrome 獨立 App 視窗模式
     edge_candidates = [
