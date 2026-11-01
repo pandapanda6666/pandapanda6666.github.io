@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import shutil
 import urllib.request
@@ -30,6 +30,7 @@ def run_install():
             TARGET_LAUNCHER,
             "run.pyw",
             "index.html",
+            "tailwindcss.js",
             "啟動字幕編輯器.bat"
         ]
         base_urls = [

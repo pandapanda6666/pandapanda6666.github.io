@@ -1,4 +1,4 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 title PandaPanda 字幕編輯工具 安裝精靈
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$c = [System.IO.File]::ReadAllText('%~f0', [System.Text.Encoding]::UTF8); $marker = '::START_PS_CODE::'; $idx = $c.IndexOf($marker); if ($idx -ge 0) { Invoke-Expression $c.Substring($idx + $marker.Length) }"
@@ -192,6 +192,7 @@ $btnInstall.Add_Click({
             "PandaPanda的AI日常___字幕編輯工具.exe",
             "run.pyw",
             "index.html",
+            "tailwindcss.js",
             "啟動字幕編輯器.bat"
         )
 

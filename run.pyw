@@ -92,19 +92,26 @@ def ensure_ffmpeg_async():
     threading.Thread(target=download, daemon=True).start()
 
 class DesktopAPIHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def send_json(self, data):
+        body = json.dumps(data, ensure_ascii=False).encode('utf-8')
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Connection", "close")
         self.end_headers()
-        self.wfile.write(json.dumps(data).encode('utf-8'))
+        self.wfile.write(body)
         
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Content-Length", "0")
+        self.send_header("Connection", "close")
         self.end_headers()
         
     def do_GET(self):
@@ -120,7 +127,7 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
             root = tk.Tk()
             root.withdraw()
             root.attributes('-topmost', True)
-            filetypes = [("影片檔", "*.mp4;*.webm;*.mov;*.mkv;*.avi")] if path == "/api/select_video" else [("音訊檔", "*.mp3;*.wav;*.m4a;*.aac;*.flac")]
+            filetypes = [("媒體檔案 (影片/音訊)", "*.mp4;*.webm;*.mov;*.mkv;*.avi;*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg"), ("影片檔", "*.mp4;*.webm;*.mov;*.mkv;*.avi"), ("音訊檔", "*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg"), ("所有檔案", "*.*")] if path == "/api/select_video" else [("音訊檔", "*.mp3;*.wav;*.m4a;*.aac;*.flac;*.ogg"), ("所有檔案", "*.*")]
             file_path = filedialog.askopenfilename(title="選擇檔案", filetypes=filetypes)
             root.destroy()
             if file_path:
@@ -206,6 +213,8 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
 
         target_file = get_resource_file(req_file)
         if os.path.isfile(target_file):
+            with open(target_file, 'rb') as f:
+                content = f.read()
             self.send_response(200)
             if target_file.endswith('.html'):
                 self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -219,10 +228,12 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "image/png")
             elif target_file.endswith('.svg'):
                 self.send_header("Content-Type", "image/svg+xml")
+            self.send_header("Content-Length", str(len(content)))
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Headers", "*")
+            self.send_header("Connection", "close")
             self.end_headers()
-            with open(target_file, 'rb') as f:
-                self.wfile.write(f.read())
+            self.wfile.write(content)
             return
         else:
             self.send_error(404, f"File Not Found: {req_file}")
@@ -265,17 +276,124 @@ class DesktopAPIHandler(BaseHTTPRequestHandler):
                 self.send_json({"status": "error", "error": str(e)})
             return
             
+        if path == "/api/export_audio":
+            try:
+                data = json.loads(body)
+                video_path = os.path.abspath(data.get("video_path"))
+                bitrate = str(data.get("bitrate", "320k"))
+
+                video_dir = os.path.dirname(video_path)
+                video_file = os.path.basename(video_path)
+                video_stem, _ = os.path.splitext(video_file)
+
+                out_file = f"{video_stem}.mp3"
+                out_path = os.path.join(video_dir, out_file)
+
+                task_id = str(uuid.uuid4())
+                tasks[task_id] = {"status": "running", "progress": 0, "size": ""}
+
+                def run_ffmpeg_audio():
+                    ffmpeg_bin = get_ffmpeg_path()
+                    cmd = [
+                        ffmpeg_bin, "-y", "-i", video_file,
+                        "-vn", "-acodec", "libmp3lame", "-ab", bitrate,
+                        out_file
+                    ]
+
+                    dur_cmd = [ffmpeg_bin, "-i", video_file]
+                    dur_proc = subprocess.Popen(dur_cmd, cwd=video_dir, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+                    _, err = dur_proc.communicate()
+                    duration = 1
+                    dur_match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})", err)
+                    if dur_match:
+                        h, m, s = dur_match.groups()
+                        duration = float(h)*3600 + float(m)*60 + float(s)
+
+                    proc = subprocess.Popen(cmd, cwd=video_dir, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+                    for line in proc.stderr:
+                        time_match = re.search(r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})", line)
+                        if time_match:
+                            h, m, s = time_match.groups()
+                            cur_time = float(h)*3600 + float(m)*60 + float(s)
+                            prog = min(cur_time / duration, 1.0)
+                            size_match = re.search(r"size=\s*([0-9]+kB)", line)
+                            size = size_match.group(1) if size_match else ""
+                            tasks[task_id]["progress"] = prog
+                            tasks[task_id]["size"] = size
+
+                    proc.wait()
+                    if proc.returncode == 0:
+                        tasks[task_id]["status"] = "done"
+                        tasks[task_id]["progress"] = 1.0
+                        tasks[task_id]["out_path"] = out_path
+                    else:
+                        tasks[task_id]["status"] = "error"
+                        tasks[task_id]["error"] = "FFmpeg MP3 音訊匯出失敗"
+
+                threading.Thread(target=run_ffmpeg_audio, daemon=True).start()
+                self.send_json({"task_id": task_id})
+            except Exception as e:
+                self.send_json({"status": "error", "error": str(e)})
+            return
+
         if path == "/api/export_video":
             try:
                 data = json.loads(body)
                 video_path = os.path.abspath(data.get("video_path"))
                 ass_content = data.get("ass_content")
-                resolution = str(data.get("resolution", "1080")).replace("p", "").strip()
+                resolution = str(data.get("resolution", "1080")).replace("p", "").strip().lower()
                 crf = data.get("crf", 28)
 
                 video_dir = os.path.dirname(video_path)
                 video_file = os.path.basename(video_path)
                 video_stem, _ = os.path.splitext(video_file)
+
+                if resolution == "mp3":
+                    out_file = f"{video_stem}.mp3"
+                    out_path = os.path.join(video_dir, out_file)
+                    task_id = str(uuid.uuid4())
+                    tasks[task_id] = {"status": "running", "progress": 0, "size": ""}
+
+                    def run_ffmpeg_audio_only():
+                        ffmpeg_bin = get_ffmpeg_path()
+                        cmd = [
+                            ffmpeg_bin, "-y", "-i", video_file,
+                            "-vn", "-acodec", "libmp3lame", "-ab", "320k",
+                            out_file
+                        ]
+                        dur_cmd = [ffmpeg_bin, "-i", video_file]
+                        dur_proc = subprocess.Popen(dur_cmd, cwd=video_dir, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+                        _, err = dur_proc.communicate()
+                        duration = 1
+                        dur_match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})", err)
+                        if dur_match:
+                            h, m, s = dur_match.groups()
+                            duration = float(h)*3600 + float(m)*60 + float(s)
+
+                        proc = subprocess.Popen(cmd, cwd=video_dir, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+                        for line in proc.stderr:
+                            time_match = re.search(r"time=(\d{2}):(\d{2}):(\d{2}\.\d{2})", line)
+                            if time_match:
+                                h, m, s = time_match.groups()
+                                cur_time = float(h)*3600 + float(m)*60 + float(s)
+                                prog = min(cur_time / duration, 1.0)
+                                size_match = re.search(r"size=\s*([0-9]+kB)", line)
+                                size = size_match.group(1) if size_match else ""
+                                tasks[task_id]["progress"] = prog
+                                tasks[task_id]["size"] = size
+
+                        proc.wait()
+                        if proc.returncode == 0:
+                            tasks[task_id]["status"] = "done"
+                            tasks[task_id]["progress"] = 1.0
+                            tasks[task_id]["out_path"] = out_path
+                        else:
+                            tasks[task_id]["status"] = "error"
+                            tasks[task_id]["error"] = "FFmpeg MP3 音訊匯出失敗"
+
+                    threading.Thread(target=run_ffmpeg_audio_only, daemon=True).start()
+                    self.send_json({"task_id": task_id})
+                    return
 
                 temp_ass = f"temp_subs_{uuid.uuid4().hex[:6]}.ass"
                 ass_full_path = os.path.join(video_dir, temp_ass)
@@ -375,19 +493,12 @@ def main():
     
     target_url = None
     if server_started_successfully:
-        try:
-            test_resp = urllib.request.urlopen(f'http://127.0.0.1:{actual_server_port}/api/is_desktop', timeout=1.5)
-            if test_resp.status == 200:
-                target_url = f'http://127.0.0.1:{actual_server_port}/index.html?desktop=1'
-        except Exception:
-            target_url = None
-
-    if not target_url:
-        # 降級保底：若 HTTP 綁定受防火牆阻擋，直接載入檔案
+        target_url = f'http://127.0.0.1:{actual_server_port}/index.html?desktop=1'
+    else:
         if os.path.exists(index_file):
             target_url = "file:///" + index_file.replace("\\", "/") + "?desktop=1"
         else:
-            target_url = f'http://127.0.0.1:{actual_server_port}/index.html?desktop=1'
+            target_url = f'http://127.0.0.1:8848/index.html?desktop=1'
 
     # 尋找 Edge 或 Chrome 獨立 App 視窗模式
     edge_candidates = [

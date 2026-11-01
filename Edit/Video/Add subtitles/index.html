@@ -4,12 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>專業線上字幕編輯器</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        if (typeof tailwind === 'undefined') {
-            console.warn('Tailwind CDN failed, loading local fallback');
-            document.write('<script src="tailwindcss.js"><\/script>');
-        }
+        (function() {
+            var isLocal = window.location.protocol === 'file:' || 
+                          window.location.hostname === '127.0.0.1' || 
+                          window.location.hostname === 'localhost' || 
+                          window.location.search.indexOf('desktop=1') !== -1;
+            if (isLocal) {
+                document.write('<script src="tailwindcss.js"><\/script>');
+            } else {
+                document.write('<script src="https://cdn.tailwindcss.com"><\/script>');
+            }
+        })();
     </script>
     <style>
         body {
@@ -619,9 +625,14 @@
                     <option value="720">720p</option>
                     <option value="1080" selected>1080p</option>
                     <option value="2160">4K (高)</option>
+                    <option value="mp3">MP3 音訊 (純聲音)</option>
                 </select>
                 <button id="exportVideoBtn" class="bg-fuchsia-600 hover:bg-fuchsia-700 text-white px-3 py-1 rounded text-sm transition font-bold flex items-center gap-1">
                     匯出影片
+                </button>
+                <button id="exportAudioBtn" class="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded text-sm transition font-bold flex items-center gap-1" title="單獨將影片或音訊匯出為 MP3 音訊檔">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                    匯出 MP3
                 </button>
                 <span class="text-xs text-slate-500 ml-2 hidden xl:inline">快捷鍵: Ctrl+C/V(複製), Del(刪除), Ctrl+Z/Y(復原/重作)</span>
             </div>
@@ -1301,17 +1312,17 @@
                 showToast("請先載入有效的影片檔案", true);
                 return;
             }
-            if (mediaFile.type !== 'video') {
-                showToast("匯出功能目前僅支援影片", true);
+            const resolution = document.getElementById('exportQuality').value;
+            if (mediaFile.type !== 'video' && resolution !== 'mp3') {
+                showToast("匯出功能目前僅支援影片 (如需音訊請選擇 MP3 匯出)", true);
                 return;
             }
 
             
-            if (window.mediaFile && window.mediaFile.duration > 600) {
+            if (window.mediaFile && window.mediaFile.duration > 600 && resolution !== 'mp3') {
                 const proceed = confirm("⚠️ 警告：這部影片長度超過 10 分鐘！\n\n網頁版 FFmpeg 的轉檔速度完全取決於您的 CPU，且受限於瀏覽器效能，15 分鐘的影片可能需要長達數十分鐘甚至一小時才能匯出完成。\n\n建議您在遇到這類大影片時，使用電腦版專業軟體處理。\n請問仍要繼續執行網頁版匯出嗎？");
                 if (!proceed) return;
             }
-            const resolution = document.getElementById('exportQuality').value;
             if(window.showLoading) window.showLoading("準備 FFmpeg 引擎中... (第一次載入可能需要幾分鐘)", false);
 
             try {
@@ -1464,9 +1475,28 @@
         };
         let assContent = window.generateASS();
         
-const vidName = 'input_video.mp4';
-                await ffmpeg.writeFile(vidName, new Uint8Array(await mediaFile.blob.arrayBuffer()));
-                await ffmpeg.writeFile('subs.ass', new TextEncoder().encode(assContent));
+        if (resolution === 'mp3') {
+            if (window.showLoading) window.showLoading("正在擷取並轉檔為 MP3 音訊...", true);
+            const ext = (mediaFile.name || '').split('.').pop().toLowerCase();
+            const inAudioName = 'input_src.' + (ext || 'mp4');
+            await ffmpeg.writeFile(inAudioName, new Uint8Array(await mediaFile.blob.arrayBuffer()));
+            window.ffmpegExportStartTime = Date.now();
+            await ffmpeg.exec(['-i', inAudioName, '-vn', '-acodec', 'libmp3lame', '-b:a', '192k', 'output.mp3']);
+            const data = await ffmpeg.readFile('output.mp3');
+            const blob = new Blob([data.buffer], { type: 'audio/mp3' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (window.mediaFile ? window.mediaFile.name.replace(/\.[^/.]+$/, "") : "audio") + '.mp3';
+            a.click();
+            if (window.showToast) window.showToast("MP3 音訊匯出成功！");
+            if (window.hideLoading) window.hideLoading();
+            return;
+        }
+
+        const vidName = 'input_video.mp4';
+        await ffmpeg.writeFile(vidName, new Uint8Array(await mediaFile.blob.arrayBuffer()));
+        await ffmpeg.writeFile('subs.ass', new TextEncoder().encode(assContent));
                 
                 
                 if(window.showLoading) window.showLoading("正在下載/準備中文字型...", false);
@@ -3849,7 +3879,7 @@ self.onmessage = async (e) => {
 
             if (!translateWorker) {
                 const translateWorkerCode = `
-                import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+                import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
                 env.allowLocalModels = false;
                 let translator = null;
 
@@ -4441,6 +4471,7 @@ self.onmessage = async (e) => {
     
         // --- Export Video using FFmpeg ---
         const exportVideoBtn = document.getElementById('exportVideoBtn');
+        const exportAudioBtn = document.getElementById('exportAudioBtn');
         let ffmpeg = null;
         
         exportVideoBtn.addEventListener('click', async () => {
@@ -4450,6 +4481,18 @@ self.onmessage = async (e) => {
             }
             document.dispatchEvent(new CustomEvent('START_EXPORT'));
         });
+
+        if (exportAudioBtn) {
+            exportAudioBtn.addEventListener('click', async () => {
+                if (window.isDesktop && typeof window.triggerDesktopAudioExport === 'function') {
+                    window.triggerDesktopAudioExport();
+                    return;
+                }
+                const qualityEl = document.getElementById('exportQuality');
+                if (qualityEl) qualityEl.value = 'mp3';
+                document.dispatchEvent(new CustomEvent('START_EXPORT'));
+            });
+        }
     </script>
     <!-- Desktop Mode Detection & API Overrides -->
     <script>
@@ -4462,25 +4505,26 @@ self.onmessage = async (e) => {
             isDesk = true;
         }
         
-        // Check hostname
+        // Check hostname & protocol
         if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+            isDesk = true;
+            apiBase = window.location.origin;
             try {
                 let res = await fetch('/api/is_desktop');
                 if (res.ok) isDesk = true;
             } catch(e) {}
         } else if (window.location.protocol === 'file:') {
+            isDesk = true;
             for (let port of [8848, 8849, 8850]) {
                 try {
                     let res = await fetch(`http://127.0.0.1:${port}/api/is_desktop`);
                     if (res.ok) {
-                        isDesk = true;
                         apiBase = `http://127.0.0.1:${port}`;
                         break;
                     }
                 } catch(e) {}
             }
-            if (!isDesk) {
-                isDesk = true;
+            if (!apiBase) {
                 apiBase = 'http://127.0.0.1:8848';
             }
         }
@@ -4581,11 +4625,14 @@ self.onmessage = async (e) => {
                 if (window.showToast) window.showToast("請先載入本地影片！", true);
                 return;
             }
+            let qualityEl = document.getElementById('exportQuality');
+            let res = qualityEl ? qualityEl.value : '1080';
+            if (res === 'mp3') {
+                return window.triggerDesktopAudioExport();
+            }
             if (window.showLoading) window.showLoading("正在呼叫本機高效運算核心...", false);
             try {
                 let assContent = typeof window.generateASS === 'function' ? window.generateASS() : '';
-                let qualityEl = document.getElementById('exportQuality');
-                let res = qualityEl ? qualityEl.value : '1080';
                 
                 let r = await fetch((window.apiBaseUrl || '') + '/api/export_video', {
                     method: 'POST',
@@ -4621,6 +4668,52 @@ self.onmessage = async (e) => {
             } catch(e) {
                 console.error("Desktop export error:", e);
                 if (window.handleError) window.handleError(e, "本機匯出失敗");
+                if (window.hideLoading) window.hideLoading();
+            }
+        };
+
+        // 3.5. Desktop Native Audio (MP3) Export Implementation
+        window.triggerDesktopAudioExport = async function() {
+            if (!window.mediaFile || !window.mediaFile.path) {
+                if (window.showToast) window.showToast("請先載入本地影片或音訊！", true);
+                return;
+            }
+            if (window.showLoading) window.showLoading("正在擷取並轉檔 MP3 音訊...", false);
+            try {
+                let r = await fetch((window.apiBaseUrl || '') + '/api/export_audio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ video_path: window.mediaFile.path })
+                });
+                let data = await r.json();
+                if (data.status === 'error') throw new Error(data.error);
+                let taskId = data.task_id;
+                
+                window.ffmpegExportStartTime = Date.now();
+                while (true) {
+                    await new Promise(res => setTimeout(res, 1000));
+                    let statRes = await fetch((window.apiBaseUrl || '') + '/api/export_status?task_id=' + taskId);
+                    let stat = await statRes.json();
+                    if (stat.status === 'error') throw new Error(stat.error);
+                    if (stat.status === 'done') {
+                        if (window.showToast) window.showToast("MP3 音訊匯出成功！(已儲存至原檔同目錄)");
+                        if (window.hideLoading) window.hideLoading();
+                        return;
+                    }
+                    if (window.updateLoadingProgress && typeof stat.progress !== 'undefined') {
+                        let prog = stat.progress;
+                        let percent = prog * 100;
+                        let elapsed = (Date.now() - window.ffmpegExportStartTime) / 1000;
+                        let eta = -1;
+                        if (prog > 0 && elapsed > 2) {
+                            eta = (elapsed / prog) - elapsed;
+                        }
+                        window.updateLoadingProgress(percent, eta, stat.size, prog);
+                    }
+                }
+            } catch(e) {
+                console.error("Desktop audio export error:", e);
+                if (window.handleError) window.handleError(e, "本機 MP3 匯出失敗");
                 if (window.hideLoading) window.hideLoading();
             }
         };
