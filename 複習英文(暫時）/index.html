@@ -562,6 +562,77 @@
                 max-width: 100% !important;
             }
         }
+
+        /* 模擬考樣式 */
+        .exam-item-card {
+            background: #252525;
+            border: 2px solid #444;
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            transition: all 0.25s ease;
+            box-sizing: border-box;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+        }
+        .exam-item-card.exam-current-playing {
+            border-color: #2196F3 !important;
+            background: #15293d !important;
+            box-shadow: 0 0 16px rgba(33, 150, 243, 0.5) !important;
+            transform: scale(1.015);
+        }
+        .exam-item-number {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #90caf9;
+            min-width: 65px;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .exam-item-hint {
+            font-size: 1.15em;
+            font-weight: bold;
+            color: #e0e0e0;
+            flex: 1;
+            text-align: left;
+            word-break: break-word;
+        }
+        .exam-input {
+            width: 240px !important;
+            max-width: 280px !important;
+            font-size: 1.25em !important;
+            font-weight: bold !important;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+            border: 2px solid #555 !important;
+            background: #141414 !important;
+            color: #64b5f6 !important;
+            box-sizing: border-box !important;
+            text-align: left !important;
+            margin: 0 !important;
+        }
+        .exam-input:focus {
+            border-color: #ffb74d !important;
+            background: #1c1c1c !important;
+            outline: none !important;
+            box-shadow: 0 0 10px rgba(255, 183, 77, 0.5) !important;
+        }
+        @media (max-width: 650px) {
+            .exam-item-card {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+                padding: 12px;
+            }
+            .exam-input {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
     </style>
     <!-- 引入提取出的南一全部單字檔 -->
     <script src="nani_data.js"></script>
@@ -597,7 +668,8 @@
             <span class="material-symbols-outlined" style="vertical-align: middle;">history</span> 歷史版本：
             <select onchange="if(this.value) window.location.href='?v='+this.value" style="padding: 5px; border-radius: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; font-size: 14px;">
                 <option value="">選擇版本...</option>
-                <option value="30">版本 30 (最新)</option>
+                <option value="31">版本 31 (最新)</option>
+                <option value="30">版本 30</option>
                 <option value="29">版本 29</option>
                 <option value="28">版本 28</option>
                 <option value="27">版本 27</option>
@@ -635,6 +707,7 @@
         <button id="tab-autoplay" onclick="switchTab('autoplay')"><span class="material-symbols-outlined">play_circle</span> 自動播放</button>
         <button id="tab-practice" onclick="switchTab('practice')"><span class="material-symbols-outlined">sports_esports</span> 練習模式</button>
         <button id="tab-spell" onclick="switchTab('spell')"><span class="material-symbols-outlined">abc</span> 填空遊戲</button>
+        <button id="tab-exam" onclick="switchTab('exam')"><span class="material-symbols-outlined">assignment</span> 模擬考</button>
     </div>
 
     <!-- 頁籤 1: 單字庫 -->
@@ -866,6 +939,120 @@
             <button onclick="initSpellGameView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 10px 30px; margin-top: 30px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 重新測驗</button>
         </div>
     </div>
+
+    <!-- 頁籤 5: 模擬考模式 -->
+    <div id="view-exam" class="container hidden" style="position: relative;">
+        <h2><span class="material-symbols-outlined">assignment</span> 模擬考模式</h2>
+        <div id="examEmptyMessage" style="color: #aaa; margin: 30px 0;">還沒有單字喔！請先到「課程單字庫」載入卡片。</div>
+
+        <!-- 準備畫面 -->
+        <div id="examStartScreen" class="hidden">
+            <h3 style="color: #64b5f6;">準備好參加單字聽力模擬考了嗎？</h3>
+            <p style="font-size: 1.1em;">單字庫目前共有 <strong id="examTotalAvailable" style="color: #f48fb1; font-size: 1.3em;">0</strong> 個單字</p>
+            <div style="background: #2a2a2a; border-radius: 12px; padding: 15px; max-width: 520px; margin: 15px auto; text-align: left; line-height: 1.8; border: 1px solid #444;">
+                <div style="font-weight: bold; color: #ffb74d; margin-bottom: 5px; font-size: 1.1em;">
+                    <span class="material-symbols-outlined">info</span> 測驗規則說明：
+                </div>
+                • 整張考卷一次列出所有題目，請在各題輸入框填寫英文單字。<br>
+                • 系統將依序播放聽力廣播，<strong>每題朗讀兩遍</strong>（兩遍間有停頓間距）。<br>
+                • 兩遍朗讀完畢後，稍作停頓即自動進入下一題廣播。<br>
+                • <strong>有總時間限制</strong>，時間倒數結束將自動交卷！
+            </div>
+
+            <!-- 設定題數 -->
+            <div style="margin: 20px auto; max-width: 420px; display: flex; justify-content: center; align-items: center; gap: 10px;">
+                <label style="font-weight: bold; color: #e0e0e0; font-size: 1.1em;">測驗題數：</label>
+                <select id="examQuestionCountSelect" style="padding: 8px 15px; font-size: 1em; border-radius: 8px; background: #333; color: white; border: 1px solid #666;">
+                    <option value="random">隨機抽選 (10 題或 15 題)</option>
+                    <option value="10">固定 10 題 (限時 3 分鐘)</option>
+                    <option value="15">固定 15 題 (限時 4.5 分鐘)</option>
+                </select>
+            </div>
+
+            <button onclick="startExamGame()" style="background-color: #2196F3; font-size: 1.5em; padding: 15px 40px; border-radius: 30px; margin-top: 10px; font-weight: bold; color: white; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(33,150,243,0.4);">
+                <span class="material-symbols-outlined">play_arrow</span> 開始模擬考
+            </button>
+        </div>
+
+        <!-- 考試作答畫面 -->
+        <div id="examGameScreen" class="hidden">
+            <!-- 考試頂部狀態固定條 -->
+            <div id="examTopBar" style="position: sticky; top: 0; z-index: 100; background: #1e1e1e; border: 2px solid #444; border-radius: 12px; padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
+                <!-- 廣播狀態與控制 -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="material-symbols-outlined" style="color: #64b5f6; font-size: 1.8em;">headphones</span>
+                    <div style="text-align: left;">
+                        <div id="examAudioStatus" style="font-weight: bold; color: #ffb74d; font-size: 1.05em;">正在準備聽力廣播...</div>
+                        <div id="examSubAudioStatus" style="font-size: 0.85em; color: #aaa;">共 0 題</div>
+                    </div>
+                </div>
+
+                <!-- 廣播暫停/繼續按鈕 -->
+                <div style="display: flex; gap: 8px;">
+                    <button id="btnExamPauseAudio" onclick="toggleExamAudioPause()" style="background-color: #455a64; padding: 6px 12px; font-size: 0.9em; border-radius: 8px; margin: 0; display: inline-flex; align-items: center; gap: 4px;">
+                        <span class="material-symbols-outlined" id="iconExamPauseAudio" style="font-size: 1.1em;">pause</span> <span id="textExamPauseAudio">暫停廣播</span>
+                    </button>
+                    <button onclick="restartExamAudioBroadcast()" style="background-color: #37474f; padding: 6px 12px; font-size: 0.9em; border-radius: 8px; margin: 0; display: inline-flex; align-items: center; gap: 4px;" title="從第一題重新朗讀全卷">
+                        <span class="material-symbols-outlined" style="font-size: 1.1em;">replay</span> 重播廣播
+                    </button>
+                </div>
+
+                <!-- 倒數計時與交卷 -->
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div id="examTimerDisplay" style="font-size: 1.6em; font-weight: bold; color: #4CAF50; display: flex; align-items: center; gap: 4px;">
+                        <span class="material-symbols-outlined" style="font-size: 1.2em;">timer</span> <span id="examTimerText">03:00</span>
+                    </div>
+                    <button onclick="confirmSubmitExam()" style="background-color: #4CAF50; color: white; font-weight: bold; font-size: 1.1em; padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; margin: 0; display: inline-flex; align-items: center; gap: 5px;">
+                        <span class="material-symbols-outlined">send</span> 交卷
+                    </button>
+                </div>
+            </div>
+
+            <!-- 整張考卷所有題目清單 -->
+            <div id="examPaperList" style="display: flex; flex-direction: column; gap: 12px; max-width: 900px; margin: 0 auto;">
+                <!-- 動態生成題目 -->
+            </div>
+
+            <!-- 底部大交卷按鈕 -->
+            <div style="margin: 30px 0 20px 0; text-align: center;">
+                <button onclick="confirmSubmitExam()" style="background-color: #4CAF50; color: white; font-weight: bold; font-size: 1.4em; padding: 14px 50px; border-radius: 30px; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(76,175,80,0.4); display: inline-flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined" style="font-size: 1.2em;">done_all</span> 檢查完畢，確認交卷
+                </button>
+            </div>
+        </div>
+
+        <!-- 結算成績畫面 -->
+        <div id="examResultScreen" class="hidden">
+            <h2 style="color: #ffb74d;"><span class="material-symbols-outlined">emoji_events</span> 模擬考測驗結束！</h2>
+            <div style="background: #222; border-radius: 15px; padding: 20px; max-width: 500px; margin: 20px auto; border: 2px solid #555;">
+                <div style="font-size: 1.2em; color: #aaa;">測驗總分</div>
+                <div id="examScoreDisplay" style="font-size: 3.5em; font-weight: bold; color: #f48fb1; margin: 5px 0;">100</div>
+                <div id="examTimeCostDisplay" style="color: #64b5f6; font-size: 1.1em;">作答時間：0 分 0 秒</div>
+            </div>
+
+            <h3 style="margin-top: 30px; color: #ffb74d;"><span class="material-symbols-outlined">fact_check</span> 成績詳細報告</h3>
+            <table class="stats-table" id="examStatsTable" style="max-width: 900px; margin: 15px auto;">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;">題號</th>
+                        <th style="width: 25%;">中文提示</th>
+                        <th style="width: 30%;">我的答案</th>
+                        <th style="width: 25%;">正確答案</th>
+                        <th style="width: 10%;">聽發音</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 動態產生 -->
+                </tbody>
+            </table>
+
+            <div style="margin-top: 30px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                <button onclick="initExamView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 12px 30px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 再次測驗</button>
+                <button onclick="switchTab('add')" style="background-color: #455a64; font-size: 1.2em; padding: 12px 30px; border-radius: 20px;"><span class="material-symbols-outlined">home</span> 返回單字庫</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
 
@@ -1230,7 +1417,7 @@
 
         // ------------------ 頁籤切換邏輯 ------------------
         function switchTab(tab) {
-            const tabs = ['add', 'autoplay', 'practice', 'spell'];
+            const tabs = ['add', 'autoplay', 'practice', 'spell', 'exam'];
             tabs.forEach(t => {
                 document.getElementById(`view-${t}`).classList.add('hidden');
                 document.getElementById(`tab-${t}`).classList.remove('active');
@@ -1245,6 +1432,8 @@
                 initSpellGameView();
             } else if (tab === 'autoplay') {
                 initAutoplayView();
+            } else if (tab === 'exam') {
+                initExamView();
             }
         }
 
@@ -1782,7 +1971,16 @@ function flipCard() {
         function nextSpellWord(isSkip = false) {
             if (isSkip) {
                 updateScore(-2); // 跳過扣 2 分
-                let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); if (wIdx!==-1) spellErrors[wIdx]++; // 記錄跳過為錯誤
+                let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); 
+                if (wIdx!==-1) spellErrors[wIdx]++; // 記錄跳過為錯誤
+                if (currentSpellWord) {
+                    spellCurrentRecord.push({
+                        q: currentSpellWord.translation,
+                        ans: '(跳過)',
+                        correct: currentSpellWord.word,
+                        isRight: false
+                    });
+                }
             }
             
             spellCurrentIndex++;
@@ -1952,8 +2150,23 @@ function flipCard() {
             if (currentAudio) currentAudio.pause();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
+            // 組合完整單字（包含固定字母與使用者輸入之字母）
+            let fullSpelledWord = '';
+            const displayContainer = document.getElementById('spellWordDisplay');
+            if (displayContainer) {
+                for (let child of displayContainer.children) {
+                    if (child.classList.contains('spell-char-input')) {
+                        fullSpelledWord += (child.value || child.textContent || '_');
+                    } else {
+                        fullSpelledWord += child.textContent;
+                    }
+                }
+            } else {
+                fullSpelledWord = currentSpellingBoxes.map(b => b.value || b.textContent).join('');
+            }
+
             if (allCorrect) {
-                document.getElementById('spellFeedback').innerHTML = '<span class=\"material-symbols-outlined\">celebration</span> 答對了！';
+                document.getElementById('spellFeedback').innerHTML = '<span class="material-symbols-outlined">celebration</span> 答對了！';
                 document.getElementById('spellFeedback').style.color = '#4CAF50';
                 currentSpellingBoxes.forEach(b => {
                     b.style.borderColor = '#4CAF50';
@@ -1961,7 +2174,12 @@ function flipCard() {
                     b.readOnly = true; 
                     if(b.tagName!=='INPUT') b.classList.remove('active');
                 });
-                spellCurrentRecord.push({ q: currentSpellWord.translation, ans: currentSpellingBoxes.map(b => b.value || b.textContent).join(''), correct: currentSpellWord.word, isRight: true });
+                spellCurrentRecord.push({
+                    q: currentSpellWord.translation,
+                    ans: fullSpelledWord,
+                    correct: currentSpellWord.word,
+                    isRight: true
+                });
                 playSuccessSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             } else {
                 updateScore(-3);
@@ -1980,8 +2198,13 @@ function flipCard() {
                         b.style.borderColor = '#4CAF50';
                     }
                 });
-                spellCurrentRecord.push({ q: currentSpellWord.translation, ans: currentSpellingBoxes.map(b => b.value || b.textContent).join(''), correct: currentSpellWord.word, isRight: false });
-                  playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
+                spellCurrentRecord.push({
+                    q: currentSpellWord.translation,
+                    ans: fullSpelledWord,
+                    correct: currentSpellWord.word,
+                    isRight: false
+                });
+                playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
             }
         }
 
@@ -2030,6 +2253,352 @@ function flipCard() {
 
         // ------------------ 初始載入 ------------------
         updateWordList();
+
+        // ------------------ 模擬考模式邏輯 ------------------
+        let examQuestions = [];
+        let examAudioIndex = 0;
+        let isExamAudioPaused = false;
+        let examAudioTimer = null;
+        let examCountdownTimer = null;
+        let examRemainingSeconds = 0;
+        let examTotalSeconds = 0;
+        let examStartTime = 0;
+        let isExamActive = false;
+
+        function initExamView() {
+            stopExamTimersAndAudio();
+            setGameUIMode(false);
+
+            const emptyMsg = document.getElementById('examEmptyMessage');
+            const startScreen = document.getElementById('examStartScreen');
+            const gameScreen = document.getElementById('examGameScreen');
+            const resultScreen = document.getElementById('examResultScreen');
+
+            if (gameScreen) gameScreen.classList.add('hidden');
+            if (resultScreen) resultScreen.classList.add('hidden');
+
+            if (words.length === 0) {
+                if (emptyMsg) emptyMsg.classList.remove('hidden');
+                if (startScreen) startScreen.classList.add('hidden');
+            } else {
+                if (emptyMsg) emptyMsg.classList.add('hidden');
+                if (startScreen) startScreen.classList.remove('hidden');
+                const totalAvail = document.getElementById('examTotalAvailable');
+                if (totalAvail) totalAvail.textContent = words.length;
+            }
+        }
+
+        function stopExamTimersAndAudio() {
+            isExamActive = false;
+            clearInterval(examCountdownTimer);
+            clearTimeout(examAudioTimer);
+            if (currentAudio) currentAudio.pause();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+        }
+
+        function startExamGame() {
+            if (words.length === 0) {
+                showCustomAlert('單字庫還沒有單字喔！請先載入單字。');
+                return;
+            }
+
+            // 決定題數 (10題 或 15題 或 隨機)
+            const selVal = document.getElementById('examQuestionCountSelect').value;
+            let targetCount = 10;
+            if (selVal === 'random') {
+                targetCount = Math.random() < 0.5 ? 10 : 15;
+            } else {
+                targetCount = parseInt(selVal) || 10;
+            }
+            targetCount = Math.min(targetCount, words.length);
+
+            // 隨機抽題並洗牌
+            let shuffled = [...words].sort(() => 0.5 - Math.random());
+            examQuestions = shuffled.slice(0, targetCount);
+
+            // 計算總限時：10題3分鐘(180s)，15題4.5分鐘(270s)，其他依比例每題18秒
+            if (targetCount === 10) examTotalSeconds = 180;
+            else if (targetCount === 15) examTotalSeconds = 270;
+            else examTotalSeconds = Math.max(60, targetCount * 18);
+
+            examRemainingSeconds = examTotalSeconds;
+            examStartTime = Date.now();
+            isExamActive = true;
+            isExamAudioPaused = false;
+            examAudioIndex = 0;
+
+            // 切換全螢幕與滿版 UI
+            setGameUIMode(true);
+            document.getElementById('examStartScreen').classList.add('hidden');
+            document.getElementById('examGameScreen').classList.remove('hidden');
+            document.getElementById('examResultScreen').classList.add('hidden');
+
+            // 產生考卷 DOM
+            const paperList = document.getElementById('examPaperList');
+            paperList.innerHTML = '';
+
+            examQuestions.forEach((q, idx) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'exam-item-card';
+                itemDiv.id = `examCard_${idx}`;
+
+                const posStr = (q.pos && q.pos !== 'other') ? ` (${q.pos})` : '';
+                itemDiv.innerHTML = `
+                    <div class="exam-item-number">
+                        <span class="material-symbols-outlined" style="font-size:1.1em;">edit_note</span> 第 ${idx + 1} 題
+                    </div>
+                    <div class="exam-item-hint">
+                        提示：${q.translation}${posStr}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button type="button" class="speak-btn-small" onclick="speakExamSingleWord(${idx})" title="單獨重聽此題發音" style="width: 38px; height: 38px; font-size: 1.1em; flex-shrink: 0; margin: 0;">
+                            <span class="material-symbols-outlined">volume_up</span>
+                        </button>
+                        <input type="text" class="exam-input" id="examInput_${idx}" data-index="${idx}" placeholder="請填寫英文單字..." autocomplete="off" autocapitalize="none" spellcheck="false">
+                    </div>
+                `;
+                paperList.appendChild(itemDiv);
+            });
+
+            // 支援 Enter 跳下一題
+            paperList.querySelectorAll('.exam-input').forEach(inp => {
+                inp.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const nextIdx = parseInt(inp.dataset.index) + 1;
+                        const nextInput = document.getElementById(`examInput_${nextIdx}`);
+                        if (nextInput) nextInput.focus();
+                        else confirmSubmitExam();
+                    }
+                });
+            });
+
+            // 聚焦第一題
+            setTimeout(() => {
+                const firstInput = document.getElementById('examInput_0');
+                if (firstInput) firstInput.focus();
+            }, 300);
+
+            // 啟動倒數計時
+            updateExamTimerDisplay();
+            clearInterval(examCountdownTimer);
+            examCountdownTimer = setInterval(() => {
+                if (!isExamActive) return;
+                examRemainingSeconds--;
+                updateExamTimerDisplay();
+
+                if (examRemainingSeconds <= 0) {
+                    clearInterval(examCountdownTimer);
+                    submitExam(true); // 自動交卷
+                }
+            }, 1000);
+
+            // 更新廣播狀態並啟動自動朗讀隊列
+            updateExamAudioButtonUI();
+            scheduleNextExamBroadcast();
+        }
+
+        function speakExamSingleWord(idx) {
+            const q = examQuestions[idx];
+            if (!q) return;
+            if (q.audio) playAudioUrl(q.audio);
+            else speakWithLang(q.word, 'en');
+        }
+
+        function updateExamTimerDisplay() {
+            const timerText = document.getElementById('examTimerText');
+            const timerContainer = document.getElementById('examTimerDisplay');
+            if (!timerText) return;
+
+            let mins = Math.floor(Math.max(0, examRemainingSeconds) / 60);
+            let secs = Math.max(0, examRemainingSeconds) % 60;
+            timerText.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            if (examRemainingSeconds <= 30) {
+                timerContainer.style.color = '#f44336';
+            } else {
+                timerContainer.style.color = '#4CAF50';
+            }
+        }
+
+        function updateExamAudioButtonUI() {
+            const icon = document.getElementById('iconExamPauseAudio');
+            const text = document.getElementById('textExamPauseAudio');
+            if (isExamAudioPaused) {
+                if (icon) icon.textContent = 'play_arrow';
+                if (text) text.textContent = '繼續廣播';
+            } else {
+                if (icon) icon.textContent = 'pause';
+                if (text) text.textContent = '暫停廣播';
+            }
+        }
+
+        function toggleExamAudioPause() {
+            if (!isExamActive) return;
+            isExamAudioPaused = !isExamAudioPaused;
+            updateExamAudioButtonUI();
+
+            if (isExamAudioPaused) {
+                clearTimeout(examAudioTimer);
+                if (currentAudio) currentAudio.pause();
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                document.getElementById('examAudioStatus').textContent = '聽力廣播已暫停';
+            } else {
+                scheduleNextExamBroadcast();
+            }
+        }
+
+        function restartExamAudioBroadcast() {
+            if (!isExamActive) return;
+            clearTimeout(examAudioTimer);
+            if (currentAudio) currentAudio.pause();
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+            examAudioIndex = 0;
+            isExamAudioPaused = false;
+            updateExamAudioButtonUI();
+            scheduleNextExamBroadcast();
+        }
+
+        function scheduleNextExamBroadcast() {
+            if (!isExamActive || isExamAudioPaused) return;
+
+            if (examAudioIndex >= examQuestions.length) {
+                // 全部播完
+                document.getElementById('examAudioStatus').textContent = '所有題目已廣播完畢，請檢查後交卷！';
+                document.getElementById('examSubAudioStatus').textContent = `共 ${examQuestions.length} 題`;
+                document.querySelectorAll('.exam-item-card').forEach(c => c.classList.remove('exam-current-playing'));
+                return;
+            }
+
+            const currentQ = examQuestions[examAudioIndex];
+            const cardEl = document.getElementById(`examCard_${examAudioIndex}`);
+
+            // 高亮並滾動到該題
+            document.querySelectorAll('.exam-item-card').forEach(c => c.classList.remove('exam-current-playing'));
+            if (cardEl) {
+                cardEl.classList.add('exam-current-playing');
+                cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            // 更新頂部狀態
+            document.getElementById('examAudioStatus').textContent = `廣播中：第 ${examAudioIndex + 1} / ${examQuestions.length} 題 (第 1 遍)`;
+            document.getElementById('examSubAudioStatus').textContent = `每題朗讀兩遍`;
+
+            // 播放第 1 遍 (純英文發音)
+            playWordSpeechOnly(currentQ, () => {
+                if (!isExamActive || isExamAudioPaused) return;
+
+                // 第 1 遍結束，間距 2 秒後播第 2 遍
+                examAudioTimer = setTimeout(() => {
+                    if (!isExamActive || isExamAudioPaused) return;
+
+                    document.getElementById('examAudioStatus').textContent = `廣播中：第 ${examAudioIndex + 1} / ${examQuestions.length} 題 (第 2 遍)`;
+
+                    playWordSpeechOnly(currentQ, () => {
+                        if (!isExamActive || isExamAudioPaused) return;
+
+                        // 第 2 遍結束，間距 3.5 秒後進入下一題
+                        document.getElementById('examAudioStatus').textContent = `第 ${examAudioIndex + 1} 題朗讀完畢，即將播下一題...`;
+                        examAudioTimer = setTimeout(() => {
+                            if (!isExamActive || isExamAudioPaused) return;
+                            examAudioIndex++;
+                            scheduleNextExamBroadcast();
+                        }, 3500);
+                    });
+                }, 2000);
+            });
+        }
+
+        // 純英文發音輔助函數 (聽力考試標準：不唸中文)
+        function playWordSpeechOnly(wordObj, onEndedCallback) {
+            if (!wordObj) {
+                if (onEndedCallback) onEndedCallback();
+                return;
+            }
+            if (wordObj.audio) {
+                playAudioUrl(wordObj.audio, onEndedCallback);
+            } else {
+                speakWithLang(wordObj.word, 'en', onEndedCallback);
+            }
+        }
+
+        function confirmSubmitExam() {
+            // 檢查未填題數
+            let emptyCount = 0;
+            examQuestions.forEach((q, idx) => {
+                const inp = document.getElementById(`examInput_${idx}`);
+                if (!inp || !inp.value.trim()) emptyCount++;
+            });
+
+            if (emptyCount > 0) {
+                showCustomConfirm(`考卷尚有 ${emptyCount} 題未填寫，確定要現在交卷嗎？`, function() {
+                    submitExam(false);
+                });
+            } else {
+                showCustomConfirm('已完成全部題目，確認交卷結算成績嗎？', function() {
+                    submitExam(false);
+                });
+            }
+        }
+
+        function submitExam(isAuto = false) {
+            stopExamTimersAndAudio();
+            setGameUIMode(false);
+
+            document.getElementById('examGameScreen').classList.add('hidden');
+            document.getElementById('examResultScreen').classList.remove('hidden');
+
+            // 計算時間花費
+            let elapsedSec = Math.round((Date.now() - examStartTime) / 1000);
+            let elMins = Math.floor(elapsedSec / 60);
+            let elSecs = elapsedSec % 60;
+            document.getElementById('examTimeCostDisplay').textContent = `作答時間：${elMins} 分 ${elSecs} 秒 (共 ${examQuestions.length} 題)`;
+
+            // 批改與統計
+            let correctCount = 0;
+            const tbody = document.querySelector('#examStatsTable tbody');
+            tbody.innerHTML = '';
+
+            examQuestions.forEach((q, idx) => {
+                const inp = document.getElementById(`examInput_${idx}`);
+                const userAns = inp ? inp.value.trim() : '';
+                const isRight = (userAns.toLowerCase() === q.word.trim().toLowerCase());
+                if (isRight) correctCount++;
+
+                const posStr = (q.pos && q.pos !== 'other') ? ` (${q.pos})` : '';
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight: bold; color: #90caf9;">${idx + 1}</td>
+                        <td>${q.translation}${posStr}</td>
+                        <td style="color: ${isRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                            ${isRight ? '<span class="material-symbols-outlined" style="vertical-align:middle;">check_circle</span> ' : '<span class="material-symbols-outlined" style="vertical-align:middle;">cancel</span> '}
+                            ${userAns || '<span style="color:#aaa;">(未作答)</span>'}
+                        </td>
+                        <td style="color: #64b5f6; font-weight: bold;">${q.word}</td>
+                        <td>
+                            <button type="button" class="speak-btn-small" onclick="speakExamSingleWord(${idx})" title="聽發音" style="width: 32px; height: 32px; margin: 0;">
+                                <span class="material-symbols-outlined">volume_up</span>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            let finalScore = Math.round((correctCount / examQuestions.length) * 100);
+            const scoreEl = document.getElementById('examScoreDisplay');
+            scoreEl.textContent = `${finalScore} 分`;
+            if (finalScore >= 80) scoreEl.style.color = '#4CAF50';
+            else if (finalScore >= 60) scoreEl.style.color = '#ffb74d';
+            else scoreEl.style.color = '#f44336';
+
+            if (isAuto) {
+                showCustomAlert('時間到！系統已自動為您交卷並完成評分。');
+            }
+
+            if (finalScore >= 60) playVictorySound();
+            else playFailureSound();
+        }
     </script>
 </body>
 </html>
