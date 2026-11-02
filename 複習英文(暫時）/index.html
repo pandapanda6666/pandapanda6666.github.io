@@ -1,6 +1,8 @@
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const _urlParams = new URLSearchParams(window.location.search);
         const _v = _urlParams.get('v') || _urlParams.get('version');
@@ -654,6 +656,12 @@
 
     <h1><span class="material-symbols-outlined" style="color: #FFD700;">star</span> 英文單字閃卡遊戲 <span class="material-symbols-outlined" style="color: #FFD700;">star</span></h1>
     
+    <!-- 統一登入 SSO 面板 -->
+    <div id="authContainer" style="display: flex; justify-content: flex-end; align-items: center; max-width: 1200px; margin: 0 auto 10px auto;">
+        <button class="sso-login-btn" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href)" style="background: #2e7d32; color: white; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">login</span> 登入 / 註冊
+        </button>
+    </div>
     
     <!-- 設定區域 -->
     <div id="topControlBar" style="background-color: #2c3e50; padding: 8px 5px; margin-bottom: 10px; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center;">
@@ -668,7 +676,8 @@
             <span class="material-symbols-outlined" style="vertical-align: middle;">history</span> 歷史版本：
             <select onchange="if(this.value) window.location.href='?v='+this.value" style="padding: 5px; border-radius: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; font-size: 14px;">
                 <option value="">選擇版本...</option>
-                <option value="31">版本 31 (最新)</option>
+                <option value="32">版本 32 (最新)</option>
+                <option value="31">版本 31</option>
                 <option value="30">版本 30</option>
                 <option value="29">版本 29</option>
                 <option value="28">版本 28</option>
@@ -724,6 +733,24 @@
                 <option value="ALL">全部載入 (L1 ~ L6)</option>
             </select><br>
             <button onclick="importNaniData()" style="background-color: #9C27B0; font-size: 1.1em; width: 80%; max-width: 300px;"><span class="material-symbols-outlined">download</span> 載入所選單字 (含真人發音)</button>
+        </div>
+
+        <!-- 單字組合與設定檔管理 -->
+        <div style="background-color: #263238; padding: 15px; border-radius: 8px; margin-bottom: 20px; margin-top: 15px;">
+            <h3 style="margin-top: 0; color: #80cbc4;"><span class="material-symbols-outlined">folder_special</span> 單字組合與設定檔管理</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin-bottom: 12px;">
+                <button onclick="saveCurrentAsNewDeck()" style="background-color: #00897b; font-size: 1em; padding: 8px 16px;"><span class="material-symbols-outlined">save</span> 目前單字存為新組合</button>
+                <select id="customDeckSelect" style="padding: 8px 10px; font-size: 1em; max-width: 220px;">
+                    <option value="">-- 選擇自訂單字組合 --</option>
+                </select>
+                <button onclick="loadSelectedDeck()" style="background-color: #00acc1; font-size: 1em; padding: 8px 16px;"><span class="material-symbols-outlined">upload</span> 載入組合</button>
+                <button onclick="deleteSelectedDeck()" style="background-color: #e53935; font-size: 1em; padding: 8px 12px;" title="刪除選取的組合"><span class="material-symbols-outlined">delete</span></button>
+            </div>
+            <div style="border-top: 1px solid #455a64; padding-top: 12px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center;">
+                <button onclick="exportAllConfigAndData()" style="background-color: #3949ab; font-size: 1em; padding: 8px 18px;"><span class="material-symbols-outlined">file_download</span> 匯出完整設定檔 (可自訂檔名)</button>
+                <button onclick="document.getElementById('importConfigFileInput').click()" style="background-color: #5e35b1; font-size: 1em; padding: 8px 18px;"><span class="material-symbols-outlined">file_upload</span> 匯入設定檔</button>
+                <input type="file" id="importConfigFileInput" accept=".json" style="display: none;" onchange="importConfigFile(event)">
+            </div>
         </div>
 
         
@@ -954,8 +981,9 @@
                     <span class="material-symbols-outlined">info</span> 測驗規則說明：
                 </div>
                 • 整張考卷一次列出所有題目，請在各題輸入框填寫英文單字。<br>
-                • 系統將依序播放聽力廣播，<strong>每題朗讀兩遍</strong>（兩遍間有停頓間距）。<br>
-                • 兩遍朗讀完畢後，稍作停頓即自動進入下一題廣播。<br>
+                • 系統將依序播放聽力廣播，<strong>每題朗讀兩遍</strong>（兩遍間隔 2 秒）。<br>
+                • 兩遍朗讀完畢後，間隔 3.5 秒即自動進入下一題廣播。<br>
+                • <strong>正式模擬考全程不可暫停、不可單題重聽</strong>，請專注聆聽！<br>
                 • <strong>有總時間限制</strong>，時間倒數結束將自動交卷！
             </div>
 
@@ -978,23 +1006,13 @@
         <div id="examGameScreen" class="hidden">
             <!-- 考試頂部狀態固定條 -->
             <div id="examTopBar" style="position: sticky; top: 0; z-index: 100; background: #1e1e1e; border: 2px solid #444; border-radius: 12px; padding: 10px 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);">
-                <!-- 廣播狀態與控制 -->
+                <!-- 廣播狀態 -->
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="material-symbols-outlined" style="color: #64b5f6; font-size: 1.8em;">headphones</span>
                     <div style="text-align: left;">
                         <div id="examAudioStatus" style="font-weight: bold; color: #ffb74d; font-size: 1.05em;">正在準備聽力廣播...</div>
-                        <div id="examSubAudioStatus" style="font-size: 0.85em; color: #aaa;">共 0 題</div>
+                        <div id="examSubAudioStatus" style="font-size: 0.85em; color: #aaa;">共 0 題（正式測驗：不可暫停、不可重聽）</div>
                     </div>
-                </div>
-
-                <!-- 廣播暫停/繼續按鈕 -->
-                <div style="display: flex; gap: 8px;">
-                    <button id="btnExamPauseAudio" onclick="toggleExamAudioPause()" style="background-color: #455a64; padding: 6px 12px; font-size: 0.9em; border-radius: 8px; margin: 0; display: inline-flex; align-items: center; gap: 4px;">
-                        <span class="material-symbols-outlined" id="iconExamPauseAudio" style="font-size: 1.1em;">pause</span> <span id="textExamPauseAudio">暫停廣播</span>
-                    </button>
-                    <button onclick="restartExamAudioBroadcast()" style="background-color: #37474f; padding: 6px 12px; font-size: 0.9em; border-radius: 8px; margin: 0; display: inline-flex; align-items: center; gap: 4px;" title="從第一題重新朗讀全卷">
-                        <span class="material-symbols-outlined" style="font-size: 1.1em;">replay</span> 重播廣播
-                    </button>
                 </div>
 
                 <!-- 倒數計時與交卷 -->
@@ -1334,6 +1352,9 @@
         function saveWords() {
             localStorage.setItem('english_flashcards_data', JSON.stringify(words));
             updateWordList();
+            if (typeof saveCloudData === 'function') {
+                saveCloudData('更新了單字清單');
+            }
         }
 
         function updateWordList() {
@@ -2254,6 +2275,358 @@ function flipCard() {
         // ------------------ 初始載入 ------------------
         updateWordList();
 
+        // ------------------ 單字組合與設定檔管理 ------------------
+        let customWordDecks = JSON.parse(localStorage.getItem('customWordDecks') || '{}');
+
+        function updateCustomDeckSelect() {
+            const sel = document.getElementById('customDeckSelect');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- 選擇自訂單字組合 --</option>';
+            for (const name in customWordDecks) {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = `${name} (${customWordDecks[name].length} 字)`;
+                sel.appendChild(opt);
+            }
+        }
+
+        function saveCurrentAsNewDeck() {
+            if (words.length === 0) {
+                showCustomAlert('目前單字庫是空的，無法存為組合！');
+                return;
+            }
+            const defaultName = `自訂組合_${new Date().getMonth() + 1}月${new Date().getDate()}日`;
+            const name = prompt('請輸入新單字組合的名稱：', defaultName);
+            if (!name || !name.trim()) return;
+            const trimmed = name.trim();
+            customWordDecks[trimmed] = JSON.parse(JSON.stringify(words));
+            localStorage.setItem('customWordDecks', JSON.stringify(customWordDecks));
+            updateCustomDeckSelect();
+            if (typeof saveCloudData === 'function') {
+                saveCloudData(`儲存了新單字組合：${trimmed}`);
+            }
+            showCustomAlert(`已成功將目前 ${words.length} 個單字儲存為組合「${trimmed}」！`);
+        }
+
+        function loadSelectedDeck() {
+            const sel = document.getElementById('customDeckSelect');
+            const name = sel ? sel.value : '';
+            if (!name) {
+                showCustomAlert('請先由下拉選單選取要載入的組合！');
+                return;
+            }
+            if (customWordDecks[name]) {
+                words = JSON.parse(JSON.stringify(customWordDecks[name]));
+                saveWords();
+                showCustomAlert(`已載入組合「${name}」(共 ${words.length} 個單字)！`);
+            }
+        }
+
+        function deleteSelectedDeck() {
+            const sel = document.getElementById('customDeckSelect');
+            const name = sel ? sel.value : '';
+            if (!name) {
+                showCustomAlert('請先由下拉選單選取要刪除的組合！');
+                return;
+            }
+            showCustomConfirm(`確定要刪除單字組合「${name}」嗎？`, function() {
+                delete customWordDecks[name];
+                localStorage.setItem('customWordDecks', JSON.stringify(customWordDecks));
+                updateCustomDeckSelect();
+                if (typeof saveCloudData === 'function') {
+                    saveCloudData(`刪除了單字組合：${name}`);
+                }
+                showCustomAlert(`已成功刪除組合「${name}」！`);
+            });
+        }
+
+        function exportAllConfigAndData() {
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}_${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}`;
+            const defaultFileName = `英文閃卡全備份_${dateStr}`;
+            const fileNameInput = prompt('請輸入要匯出的檔案名稱：', defaultFileName);
+            if (fileNameInput === null) return;
+            const finalFileName = (fileNameInput.trim() || defaultFileName) + '.json';
+
+            const exportPayload = {
+                appName: '英文單字閃卡',
+                version: '32',
+                exportTime: now.toISOString(),
+                words: words,
+                customWordDecks: customWordDecks,
+                spellHistory: JSON.parse(localStorage.getItem('spellHistory') || '[]'),
+                examHistory: JSON.parse(localStorage.getItem('examHistory') || '[]'),
+                settings: {
+                    speechRate: document.getElementById('speechRate') ? document.getElementById('speechRate').value : 1,
+                    speechPitch: document.getElementById('speechPitch') ? document.getElementById('speechPitch').value : 1,
+                    speakMode: document.getElementById('speakMode') ? document.getElementById('speakMode').value : 'en',
+                    autoNextCard: document.getElementById('autoNextCard') ? document.getElementById('autoNextCard').checked : false
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = finalFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+
+            if (socket && socket.connected) {
+                socket.emit('logAppMessage', { appId: appId, message: `匯出了設定檔檔案：${finalFileName}`, type: 'info' });
+            }
+        }
+
+        function importConfigFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data.words)) {
+                        words = data.words;
+                        localStorage.setItem('english_flashcards_data', JSON.stringify(words));
+                    }
+                    if (data.customWordDecks && typeof data.customWordDecks === 'object') {
+                        customWordDecks = data.customWordDecks;
+                        localStorage.setItem('customWordDecks', JSON.stringify(customWordDecks));
+                    }
+                    if (Array.isArray(data.spellHistory)) {
+                        localStorage.setItem('spellHistory', JSON.stringify(data.spellHistory));
+                    }
+                    if (Array.isArray(data.examHistory)) {
+                        localStorage.setItem('examHistory', JSON.stringify(data.examHistory));
+                    }
+                    if (data.settings) {
+                        if (data.settings.speechRate && document.getElementById('speechRate')) {
+                            document.getElementById('speechRate').value = data.settings.speechRate;
+                        }
+                        if (data.settings.speechPitch && document.getElementById('speechPitch')) {
+                            document.getElementById('speechPitch').value = data.settings.speechPitch;
+                        }
+                        if (data.settings.speakMode && document.getElementById('speakMode')) {
+                            document.getElementById('speakMode').value = data.settings.speakMode;
+                        }
+                        if (typeof data.settings.autoNextCard === 'boolean' && document.getElementById('autoNextCard')) {
+                            document.getElementById('autoNextCard').checked = data.settings.autoNextCard;
+                        }
+                    }
+                    updateWordList();
+                    updateCustomDeckSelect();
+                    renderSpellHistory();
+                    if (typeof saveCloudData === 'function') {
+                        saveCloudData('匯入了設定檔檔案');
+                    }
+                    showCustomAlert(`設定檔匯入成功！已還原 ${words.length} 個單字與所有組合紀錄！`);
+                } catch (err) {
+                    showCustomAlert('設定檔格式錯誤或損毀，無法解析！');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ------------------ 即時多人連線、雲端存檔與 SSO 統一登入 ------------------
+        const appId = 'review-english';
+        let socket = null;
+        let currentUser = null;
+
+        async function initNetwork() {
+            let sUrl = '';
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('server')) {
+                sUrl = decodeURIComponent(params.get('server'));
+            } else {
+                try {
+                    const res = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+                    if (!res.ok) throw new Error('Fetch err');
+                    const text = await res.text();
+                    sUrl = atob(text.trim().split('').reverse().join(''));
+                } catch(e) {
+                    sUrl = 'https://tile-amber-unit.ngrok-free.dev';
+                }
+            }
+
+            if (typeof io !== 'undefined') {
+                try {
+                    socket = io(sUrl, { transports: ['polling', 'websocket'], extraHeaders: { 'ngrok-skip-browser-warning': '69420' } });
+
+                    socket.on('connect', () => {
+                        console.log('[Socket] Connected to server:', sUrl);
+                        socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+                        socket.emit('joinGameRoom', { room: appId, characterData: {} });
+                        checkLogin();
+                        loadCloudData();
+                    });
+
+                    socket.on('loginResult', (data) => {
+                        if (data && data.success) {
+                            currentUser = data;
+                            if (data.token) {
+                                localStorage.setItem('panda_session_token', data.token);
+                            }
+                            const url = new URL(window.location.href);
+                            if (url.searchParams.has('token')) {
+                                url.searchParams.delete('token');
+                                window.history.replaceState({}, document.title, url.toString());
+                            }
+                            renderUserUI(data);
+                            loadCloudData();
+                        } else {
+                            renderGuestUI();
+                        }
+                    });
+
+                    socket.on('connect_error', (err) => {
+                        console.warn('[Socket] Connect error:', err);
+                    });
+                } catch (err) {
+                    console.error('[Socket] Init error:', err);
+                    renderGuestUI();
+                }
+            } else {
+                renderGuestUI();
+            }
+        }
+
+        function checkLogin() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('token') || localStorage.getItem('panda_session_token');
+            if (token && socket && socket.connected) {
+                socket.emit('tokenLogin', { token: token });
+            } else {
+                renderGuestUI();
+            }
+        }
+
+        function renderUserUI(res) {
+            const authContainer = document.getElementById('authContainer');
+            if (!authContainer) return;
+            const avatarUrl = res.avatar || 'https://pandapanda6666.github.io/shop/coin.svg';
+            const nick = res.nickname || res.username || '使用者';
+            const avatarHTML = `<img src="${avatarUrl}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            authContainer.innerHTML = `
+            <div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer;" id="user-profile-toggle">
+                <div class="user-info" style="display:flex;align-items:center;gap:8px;">
+                    <div class="avatar" style="width:36px;height:36px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">${avatarHTML}</div>
+                    <div class="details" style="display:flex;flex-direction:column;text-align:left;">
+                        <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;">已登入</span>
+                        <span class="name" title="${nick}" style="font-size:14px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nick}</span>
+                    </div>
+                </div>
+                <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:10px; background:white; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); min-width:150px; z-index:1000; overflow:hidden;">
+                    <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee;">⚙️ 帳號設定</div>
+                    <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f;">🚪 登出</div>
+                </div>
+            </div>`;
+
+            const toggle = document.getElementById('user-profile-toggle');
+            const dropdown = document.getElementById('user-dropdown');
+            if (toggle && dropdown) {
+                toggle.onclick = (e) => {
+                    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+                    e.stopPropagation();
+                };
+            }
+
+            const btnSettings = document.getElementById('btn-settings');
+            if (btnSettings) {
+                btnSettings.onclick = () => {
+                    window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=editProfile&from=' + encodeURIComponent(window.location.href);
+                };
+            }
+
+            const btnLogout = document.getElementById('btn-logout');
+            if (btnLogout) {
+                btnLogout.onclick = () => {
+                    localStorage.removeItem('panda_session_token');
+                    window.location.reload();
+                };
+            }
+        }
+
+        function renderGuestUI() {
+            const authContainer = document.getElementById('authContainer');
+            if (!authContainer) return;
+            authContainer.innerHTML = `
+                <button class="sso-login-btn" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href)" style="background: #2e7d32; color: white; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">login</span> 登入 / 註冊
+                </button>
+            `;
+        }
+
+        document.addEventListener('click', () => {
+            const dropdown = document.getElementById('user-dropdown');
+            if (dropdown) dropdown.style.display = 'none';
+        });
+
+        function saveCloudData(msg) {
+            const payload = {
+                words: words,
+                customWordDecks: customWordDecks,
+                spellHistory: JSON.parse(localStorage.getItem('spellHistory') || '[]'),
+                examHistory: JSON.parse(localStorage.getItem('examHistory') || '[]'),
+                settings: {
+                    speechRate: document.getElementById('speechRate') ? document.getElementById('speechRate').value : 1,
+                    speechPitch: document.getElementById('speechPitch') ? document.getElementById('speechPitch').value : 1,
+                    speakMode: document.getElementById('speakMode') ? document.getElementById('speakMode').value : 'en',
+                    autoNextCard: document.getElementById('autoNextCard') ? document.getElementById('autoNextCard').checked : false
+                }
+            };
+            if (socket && socket.connected) {
+                socket.emit('saveAppData', { appId: appId, data: payload });
+                if (msg) {
+                    socket.emit('logAppMessage', { appId: appId, message: msg, type: 'info' });
+                }
+            }
+        }
+
+        function loadCloudData() {
+            if (!socket || !socket.connected) return;
+            socket.emit('getAppData', { appId: appId }, (res) => {
+                if (res && res.data) {
+                    const data = res.data;
+                    if (Array.isArray(data.words) && data.words.length > 0) {
+                        words = data.words;
+                        localStorage.setItem('english_flashcards_data', JSON.stringify(words));
+                        updateWordList();
+                    }
+                    if (data.customWordDecks && typeof data.customWordDecks === 'object') {
+                        customWordDecks = data.customWordDecks;
+                        localStorage.setItem('customWordDecks', JSON.stringify(customWordDecks));
+                        updateCustomDeckSelect();
+                    }
+                    if (Array.isArray(data.spellHistory)) {
+                        localStorage.setItem('spellHistory', JSON.stringify(data.spellHistory));
+                        renderSpellHistory();
+                    }
+                    if (Array.isArray(data.examHistory)) {
+                        localStorage.setItem('examHistory', JSON.stringify(data.examHistory));
+                    }
+                    if (data.settings) {
+                        if (data.settings.speechRate && document.getElementById('speechRate')) {
+                            document.getElementById('speechRate').value = data.settings.speechRate;
+                        }
+                        if (data.settings.speechPitch && document.getElementById('speechPitch')) {
+                            document.getElementById('speechPitch').value = data.settings.speechPitch;
+                        }
+                        if (data.settings.speakMode && document.getElementById('speakMode')) {
+                            document.getElementById('speakMode').value = data.settings.speakMode;
+                        }
+                        if (typeof data.settings.autoNextCard === 'boolean' && document.getElementById('autoNextCard')) {
+                            document.getElementById('autoNextCard').checked = data.settings.autoNextCard;
+                        }
+                    }
+                }
+            });
+        }
+
+        updateCustomDeckSelect();
+        initNetwork();
+
         // ------------------ 模擬考模式邏輯 ------------------
         let examQuestions = [];
         let examAudioIndex = 0;
@@ -2350,11 +2723,8 @@ function flipCard() {
                     <div class="exam-item-hint">
                         提示：${q.translation}${posStr}
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <button type="button" class="speak-btn-small" onclick="speakExamSingleWord(${idx})" title="單獨重聽此題發音" style="width: 38px; height: 38px; font-size: 1.1em; flex-shrink: 0; margin: 0;">
-                            <span class="material-symbols-outlined">volume_up</span>
-                        </button>
-                        <input type="text" class="exam-input" id="examInput_${idx}" data-index="${idx}" placeholder="請填寫英文單字..." autocomplete="off" autocapitalize="none" spellcheck="false">
+                    <div style="display: flex; align-items: center; width: 100%;">
+                        <input type="text" class="exam-input" id="examInput_${idx}" data-index="${idx}" placeholder="請在此填寫英文單字..." autocomplete="off" autocapitalize="none" spellcheck="false" style="width: 100%;">
                     </div>
                 `;
                 paperList.appendChild(itemDiv);
@@ -2596,9 +2966,27 @@ function flipCard() {
                 showCustomAlert('時間到！系統已自動為您交卷並完成評分。');
             }
 
+            // 記錄模擬考歷史
+            let examHist = JSON.parse(localStorage.getItem('examHistory') || '[]');
+            examHist.push({ date: new Date().toLocaleString(), score: finalScore, count: examQuestions.length, timeSpent: `${elMins}分${elSecs}秒` });
+            localStorage.setItem('examHistory', JSON.stringify(examHist));
+            if (typeof saveCloudData === 'function') {
+                saveCloudData(`完成了模擬考測驗，得分：${finalScore}分`);
+            }
+
             if (finalScore >= 60) playVictorySound();
             else playFailureSound();
         }
     </script>
+
+    <!-- 外部回報問題浮動按鈕 -->
+    <div id="floatReportBtn" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from=' + encodeURIComponent(window.location.href)" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; background: #e53935; color: white; padding: 10px 18px; border-radius: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 6px; font-size: 14px; user-select: none; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        <span class="material-symbols-outlined" style="font-size: 18px;">help_outline</span> 回報問題
+    </div>
+
+    <!-- 版權宣告 -->
+    <footer style="margin-top: 50px; padding: 25px 15px; text-align: center; font-size: 13px; color: #777; border-top: 1px solid #333;">
+        <a href="https://pandapanda6666.github.io" target="_blank" style="color: #999; text-decoration: none; font-weight: bold;">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+    </footer>
 </body>
 </html>
