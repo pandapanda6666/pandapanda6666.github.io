@@ -421,8 +421,8 @@
                         <div style="margin-bottom:20px;">
                             <label style="color:#ddd; margin-right:15px; font-size:18px;">遙控器佈局:</label>
                             <select id="set-layout" onchange="applySettings()" style="padding:8px; background:#333; color:white; border:1px solid #555; border-radius:4px; font-size:16px;">
+                                <option value="japanese" selected>日本手 (右手油門)</option>
                                 <option value="american">美國手 (左手油門)</option>
-                                <option value="japanese">日本手 (右手油門)</option>
                             </select>
                         </div>
                         
@@ -2086,11 +2086,13 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                 inputRoll = getStickValue('roll');
             } else {
                 if (controlMode === 'japanese') {
+                    // 日本手 (Mode 1): 右手 (Up/Down=油門, Left/Right=橫滾) | 左手 (W/S=俯仰, A/D=偏航)
                     if (keys.up) inputThrottle += 1; if (keys.down) inputThrottle -= 1;
-                    if (keys.left) inputYaw -= 1; if (keys.right) inputYaw += 1;
+                    if (keys.left) inputRoll -= 1; if (keys.right) inputRoll += 1;
                     if (keys.w) inputPitch += 1; if (keys.s) inputPitch -= 1;
-                    if (keys.a) inputRoll -= 1; if (keys.d) inputRoll += 1;
+                    if (keys.a) inputYaw -= 1; if (keys.d) inputYaw += 1;
                 } else {
+                    // 美國手 (Mode 2): 左手 (W/S=油門, A/D=偏航) | 右手 (Up/Down=俯仰, Left/Right=橫滾)
                     if (keys.w) inputThrottle += 1; if (keys.s) inputThrottle -= 1;
                     if (keys.a) inputYaw -= 1; if (keys.d) inputYaw += 1;
                     if (keys.up) inputPitch += 1; if (keys.down) inputPitch -= 1;
@@ -2115,8 +2117,8 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                     window.droneYawAngle = new THREE.Euler().setFromQuaternion(droneGroup.quaternion, 'YXZ').y;
                 }
                 
-                // 地面靜摩擦力：在地面待機且無起飛油門時，禁止水平原地打轉！
-                if (droneGroup.position.y <= -1.43 && globalThrottleVal < 0.25) {
+                // 地面靜摩擦力：在地面待機且無起飛油門時，嚴禁水平原地打轉！
+                if (droneGroup.position.y <= -1.40 && globalThrottleVal < 0.28) {
                     inputYaw = 0;
                 }
                 // Integrate Yaw Rate (Acro style yaw)
@@ -2137,7 +2139,7 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                 } else {
                     // Angle Mode (Auto-level)
                     // 地面回正：在地面待機時，四腳起落架穩貼草皮，姿態強制回正，杜絕斜著停在地上
-                    if (droneGroup.position.y <= -1.43 && window.droneVelocity.length() < 0.8) {
+                    if (droneGroup.position.y <= -1.40 && (!window.droneVelocity || window.droneVelocity.length() < 0.8)) {
                         targetPitch = 0;
                         targetRoll = 0;
                     }
@@ -2261,18 +2263,6 @@ const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
                     }
                 }
 
-                // 螺旋槳噴飛檢測：螺旋槳若噴飛則失去升力與控制，不可正常飛行！
-                let intactProps = propellers.filter(p => p && !p.userData.isEjected).length;
-                if (intactProps < 4 || window.droneCrashed) {
-                    if (intactProps === 0 || window.droneCrashed) {
-                        currentThrust = 0;
-                    } else {
-                        // 缺少螺旋槳：嚴重失衡，產生劇烈翻滾偏航並迅速墜地
-                        currentThrust *= (intactProps / 4.0) * 0.15;
-                        window.droneYawAngle += (4 - intactProps) * 18.0 * dt;
-                        targetRoll += (intactProps % 2 === 0 ? 0.9 : -0.9);
-                    }
-                }
                 if (globalThrottleVal > 0.05 && !gameTimerRunning && !window.droneCrashed) {
                     startGameTimer();
                 }
@@ -3365,6 +3355,10 @@ renderer.render(scene, camera);
         // 著陸防穿模與螺旋槳打地檢測
         function checkGroundAndPropellersContact() {
             if (!droneGroup || window.droneCrashed) return;
+            // 當無人機在地面待機且處於靜止狀態時，略過推斥避免與重力頻繁競爭產生微震動 (徹底消除 HX115 抖動)
+            if (window.droneVelocity && window.droneVelocity.lengthSq() < 0.05 && (typeof globalThrottleVal === 'undefined' || globalThrottleVal < 0.1)) {
+                return;
+            }
 
             // 1. 檢查 4 隻螺旋槳
             if (typeof propellers !== 'undefined' && propellers && propellers.length > 0) {
@@ -3728,7 +3722,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.032';
+        const CURRENT_VERSION = 'v4.033';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3940,7 +3934,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.032</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.033</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">

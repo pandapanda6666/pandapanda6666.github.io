@@ -1,9 +1,27 @@
+# -*- coding: utf-8 -*-
 import urllib.parse
 import time
 import os
 import sys
 import ctypes
 import subprocess
+import json
+import threading
+import http.server
+import socketserver
+import asyncio
+
+# --- Headless / pythonw 專用防崩潰 NullWriter ---
+class NullWriter:
+    def write(self, *args, **kwargs):
+        pass
+    def flush(self, *args, **kwargs):
+        pass
+
+if sys.stdout is None:
+    sys.stdout = NullWriter()
+if sys.stderr is None:
+    sys.stderr = NullWriter()
 
 # 立即隱藏空白黑控制台視窗
 try:
@@ -14,10 +32,9 @@ except Exception:
     pass
 
 def install_module(module_name):
-    print(f"正在安裝缺失模組: {module_name}...")
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", module_name])
-    except:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", module_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
         pass
 
 try:
@@ -47,131 +64,71 @@ except ImportError:
     except Exception:
         websockets = None
 
-import threading
-import asyncio
-import http.server
-import socketserver
-import traceback
-import struct
-import json
-import math
+# --- BLE RABBONI LOGIC ---
+SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
+CHAR_WRITE_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+CHAR_NOTIFY_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
-# --- RABBONI SERVER LOGIC ---
-SCAN_TIMEOUT = 15
-NOTIFY_UUID = "00001601-0000-1000-8000-00805f9b34fb"
-WRITE_UUIDS = [
-    "00001701-0000-1000-8000-00805f9b34fb",
-    "00001702-0000-1000-8000-00805f9b34fb",
-]
-ACC_SCALE = 16
-GYR_SCALE = 2000
-GRAVITY = 9.81
-ALPHA = 0.3  
-filtered_acc = {'x': 0, 'y': 0, 'z': 0}
 connected_clients = set()
 
-def raw_to_ms2(raw_value, scale):
-    return (raw_value / 32768.0) * scale * GRAVITY
-
-def raw_to_degs(raw_value, scale):
-    return (raw_value / 32768.0) * scale
-
-def parse_sensor_data(data, device_name):
-    global filtered_acc
+def parse_sensor_data(data):
     try:
-        if len(data) >= 16:
-            ax_raw = struct.unpack('>h', data[0:2])[0]
-            ay_raw = struct.unpack('>h', data[2:4])[0]
-            az_raw = struct.unpack('>h', data[4:6])[0]
-            gx_raw = struct.unpack('>h', data[6:8])[0]
-            gy_raw = struct.unpack('>h', data[8:10])[0]
-            gz_raw = struct.unpack('>h', data[10:12])[0]
-            
-            acc_x = raw_to_ms2(ax_raw, ACC_SCALE)
-            acc_y = raw_to_ms2(ay_raw, ACC_SCALE)
-            acc_z = raw_to_ms2(az_raw, ACC_SCALE)
-            
-            gyr_x = raw_to_degs(gx_raw, GYR_SCALE)
-            gyr_y = raw_to_degs(gy_raw, GYR_SCALE)
-            gyr_z = raw_to_degs(gz_raw, GYR_SCALE)
-            
-            filtered_acc['x'] = ALPHA * acc_x + (1 - ALPHA) * filtered_acc['x']
-            filtered_acc['y'] = ALPHA * acc_y + (1 - ALPHA) * filtered_acc['y']
-            filtered_acc['z'] = ALPHA * acc_z + (1 - ALPHA) * filtered_acc['z']
-            
-            return {
-                'name': device_name,
-                'acc': [filtered_acc['x'], filtered_acc['y'], filtered_acc['z']],
-                'gyr': [gyr_x, gyr_y, gyr_z]
-            }
-    except Exception as e:
+        if len(data) >= 14 and data[0] == 0x55 and data[1] == 0xAA:
+            import struct
+            acc_x, acc_y, acc_z = struct.unpack('>hhh', data[2:8])
+            scale_acc = 16.0 / 32768.0
+            ax = acc_x * scale_acc
+            ay = acc_y * scale_acc
+            az = acc_z * scale_acc
+            return {"ax": ax, "ay": ay, "az": az, "raw": list(data)}
+    except Exception:
         pass
     return None
 
-async def broadcast_ws(message):
-    if connected_clients:
-        tasks = [asyncio.create_task(client.send(message)) for client in connected_clients]
-        await asyncio.gather(*tasks, return_exceptions=True)
-
-def make_notification_handler(device_name):
-    def notification_handler(sender, data):
-        parsed = parse_sensor_data(data, device_name)
-        if parsed:
-            json_str = json.dumps(parsed)
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(broadcast_ws(json_str))
-            except:
-                pass
-    return notification_handler
-
-async def activate_device(client):
-    activation_commands = [
-        (bytes([0x01]), "開始"),
-        (bytes([0xFF]), "使能"),
-    ]
-    activated = False
-    for uuid in WRITE_UUIDS[:2]:
-        for cmd, name in activation_commands:
-            try:
-                await client.write_gatt_char(uuid, cmd)
-                activated = True
-                await asyncio.sleep(0.3)
-            except:
-                pass
-    return activated
-
 async def handle_scan(websocket):
-    devices = await BleakScanner.discover(timeout=5.0)
-    found = []
-    for d in devices:
-        if d.name and "rabboni" in d.name.lower():
-            found.append({"name": d.name, "address": d.address})
+    if BleakScanner is None:
+        try:
+            await websocket.send(json.dumps({"type": "scan_results", "devices": []}))
+        except Exception:
+            pass
+        return
     try:
-        await websocket.send(json.dumps({"type": "scan_results", "devices": found}))
-    except:
-        pass
+        devices = await BleakScanner.discover(timeout=4.0)
+        res = []
+        for d in devices:
+            if d.name and ("rabboni" in d.name.lower() or "rb" in d.name.lower()):
+                res.append({"name": d.name, "address": d.address})
+        await websocket.send(json.dumps({"type": "scan_results", "devices": res}))
+    except Exception as e:
+        try:
+            await websocket.send(json.dumps({"type": "scan_error", "message": str(e)}))
+        except Exception:
+            pass
 
 async def connect_and_listen(address, name, websocket):
+    if BleakClient is None:
+        return
     try:
-        async with BleakClient(address, timeout=15) as client:
-            try:
-                await websocket.send(json.dumps({"type": "connected", "name": name}))
-            except:
-                pass
-            await activate_device(client)
-            handler = make_notification_handler(name)
-            await client.start_notify(NOTIFY_UUID, handler)
-            while True:
-                await asyncio.sleep(1)
-                if not client.is_connected:
-                    break
-    except Exception as e:
-        print(f"Connection lost ({name}): {e}")
+        async with BleakClient(address) as client:
+            if not client.is_connected:
+                return
+            await websocket.send(json.dumps({"type": "connected", "name": name}))
+
+            def callback(sender, data):
+                parsed = parse_sensor_data(data)
+                if parsed:
+                    msg = json.dumps({"type": "data", "name": name, "data": parsed})
+                    asyncio.create_task(websocket.send(msg))
+
+            await client.start_notify(CHAR_NOTIFY_UUID, callback)
+            while client.is_connected:
+                await asyncio.sleep(0.5)
+    except Exception:
+        pass
     finally:
         try:
             await websocket.send(json.dumps({"type": "disconnected", "name": name}))
-        except:
+        except Exception:
             pass
 
 async def ws_handler(websocket, *args):
@@ -186,26 +143,32 @@ async def ws_handler(websocket, *args):
                     addr = data.get('address')
                     name = data.get('name')
                     asyncio.create_task(connect_and_listen(addr, name, websocket))
-            except Exception as e:
+            except Exception:
                 pass
-    except websockets.exceptions.ConnectionClosed:
+    except Exception:
         pass
     finally:
-        connected_clients.remove(websocket)
+        connected_clients.discard(websocket)
 
 async def start_ws_server():
-    server = await websockets.serve(ws_handler, "localhost", 50500)
-    return server
+    if websockets is None:
+        return None
+    try:
+        server = await websockets.serve(ws_handler, "127.0.0.1", 50500)
+        return server
+    except Exception:
+        return None
 
 async def rabboni_main():
     ws_server = await start_ws_server()
-    await asyncio.Future()
+    if ws_server:
+        await asyncio.Future()
 
 def start_rabboni_background():
     try:
         asyncio.run(rabboni_main())
-    except Exception as e:
-        print(f"Rabboni error: {e}")
+    except Exception:
+        pass
 
 # --- HTTP SERVER LOGIC ---
 server_ready_event = threading.Event()
@@ -216,20 +179,31 @@ class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
+    def handle_error(self, request, client_address):
+        pass
+
 def start_http_server(directory, port=8849):
     global actual_server_port, server_started_successfully
-    class Handler(http.server.SimpleHTTPRequestHandler):
+
+    class SafeHandler(http.server.SimpleHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=directory, **kwargs)
+
         def log_message(self, format, *args):
+            pass
+
+        def log_request(self, code='-', size='-'):
+            pass
+
+        def log_error(self, format, *args):
             pass
 
         def do_GET(self):
             if self.path.startswith('/api/check_update'):
                 try:
                     import urllib.request
-                    import urllib.parse
-                    import time
                     mirrors = [
                         "https://pandapanda6666.github.io/game/UAV%20Simulator/file/version.json",
                         "https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/version.json",
@@ -239,7 +213,7 @@ def start_http_server(directory, port=8849):
                     for m in mirrors:
                         try:
                             req = urllib.request.Request(m + f"?t={int(time.time()*1000)}", headers={'User-Agent': 'Mozilla/5.0 PandaPandaUAV/4.0'})
-                            with urllib.request.urlopen(req, timeout=6) as resp:
+                            with urllib.request.urlopen(req, timeout=5) as resp:
                                 v_data = json.loads(resp.read().decode('utf-8'))
                                 if v_data and v_data.get("version"):
                                     break
@@ -247,29 +221,34 @@ def start_http_server(directory, port=8849):
                             continue
                     
                     if v_data:
+                        body = json.dumps(v_data).encode('utf-8')
                         self.send_response(200)
                         self.send_header('Content-Type', 'application/json')
                         self.send_header('Access-Control-Allow-Origin', '*')
+                        self.send_header('Content-Length', str(len(body)))
+                        self.send_header('Connection', 'close')
                         self.end_headers()
-                        self.wfile.write(json.dumps(v_data).encode('utf-8'))
+                        self.wfile.write(body)
                         return
                     else:
-                        raise Exception("無法從任何鏡像伺服器取得版本資料")
+                        raise Exception("無法從伺服器取得版本資料")
                 except Exception as e:
+                    body = json.dumps({"status": "error", "message": str(e)}).encode('utf-8')
                     self.send_response(500)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Connection', 'close')
                     self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode('utf-8'))
+                    self.wfile.write(body)
                     return
+
             super().do_GET()
 
         def do_POST(self):
             if self.path == '/api/update':
                 try:
                     import urllib.request
-                    import urllib.parse
-                    import time
                     mirrors = [
                         "https://pandapanda6666.github.io/game/UAV%20Simulator/file/",
                         "https://cdn.jsdelivr.net/gh/PandaPanda6666/PandaPanda6666.github.io@main/game/UAV%20Simulator/file/",
@@ -280,7 +259,7 @@ def start_http_server(directory, port=8849):
                     for m in mirrors:
                         try:
                             req = urllib.request.Request(m + f"version.json?t={int(time.time()*1000)}", headers={'User-Agent': 'Mozilla/5.0 PandaPandaUAV/4.0'})
-                            with urllib.request.urlopen(req, timeout=6) as resp:
+                            with urllib.request.urlopen(req, timeout=5) as resp:
                                 v_data = json.loads(resp.read().decode('utf-8'))
                                 if v_data and v_data.get("version"):
                                     chosen_mirror = m
@@ -298,46 +277,49 @@ def start_http_server(directory, port=8849):
                             try:
                                 f_url = m + urllib.parse.quote(f)
                                 f_req = urllib.request.Request(f_url, headers={'User-Agent': 'Mozilla/5.0 PandaPandaUAV/4.0'})
-                                with urllib.request.urlopen(f_req, timeout=15) as f_resp:
+                                with urllib.request.urlopen(f_req, timeout=12) as f_resp:
                                     content = f_resp.read()
                                 dest = os.path.join(directory, f)
                                 try:
                                     with open(dest, 'wb') as out_f:
                                         out_f.write(content)
-                                except Exception as write_err:
+                                except Exception:
                                     if f.endswith('.exe'):
                                         try:
                                             with open(dest + '.new', 'wb') as out_f:
                                                 out_f.write(content)
                                         except Exception:
                                             pass
-                                    else:
-                                        raise write_err
                                 downloaded = True
                                 break
                             except Exception:
                                 continue
-                        if not downloaded and f == "index.html":
-                            raise Exception("核心 index.html 下載失敗，請檢查網路連線")
 
+                    body = json.dumps({"status": "ok", "version": v_data.get("version")}).encode('utf-8')
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Connection', 'close')
                     self.end_headers()
-                    self.wfile.write(json.dumps({"status": "ok", "version": v_data.get("version")}).encode('utf-8'))
+                    self.wfile.write(body)
                     return
                 except Exception as e:
+                    body = json.dumps({"status": "error", "message": str(e)}).encode('utf-8')
                     self.send_response(500)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Connection', 'close')
                     self.end_headers()
-                    self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode('utf-8'))
+                    self.wfile.write(body)
                     return
+
             super().do_POST()
 
     for p in range(port, port + 30):
         try:
-            httpd = ThreadingTCPServer(("127.0.0.1", p), Handler)
+            httpd = ThreadingTCPServer(("127.0.0.1", p), SafeHandler)
             actual_server_port = p
             server_started_successfully = True
             server_ready_event.set()
@@ -362,20 +344,19 @@ def main():
     threading.Thread(target=start_rabboni_background, daemon=True).start()
     threading.Thread(target=start_http_server, args=(exe_dir,), daemon=True).start()
     
-    # 等待本地伺服器完成綁定 (最多等 3 秒)
-    server_ready_event.wait(timeout=3.0)
+    # 等待本地伺服器完成綁定 (最多等 2 秒)
+    server_ready_event.wait(timeout=2.0)
     
     index_path = os.path.join(exe_dir, 'index.html')
     if not os.path.exists(index_path):
-        print(f"找不到 {index_path}，請確定執行檔在正確的資料夾！")
         return
 
-    # 驗證本地 HTTP 伺服器是否可正常訪問，若成功則以 HTTP 訪問，若異常則直接載入本機 HTML
+    # 驗證本地 HTTP 伺服器是否可正常訪問，若成功則以 HTTP 訪問，若異常則直接載入本機 file:///
     target_url = None
     if server_started_successfully:
         try:
             import urllib.request
-            test_resp = urllib.request.urlopen(f'http://127.0.0.1:{actual_server_port}/index.html', timeout=1.5)
+            test_resp = urllib.request.urlopen(f'http://127.0.0.1:{actual_server_port}/index.html', timeout=1.0)
             if test_resp.status == 200:
                 target_url = f'http://127.0.0.1:{actual_server_port}/index.html'
         except Exception:
@@ -388,7 +369,6 @@ def main():
     # 啟動獨立應用程式視窗 (優先 Edge / Chrome App Mode，完全無網址列、無分頁)
     window_launched = False
 
-    # 嘗試 pywebview (若本機有可用 WebView2/WinForms 環境)
     if webview is not None:
         try:
             window = webview.create_window(
@@ -403,7 +383,6 @@ def main():
             window_launched = False
 
     if not window_launched:
-        # 以 Edge / Chrome --app 獨立桌面視窗執行 (不含瀏覽器標籤分頁與網址列)
         edge_candidates = [
             r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
             r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
@@ -430,17 +409,15 @@ def main():
             try:
                 proc = subprocess.Popen(cmd)
                 proc.wait()
-            except KeyboardInterrupt:
+            except Exception:
                 pass
         else:
-            # 極端保底
             import webbrowser
             webbrowser.open(target_url)
             try:
-                import time
                 while True:
                     time.sleep(1)
-            except KeyboardInterrupt:
+            except Exception:
                 pass
 
 if __name__ == '__main__':

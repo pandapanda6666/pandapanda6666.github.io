@@ -328,10 +328,10 @@ window.connectRabboniWebBluetooth = connectRabboniWebBluetooth;
 // 4. 油門: A. 定速 (fixed), B. 根據角度來控制速度 (angle)
 // 1.B: 翻滾動作 (flip) 不可與 1.B 設定同一裝置 (具有獨立靈敏度)
 let controlConfig = {
-    pitch:  { stick: 'B', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 1. X 軸
-    yaw:    { stick: 'A', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 2. Y 軸
-    roll:   { stick: 'B', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 3. Z 軸
-    thrust: { stick: 'A', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 4. 油門
+    pitch:  { stick: 'A', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 1. X 軸 (左手俯仰)
+    yaw:    { stick: 'A', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 2. Y 軸 (左手偏航)
+    roll:   { stick: 'B', mode: 'sync',  fixedAngle: 15.0, sens: 1.0, invert: false }, // 3. Z 軸 (右手橫滾)
+    thrust: { stick: 'B', mode: 'fixed', fixedAngle: 15.0, sens: 1.0, invert: false }, // 4. 油門 (右手油門升降 - 日本手預設)
     flip:   { stick: 'B', sens: 1.0 } // 1.B 翻滾
 };
 
