@@ -22,7 +22,147 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>英文單字閃卡</title>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet" />
-    <style>.material-symbols-outlined { vertical-align: middle; }</style>
+    <style>.material-symbols-outlined { vertical-align: middle; }
+        /* 歷史作答紀錄卡片樣式 */
+        .history-item-card {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .history-item-card:hover {
+            background: #373737;
+            border-color: #ffb74d;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* 詞性快選標籤 */
+        .pos-chip {
+            display: inline-block;
+            background: #37474f;
+            color: #81d4fa;
+            border: 1px solid #546e7a;
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: 0.8em;
+            margin-right: 4px;
+            margin-top: 3px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.15s;
+        }
+        .pos-chip:hover {
+            background: #0288d1;
+            color: white;
+        }
+
+        /* 模擬考專用虛擬鍵盤 (行動裝置/平板防選字與舒適輸入) */
+        .exam-vk-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10000;
+            background: rgba(22, 22, 22, 0.98);
+            backdrop-filter: blur(12px);
+            border-top: 2px solid #ffb74d;
+            box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.8);
+            padding: 10px 10px 16px 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            box-sizing: border-box;
+            transition: transform 0.25s ease-out;
+        }
+        .exam-vk-header {
+            width: 100%;
+            max-width: 920px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px 6px 4px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 4px;
+            box-sizing: border-box;
+        }
+        .exam-vk-title {
+            font-size: 0.95em;
+            font-weight: bold;
+            color: #ffb74d;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .exam-vk-row {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            width: 100%;
+            max-width: 920px;
+        }
+        .exam-vk-key {
+            flex: 1;
+            min-width: 28px;
+            max-width: 76px;
+            height: 52px;
+            background: #2f2f2f;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 8px;
+            font-size: 1.4em;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            box-shadow: 0 3px 0 #111;
+            transition: transform 0.05s, background 0.1s;
+        }
+        .exam-vk-key:active {
+            transform: translateY(3px);
+            box-shadow: none;
+            background: #ffb74d;
+            color: #111;
+        }
+        .exam-vk-key-special {
+            background: #424242;
+            font-size: 1em;
+            min-width: 48px;
+            color: #81d4fa;
+        }
+        .exam-vk-key-action {
+            background: #2e7d32;
+            color: white;
+            font-size: 0.95em;
+            min-width: 74px;
+        }
+        .exam-vk-key-clear {
+            background: #c62828;
+            color: white;
+            font-size: 0.95em;
+            min-width: 55px;
+        }
+        @media (max-width: 600px) {
+            .exam-vk-key {
+                height: 44px;
+                font-size: 1.2em;
+                border-radius: 6px;
+                min-width: 22px;
+            }
+            .exam-vk-row {
+                gap: 3px;
+            }
+        }
+
+    </style>
     <style>
         body { max-width: 1200px; 
             margin: 0 auto; 
@@ -685,6 +825,29 @@
             </div>
         </div>
     </div>
+
+    <!-- 歷史作答紀錄結束畫面回顧 Modal -->
+    <div id="endScreenReviewModal" class="modal-overlay hidden" style="z-index: 99999; overflow-y: auto; padding: 20px 10px;">
+        <div class="modal-box" style="max-width: 960px; width: 95%; max-height: 90vh; overflow-y: auto; background: #1e1e1e; border: 2px solid #ffb74d; border-radius: 16px; padding: 25px 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 12px; margin-bottom: 15px;">
+                <h3 id="reviewModalTitle" style="margin: 0; color: #ffb74d; font-size: 1.35em; display: flex; align-items: center; gap: 8px;">
+                    <span class="material-symbols-outlined">emoji_events</span> 歷史測驗結算畫面回顧
+                </h3>
+                <button type="button" onclick="closeEndScreenReviewModal()" style="background: #e53935; color: white; border: none; border-radius: 8px; padding: 6px 14px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <span class="material-symbols-outlined" style="font-size: 18px;">close</span> 關閉
+                </button>
+            </div>
+            <div id="reviewModalBody">
+                <!-- 動態生成該次測驗結束時的完整畫面內容 -->
+            </div>
+            <div style="margin-top: 25px; text-align: center;">
+                <button type="button" onclick="closeEndScreenReviewModal()" style="background: #455a64; color: white; border: none; border-radius: 20px; padding: 10px 35px; font-size: 1.1em; font-weight: bold; cursor: pointer;">
+                    關閉回顧畫面
+                </button>
+            </div>
+        </div>
+    </div>
+
     <button class="btn-fullscreen" onclick="toggleFullScreen()" title="全螢幕切換"><span class="material-symbols-outlined">fullscreen</span></button>
 
     <h1><span class="material-symbols-outlined" style="color: #FFD700;">star</span> 英文單字閃卡遊戲 <span class="material-symbols-outlined" style="color: #FFD700;">star</span></h1>
@@ -709,7 +872,8 @@
             <span class="material-symbols-outlined" style="vertical-align: middle;">history</span> 歷史版本：
             <select onchange="if(this.value) window.location.href='?v='+this.value" style="padding: 5px; border-radius: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; font-size: 14px;">
                 <option value="">選擇版本...</option>
-                <option value="33">版本 33 (最新)</option>
+                <option value="34">版本 34 (最新)</option>
+                <option value="33">版本 33</option>
                 <option value="32">版本 32</option>
                 <option value="31">版本 31</option>
                 <option value="30">版本 30</option>
@@ -901,23 +1065,38 @@
         <!-- 結算畫面 -->
         <div id="practiceResultScreen" class="hidden">
             <h2 style="color: #ffb74d;"><span class="material-symbols-outlined">emoji_events</span> 測驗結束！</h2>
-            <p style="font-size: 1.2em;">總共花費時間：<strong id="practiceTotalTime" style="color: #64b5f6;">0</strong> 秒</p>
+            <div style="background: #222; border-radius: 15px; padding: 20px; max-width: 500px; margin: 20px auto; border: 2px solid #555;">
+                <div style="font-size: 1.2em; color: #aaa;">最終得分 (滿分 100 分，扣分制)</div>
+                <div id="practiceFinalScore" style="font-size: 3.5em; font-weight: bold; color: #f48fb1; margin: 5px 0;">100 分</div>
+                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 10px; font-size: 1.05em;">
+                    <div>總作答題數：<strong id="practiceTotalAnswered" style="color: #64b5f6;">0</strong> 題</div>
+                    <div>正確答對：<strong id="practiceCorrectCount" style="color: #4CAF50;">0</strong> 題</div>
+                    <div>答錯題數：<strong id="practiceErrorCount" style="color: #f44336;">0</strong> 題</div>
+                </div>
+                <div style="margin-top: 8px; color: #81d4fa; font-size: 0.95em;">
+                    總花費時間：<strong id="practiceTotalTime">0</strong> 秒
+                </div>
+            </div>
             
-            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">warning</span> 本次答題紀錄</h3>
+            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">fact_check</span> 本次答題紀錄</h3>
             <table class="stats-table" id="practiceStatsTable">
                 <thead>
                     <tr>
-                        <th>單字</th>
-                        <th>中文</th>
-                        <th>錯誤次數</th>
+                        <th>題目</th>
+                        <th>我的答案</th>
+                        <th>正確答案</th>
+                        <th>結果</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- 動態產生 -->
                 </tbody>
             </table>
+
+            <h3 style="margin-top: 40px; color: #ffb74d;"><span class="material-symbols-outlined">history</span> 歷史作答紀錄 (點擊可查看結束時的畫面)</h3>
+            <div id="practiceHistoryContainer" style="max-height: 250px; overflow-y: auto; background: #222; padding: 10px; border-radius: 8px; text-align: left; font-size: 0.95em; margin-bottom: 20px; border: 1px solid #444;"></div>
             
-            <button onclick="updatePracticeView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 10px 30px; margin-top: 30px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 重新測驗</button>
+            <button onclick="updatePracticeView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 10px 30px; margin-top: 20px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 重新測驗</button>
         </div>
     </div>
 
@@ -979,25 +1158,34 @@
         <!-- 結算畫面 -->
         <div id="spellResultScreen" class="hidden">
             <h2 style="color: #ffb74d;"><span class="material-symbols-outlined">emoji_events</span> 測驗結束！</h2>
-            <p style="font-size: 1.2em;">最終得分：<strong id="spellFinalScore" style="color: #f48fb1; font-size: 1.5em;">0</strong></p>
+            <div style="background: #222; border-radius: 15px; padding: 20px; max-width: 500px; margin: 20px auto; border: 2px solid #555;">
+                <div style="font-size: 1.2em; color: #aaa;">最終得分 (滿分 100 分，扣分制)</div>
+                <div id="spellFinalScore" style="font-size: 3.5em; font-weight: bold; color: #f48fb1; margin: 5px 0;">100 分</div>
+                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 10px; font-size: 1.05em;">
+                    <div>總作答題數：<strong id="spellTotalAnswered" style="color: #64b5f6;">0</strong> 題</div>
+                    <div>正確答對：<strong id="spellCorrectCount" style="color: #4CAF50;">0</strong> 題</div>
+                    <div>答錯題數：<strong id="spellErrorCount" style="color: #f44336;">0</strong> 題</div>
+                </div>
+            </div>
             
-            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">warning</span> 本次答題紀錄</h3>
+            <h3 style="margin-top: 30px; color: #ef5350;"><span class="material-symbols-outlined">fact_check</span> 本次答題紀錄</h3>
             <table class="stats-table" id="spellStatsTable">
                 <thead>
                     <tr>
                         <th>題目</th>
                         <th>我的答案</th>
-                        <th>正確答案</th><th>結果</th>
+                        <th>正確答案</th>
+                        <th>結果</th>
                     </tr>
                 </thead>
                 <tbody>
                     <!-- 動態產生 -->
                 </tbody>
             </table>
-            <h3 style="margin-top: 40px; color: #ffb74d;"><span class="material-symbols-outlined">history</span> 歷史答題紀錄 (無法刪除)</h3>
-            <div id="spellHistoryContainer" style="max-height: 200px; overflow-y: auto; background: #222; padding: 10px; border-radius: 8px; text-align: left; font-size: 0.9em; margin-bottom: 20px;"></div>
+            <h3 style="margin-top: 40px; color: #ffb74d;"><span class="material-symbols-outlined">history</span> 歷史作答紀錄 (點擊可查看結束時的畫面)</h3>
+            <div id="spellHistoryContainer" style="max-height: 250px; overflow-y: auto; background: #222; padding: 10px; border-radius: 8px; text-align: left; font-size: 0.95em; margin-bottom: 20px; border: 1px solid #444;"></div>
             
-            <button onclick="initSpellGameView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 10px 30px; margin-top: 30px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 重新測驗</button>
+            <button onclick="initSpellGameView()" style="background-color: #ba68c8; font-size: 1.2em; padding: 10px 30px; margin-top: 20px; border-radius: 20px;"><span class="material-symbols-outlined">sync</span> 重新測驗</button>
         </div>
     </div>
 
@@ -1077,7 +1265,7 @@
         <div id="examResultScreen" class="hidden">
             <h2 style="color: #ffb74d;"><span class="material-symbols-outlined">emoji_events</span> 模擬考測驗結束！</h2>
             <div style="background: #222; border-radius: 15px; padding: 20px; max-width: 500px; margin: 20px auto; border: 2px solid #555;">
-                <div style="font-size: 1.2em; color: #aaa;">測驗總分</div>
+                <div style="font-size: 1.2em; color: #aaa;">測驗總分 (滿分 100 分，加分制)</div>
                 <div id="examScoreDisplay" style="font-size: 3.5em; font-weight: bold; color: #f48fb1; margin: 5px 0;">100</div>
                 <div id="examTimeCostDisplay" style="color: #64b5f6; font-size: 1.1em;">作答時間：0 分 0 秒</div>
             </div>
@@ -1298,28 +1486,79 @@
             forceStopAudio();
             currentAudio = new Audio(url);
             let called = false;
-            let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
+            let cb = () => {
+                if (!called) {
+                    called = true;
+                    if (currentAudio) {
+                        currentAudio.onended = null;
+                        currentAudio.onerror = null;
+                        currentAudio.onabort = null;
+                        currentAudio.onstalled = null;
+                    }
+                    if (onEndedCallback) onEndedCallback();
+                }
+            };
             currentAudio.onended = cb;
-            currentAudio.play().catch(e => {
-                if (onEndedCallback) onEndedCallback();
-            });
+            currentAudio.onerror = cb;
+            currentAudio.onabort = cb;
+            currentAudio.onstalled = cb;
+            setTimeout(cb, 3500); // 3.5秒絕對超時保護，防止音訊卡死
+
+            let p = currentAudio.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(e => {
+                    cb();
+                });
+            }
         }
 
-        function speakText(text, onEndedCallback = null) {
-            let wordObj = words.find(w => w.word === text);
-            if (wordObj) {
-                speakWordObj(wordObj, onEndedCallback);
-            } else {
-                speakWithLang(text, 'en', onEndedCallback);
+        function speakWithLang(text, lang, onEndedCallback = null) {
+            if (!text) {
+                if (onEndedCallback) onEndedCallback();
+                return;
+            }
+            forceStopAudio();
+            let safeText = text.replace(/[.,，。!！?？;；:：、]/g, ' ');
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(safeText)}`;
+            currentAudio = new Audio(url);
+            
+            let called = false;
+            let cb = () => {
+                if (!called) {
+                    called = true;
+                    if (currentAudio) {
+                        currentAudio.onended = null;
+                        currentAudio.onerror = null;
+                        currentAudio.onabort = null;
+                        currentAudio.onstalled = null;
+                    }
+                    if (onEndedCallback) onEndedCallback();
+                }
+            };
+            
+            currentAudio.onended = cb;
+            currentAudio.onerror = () => fallbackTTS(text, lang, cb);
+            currentAudio.onabort = cb;
+            currentAudio.onstalled = cb;
+            setTimeout(cb, 3500); // 3.5秒超時保護
+
+            let p = currentAudio.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(e => {
+                    fallbackTTS(text, lang, cb);
+                });
             }
         }
 
         function fallbackTTS(text, lang = 'en-US', onEndedCallback = null) {
+            let called = false;
+            let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
+
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-                
+                try {
+                    window.speechSynthesis.cancel();
                     const msg = new SpeechSynthesisUtterance(text);
-                    msg.lang = lang;
+                    msg.lang = (lang === 'zh-TW') ? 'zh-TW' : 'en-US';
                     let voices = window.speechSynthesis.getVoices();
                     if (lang === 'zh-TW') {
                         let goodVoice = voices.find(v => v.lang.includes('zh'));
@@ -1329,16 +1568,47 @@
                         if (goodVoice) msg.voice = goodVoice;
                     }
                     
-                    let called = false;
-                    let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
                     msg.onend = cb;
                     msg.onerror = cb;
                     window.speechSynthesis.speak(msg);
-                    
-                    setTimeout(cb, 10000);
-                
+                    setTimeout(cb, 2500); // 2.5秒超時保護
+                } catch(e) {
+                    cb();
+                }
             } else {
-                if (onEndedCallback) onEndedCallback();
+                cb();
+            }
+        }
+
+        // 模擬考專用保證完成的聽力播放函數 (絕不卡死)
+        function playExamAudioSafe(wordObj, onDone) {
+            if (!wordObj) {
+                if (onDone) onDone();
+                return;
+            }
+            let executed = false;
+            const finish = () => {
+                if (!executed) {
+                    executed = true;
+                    clearTimeout(watchdog);
+                    if (onDone) onDone();
+                }
+            };
+
+            const watchdog = setTimeout(() => {
+                console.warn('Exam audio watchdog triggered:', wordObj.word);
+                finish();
+            }, 3800); // 3.8秒超時看門狗
+
+            try {
+                if (wordObj.audio) {
+                    playAudioUrl(wordObj.audio, finish);
+                } else {
+                    speakWithLang(wordObj.word, 'en', finish);
+                }
+            } catch (err) {
+                console.error('playExamAudioSafe error:', err);
+                finish();
             }
         }
 
@@ -1588,9 +1858,11 @@
             showAutoplayCard();
         }
 
-        // ------------------ 閃卡練習功能 ------------------
+        // ------------------ 閃卡練習功能 (扣分制與作答紀錄) ------------------
         let practiceErrors = {};
         let totalPracticeStartTime = 0;
+        let practiceScore = 100;
+        let practiceCurrentRecord = [];
 
         function updatePracticeView() {
             const emptyMessage = document.getElementById('practiceEmptyMessage');
@@ -1612,6 +1884,7 @@
                 document.getElementById('practiceTotalCount').textContent = practiceWords.length;
                 document.getElementById('practiceStartScreen').classList.remove('hidden');
             }
+            renderPracticeHistory();
         }
 
         function startPracticeGame() {
@@ -1620,10 +1893,15 @@
             document.getElementById('practiceStartScreen').classList.add('hidden');
             document.getElementById('practiceGameScreen').classList.remove('hidden');
             
-            // 重置紀錄
+            // 重置紀錄與扣分制起始分數
+            practiceScore = 100;
+            practiceCurrentRecord = [];
             practiceErrors = {};
             practiceWords.forEach((w, idx) => practiceErrors[idx] = 0);
             
+            let scoreEl = document.getElementById('practiceScoreDisplay');
+            if (scoreEl) scoreEl.textContent = '100';
+
             // 打亂題庫
             for (let i = practiceWords.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -1645,34 +1923,72 @@
             let totalSeconds = Math.round((Date.now() - totalPracticeStartTime) / 1000);
             document.getElementById('practiceTotalTime').textContent = totalSeconds;
             
-            // 產生排行榜
-            
-            let sortedErrors = Object.keys(practiceErrors)
-                .map(idx => ({
-                    word: practiceWords[idx].word,
-                    translation: practiceWords[idx].translation,
-                    errors: practiceErrors[idx]
-                }))
-                .filter(item => item.errors > 0)
-                .sort((a, b) => b.errors - a.errors);
+            let totalCount = practiceWords.length;
+            let answeredCount = practiceCurrentRecord.length;
+            let correctCount = practiceCurrentRecord.filter(r => r.isRight).length;
+            let errorCount = practiceCurrentRecord.filter(r => !r.isRight).length;
 
-                
+            // 練習模式滿分 100 分使用扣分方式
+            let finalScore = (totalCount > 0) ? Math.max(0, 100 - Math.round((errorCount / totalCount) * 100)) : 100;
+            practiceScore = finalScore;
+
+            const finalScoreEl = document.getElementById('practiceFinalScore');
+            if (finalScoreEl) {
+                finalScoreEl.textContent = `${finalScore} 分`;
+                if (finalScore >= 80) finalScoreEl.style.color = '#4CAF50';
+                else if (finalScore >= 60) finalScoreEl.style.color = '#ffb74d';
+                else finalScoreEl.style.color = '#f44336';
+            }
+
+            const ansEl = document.getElementById('practiceTotalAnswered');
+            if (ansEl) ansEl.textContent = answeredCount;
+            const corEl = document.getElementById('practiceCorrectCount');
+            if (corEl) corEl.textContent = correctCount;
+            const errEl = document.getElementById('practiceErrorCount');
+            if (errEl) errEl.textContent = errorCount;
+
+            // 產生跟填空遊戲一樣的 4 欄作答紀錄表格 (題目、我的答案、正確答案、結果)
             const tbody = document.querySelector('#practiceStatsTable tbody');
             tbody.innerHTML = '';
             
-            if (sortedErrors.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="color: #4CAF50; font-weight: bold;">太厲害了！完全沒有答錯！<span class="material-symbols-outlined">celebration</span></td></tr>';
+            if (practiceCurrentRecord.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="color: #ccc;">無答題紀錄</td></tr>';
             } else {
-                sortedErrors.forEach(item => {
+                practiceCurrentRecord.forEach(item => {
                     tbody.innerHTML += `<tr>
-                        <td><strong>${item.word}</strong></td>
-                        <td>${item.translation}</td>
-                        <td style="color: #f44336; font-weight: bold;">${item.errors}</td>
+                        <td><strong>${item.q}</strong></td>
+                        <td>${item.ans || '(未作答)'}</td>
+                        <td>${item.correct}</td>
+                        <td style="color: ${item.isRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                            ${item.isRight ? '<span class="material-symbols-outlined">check_circle</span>' : '<span class="material-symbols-outlined">cancel</span>'}
+                        </td>
                     </tr>`;
                 });
             }
             
-            playVictorySound();
+            // 儲存歷史紀錄 (包含完整題目明細，點擊可查看結束畫面)
+            let hist = JSON.parse(localStorage.getItem('practiceHistory') || '[]');
+            let recordEntry = {
+                id: 'pract_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                date: new Date().toLocaleString(),
+                score: finalScore,
+                totalTime: totalSeconds,
+                totalAnswered: answeredCount,
+                correctCount: correctCount,
+                errorCount: errorCount,
+                record: practiceCurrentRecord
+            };
+            hist.push(recordEntry);
+            localStorage.setItem('practiceHistory', JSON.stringify(hist));
+
+            renderPracticeHistory();
+
+            if (typeof saveCloudData === 'function') {
+                saveCloudData(`完成了練習模式測驗，得分：${finalScore}分`);
+            }
+            
+            if (finalScore >= 60) playVictorySound();
+            else playFailureSound();
         }
 
         function quitPracticeGame() {
@@ -1700,11 +2016,10 @@
                 };
                 
                 let now = window.audioCtx.currentTime;
-                // C大調勝利和弦琶音
-                playNote(523.25, now, 0.3);       // C5
-                playNote(659.25, now + 0.15, 0.3); // E5
-                playNote(783.99, now + 0.3, 0.3);  // G5
-                playNote(1046.50, now + 0.45, 0.8); // C6
+                playNote(523.25, now, 0.3);
+                playNote(659.25, now + 0.15, 0.3);
+                playNote(783.99, now + 0.3, 0.3);
+                playNote(1046.50, now + 0.45, 0.8);
             } catch(e) {
                 console.log('Audio error:', e);
             }
@@ -1763,12 +2078,9 @@
             const progEl = document.getElementById('cardProgress');
             if (progEl) progEl.textContent = `${currentIndex + 1} / ${practiceWords.length}`;
             
-            const cardImg = document.getElementById('cardImage');
-            if (cardImg) {
-                cardImg.src = '';
-                cardImg.style.display = 'none';
-            }
-            
+            const scoreEl = document.getElementById('practiceScoreDisplay');
+            if (scoreEl) scoreEl.textContent = practiceScore;
+
             if (document.getElementById('autoSpeakFlashcard').checked && 
                 !document.getElementById('view-practice').classList.contains('hidden')) {
                 speakText(item.word);
@@ -1778,7 +2090,6 @@
             generatePracticeOptions(item);
         }
 
-        
         function generatePracticeOptions(correctItem) {
             const leftContainer = document.getElementById('leftOptions');
             const rightContainer = document.getElementById('rightOptions');
@@ -1786,16 +2097,13 @@
             rightContainer.innerHTML = '';
             
             let maxOptions = Math.min(10, words.length);
-            
             let options = [correctItem];
             let pool = [...words].filter(w => w.word !== correctItem.word);
-            
             pool.sort(() => 0.5 - Math.random());
             
             for (let i = 0; i < maxOptions - 1; i++) {
                 if (pool[i]) options.push(pool[i]);
             }
-            
             options.sort(() => 0.5 - Math.random());
             
             let half = Math.ceil(options.length / 2);
@@ -1825,7 +2133,7 @@
                 
                 let isCorrect = (opt.word === correctItem.word && opt.translation === correctItem.translation);
                 btn.onclick = function() {
-                    handlePracticeOptionClick(btn, isCorrect);
+                    handlePracticeOptionClick(btn, isCorrect, opt);
                 };
                 return btn;
             }
@@ -1834,23 +2142,29 @@
             rightOpts.forEach(opt => rightContainer.appendChild(createBtn(opt)));
         }
 
-
-        
-        function handlePracticeOptionClick(btn, isCorrect) {
+        function handlePracticeOptionClick(btn, isCorrect, selectedOpt) {
             if (isPracticeLocked) return;
             if (btn.classList.contains('wrong') || btn.classList.contains('correct')) return;
             isPracticeLocked = true; // 鎖定
             
-            // 中斷語音
             if (currentAudio) currentAudio.pause();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
             let elapsed = ((Date.now() - practiceStartTime) / 1000).toFixed(2);
-            const currentWordStr = practiceWords[currentIndex].word;
+            const currentItem = practiceWords[currentIndex];
             
             let timeDiv = btn.querySelector('.btn-time');
             let innerDiv = btn.querySelector('div'); 
             
+            // 紀錄作答明細
+            let chosenText = selectedOpt ? selectedOpt.translation : '(未選擇)';
+            practiceCurrentRecord.push({
+                q: currentItem.word,
+                ans: chosenText,
+                correct: currentItem.translation,
+                isRight: isCorrect
+            });
+
             if (isCorrect) {
                 stopPracticeTimer();
                 btn.classList.add('correct');
@@ -1860,7 +2174,11 @@
                     timeDiv.style.color = '#fff';
                 }
                 
-                playSuccessSound(); setTimeout(() => { nextCard(); }, 300);
+                let hasMoved = false;
+                const goNextCard = () => { if (!hasMoved) { hasMoved = true; nextCard(); } };
+                setTimeout(goNextCard, 1800); // 防卡死看門狗
+                playSuccessSound();
+                setTimeout(goNextCard, 350);
             } else {
                 btn.classList.add('wrong');
                 if(innerDiv) innerDiv.style.color = '#f44336';
@@ -1869,35 +2187,66 @@
                     timeDiv.style.color = '#fff';
                 }
                 
-                let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
-                if(wIdx!==-1) practiceErrors[wIdx]++;
+                // 扣分制即時扣分
+                let deduct = Math.max(1, Math.round(100 / (practiceWords.length || 1)));
+                practiceScore = Math.max(0, practiceScore - deduct);
+                let scoreEl = document.getElementById('practiceScoreDisplay');
+                if (scoreEl) scoreEl.textContent = practiceScore;
+
+                let wIdx = practiceWords.findIndex(w => w.word === currentItem.word && w.translation === currentItem.translation); 
+                if(wIdx !== -1) practiceErrors[wIdx]++;
                 
                 let card = document.getElementById('flashcard');
                 if (!card.classList.contains('flipped')) card.classList.add('flipped');
                 
-                playFailureSound(); speakWordObj(practiceWords[currentIndex], () => { nextCard(); });
+                let hasMoved = false;
+                const goNextCard = () => { if (!hasMoved) { hasMoved = true; nextCard(); } };
+                setTimeout(goNextCard, 2200); // 防卡死看門狗：最多等待 2.2 秒
+                playFailureSound();
+                speakWordObj(practiceWords[currentIndex], () => { setTimeout(goNextCard, 300); });
             }
         }
-function flipCard() {
-            
-        }
 
-        
+        function flipCard() {}
+
         function nextCard(isSkip = false) {
             if (practiceWords.length === 0) return;
             
             if (isSkip) {
-                // 如果是跳過，記一次錯誤
                 if (currentAudio) currentAudio.pause();
                 if ('speechSynthesis' in window) window.speechSynthesis.cancel();
                 
-                let wIdx = practiceWords.findIndex(w => w.word === practiceWords[currentIndex].word && w.translation === practiceWords[currentIndex].translation); 
-                if(wIdx!==-1) practiceErrors[wIdx]++;
-                
+                const currentItem = practiceWords[currentIndex];
+                practiceCurrentRecord.push({
+                    q: currentItem.word,
+                    ans: '(跳過)',
+                    correct: currentItem.translation,
+                    isRight: false
+                });
+
+                let deduct = Math.max(1, Math.round(100 / (practiceWords.length || 1)));
+                practiceScore = Math.max(0, practiceScore - deduct);
+                let scoreEl = document.getElementById('practiceScoreDisplay');
+                if (scoreEl) scoreEl.textContent = practiceScore;
+
+                let wIdx = practiceWords.findIndex(w => w.word === currentItem.word && w.translation === currentItem.translation); 
+                if(wIdx !== -1) practiceErrors[wIdx]++;
                 
                 isPracticeLocked = true;
-                let card = document.getElementById('flashcard'); if (!card.classList.contains('flipped')) card.classList.add('flipped');
-                playFailureSound(); speakWordObj(practiceWords[currentIndex], () => { if (currentIndex + 1 >= practiceWords.length) endPracticeGame(); else { currentIndex++; showCard(); } });
+                let card = document.getElementById('flashcard');
+                if (!card.classList.contains('flipped')) card.classList.add('flipped');
+                
+                let hasMoved = false;
+                const goNextCard = () => {
+                    if (!hasMoved) {
+                        hasMoved = true;
+                        if (currentIndex + 1 >= practiceWords.length) endPracticeGame();
+                        else { currentIndex++; showCard(); }
+                    }
+                };
+                setTimeout(goNextCard, 2200);
+                playFailureSound();
+                speakWordObj(practiceWords[currentIndex], () => { setTimeout(goNextCard, 300); });
                 return;
             }
 
@@ -1907,6 +2256,38 @@ function flipCard() {
                 currentIndex++;
                 showCard();
             }
+        }
+
+        function renderPracticeHistory() {
+            ['practiceHistoryContainer', 'practiceStartHistoryContainer'].forEach(cId => {
+                const container = document.getElementById(cId);
+                if (!container) return;
+                let hist = JSON.parse(localStorage.getItem('practiceHistory') || '[]');
+                if (hist.length === 0) {
+                    container.innerHTML = '<div style="color: #aaa; text-align: center; padding: 10px;">暫無作答紀錄</div>';
+                    return;
+                }
+                let list = [...hist].reverse();
+                let html = '';
+                list.forEach(h => {
+                    let badgeColor = (h.score >= 80) ? '#4CAF50' : (h.score >= 60 ? '#ffb74d' : '#f44336');
+                    html += `
+                        <div class="history-item-card" onclick="viewHistoryDetail('practice', '${h.id || ''}', ${hist.indexOf(h)})" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="color: #90caf9; font-size: 0.9em; font-weight: bold;">${h.date}</div>
+                                <div style="font-size: 0.85em; color: #bbb; margin-top: 3px;">
+                                    作答: ${h.totalAnswered || 0} 題 | 正確: <span style="color:#4CAF50;">${h.correctCount || 0}</span> | 錯誤: <span style="color:#f44336;">${h.errorCount || 0}</span> | 時間: ${h.totalTime || 0}秒 (扣分制)
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.2em; font-weight: bold; color: ${badgeColor};">${h.score} 分</span>
+                                <span class="material-symbols-outlined" style="color: #ffb74d; font-size: 1.2em;">visibility</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            });
         }
 
         // ------------------ 填空遊戲 (挖洞直接打字版) ------------------
@@ -2021,7 +2402,8 @@ function flipCard() {
 
         function nextSpellWord(isSkip = false) {
             if (isSkip) {
-                updateScore(-2); // 跳過扣 2 分
+                let deduct = Math.max(1, Math.round(100 / (spellDeck.length || 1)));
+                updateScore(-deduct);
                 let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); 
                 if (wIdx!==-1) spellErrors[wIdx]++; // 記錄跳過為錯誤
                 if (currentSpellWord) {
@@ -2201,7 +2583,7 @@ function flipCard() {
             if (currentAudio) currentAudio.pause();
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
             
-            // 組合完整單字（包含固定字母與使用者輸入之字母）
+            // 組合完整單字
             let fullSpelledWord = '';
             const displayContainer = document.getElementById('spellWordDisplay');
             if (displayContainer) {
@@ -2215,6 +2597,16 @@ function flipCard() {
             } else {
                 fullSpelledWord = currentSpellingBoxes.map(b => b.value || b.textContent).join('');
             }
+
+            // 【核心防卡死機制】：不論語音是否順利播放，最多 1.8 秒必定自動切換下一題！
+            let hasMovedNext = false;
+            const goNext = () => {
+                if (!hasMovedNext) {
+                    hasMovedNext = true;
+                    nextSpellWord(false);
+                }
+            };
+            setTimeout(goNext, 1800);
 
             if (allCorrect) {
                 document.getElementById('spellFeedback').innerHTML = '<span class="material-symbols-outlined">celebration</span> 答對了！';
@@ -2231,12 +2623,21 @@ function flipCard() {
                     correct: currentSpellWord.word,
                     isRight: true
                 });
-                playSuccessSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
+                playSuccessSound();
+                try {
+                    speakWordObj(currentSpellWord, () => {
+                        setTimeout(goNext, 300);
+                    });
+                } catch(e) {
+                    setTimeout(goNext, 400);
+                }
             } else {
-                updateScore(-3);
+                let deduct = Math.max(1, Math.round(100 / (spellDeck.length || 1)));
+                updateScore(-deduct);
+
                 let wIdx = spellDeck.findIndex(w => w.word === currentSpellWord.word && w.translation === currentSpellWord.translation); 
                 if (wIdx!==-1) spellErrors[wIdx]++;
-                document.getElementById('spellFeedback').innerHTML = `<span class="material-symbols-outlined">close</span> 拼錯囉！扣 3 分。<br>正確答案是：<span style="color: #64b5f6; font-size: 1.2em;">${currentSpellWord.word}</span>`;
+                document.getElementById('spellFeedback').innerHTML = `<span class="material-symbols-outlined">close</span> 拼錯囉！扣 ${deduct} 分。<br>正確答案是：<span style="color: #64b5f6; font-size: 1.2em;">${currentSpellWord.word}</span>`;
                 document.getElementById('spellFeedback').style.color = '#f44336';
                 currentSpellingBoxes.forEach(b => {
                     b.readOnly = true; 
@@ -2255,7 +2656,14 @@ function flipCard() {
                     correct: currentSpellWord.word,
                     isRight: false
                 });
-                playFailureSound(); speakWordObj(currentSpellWord, () => { nextSpellWord(false); });
+                playFailureSound();
+                try {
+                    speakWordObj(currentSpellWord, () => {
+                        setTimeout(goNext, 300);
+                    });
+                } catch(e) {
+                    setTimeout(goNext, 400);
+                }
             }
         }
 
@@ -2657,7 +3065,7 @@ function flipCard() {
         updateCustomDeckSelect();
         initNetwork();
 
-        // ------------------ 模擬考模式邏輯 ------------------
+        // ------------------ 模擬考模式邏輯 (加分制、防卡死、行動裝置虛擬鍵盤) ------------------
         let examQuestions = [];
         let examAudioIndex = 0;
         let isExamAudioPaused = false;
@@ -2667,9 +3075,15 @@ function flipCard() {
         let examTotalSeconds = 0;
         let examStartTime = 0;
         let isExamActive = false;
+        let activeExamWordInputIdx = 0;
+
+        function isMobileOrTouch() {
+            return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth <= 1024);
+        }
 
         function initExamView() {
             stopExamTimersAndAudio();
+            closeExamVirtualKeyboard();
             setGameUIMode(false);
 
             const emptyMsg = document.getElementById('examEmptyMessage');
@@ -2689,6 +3103,8 @@ function flipCard() {
                 const totalAvail = document.getElementById('examTotalAvailable');
                 if (totalAvail) totalAvail.textContent = words.length;
             }
+
+            renderExamHistory();
         }
 
         function stopExamTimersAndAudio() {
@@ -2719,7 +3135,7 @@ function flipCard() {
             let shuffled = [...words].sort(() => 0.5 - Math.random());
             examQuestions = shuffled.slice(0, targetCount);
 
-            // 計算總限時：10題3分鐘(180s)，15題4.5分鐘(270s)，其他依比例每題18秒
+            // 計算總限時
             if (targetCount === 10) examTotalSeconds = 180;
             else if (targetCount === 15) examTotalSeconds = 270;
             else examTotalSeconds = Math.max(60, targetCount * 18);
@@ -2729,6 +3145,7 @@ function flipCard() {
             isExamActive = true;
             isExamAudioPaused = false;
             examAudioIndex = 0;
+            activeExamWordInputIdx = 0;
 
             // 切換全螢幕與滿版 UI
             setGameUIMode(true);
@@ -2739,6 +3156,9 @@ function flipCard() {
             // 產生考卷 DOM
             const paperList = document.getElementById('examPaperList');
             paperList.innerHTML = '';
+            paperList.style.paddingBottom = '280px'; // 預留鍵盤空間防遮擋
+
+            const isMobile = isMobileOrTouch();
 
             examQuestions.forEach((q, idx) => {
                 const itemDiv = document.createElement('div');
@@ -2747,6 +3167,10 @@ function flipCard() {
                 itemDiv.style.flexDirection = 'column';
                 itemDiv.style.alignItems = 'stretch';
                 itemDiv.style.gap = '10px';
+
+                // 行動裝置加上 inputmode="none" 徹底防止系統鍵盤自動選字
+                const inputModeAttr = isMobile ? 'inputmode="none"' : '';
+                const placeholderText = isMobile ? '點擊使用虛擬鍵盤' : '例如：apple';
 
                 itemDiv.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -2758,13 +3182,24 @@ function flipCard() {
                         </div>
                     </div>
                     <div style="display: flex; gap: 12px; width: 100%; flex-wrap: wrap;">
-                        <div style="flex: 2; min-width: 140px;">
-                            <label style="display: block; font-size: 0.85em; color: #bbb; margin-bottom: 3px; text-align: left;">英文單字：</label>
-                            <input type="text" class="exam-input exam-field" id="examInput_word_${idx}" data-idx="${idx}" data-type="word" placeholder="例如：apple" autocomplete="off" autocapitalize="none" spellcheck="false" style="width: 100%; box-sizing: border-box; margin: 0;">
+                        <div style="flex: 2; min-width: 140px; position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                                <label style="font-size: 0.85em; color: #bbb; text-align: left;">英文單字：</label>
+                                <button type="button" onclick="openExamVkFor(${idx})" style="background: none; border: none; color: #ffb74d; cursor: pointer; padding: 0; font-size: 0.8em; display: inline-flex; align-items: center; gap: 2px;">
+                                    <span class="material-symbols-outlined" style="font-size: 16px;">keyboard</span> 虛擬鍵盤
+                                </button>
+                            </div>
+                            <input type="text" class="exam-input exam-field exam-word-input" id="examInput_word_${idx}" data-idx="${idx}" data-type="word" placeholder="${placeholderText}" ${inputModeAttr} autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width: 100%; box-sizing: border-box; margin: 0;">
                         </div>
-                        <div style="flex: 1; min-width: 90px; max-width: 130px;">
+                        <div style="flex: 1.2; min-width: 100px; max-width: 145px;">
                             <label style="display: block; font-size: 0.85em; color: #bbb; margin-bottom: 3px; text-align: left;">詞性：</label>
                             <input type="text" class="exam-input exam-field" id="examInput_pos_${idx}" data-idx="${idx}" data-type="pos" placeholder="如 n., v." autocomplete="off" autocapitalize="none" spellcheck="false" style="width: 100%; box-sizing: border-box; margin: 0;">
+                            <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 2px;">
+                                <span class="pos-chip" onclick="setExamPos(${idx}, 'n.')">n.</span>
+                                <span class="pos-chip" onclick="setExamPos(${idx}, 'v.')">v.</span>
+                                <span class="pos-chip" onclick="setExamPos(${idx}, 'adj.')">adj.</span>
+                                <span class="pos-chip" onclick="setExamPos(${idx}, 'adv.')">adv.</span>
+                            </div>
                         </div>
                         <div style="flex: 2; min-width: 140px;">
                             <label style="display: block; font-size: 0.85em; color: #bbb; margin-bottom: 3px; text-align: left;">中文意思：</label>
@@ -2773,6 +3208,13 @@ function flipCard() {
                     </div>
                 `;
                 paperList.appendChild(itemDiv);
+            });
+
+            // 綁定英文輸入框點擊聚焦開啟虛擬鍵盤
+            paperList.querySelectorAll('.exam-word-input').forEach(inp => {
+                const idx = parseInt(inp.dataset.idx);
+                inp.addEventListener('click', () => openExamVkFor(idx));
+                inp.addEventListener('focus', () => openExamVkFor(idx));
             });
 
             // 支援 Enter 在英文、詞性、中文之間快速跳格
@@ -2790,17 +3232,22 @@ function flipCard() {
                             if (next) next.focus();
                         } else if (type === 'trans') {
                             const next = document.getElementById(`examInput_word_${idx + 1}`);
-                            if (next) next.focus();
-                            else confirmSubmitExam();
+                            if (next) {
+                                next.focus();
+                                openExamVkFor(idx + 1);
+                            } else {
+                                confirmSubmitExam();
+                            }
                         }
                     }
                 });
             });
 
-            // 聚焦第一題英文輸入框
+            // 預設開啟第一題
             setTimeout(() => {
+                openExamVkFor(0);
                 const firstInput = document.getElementById('examInput_word_0');
-                if (firstInput) firstInput.focus();
+                if (firstInput && !isMobile) firstInput.focus();
             }, 300);
 
             // 啟動倒數計時
@@ -2813,7 +3260,7 @@ function flipCard() {
 
                 if (examRemainingSeconds <= 0) {
                     clearInterval(examCountdownTimer);
-                    submitExam(true); // 自動交卷
+                    submitExam(true);
                 }
             }, 1000);
 
@@ -2822,11 +3269,83 @@ function flipCard() {
             scheduleNextExamBroadcast();
         }
 
+        // 模擬考虛擬鍵盤控制邏輯
+        function openExamVkFor(idx) {
+            activeExamWordInputIdx = idx;
+            const inp = document.getElementById(`examInput_word_${idx}`);
+            const label = document.getElementById('examVkTargetLabel');
+            if (label) {
+                let curVal = inp ? inp.value : '';
+                label.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; color:#ffb74d;">edit</span> 第 ${idx + 1} 題 英文：<strong style="color: #64b5f6; font-size: 1.15em;">${curVal || '(未填)'}</strong>`;
+            }
+            const vk = document.getElementById('examVirtualKeyboard');
+            if (vk) vk.style.display = 'flex';
+
+            if (inp) {
+                inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function handleExamVkKey(key) {
+            if (activeExamWordInputIdx === -1) activeExamWordInputIdx = 0;
+            const inp = document.getElementById(`examInput_word_${activeExamWordInputIdx}`);
+            if (!inp) return;
+
+            if (key === 'Backspace') {
+                inp.value = inp.value.slice(0, -1);
+            } else if (key === 'Clear') {
+                inp.value = '';
+            } else {
+                inp.value += key.toLowerCase();
+            }
+
+            const label = document.getElementById('examVkTargetLabel');
+            if (label) {
+                label.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; color:#ffb74d;">edit</span> 第 ${activeExamWordInputIdx + 1} 題 英文：<strong style="color: #64b5f6; font-size: 1.15em;">${inp.value || '(未填)'}</strong>`;
+            }
+
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        function examVkJumpNext() {
+            if (activeExamWordInputIdx < examQuestions.length - 1) {
+                openExamVkFor(activeExamWordInputIdx + 1);
+            } else {
+                closeExamVirtualKeyboard();
+                showCustomAlert('已到達最後一題！請檢查整張考卷後交卷。');
+            }
+        }
+
+        function closeExamVirtualKeyboard() {
+            const vk = document.getElementById('examVirtualKeyboard');
+            if (vk) vk.style.display = 'none';
+        }
+
+        function toggleExamNativeInput() {
+            const inp = document.getElementById(`examInput_word_${activeExamWordInputIdx}`);
+            if (!inp) return;
+            if (inp.getAttribute('inputmode') === 'none') {
+                inp.removeAttribute('inputmode');
+                inp.focus();
+                showCustomAlert('已切換為系統鍵盤！若行動裝置自動選字干擾，可隨時點擊虛擬鍵盤切換回來。');
+            } else {
+                inp.setAttribute('inputmode', 'none');
+                showCustomAlert('已切換為專屬虛擬鍵盤模式！可杜絕行動裝置自動選字。');
+            }
+        }
+
+        function setExamPos(idx, pos) {
+            const inp = document.getElementById(`examInput_pos_${idx}`);
+            if (inp) {
+                inp.value = pos;
+                inp.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
         function speakExamSingleWord(idx) {
             const q = examQuestions[idx];
             if (!q) return;
-            if (q.audio) playAudioUrl(q.audio);
-            else speakWithLang(q.word, 'en');
+            playExamAudioSafe(q);
         }
 
         function updateExamTimerDisplay() {
@@ -2884,11 +3403,11 @@ function flipCard() {
             scheduleNextExamBroadcast();
         }
 
+        // 防卡死聽力廣播隊列
         function scheduleNextExamBroadcast() {
             if (!isExamActive || isExamAudioPaused) return;
 
             if (examAudioIndex >= examQuestions.length) {
-                // 全部播完
                 document.getElementById('examAudioStatus').textContent = '所有題目已廣播完畢，請檢查後交卷！';
                 document.getElementById('examSubAudioStatus').textContent = `共 ${examQuestions.length} 題`;
                 document.querySelectorAll('.exam-item-card').forEach(c => c.classList.remove('exam-current-playing'));
@@ -2898,31 +3417,28 @@ function flipCard() {
             const currentQ = examQuestions[examAudioIndex];
             const cardEl = document.getElementById(`examCard_${examAudioIndex}`);
 
-            // 高亮並滾動到該題
             document.querySelectorAll('.exam-item-card').forEach(c => c.classList.remove('exam-current-playing'));
             if (cardEl) {
                 cardEl.classList.add('exam-current-playing');
                 cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
-            // 更新頂部狀態
             document.getElementById('examAudioStatus').textContent = `廣播中：第 ${examAudioIndex + 1} / ${examQuestions.length} 題 (第 1 遍)`;
             document.getElementById('examSubAudioStatus').textContent = `每題朗讀兩遍`;
 
-            // 播放第 1 遍 (純英文發音)
-            playWordSpeechOnly(currentQ, () => {
+            // 播放第 1 遍 (使用 playExamAudioSafe 絕不卡死)
+            playExamAudioSafe(currentQ, () => {
                 if (!isExamActive || isExamAudioPaused) return;
 
-                // 第 1 遍結束，間距 2 秒後播第 2 遍
+                // 間距 2 秒後播第 2 遍
                 examAudioTimer = setTimeout(() => {
                     if (!isExamActive || isExamAudioPaused) return;
 
                     document.getElementById('examAudioStatus').textContent = `廣播中：第 ${examAudioIndex + 1} / ${examQuestions.length} 題 (第 2 遍)`;
 
-                    playWordSpeechOnly(currentQ, () => {
+                    playExamAudioSafe(currentQ, () => {
                         if (!isExamActive || isExamAudioPaused) return;
 
-                        // 第 2 遍結束，間距 3.5 秒後進入下一題
                         document.getElementById('examAudioStatus').textContent = `第 ${examAudioIndex + 1} 題朗讀完畢，即將播下一題...`;
                         examAudioTimer = setTimeout(() => {
                             if (!isExamActive || isExamAudioPaused) return;
@@ -2934,21 +3450,7 @@ function flipCard() {
             });
         }
 
-        // 純英文發音輔助函數 (聽力考試標準：不唸中文)
-        function playWordSpeechOnly(wordObj, onEndedCallback) {
-            if (!wordObj) {
-                if (onEndedCallback) onEndedCallback();
-                return;
-            }
-            if (wordObj.audio) {
-                playAudioUrl(wordObj.audio, onEndedCallback);
-            } else {
-                speakWithLang(wordObj.word, 'en', onEndedCallback);
-            }
-        }
-
         function confirmSubmitExam() {
-            // 檢查未填題數 (英文、詞性、中文)
             let incompleteCount = 0;
             examQuestions.forEach((q, idx) => {
                 const inpWord = document.getElementById(`examInput_word_${idx}`);
@@ -2973,22 +3475,25 @@ function flipCard() {
 
         function submitExam(isAuto = false) {
             stopExamTimersAndAudio();
+            closeExamVirtualKeyboard();
             setGameUIMode(false);
 
             document.getElementById('examGameScreen').classList.add('hidden');
             document.getElementById('examResultScreen').classList.remove('hidden');
 
-            // 計算時間花費
             let elapsedSec = Math.round((Date.now() - examStartTime) / 1000);
             let elMins = Math.floor(elapsedSec / 60);
             let elSecs = elapsedSec % 60;
-            document.getElementById('examTimeCostDisplay').textContent = `作答時間：${elMins} 分 ${elSecs} 秒 (共 ${examQuestions.length} 題)`;
+            let timeSpentStr = `${elMins} 分 ${elSecs} 秒`;
+            document.getElementById('examTimeCostDisplay').textContent = `作答時間：${timeSpentStr} (共 ${examQuestions.length} 題)`;
 
-            // 批改與統計
+            // 批改與統計 (加分制)
             let earnedPoints = 0;
             let totalPossiblePoints = examQuestions.length * 3;
             const tbody = document.querySelector('#examStatsTable tbody');
             tbody.innerHTML = '';
+
+            let examRecordDetails = [];
 
             examQuestions.forEach((q, idx) => {
                 const inpWord = document.getElementById(`examInput_word_${idx}`);
@@ -3002,13 +3507,13 @@ function flipCard() {
                 // 1. 英文檢驗
                 const isWordRight = (userWord.toLowerCase() === q.word.trim().toLowerCase());
 
-                // 2. 詞性檢驗 (寬容去除點號或括號)
+                // 2. 詞性檢驗
                 const normUserPos = userPos.replace(/[().]/g, '').toLowerCase();
                 const qPos = (q.pos && q.pos !== 'other') ? q.pos.trim() : '';
                 const normQPos = qPos.replace(/[().]/g, '').toLowerCase();
                 const isPosRight = (!qPos || qPos === 'other') ? true : (normUserPos === normQPos);
 
-                // 3. 中文檢驗 (寬容比對)
+                // 3. 中文檢驗
                 const cleanQTrans = q.translation.replace(/[()（）]/g, '').trim();
                 const cleanUserTrans = userTrans.replace(/[()（）]/g, '').trim();
                 const isTransRight = (cleanUserTrans !== '' && (cleanUserTrans === cleanQTrans || q.translation.includes(cleanUserTrans) || cleanUserTrans.includes(cleanQTrans)));
@@ -3016,6 +3521,21 @@ function flipCard() {
                 if (isWordRight) earnedPoints++;
                 if (isPosRight) earnedPoints++;
                 if (isTransRight) earnedPoints++;
+
+                examRecordDetails.push({
+                    index: idx + 1,
+                    word: q.word,
+                    audio: q.audio || '',
+                    userWord: userWord,
+                    isWordRight: isWordRight,
+                    correctWord: q.word,
+                    userPos: userPos,
+                    isPosRight: isPosRight,
+                    correctPos: (q.pos && q.pos !== 'other' ? q.pos : '無'),
+                    userTrans: userTrans,
+                    isTransRight: isTransRight,
+                    correctTrans: q.translation
+                });
 
                 tbody.innerHTML += `
                     <tr>
@@ -3050,7 +3570,8 @@ function flipCard() {
                 `;
             });
 
-            let finalScore = Math.round((earnedPoints / totalPossiblePoints) * 100);
+            // 模擬考模式使用加分方式：從 0 累加得分，滿分 100 分
+            let finalScore = (totalPossiblePoints > 0) ? Math.round((earnedPoints / totalPossiblePoints) * 100) : 0;
             const scoreEl = document.getElementById('examScoreDisplay');
             scoreEl.textContent = `${finalScore} 分`;
             if (finalScore >= 80) scoreEl.style.color = '#4CAF50';
@@ -3061,16 +3582,207 @@ function flipCard() {
                 showCustomAlert('時間到！系統已自動為您交卷並完成評分。');
             }
 
-            // 記錄模擬考歷史
+            // 儲存模擬考歷史 (包含完整題目明細，點擊可查看結束畫面)
             let examHist = JSON.parse(localStorage.getItem('examHistory') || '[]');
-            examHist.push({ date: new Date().toLocaleString(), score: finalScore, count: examQuestions.length, timeSpent: `${elMins}分${elSecs}秒` });
+            let recordEntry = {
+                id: 'exam_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                date: new Date().toLocaleString(),
+                score: finalScore,
+                count: examQuestions.length,
+                timeSpent: timeSpentStr,
+                earnedPoints: earnedPoints,
+                totalPossiblePoints: totalPossiblePoints,
+                record: examRecordDetails
+            };
+            examHist.push(recordEntry);
             localStorage.setItem('examHistory', JSON.stringify(examHist));
+
+            renderExamHistory();
+
             if (typeof saveCloudData === 'function') {
                 saveCloudData(`完成了模擬考測驗，得分：${finalScore}分`);
             }
 
             if (finalScore >= 60) playVictorySound();
             else playFailureSound();
+        }
+
+        function renderExamHistory() {
+            ['examHistoryContainer', 'examStartHistoryContainer'].forEach(cId => {
+                const container = document.getElementById(cId);
+                if (!container) return;
+                let hist = JSON.parse(localStorage.getItem('examHistory') || '[]');
+                if (hist.length === 0) {
+                    container.innerHTML = '<div style="color: #aaa; text-align: center; padding: 10px;">暫無作答紀錄</div>';
+                    return;
+                }
+                let list = [...hist].reverse();
+                let html = '';
+                list.forEach(h => {
+                    let badgeColor = (h.score >= 80) ? '#4CAF50' : (h.score >= 60 ? '#ffb74d' : '#f44336');
+                    html += `
+                        <div class="history-item-card" onclick="viewHistoryDetail('exam', '${h.id || ''}', ${hist.indexOf(h)})" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="color: #90caf9; font-size: 0.9em; font-weight: bold;">${h.date}</div>
+                                <div style="font-size: 0.85em; color: #bbb; margin-top: 3px;">
+                                    題數: ${h.count || (h.record ? h.record.length : 0)} 題 | 作答時間: ${h.timeSpent || '未知'} (加分制)
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.2em; font-weight: bold; color: ${badgeColor};">${h.score} 分</span>
+                                <span class="material-symbols-outlined" style="color: #ffb74d; font-size: 1.2em;">visibility</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+            });
+        }
+
+        // ========================================================
+        // 5. 歷史作答紀錄結束畫面回顧系統 (點擊可查看任何模式結束時的畫面)
+        // ========================================================
+        function viewHistoryDetail(mode, id, index) {
+            let storageKey = (mode === 'practice') ? 'practiceHistory' : ((mode === 'spell') ? 'spellHistory' : 'examHistory');
+            let hist = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            let item = null;
+            if (id) {
+                item = hist.find(h => h.id === id);
+            }
+            if (!item && index !== undefined && hist[index]) {
+                item = hist[index];
+            }
+            if (!item) {
+                showCustomAlert('找不到該筆歷史作答紀錄。');
+                return;
+            }
+
+            const modal = document.getElementById('endScreenReviewModal');
+            const modalTitle = document.getElementById('reviewModalTitle');
+            const modalBody = document.getElementById('reviewModalBody');
+            if (!modal || !modalBody) return;
+
+            let modeName = (mode === 'practice') ? '練習模式' : ((mode === 'spell') ? '填空遊戲' : '模擬考模式');
+            modalTitle.innerHTML = `<span class="material-symbols-outlined">emoji_events</span> 【${modeName}】結束畫面回顧 - ${item.date}`;
+
+            let bodyHtml = '';
+            if (mode === 'practice' || mode === 'spell') {
+                let scoreRule = '滿分 100 分，扣分制';
+                let scoreColor = item.score >= 80 ? '#4CAF50' : (item.score >= 60 ? '#ffb74d' : '#f44336');
+                let answered = item.totalAnswered || (item.record ? item.record.length : 0);
+                let correct = (item.correctCount !== undefined) ? item.correctCount : (item.record ? item.record.filter(r => r.isRight).length : 0);
+                let wrong = (item.errorCount !== undefined) ? item.errorCount : (item.record ? item.record.filter(r => !r.isRight).length : 0);
+
+                bodyHtml += `
+                    <div style="background: #222; border-radius: 15px; padding: 20px; max-width: 500px; margin: 10px auto 20px auto; border: 2px solid #555;">
+                        <div style="font-size: 1.1em; color: #aaa;">測驗得分 (${scoreRule})</div>
+                        <div style="font-size: 3.5em; font-weight: bold; color: ${scoreColor}; margin: 5px 0;">${item.score} 分</div>
+                        <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; margin-top: 10px; font-size: 1.05em;">
+                            <div>總作答題數：<strong style="color: #64b5f6;">${answered}</strong> 題</div>
+                            <div>正確答對：<strong style="color: #4CAF50;">${correct}</strong> 題</div>
+                            <div>答錯題數：<strong style="color: #f44336;">${wrong}</strong> 題</div>
+                        </div>
+                        ${item.totalTime ? `<div style="margin-top: 8px; color: #81d4fa; font-size: 0.95em;">總花費時間：${item.totalTime} 秒</div>` : ''}
+                    </div>
+                    <h4 style="color: #ffb74d; margin-top: 20px; font-size: 1.15em;"><span class="material-symbols-outlined" style="vertical-align: middle;">fact_check</span> 該次作答詳細紀錄</h4>
+                    <div style="max-height: 450px; overflow-y: auto;">
+                        <table class="stats-table" style="width: 100%; margin: 10px auto;">
+                            <thead>
+                                <tr>
+                                    <th>題目</th>
+                                    <th>我的答案</th>
+                                    <th>正確答案</th>
+                                    <th>結果</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                if (!item.record || item.record.length === 0) {
+                    bodyHtml += `<tr><td colspan="4" style="color: #aaa;">無詳細紀錄內容</td></tr>`;
+                } else {
+                    item.record.forEach(r => {
+                        bodyHtml += `
+                            <tr>
+                                <td><strong>${r.q}</strong></td>
+                                <td>${r.ans || '(未作答)'}</td>
+                                <td>${r.correct}</td>
+                                <td style="color: ${r.isRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                                    ${r.isRight ? '<span class="material-symbols-outlined">check_circle</span>' : '<span class="material-symbols-outlined">cancel</span>'}
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+                bodyHtml += `</tbody></table></div>`;
+            } else if (mode === 'exam') {
+                let scoreColor = item.score >= 80 ? '#4CAF50' : (item.score >= 60 ? '#ffb74d' : '#f44336');
+                bodyHtml += `
+                    <div style="background: #222; border-radius: 15px; padding: 20px; max-width: 500px; margin: 10px auto 20px auto; border: 2px solid #555;">
+                        <div style="font-size: 1.1em; color: #aaa;">測驗總分 (滿分 100 分，加分制)</div>
+                        <div style="font-size: 3.5em; font-weight: bold; color: ${scoreColor}; margin: 5px 0;">${item.score} 分</div>
+                        <div style="color: #64b5f6; font-size: 1.1em; margin-top: 8px;">作答時間：${item.timeSpent || '未知'} (共 ${item.count || (item.record ? item.record.length : 0)} 題)</div>
+                    </div>
+                    <h4 style="color: #ffb74d; margin-top: 20px; font-size: 1.15em;"><span class="material-symbols-outlined" style="vertical-align: middle;">fact_check</span> 該次成績詳細報告</h4>
+                    <div style="max-height: 450px; overflow-y: auto;">
+                        <table class="stats-table" style="width: 100%; margin: 10px auto;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 8%;">題號</th>
+                                    <th style="width: 30%;">英文單字 (作答 / 正解)</th>
+                                    <th style="width: 20%;">詞性 (作答 / 正解)</th>
+                                    <th style="width: 32%;">中文意思 (作答 / 正解)</th>
+                                    <th style="width: 10%;">發音</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                if (!item.record || item.record.length === 0) {
+                    bodyHtml += `<tr><td colspan="5" style="color: #aaa;">無詳細題目紀錄</td></tr>`;
+                } else {
+                    item.record.forEach(r => {
+                        bodyHtml += `
+                            <tr>
+                                <td style="font-weight: bold; color: #90caf9;">${r.index}</td>
+                                <td>
+                                    <div style="color: ${r.isWordRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                                        ${r.isWordRight ? '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">check_circle</span>' : '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">cancel</span>'}
+                                        ${r.userWord || '<span style="color:#aaa;">(未填)</span>'}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: #81d4fa;">正解: ${r.correctWord}</div>
+                                </td>
+                                <td>
+                                    <div style="color: ${r.isPosRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                                        ${r.isPosRight ? '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">check_circle</span>' : '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">cancel</span>'}
+                                        ${r.userPos || '<span style="color:#aaa;">(未填)</span>'}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: #81d4fa;">正解: ${r.correctPos}</div>
+                                </td>
+                                <td>
+                                    <div style="color: ${r.isTransRight ? '#4CAF50' : '#f44336'}; font-weight: bold;">
+                                        ${r.isTransRight ? '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">check_circle</span>' : '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:middle;">cancel</span>'}
+                                        ${r.userTrans || '<span style="color:#aaa;">(未填)</span>'}
+                                    </div>
+                                    <div style="font-size: 0.85em; color: #81d4fa;">正解: ${r.correctTrans}</div>
+                                </td>
+                                <td>
+                                    <button type="button" class="speak-btn-small" onclick="speakText('${r.correctWord}')" title="聽發音" style="width: 32px; height: 32px; margin: 0;">
+                                        <span class="material-symbols-outlined" style="font-size: 16px;">volume_up</span>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+                bodyHtml += `</tbody></table></div>`;
+            }
+
+            modalBody.innerHTML = bodyHtml;
+            modal.classList.remove('hidden');
+        }
+
+        function closeEndScreenReviewModal() {
+            const modal = document.getElementById('endScreenReviewModal');
+            if (modal) modal.classList.add('hidden');
         }
     </script>
 
