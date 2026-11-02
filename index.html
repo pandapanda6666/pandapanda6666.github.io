@@ -1194,6 +1194,7 @@
             <nav itemscope itemtype="https://schema.org/SiteNavigationElement" id="mainNavBar">
                 <a href="#" class="nav-link active" data-page="about" id="navAbout"><span itemprop="name">關於本站</span></a>
                 <a href="#" class="nav-link" data-page="tools" id="navTools"><span itemprop="name">自製</span></a>
+                <a href="./game/" class="nav-link" id="navGame" itemprop="url"><span itemprop="name">遊戲專區</span></a>
                 <a href="./Seeker/index.html" class="nav-link" id="navSeeker" itemprop="url"><span itemprop="name">探險者系列</span></a>
                 <a href="./shop/" class="nav-link" id="navShop" itemprop="url"><span itemprop="name">胖達商城</span></a>
                 <a href="./game/1%20in%2010%20trillion/" class="nav-link" id="navTenTrillion" itemprop="url"><span itemprop="name">十兆分之一</span></a>
@@ -1695,6 +1696,7 @@
                 logoTitle: 'PandaPanda的AI日常',
                 about: '關於本站',
                 tools: '自製',
+                gameNav: '遊戲專區',
                 seeker: '探險者系列',
                 shop: '胖達商城',
                 tenTrillion: '十兆分之一',
@@ -1752,6 +1754,7 @@
                 logoTitle: 'PandaPanda的AI日常',
                 about: '關於本站',
                 tools: '自製',
+                gameNav: '遊戲專區',
                 seeker: '探險者系列',
                 shop: '胖達商城',
                 tenTrillion: '十兆分之一',
@@ -1809,6 +1812,7 @@
                 logoTitle: 'PandaPanda的AI日常',
                 about: '关于本站',
                 tools: '自制',
+                gameNav: '游戏专区',
                 seeker: '探险者系列',
                 shop: '胖达商城',
                 tenTrillion: '十兆分之一',
@@ -1866,6 +1870,7 @@
                 logoTitle: 'PandaPandaのAI日常',
                 about: '当サイトについて',
                 tools: '自作ツール',
+                gameNav: 'ゲーム',
                 seeker: 'シーカーシリーズ',
                 shop: 'パンダショップ',
                 tenTrillion: '10兆分の1',
@@ -1923,6 +1928,7 @@
                 logoTitle: "PandaPanda's AI Life",
                 about: 'About',
                 tools: 'Creations',
+                gameNav: 'Games',
                 seeker: 'Seeker Series',
                 shop: 'Panda Shop',
                 tenTrillion: '1 in 10 Trillion',
@@ -2112,6 +2118,11 @@
             if (navAbout) navAbout.innerText = t.about;
             const navTools = document.getElementById('navTools');
             if (navTools) navTools.innerText = t.tools;
+            const navGame = document.getElementById('navGame');
+            if (navGame) {
+                const s = navGame.querySelector('span');
+                if (s) s.innerText = t.gameNav || '遊戲專區'; else navGame.innerText = t.gameNav || '遊戲專區';
+            }
             const navSeeker = document.getElementById('navSeeker');
             if (navSeeker) navSeeker.innerText = t.seeker;
             const navShop = document.getElementById('navShop');
@@ -3397,20 +3408,36 @@
                             response = await fetch(apiUrl);
                         }
 
-                        if (!response.ok) {
-                            if (response.status === 403 || response.status === 429) {
-                                if (cachedData) {
-                                    contents = JSON.parse(cachedData).data;
-                                } else {
-                                    throw new Error("GitHub API 限制，且無快取可用。請稍候再試。");
-                                }
-                            } else {
-                                throw new Error("讀取失敗");
-                            }
-                        } else {
+                        if (response && response.ok) {
                             contents = await response.json();
-                            localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: contents }));
+                            try {
+                                localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: contents }));
+                            } catch(e) {}
                         }
+                    }
+
+                    // 若 GitHub API 失敗、受限 (403/429) 或無內容，立即切換至本地 site-tree.json 備援
+                    if (!contents || !Array.isArray(contents)) {
+                        try {
+                            const treeRes = await fetch('./site-tree.json?t=' + Date.now());
+                            if (treeRes.ok) {
+                                const tree = await treeRes.json();
+                                const subDirs = tree[''] || [];
+                                contents = subDirs.map(name => ({ name: name, type: 'dir' }));
+                            }
+                        } catch(treeErr) {
+                            console.warn("site-tree fallback error:", treeErr);
+                        }
+                    }
+
+                    if (!contents || !Array.isArray(contents)) {
+                        if (cachedData) {
+                            try { contents = JSON.parse(cachedData).data; } catch(e) {}
+                        }
+                    }
+
+                    if (!contents || !Array.isArray(contents)) {
+                        throw new Error("目前無法讀取目錄，請重新整理或稍候再試。");
                     }
 
                     const directories = contents.filter(item => item.type === "dir" && !item.name.startsWith(".") && item.name !== "Seeker");
@@ -3421,8 +3448,6 @@
                         "seekerpedia",
                         "shop",
                         "login-hub",
-                        "game",
-                        "server",
                         "banners",
                         "api",
                         "備份",
@@ -3467,12 +3492,52 @@
                     window.rawScannedProjects = [];
                     window.coreProjectsData = [
                         {
+                            folder: "game",
+                            name: "遊戲專區 (Game Center)",
+                            desc: "收錄各類自製遊戲，包含十兆分之一、荒野生存、Minecraft 與無人機模擬器。",
+                            url: getAbsoluteUrl("./game/"),
+                            icon: getAbsoluteUrl("./favicon-48x48.png"),
+                            iconType: "fas fa-gamepad",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
                             folder: "game/1 in 10 trillion",
                             name: "十兆分之一 (1 in 10 Trillion)",
                             desc: "跨物種人生模擬與荒野紀事。出生為地球生態系中十億生命之一的生存模擬遊戲。",
                             url: getAbsoluteUrl("./game/1%20in%2010%20trillion/"),
                             icon: getAbsoluteUrl("./game/1 in 10 trillion/assets/favicon-48x48.png"),
                             iconType: "fas fa-paw",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "game/UAV Simulator",
+                            name: "無人機模擬器 (UAV Simulator)",
+                            desc: "3D 無人機飛行模擬器，支援 Switch 搖桿與鍵盤操控，具備穿越門框機制與物理手感。",
+                            url: getAbsoluteUrl("./game/UAV%20Simulator/"),
+                            icon: getAbsoluteUrl("./game/UAV Simulator/logo.png"),
+                            iconType: "fas fa-paper-plane",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "game/BrawlSurvival",
+                            name: "荒野生存 (Brawl Survival)",
+                            desc: "自製冒險與荒野求生互動遊戲。",
+                            url: getAbsoluteUrl("./game/BrawlSurvival/"),
+                            icon: getAbsoluteUrl("./favicon-48x48.png"),
+                            iconType: "fas fa-shield-alt",
+                            isHidden: false,
+                            isDisabled: false
+                        },
+                        {
+                            folder: "game/MC",
+                            name: "Minecraft 專區 (MC)",
+                            desc: "Minecraft 模組與伺服器自製資源。",
+                            url: getAbsoluteUrl("./game/MC/"),
+                            icon: getAbsoluteUrl("./favicon-48x48.png"),
+                            iconType: "fas fa-cube",
                             isHidden: false,
                             isDisabled: false
                         },
@@ -3525,19 +3590,24 @@
                             const folderLower = folder.toLowerCase();
                             if (excludedFolders.has(folderLower)) continue;
 
-                            const projectUrl = getAbsoluteUrl(`./${folder}/`);
-                            const readmeUrl = getAbsoluteUrl(`./${folder}/README.md`);
-                            const iconUrl = getAbsoluteUrl(`./${folder}/icon.png`);
+                            const projectUrl = getAbsoluteUrl(`./${encodeURIComponent(folder)}/`);
+                            const readmeUrl = getAbsoluteUrl(`./${encodeURIComponent(folder)}/README.md`);
+                            const iconUrl = getAbsoluteUrl(`./${encodeURIComponent(folder)}/icon.png`);
                             
-                            const readmeRes = await fetch(readmeUrl);
-                            if (!readmeRes.ok) continue; 
+                            let name = folder;
+                            let desc = "點擊進入專案查看內容";
 
-                            const text = await readmeRes.text();
-                            const lines = text.split('\n').map(l => l.trim()).filter(l => l !== '');
-                            if (lines.length === 0) continue;
-
-                            const name = lines[0].replace(/^#\s*/, '').trim();
-                            const desc = lines.length > 1 ? lines[1].trim() : "無說明文字";
+                            try {
+                                const readmeRes = await fetch(readmeUrl);
+                                if (readmeRes.ok) {
+                                    const text = await readmeRes.text();
+                                    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                                    if (lines.length > 0) {
+                                        name = lines[0].replace(/^#\s*/, '').trim() || folder;
+                                        if (lines.length > 1) desc = lines[1].trim();
+                                    }
+                                }
+                            } catch(e) {}
 
                             const isHidden = hiddenProjectsList.includes(folderLower) || hiddenProjectsList.includes(name.toLowerCase());
                             const isDisabled = disabledProjectsList.includes(folderLower) || disabledProjectsList.includes(name.toLowerCase());
@@ -3548,7 +3618,7 @@
                                 desc: desc,
                                 url: projectUrl,
                                 icon: iconUrl,
-                                iconType: "fas fa-folder-open",
+                                iconType: folderLower === 'game' ? "fas fa-gamepad" : (folderLower === 'server' ? "fas fa-server" : "fas fa-folder-open"),
                                 isHidden: isHidden,
                                 isDisabled: isDisabled
                             };
