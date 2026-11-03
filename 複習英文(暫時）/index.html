@@ -872,7 +872,9 @@
             <span class="material-symbols-outlined" style="vertical-align: middle;">history</span> 歷史版本：
             <select onchange="if(this.value) window.location.href='?v='+this.value" style="padding: 5px; border-radius: 5px; background: #34495e; color: white; border: 1px solid #7f8c8d; font-size: 14px;">
                 <option value="">選擇版本...</option>
-                <option value="34">版本 34 (最新)</option>
+                <option value="36">版本 36 (最新)</option>
+                <option value="35">版本 35</option>
+                <option value="34">版本 34</option>
                 <option value="33">版本 33</option>
                 <option value="32">版本 32</option>
                 <option value="31">版本 31</option>
@@ -1426,42 +1428,229 @@
             osc.stop(audioCtx.currentTime + 0.3);
         }
 
+        // ================== 全新升級：防卡死、防中斷高相容音訊引擎 ==================
+        let _activeUtterance = null;
+        let _speechWatchdog = null;
+        let _audioWatchdog = null;
+
+        // 全域解鎖 AudioContext 與 SpeechSynthesis（適配行動裝置、平板與各瀏覽器）
+        function unlockAudioEngine() {
+            initAudioContext();
+            if ('speechSynthesis' in window) {
+                if (window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+            }
+        }
+        ['touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
+            document.addEventListener(evt, unlockAudioEngine, { passive: true, once: false });
+        });
+
+        // Chromium 語音保活循環（徹底解決 Chrome/Edge 朗讀超過數秒被瀏覽器自動睡眠卡死的底層 Bug）
+        setInterval(() => {
+            if ('speechSynthesis' in window && window.speechSynthesis.speaking && window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+            }
+        }, 500);
+
         function forceStopAudio() {
+            if (_audioWatchdog) {
+                clearTimeout(_audioWatchdog);
+                _audioWatchdog = null;
+            }
+            if (_speechWatchdog) {
+                clearTimeout(_speechWatchdog);
+                _speechWatchdog = null;
+            }
             if (currentAudio) {
-                currentAudio.pause();
-                currentAudio.removeAttribute('src');
-                currentAudio.load();
+                currentAudio.onended = null;
+                currentAudio.onerror = null;
+                currentAudio.oncanplaythrough = null;
+                try {
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                } catch(e) {}
                 currentAudio = null;
             }
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
+                try {
+                    window.speechSynthesis.cancel();
+                } catch(e) {}
             }
+            _activeUtterance = null;
+            window._activeUtterance = null;
             if (speakTimeout) {
                 clearTimeout(speakTimeout);
                 speakTimeout = null;
             }
         }
 
-        function speakWithLang(text, lang, onEndedCallback = null) {
+        // 高相容性、原生 Web Speech API 朗讀引擎（永不返回0位元組、絕不卡死、防GC回收）
+        function speakWithSpeechSynthesis(text, lang = 'en-US', onDone = null) {
             if (!text) {
-                if (onEndedCallback) onEndedCallback();
+                if (onDone) onDone();
                 return;
             }
-            forceStopAudio();
-            let safeText = text.replace(/[.,，。!！?？;；:：、]/g, ' ');
-            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(safeText)}`;
-            currentAudio = new Audio(url);
-            
+
+            if (!('speechSynthesis' in window)) {
+                if (onDone) onDone();
+                return;
+            }
+
             let called = false;
-            let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
-            
-            currentAudio.onended = cb;
-            currentAudio.play().catch(e => {
-                console.log("fallback", e);
-                fallbackTTS(text, lang, cb);
-            });
+            const finish = () => {
+                if (!called) {
+                    called = true;
+                    if (_speechWatchdog) {
+                        clearTimeout(_speechWatchdog);
+                        _speechWatchdog = null;
+                    }
+                    _activeUtterance = null;
+                    window._activeUtterance = null;
+                    if (onDone) onDone();
+                }
+            };
+
+            // 依據字數動態設定超時看門狗（最短 2.5 秒，長句依比例延長）
+            const timeoutMs = Math.max(2500, Math.min(8000, text.length * 350 + 1500));
+            _speechWatchdog = setTimeout(() => {
+                console.warn('SpeechSynthesis watchdog triggered for:', text);
+                try { window.speechSynthesis.cancel(); } catch(e) {}
+                finish();
+            }, timeoutMs);
+
+            try {
+                window.speechSynthesis.cancel();
+                if (window.speechSynthesis.paused) {
+                    window.speechSynthesis.resume();
+                }
+            } catch(e) {}
+
+            // 延遲 35ms 避開 Chromium cancel() 異步狀態鎖定 Bug
+            setTimeout(() => {
+                try {
+                    let safeText = text.replace(/[.,，。!！?？;；:：、()（）]/g, ' ').trim();
+                    if (!safeText) { finish(); return; }
+
+                    const u = new SpeechSynthesisUtterance(safeText);
+                    const isZh = (lang === 'zh-TW' || lang === 'zh');
+                    u.lang = isZh ? 'zh-TW' : 'en-US';
+                    u.rate = isZh ? 1.0 : 0.95;
+
+                    const voices = window.speechSynthesis.getVoices() || [];
+                    if (isZh) {
+                        const zhVoice = voices.find(v => (v.lang.includes('zh-TW') || v.lang.includes('zh_TW')) && !v.name.includes('Cantonese')) ||
+                                        voices.find(v => v.lang.includes('zh'));
+                        if (zhVoice) u.voice = zhVoice;
+                    } else {
+                        const enVoice = voices.find(v => v.lang.includes('en-US') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Jenny') || v.name.includes('Guy'))) ||
+                                        voices.find(v => v.lang.includes('en-US')) ||
+                                        voices.find(v => v.lang.includes('en'));
+                        if (enVoice) u.voice = enVoice;
+                    }
+
+                    u.onend = finish;
+                    u.onerror = (e) => {
+                        console.warn('SpeechSynthesis utterance error:', e);
+                        finish();
+                    };
+
+                    // 關鍵防卡死：保存到全域變數，防止被 V8 垃圾回收回收導致 onend 永不觸發卡死
+                    _activeUtterance = u;
+                    window._activeUtterance = u;
+
+                    window.speechSynthesis.speak(u);
+
+                    if (window.speechSynthesis.paused) {
+                        window.speechSynthesis.resume();
+                    }
+                } catch(e) {
+                    console.error('speakWithSpeechSynthesis exception:', e);
+                    finish();
+                }
+            }, 35);
         }
 
+        // 真人發音 MP3 播放器（防卡死、無虛假中斷、失敗立即平滑降級至語音合成）
+        function playAudioUrl(url, onEndedCallback = null, fallbackWord = '') {
+            forceStopAudio();
+
+            if (!url) {
+                if (fallbackWord) {
+                    speakWithSpeechSynthesis(fallbackWord, 'en-US', onEndedCallback);
+                } else if (onEndedCallback) {
+                    onEndedCallback();
+                }
+                return;
+            }
+
+            let called = false;
+            let timer = null;
+            const finish = () => {
+                if (!called) {
+                    called = true;
+                    if (timer) clearTimeout(timer);
+                    if (currentAudio) {
+                        currentAudio.onended = null;
+                        currentAudio.onerror = null;
+                    }
+                    currentAudio = null;
+                    if (onEndedCallback) onEndedCallback();
+                }
+            };
+
+            const fallback = () => {
+                if (fallbackWord) {
+                    console.warn('MP3 play failed, falling back to TTS:', fallbackWord);
+                    speakWithSpeechSynthesis(fallbackWord, 'en-US', finish);
+                } else {
+                    finish();
+                }
+            };
+
+            try {
+                const audio = new Audio();
+                currentAudio = audio;
+                audio.preload = 'auto';
+
+                audio.onended = () => {
+                    finish();
+                };
+
+                audio.onerror = (e) => {
+                    console.warn('Audio play error on:', url, e);
+                    fallback();
+                };
+
+                // 單字 MP3 大多在 0.5~2.2 秒之間，設定 4.2 秒安全保護看門狗，保證必往下走
+                timer = setTimeout(() => {
+                    console.warn('Audio playback watchdog timed out on:', url);
+                    fallback();
+                }, 4200);
+
+                audio.src = url;
+                const p = audio.play();
+                if (p && typeof p.catch === 'function') {
+                    p.catch(err => {
+                        console.warn('audio.play() rejected (autoplay blocked or network):', err);
+                        fallback();
+                    });
+                }
+            } catch (err) {
+                console.error('playAudioUrl exception:', err);
+                fallback();
+            }
+        }
+
+        function speakWithLang(text, lang, onEndedCallback = null) {
+            speakWithSpeechSynthesis(text, lang, onEndedCallback);
+        }
+
+        function fallbackTTS(text, lang = 'en-US', onEndedCallback = null) {
+            speakWithSpeechSynthesis(text, lang, onEndedCallback);
+        }
+
+        // 單字發音調度中心（支援僅英文發音與完整中文+詞性朗讀）
         function speakWordObj(wordObj, onEndedCallback = null) {
             if (!wordObj) {
                 if (onEndedCallback) onEndedCallback();
@@ -1469,150 +1658,77 @@
             }
             let mode = document.getElementById('speakMode') ? document.getElementById('speakMode').value : 'en';
             if (mode === 'full') {
-                let posMap = { 'n.': '名詞', 'v.': '動詞', 'adj.': '形容詞', 'adv.': '副詞', 'prep.': '介系詞', 'conj.': '連接詞', 'pron.': '代名詞' };
-                let p = posMap[wordObj.pos] ? `${wordObj.pos}${posMap[wordObj.pos]}` : (wordObj.pos !== 'other' ? wordObj.pos : '');
-                let textZh = `${wordObj.translation}，${p}`;
-                speakWithLang(textZh, 'zh-TW', () => {
-                    if (wordObj.audio) playAudioUrl(wordObj.audio, onEndedCallback);
-                    else speakWithLang(wordObj.word, 'en', onEndedCallback);
+                let posMap = { 'n.': '名詞', 'v.': '動詞', 'adj.': '形容詞', 'adv.': '副詞', 'prep.': '介系詞', 'conj.': '連接詞', 'pron.': '代名詞', 'phr.': '片語', 'abbr.': '縮寫' };
+                let p = posMap[wordObj.pos] ? `${wordObj.pos}${posMap[wordObj.pos]}` : (wordObj.pos && wordObj.pos !== 'other' ? wordObj.pos : '');
+                let textZh = `${wordObj.translation}，${p}`.trim();
+                
+                // 第一步：先朗讀中文意思與詞性
+                speakWithSpeechSynthesis(textZh, 'zh-TW', () => {
+                    // 第二步：再播放英文單字真人 MP3 或英文語音
+                    if (wordObj.audio) {
+                        playAudioUrl(wordObj.audio, onEndedCallback, wordObj.word);
+                    } else {
+                        speakWithSpeechSynthesis(wordObj.word, 'en-US', onEndedCallback);
+                    }
                 });
             } else {
-                if (wordObj.audio) playAudioUrl(wordObj.audio, onEndedCallback);
-                else speakWithLang(wordObj.word, 'en', onEndedCallback);
-            }
-        }
-        
-        function playAudioUrl(url, onEndedCallback) {
-            forceStopAudio();
-            currentAudio = new Audio(url);
-            let called = false;
-            let cb = () => {
-                if (!called) {
-                    called = true;
-                    if (currentAudio) {
-                        currentAudio.onended = null;
-                        currentAudio.onerror = null;
-                        currentAudio.onabort = null;
-                        currentAudio.onstalled = null;
-                    }
-                    if (onEndedCallback) onEndedCallback();
+                // 僅唸英文單字
+                if (wordObj.audio) {
+                    playAudioUrl(wordObj.audio, onEndedCallback, wordObj.word);
+                } else {
+                    speakWithSpeechSynthesis(wordObj.word, 'en-US', onEndedCallback);
                 }
-            };
-            currentAudio.onended = cb;
-            currentAudio.onerror = cb;
-            currentAudio.onabort = cb;
-            currentAudio.onstalled = cb;
-            setTimeout(cb, 3500); // 3.5秒絕對超時保護，防止音訊卡死
-
-            let p = currentAudio.play();
-            if (p && typeof p.catch === 'function') {
-                p.catch(e => {
-                    cb();
-                });
             }
         }
 
-        function speakWithLang(text, lang, onEndedCallback = null) {
+        function speakText(text, onEndedCallback = null) {
             if (!text) {
                 if (onEndedCallback) onEndedCallback();
                 return;
             }
-            forceStopAudio();
-            let safeText = text.replace(/[.,，。!！?？;；:：、]/g, ' ');
-            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${encodeURIComponent(safeText)}`;
-            currentAudio = new Audio(url);
-            
-            let called = false;
-            let cb = () => {
-                if (!called) {
-                    called = true;
-                    if (currentAudio) {
-                        currentAudio.onended = null;
-                        currentAudio.onerror = null;
-                        currentAudio.onabort = null;
-                        currentAudio.onstalled = null;
-                    }
-                    if (onEndedCallback) onEndedCallback();
-                }
-            };
-            
-            currentAudio.onended = cb;
-            currentAudio.onerror = () => fallbackTTS(text, lang, cb);
-            currentAudio.onabort = cb;
-            currentAudio.onstalled = cb;
-            setTimeout(cb, 3500); // 3.5秒超時保護
-
-            let p = currentAudio.play();
-            if (p && typeof p.catch === 'function') {
-                p.catch(e => {
-                    fallbackTTS(text, lang, cb);
-                });
-            }
-        }
-
-        function fallbackTTS(text, lang = 'en-US', onEndedCallback = null) {
-            let called = false;
-            let cb = () => { if (!called) { called = true; if(onEndedCallback) onEndedCallback(); } };
-
-            if ('speechSynthesis' in window) {
-                try {
-                    window.speechSynthesis.cancel();
-                    const msg = new SpeechSynthesisUtterance(text);
-                    msg.lang = (lang === 'zh-TW') ? 'zh-TW' : 'en-US';
-                    let voices = window.speechSynthesis.getVoices();
-                    if (lang === 'zh-TW') {
-                        let goodVoice = voices.find(v => v.lang.includes('zh'));
-                        if (goodVoice) msg.voice = goodVoice;
-                    } else {
-                        let goodVoice = voices.find(v => v.name.includes('Google US English')) || voices.find(v => v.lang === 'en-US');
-                        if (goodVoice) msg.voice = goodVoice;
-                    }
-                    
-                    msg.onend = cb;
-                    msg.onerror = cb;
-                    window.speechSynthesis.speak(msg);
-                    setTimeout(cb, 2500); // 2.5秒超時保護
-                } catch(e) {
-                    cb();
-                }
+            const cleanText = text.trim().toLowerCase();
+            let wordObj = words.find(w => w.word && w.word.trim().toLowerCase() === cleanText);
+            if (wordObj) {
+                speakWordObj(wordObj, onEndedCallback);
             } else {
-                cb();
+                speakWithSpeechSynthesis(text, 'en-US', onEndedCallback);
             }
         }
 
-        // 模擬考專用保證完成的聽力播放函數 (絕不卡死)
-        function playExamAudioSafe(wordObj, onDone) {
+        // 模擬考專用保證完成的聽力播放函數（絕不卡死、全方位守護）
+        function playExamAudioSafe(wordObj, onDone = null) {
             if (!wordObj) {
                 if (onDone) onDone();
                 return;
             }
-            let executed = false;
+
+            let called = false;
+            let examWatchdog = null;
             const finish = () => {
-                if (!executed) {
-                    executed = true;
-                    clearTimeout(watchdog);
+                if (!called) {
+                    called = true;
+                    if (examWatchdog) clearTimeout(examWatchdog);
                     if (onDone) onDone();
                 }
             };
 
-            const watchdog = setTimeout(() => {
-                console.warn('Exam audio watchdog triggered:', wordObj.word);
+            // 4 秒最高守護超時：不論任何原因必定解除並呼叫完成
+            examWatchdog = setTimeout(() => {
+                console.warn('playExamAudioSafe supreme watchdog triggered for:', wordObj.word);
                 finish();
-            }, 3800); // 3.8秒超時看門狗
+            }, 4000);
 
             try {
                 if (wordObj.audio) {
-                    playAudioUrl(wordObj.audio, finish);
+                    playAudioUrl(wordObj.audio, finish, wordObj.word);
                 } else {
-                    speakWithLang(wordObj.word, 'en', finish);
+                    speakWithSpeechSynthesis(wordObj.word, 'en-US', finish);
                 }
             } catch (err) {
-                console.error('playExamAudioSafe error:', err);
+                console.error('playExamAudioSafe exception:', err);
                 finish();
             }
         }
-
-        
 
         // 確保載入聲音清單
         if ('speechSynthesis' in window) {
@@ -2176,7 +2292,8 @@
                 
                 let hasMoved = false;
                 const goNextCard = () => { if (!hasMoved) { hasMoved = true; nextCard(); } };
-                setTimeout(goNextCard, 1800); // 防卡死看門狗
+                const isFullMode = document.getElementById('speakMode') && document.getElementById('speakMode').value === 'full';
+                setTimeout(goNextCard, isFullMode ? 4200 : 2500); // 防卡死看門狗
                 playSuccessSound();
                 setTimeout(goNextCard, 350);
             } else {
@@ -2201,7 +2318,8 @@
                 
                 let hasMoved = false;
                 const goNextCard = () => { if (!hasMoved) { hasMoved = true; nextCard(); } };
-                setTimeout(goNextCard, 2200); // 防卡死看門狗：最多等待 2.2 秒
+                const isFullMode = document.getElementById('speakMode') && document.getElementById('speakMode').value === 'full';
+                setTimeout(goNextCard, isFullMode ? 4200 : 2500); // 防卡死看門狗：最多等待 2.2 秒
                 playFailureSound();
                 speakWordObj(practiceWords[currentIndex], () => { setTimeout(goNextCard, 300); });
             }
@@ -2244,7 +2362,8 @@
                         else { currentIndex++; showCard(); }
                     }
                 };
-                setTimeout(goNextCard, 2200);
+                const isFullMode = document.getElementById('speakMode') && document.getElementById('speakMode').value === 'full';
+                setTimeout(goNextCard, isFullMode ? 4200 : 2500);
                 playFailureSound();
                 speakWordObj(practiceWords[currentIndex], () => { setTimeout(goNextCard, 300); });
                 return;
@@ -2606,7 +2725,8 @@
                     nextSpellWord(false);
                 }
             };
-            setTimeout(goNext, 1800);
+            const isFullSpell = document.getElementById('speakMode') && document.getElementById('speakMode').value === 'full';
+            setTimeout(goNext, isFullSpell ? 4200 : 2500);
 
             if (allCorrect) {
                 document.getElementById('spellFeedback').innerHTML = '<span class="material-symbols-outlined">celebration</span> 答對了！';
