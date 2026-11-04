@@ -152,34 +152,38 @@
 
 
 
-    <div id="app" class="relative bg-white/95 backdrop-blur-xl w-full max-w-md rounded-2xl shadow-xl overflow-hidden p-8 border border-green-100 z-10 my-8">
+    <div id="app" class="relative bg-white/95 backdrop-blur-xl w-full max-w-md rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden p-4 sm:p-7 border border-green-100 z-10 my-4 sm:my-8 transition-all">
 
-        <!-- 語言切換選單 (支援臺灣繁體、香港繁體、簡體中文、日本語、English) -->
-        <div style="position: absolute; top: 16px; right: 16px; z-index: 30; display:flex; align-items:center; gap:6px;">
-            <button type="button" id="btnToggleLoginOfficialAnnounce" onclick="window.toggleLoginOfficialAnnouncement()" title="設定是否顯示官網公告" style="font-size:12px; padding:4px 8px; border-radius:8px; border:1px solid #86efac; background:white; color:#166534; font-weight:bold; cursor:pointer;">
-                <i class="fas fa-bullhorn"></i>
+        <!-- 頂部工具列 (左側官網公告開關，右側多語系切換，避免在手機版上遮擋標題) -->
+        <div class="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-green-50/80">
+            <button type="button" id="btnToggleLoginOfficialAnnounce" onclick="window.toggleLoginOfficialAnnouncement()" title="設定是否顯示官網公告" class="text-xs px-2.5 py-1.5 rounded-lg border border-green-200 bg-white hover:bg-green-50 text-green-800 font-bold flex items-center gap-1.5 shadow-sm transition">
+                <i class="fas fa-bullhorn text-green-600"></i>
+                <span id="txtToggleAnnounce" class="hidden xs:inline">官網公告</span>
             </button>
-            <select id="loginLangSelect" onchange="window.changeLoginLanguage(this.value)" style="font-size: 12px; padding: 4px 8px; border-radius: 8px; border: 1.5px solid #86efac; background: rgba(255,255,255,0.95); color: #166534; font-weight: bold; cursor: pointer; outline: none; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <option value="zh-TW">臺灣繁體</option>
-                <option value="zh-HK">香港繁體</option>
-                <option value="zh-CN">简体中文</option>
-                <option value="ja">日本語</option>
-                <option value="en">English</option>
-            </select>
+            <div class="flex items-center gap-1.5">
+                <i class="fas fa-globe text-green-600 text-xs"></i>
+                <select id="loginLangSelect" onchange="window.changeLoginLanguage(this.value)" class="text-xs px-2.5 py-1.5 rounded-lg border border-green-200 bg-white text-green-800 font-bold outline-none cursor-pointer shadow-sm hover:border-green-400 transition">
+                    <option value="zh-TW">臺灣繁體</option>
+                    <option value="zh-HK">香港繁體</option>
+                    <option value="zh-CN">简体中文</option>
+                    <option value="ja">日本語</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
         </div>
 
         <!-- 官網公告緊湊小卡 (顯示小一點的官網公告，支援開關) -->
-        <div id="loginOfficialAnnouncementWrapper" style="display:none; margin-top:28px; margin-bottom:12px;">
+        <div id="loginOfficialAnnouncementWrapper" style="display:none; margin-top:8px; margin-bottom:12px;">
             <div id="loginOfficialAnnouncementCard" style="background:linear-gradient(135deg, #f0fdf4, #dcfce7); border:1px solid #86efac; border-radius:10px; padding:7px 10px; display:flex; align-items:center; justify-content:space-between; gap:8px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
                 <a id="loginOfficialAnnouncementLink" href="https://pandapanda6666.github.io" target="_blank" style="text-decoration:none; display:flex; align-items:center; gap:6px; flex:1; overflow:hidden;">
-                    <span style="background:#166534; color:white; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:6px; white-space:nowrap;">
+                    <span id="officialAnnounceBadgeText" style="background:#166534; color:white; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:6px; white-space:nowrap;">
                         <i class="fas fa-bullhorn"></i> 官網公告
                     </span>
                     <span id="loginOfficialAnnouncementTitle" style="font-size:12px; font-weight:bold; color:#14532d; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
                         載入最新大會公告中...
                     </span>
                 </a>
-                <button type="button" onclick="window.toggleLoginOfficialAnnouncement(false)" style="background:none; border:none; color:#15803d; font-size:13px; cursor:pointer; padding:0 3px; line-height:1;" title="隱藏官網公告">
+                <button type="button" id="btnCloseOfficialAnnounce" onclick="window.toggleLoginOfficialAnnouncement(false)" style="background:none; border:none; color:#15803d; font-size:13px; cursor:pointer; padding:0 3px; line-height:1;" title="隱藏官網公告">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -237,12 +241,14 @@
 
             </div>
 
-            <button onclick="toggleView('login')" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95">
-
+            <button onclick="toggleView('login')" id="guestLoginBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95">
                 點此登入 / 註冊帳號
-
             </button>
 
+            <button onclick="switchToKeyLoginView()" id="btnGuestKeyLogin" type="button" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold py-3 rounded-xl shadow-sm transition-all transform active:scale-95 flex items-center justify-center gap-2 text-sm mt-3">
+                <i class="fas fa-key text-emerald-600"></i>
+                <span id="txtGuestKeyLogin">使用通行金鑰 (Key) 快速登入</span>
+            </button>
         </div>
 
 
@@ -345,7 +351,7 @@
 
 
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                     <div>
 
@@ -367,7 +373,7 @@
 
 
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                     <div>
 
@@ -389,7 +395,7 @@
 
 
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                     <div>
 
@@ -436,9 +442,9 @@
                 </div>
 
                 <div class="mt-4 p-4 border border-slate-200 rounded-xl bg-slate-50">
-                    <h3 class="text-sm font-bold text-slate-700 mb-3">帳號安全與登入設定</h3>
+                    <h3 id="accountSecurityTitle" class="text-sm font-bold text-slate-700 mb-3">帳號安全與登入設定</h3>
                     <div id="googleAccountSettings" class="hidden">
-                        <p class="text-sm text-slate-600 mb-2">目前綁定 Google 帳號：<span id="currentGoogleEmailDisplay" class="font-bold text-green-700"></span></p>
+                        <p class="text-sm text-slate-600 mb-2"><span id="txtGoogleBound">目前綁定 Google 帳號：</span><span id="currentGoogleEmailDisplay" class="font-bold text-green-700"></span></p>
                         <div class="flex gap-2 mt-3">
                             <button type="button" onclick="changeGoogleAccount()" class="text-xs bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-2 px-3 rounded shadow-sm transition flex items-center">
                                 <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-4 h-4 mr-2 pointer-events-none"> 更改 Google 帳號
@@ -449,10 +455,28 @@
                         </div>
                     </div>
                     <div id="normalAccountSettings" class="hidden">
-                        <p class="text-sm text-slate-600 mb-2">目前使用普通信箱登入</p>
+                        <p id="txtNormalAccount" class="text-sm text-slate-600 mb-2">目前使用普通信箱登入</p>
                         <button type="button" onclick="changeGoogleAccount()" class="text-xs bg-white border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold py-2 px-3 rounded shadow-sm transition flex items-center">
                             <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-4 h-4 mr-2 pointer-events-none"> 綁定 Google 帳號 (可無密碼登入)
                         </button>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 border border-emerald-200 rounded-xl bg-emerald-50/40">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                                <i class="fas fa-key text-emerald-600"></i> 通行金鑰管理 (Key 免密免驗證登入)
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">可生成免帳密、免 Google 驗證的快速通行金鑰，支援設定時間或使用次數自動刪除。</p>
+                        </div>
+                        <button type="button" onclick="openCreateKeyModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl shadow-sm transition flex items-center gap-1 whitespace-nowrap">
+                            <i class="fas fa-plus"></i> 生成新金鑰
+                        </button>
+                    </div>
+
+                    <div id="accessKeyList" class="mt-3 space-y-2">
+                        <div class="text-center py-3 text-xs text-slate-400">正在讀取金鑰清單...</div>
                     </div>
                 </div>
 
@@ -474,50 +498,108 @@
 
         <div id="loginView" class="hidden">
 
-            <div id="loginForm" class="space-y-4">
-
-                <div>
-
-                    <label class="block text-sm font-bold text-slate-700 mb-1">登入帳號</label>
-
-                    <input type="text" id="username" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的帳號">
-
-                </div>
-
-                <div>
-
-                    <label class="block text-sm font-bold text-slate-700 mb-1">登入密碼</label>
-
-                    <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的密碼">
-
-                </div>
-
-                <button onclick="handleLogin()" id="loginBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
-
-                    一般登入系統
-
+            <!-- 登入模式切換 Tab：密碼登入 vs 通行金鑰登入 (保證手機與電腦皆第一時間可見) -->
+            <div class="flex bg-slate-100 p-1 rounded-xl mb-4 border border-slate-200">
+                <button id="tabPasswordLogin" type="button" onclick="switchLoginTab('password')" class="w-1/2 py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-white text-green-700 shadow-sm transition flex items-center justify-center gap-1.5">
+                    <i class="fas fa-lock"></i> 帳密登入
                 </button>
-
-                <div class="flex items-center my-4">
-
-                    <div class="flex-grow border-t border-slate-200"></div>
-
-                    <span class="mx-3 text-slate-400 text-sm font-medium">或</span>
-
-                    <div class="flex-grow border-t border-slate-200"></div>
-
-                </div>
-
-                <button onclick="handleGoogleLogin()" id="googleBtn" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl flex items-center justify-center transition shadow-sm">
-                    <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5 mr-3 pointer-events-none">
-                    使用 Google 帳號登入
+                <button id="tabKeyLogin" type="button" onclick="switchLoginTab('key')" class="w-1/2 py-2.5 rounded-lg text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5">
+                    <i class="fas fa-key text-emerald-600"></i> 通行金鑰 (Key) 登入
                 </button>
+            </div>
 
-                <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs leading-relaxed flex items-start gap-2 text-left shadow-sm">
-                    <i class="fas fa-info-circle text-amber-600 mt-0.5 text-sm flex-shrink-0"></i>
+            <!-- Tab 1: 一般密碼與 Google 登入面板 -->
+            <div id="loginPasswordPanel" class="space-y-4">
+
+                <div id="loginForm" class="space-y-4">
+
                     <div>
-                        <strong>Google 登入提醒：</strong>若使用 Google 帳號登入時出現<strong>「您的管理員已封鎖存取權［組織帳號］」</strong>，請改用<strong>收取驗證碼方式</strong>進行登入。
+
+                        <label class="block text-sm font-bold text-slate-700 mb-1">登入帳號</label>
+
+                        <input type="text" id="username" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的帳號">
+
                     </div>
+
+                    <div>
+
+                        <label class="block text-sm font-bold text-slate-700 mb-1">登入密碼</label>
+
+                        <input type="password" id="password" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition shadow-inner" placeholder="請輸入您的密碼">
+
+                    </div>
+
+                    <button onclick="handleLogin()" id="loginBtn" type="button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all transform active:scale-95 mt-2">
+
+                        一般登入系統
+
+                    </button>
+
+                    <div class="flex items-center my-4">
+
+                        <div class="flex-grow border-t border-slate-200"></div>
+
+                        <span class="mx-3 text-slate-400 text-sm font-medium">或</span>
+
+                        <div class="flex-grow border-t border-slate-200"></div>
+
+                    </div>
+
+                    <button onclick="handleGoogleLogin()" id="googleBtn" type="button" class="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl flex items-center justify-center transition shadow-sm">
+                        <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5 mr-3 pointer-events-none">
+                        使用 Google 帳號登入
+                    </button>
+
+                    <div id="googleLoginNoticeCard" class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs leading-relaxed flex items-start gap-2 text-left shadow-sm">
+                        <i class="fas fa-info-circle text-amber-600 mt-0.5 text-sm flex-shrink-0"></i>
+                        <div>
+                            <strong id="googleNoticeTitleText">Google 登入提醒：</strong><span id="googleNoticeBodyText">若使用 Google 帳號登入時出現<strong>「您的管理員已封鎖存取權［組織帳號］」</strong>，請改用<strong>收取驗證碼方式</strong>進行登入。</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-2 text-center">
+                        <button type="button" onclick="switchLoginTab('key')" class="text-emerald-700 hover:text-emerald-800 text-xs font-bold underline flex items-center justify-center gap-1 mx-auto transition">
+                            <i class="fas fa-key"></i> <span id="txtSwitchToKeyDirect">改用通行金鑰快速免密登入</span>
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Tab 2: 通行金鑰 (Key) 專屬獨立面板 (最醒目第一屏呈現) -->
+            <div id="loginKeyPanel" class="hidden space-y-4">
+
+                <div class="p-4 bg-emerald-50/80 border border-emerald-300 rounded-2xl shadow-sm space-y-3.5">
+                    <div class="flex items-center justify-between">
+                        <label id="lblKeyDirectLoginTitle" class="block text-xs sm:text-sm font-bold text-emerald-900 flex items-center gap-1.5">
+                            <i class="fas fa-key text-emerald-600"></i> 通行金鑰直接登入
+                        </label>
+                        <label class="cursor-pointer text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-sm">
+                            <i class="fas fa-file-upload"></i> <span id="txtKeyUploadBtn">上傳金鑰檔</span>
+                            <input type="file" id="keyLoginFileInput" accept=".pandakey,.key,.txt" class="hidden" onchange="handleKeyFileSelect(this)">
+                        </label>
+                    </div>
+                    
+                    <div class="relative">
+                        <input type="password" id="keyLoginInput" class="w-full pl-3 pr-10 py-3 text-xs sm:text-sm font-mono rounded-xl border border-emerald-300 bg-white focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="貼上完整金鑰字串 (PDK1_...) 或上傳檔案">
+                        <button type="button" onclick="toggleKeyVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm p-1">
+                            <i id="keyEyeIcon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
+
+                    <div id="keyFileNotice" class="hidden text-xs text-emerald-800 bg-white px-3 py-2 rounded-lg border border-emerald-300 flex items-center justify-between shadow-sm">
+                        <span id="keyFileNameText" class="truncate font-mono font-bold"></span>
+                        <button type="button" onclick="clearKeyFileInput()" class="text-red-500 hover:text-red-700 ml-2 font-bold px-1" title="清除檔案">✕</button>
+                    </div>
+
+                    <p id="txtKeyDesc" class="text-xs text-slate-600 leading-relaxed">
+                        持有有效金鑰即可直接登入，不需輸入帳號密碼，亦不需 Google 驗證。
+                    </p>
+
+                    <button onclick="handleKeyLogin()" id="keyLoginBtn" type="button" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm transform active:scale-95">
+                        <i class="fas fa-unlock-alt"></i> <span id="txtKeyLoginBtn">以金鑰直接登入 (免密免驗證)</span>
+                    </button>
                 </div>
 
             </div>
@@ -602,7 +684,7 @@
 
 
                     <div id="regAccountFields" class="space-y-3 mb-3">
-                        <div class="grid grid-cols-2 gap-3" id="regUserPassDiv">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="regUserPassDiv">
                             <div>
 
                                 <label class="block text-sm font-bold text-slate-700 mb-1">設定帳號 <span class="text-red-500">*</span></label>
@@ -859,313 +941,711 @@
 
 
     <script>
-        const loginI18n = {
-            'zh-TW': {
-                titleLogin: '登入',
-                titleRegister: '註冊帳號',
-                titleProfile: '個人資料',
-                titleEditProfile: '編輯個人資料',
-                loadingText: '系統連線中，請稍候...',
-                guestTitle: '您目前尚未登入',
-                guestDesc: '部分應用程式功能需要登入後才能使用',
-                guestLoginBtn: '點此登入 / 註冊帳號',
-                returnAppBtn: '進入系統應用',
-                editProfileBtn: '修改所有個人資料',
-                switchAccountBtn: '切換帳戶',
-                logoutBtn: '登出系統',
-                deleteAccountBtn: '永久註銷帳號',
-                changeAvatar: '更換大頭貼',
-                uploadAvatar: '點擊上傳大頭貼',
-                nicknameLabel: '公開暱稱',
-                realNameLabel: '真實姓名',
-                passwordLabel: '登入密碼',
-                emailLabel: '電子郵件',
-                genderLabel: '性別',
-                birthdayLabel: '生日',
-                phoneLabel: '聯絡電話',
-                genderSelect: '請選擇',
-                genderMale: '男',
-                genderFemale: '女',
-                genderOther: '其他',
-                cancelBtn: '取消',
-                saveBtn: '儲存變更',
-                usernameLabel: '登入帳號',
-                usernamePlaceholder: '請輸入您的帳號',
-                passwordPlaceholder: '請輸入您的密碼',
-                loginBtn: '一般登入系統',
-                orDivider: '或',
-                googleLoginBtn: '使用 Google 帳號登入',
-                noAccount: '還沒有帳號？立即註冊',
-                reportIssue: '遇到困難？回報問題',
-                guideBtn: '使用說明',
-                guideModalTitle: '系統使用說明',
-                regTabNormal: '帳號密碼註冊',
-                regTabGoogle: 'Google 註冊',
-                regSetAccount: '設定帳號',
-                regSetPassword: '設定密碼',
-                regAccountPlaceholder: '請輸入帳號',
-                regPasswordPlaceholder: '請輸入密碼',
-                regSendCode: '發送驗證碼',
-                regCodeLabel: '驗證碼',
-                regCodePlaceholder: '請輸入6位數驗證碼',
-                regEmailPlaceholder: '請輸入電子郵件',
-                regNicknamePlaceholder: '在系統中顯示的名稱',
-                regLastName: '姓氏',
-                regFirstName: '名字',
-                regLastNamePlaceholder: '例: 王',
-                regFirstNamePlaceholder: '例: 小明',
-                regPhonePlaceholder: '請輸入聯絡電話',
-                regSubmitBtn: '送出註冊資料',
-                regBackLogin: '已有帳號？返回登入',
-                googleLinkBtn: '連結 Google 帳號',
-                googleLinked: '已連結：',
-                clearBtn: '清除'
-            },
-            'zh-HK': {
-                titleLogin: '登入',
-                titleRegister: '註冊帳號',
-                titleProfile: '個人資料',
-                titleEditProfile: '編輯個人資料',
-                loadingText: '系統連線中，請稍候...',
-                guestTitle: '您目前尚未登入',
-                guestDesc: '部分應用程式功能需要登入後先可以用',
-                guestLoginBtn: '點此登入 / 註冊帳號',
-                returnAppBtn: '進入系統應用',
-                editProfileBtn: '修改個人資料',
-                switchAccountBtn: '切換帳戶',
-                logoutBtn: '登出系統',
-                deleteAccountBtn: '永久註銷帳號',
-                changeAvatar: '更換頭像',
-                uploadAvatar: '點擊上傳頭像',
-                nicknameLabel: '公開暱稱',
-                realNameLabel: '真實姓名',
-                passwordLabel: '登入密碼',
-                emailLabel: '電子郵件',
-                genderLabel: '性別',
-                birthdayLabel: '生日',
-                phoneLabel: '聯絡電話',
-                genderSelect: '請選擇',
-                genderMale: '男',
-                genderFemale: '女',
-                genderOther: '其他',
-                cancelBtn: '取消',
-                saveBtn: '儲存變更',
-                usernameLabel: '登入帳號',
-                usernamePlaceholder: '請輸入你嘅帳號',
-                passwordPlaceholder: '請輸入你嘅密碼',
-                loginBtn: '一般登入系統',
-                orDivider: '或',
-                googleLoginBtn: '使用 Google 帳號登入',
-                noAccount: '仲未有帳號？即刻註冊',
-                reportIssue: '遇到問題？回報問題',
-                guideBtn: '使用說明',
-                guideModalTitle: '系統使用說明',
-                regTabNormal: '帳號密碼註冊',
-                regTabGoogle: 'Google 註冊',
-                regSetAccount: '設定帳號',
-                regSetPassword: '設定密碼',
-                regAccountPlaceholder: '請輸入帳號',
-                regPasswordPlaceholder: '請輸入密碼',
-                regSendCode: '發送驗證碼',
-                regCodeLabel: '驗證碼',
-                regCodePlaceholder: '請輸入6位數驗證碼',
-                regEmailPlaceholder: '請輸入電子郵件',
-                regNicknamePlaceholder: '在系統中顯示嘅名稱',
-                regLastName: '姓氏',
-                regFirstName: '名字',
-                regLastNamePlaceholder: '例: 陳',
-                regFirstNamePlaceholder: '例: 大文',
-                regPhonePlaceholder: '請輸入聯絡電話',
-                regSubmitBtn: '送出註冊資料',
-                regBackLogin: '已有帳號？返回登入',
-                googleLinkBtn: '連結 Google 帳號',
-                googleLinked: '已連結：',
-                clearBtn: '清除'
-            },
-            'zh-CN': {
-                titleLogin: '登录',
-                titleRegister: '注册账号',
-                titleProfile: '个人资料',
-                titleEditProfile: '编辑个人资料',
-                loadingText: '系统连接中，请稍候...',
-                guestTitle: '您当前尚未登录',
-                guestDesc: '部分应用功能需要登录后才能使用',
-                guestLoginBtn: '点此登录 / 注册账号',
-                returnAppBtn: '进入系统应用',
-                editProfileBtn: '修改个人资料',
-                switchAccountBtn: '切换账户',
-                logoutBtn: '退出登录',
-                deleteAccountBtn: '永久注销账号',
-                changeAvatar: '更换头像',
-                uploadAvatar: '点击上传头像',
-                nicknameLabel: '公开昵称',
-                realNameLabel: '真实姓名',
-                passwordLabel: '登录密码',
-                emailLabel: '电子邮箱',
-                genderLabel: '性别',
-                birthdayLabel: '生日',
-                phoneLabel: '联系电话',
-                genderSelect: '请选择',
-                genderMale: '男',
-                genderFemale: '女',
-                genderOther: '其他',
-                cancelBtn: '取消',
-                saveBtn: '保存修改',
-                usernameLabel: '登录账号',
-                usernamePlaceholder: '请输入您的账号',
-                passwordPlaceholder: '请输入您的密码',
-                loginBtn: '一般登录系统',
-                orDivider: '或',
-                googleLoginBtn: '使用 Google 账号登录',
-                noAccount: '还没有账号？立即注册',
-                reportIssue: '遇到问题？反馈问题',
-                guideBtn: '使用说明',
-                guideModalTitle: '系统使用说明',
-                regTabNormal: '账号密码注册',
-                regTabGoogle: 'Google 注册',
-                regSetAccount: '设置账号',
-                regSetPassword: '设置密码',
-                regAccountPlaceholder: '请输入账号',
-                regPasswordPlaceholder: '请输入密码',
-                regSendCode: '发送验证码',
-                regCodeLabel: '验证码',
-                regCodePlaceholder: '请输入6位数验证码',
-                regEmailPlaceholder: '请输入电子邮箱',
-                regNicknamePlaceholder: '在系统中显示的名称',
-                regLastName: '姓氏',
-                regFirstName: '名字',
-                regLastNamePlaceholder: '例: 张',
-                regFirstNamePlaceholder: '例: 三',
-                regPhonePlaceholder: '请输入联系电话',
-                regSubmitBtn: '提交注册信息',
-                regBackLogin: '已有账号？返回登录',
-                googleLinkBtn: '关联 Google 账号',
-                googleLinked: '已关联：',
-                clearBtn: '清除'
-            },
-            'ja': {
-                titleLogin: 'ログイン',
-                titleRegister: 'アカウント登録',
-                titleProfile: 'プロフィール',
-                titleEditProfile: 'プロフィール編集',
-                loadingText: '接続中、少々お待ちください...',
-                guestTitle: 'ログインしていません',
-                guestDesc: '一部の機能を利用するにはログインが必要です',
-                guestLoginBtn: 'ログイン / 新規登録',
-                returnAppBtn: 'アプリに戻る',
-                editProfileBtn: 'プロフィールを変更',
-                switchAccountBtn: 'アカウント切替',
-                logoutBtn: 'ログアウト',
-                deleteAccountBtn: 'アカウント完全削除',
-                changeAvatar: 'アイコン変更',
-                uploadAvatar: 'アイコン画像をアップロード',
-                nicknameLabel: '公開ニックネーム',
-                realNameLabel: '本名',
-                passwordLabel: 'ログインパスワード',
-                emailLabel: 'メールアドレス',
-                genderLabel: '性別',
-                birthdayLabel: '生年月日',
-                phoneLabel: '電話番号',
-                genderSelect: '選択してください',
-                genderMale: '男性',
-                genderFemale: '女性',
-                genderOther: 'その他',
-                cancelBtn: 'キャンセル',
-                saveBtn: '変更を保存',
-                usernameLabel: 'アカウント名',
-                usernamePlaceholder: 'アカウント名を入力',
-                passwordPlaceholder: 'パスワードを入力',
-                loginBtn: '通常ログイン',
-                orDivider: 'または',
-                googleLoginBtn: 'Googleアカウントでログイン',
-                noAccount: 'アカウントをお持ちでないですか？新規登録',
-                reportIssue: 'お困りですか？問題を報告',
-                guideBtn: '使い方ガイド',
-                guideModalTitle: 'システムご利用ガイド',
-                regTabNormal: 'ID・パスワード登録',
-                regTabGoogle: 'Google登録',
-                regSetAccount: 'アカウント名設定',
-                regSetPassword: 'パスワード設定',
-                regAccountPlaceholder: 'アカウント名を入力',
-                regPasswordPlaceholder: 'パスワードを入力',
-                regSendCode: '認証コード送信',
-                regCodeLabel: '認証コード',
-                regCodePlaceholder: '6桁のコードを入力',
-                regEmailPlaceholder: 'メールアドレスを入力',
-                regNicknamePlaceholder: '表示される公開ニックネーム',
-                regLastName: '姓',
-                regFirstName: '名',
-                regLastNamePlaceholder: '例: 山田',
-                regFirstNamePlaceholder: '例: 太郎',
-                regPhonePlaceholder: '電話番号を入力',
-                regSubmitBtn: '登録情報を送信',
-                regBackLogin: '登録済みですか？ログインに戻る',
-                googleLinkBtn: 'Googleアカウントを連携',
-                googleLinked: '連携完了：',
-                clearBtn: '解除'
-            },
-            'en': {
-                titleLogin: 'Sign In',
-                titleRegister: 'Create Account',
-                titleProfile: 'User Profile',
-                titleEditProfile: 'Edit Profile',
-                loadingText: 'Connecting to server, please wait...',
-                guestTitle: 'You are not signed in',
-                guestDesc: 'Some features require authentication to access',
-                guestLoginBtn: 'Sign In / Register Account',
-                returnAppBtn: 'Return to Application',
-                editProfileBtn: 'Edit Profile Details',
-                switchAccountBtn: 'Switch Account',
-                logoutBtn: 'Sign Out',
-                deleteAccountBtn: 'Permanently Delete Account',
-                changeAvatar: 'Change Avatar',
-                uploadAvatar: 'Upload Avatar Image',
-                nicknameLabel: 'Public Nickname',
-                realNameLabel: 'Real Name',
-                passwordLabel: 'Password',
-                emailLabel: 'Email Address',
-                genderLabel: 'Gender',
-                birthdayLabel: 'Date of Birth',
-                phoneLabel: 'Phone Number',
-                genderSelect: 'Please Select',
-                genderMale: 'Male',
-                genderFemale: 'Female',
-                genderOther: 'Other',
-                cancelBtn: 'Cancel',
-                saveBtn: 'Save Changes',
-                usernameLabel: 'Username',
-                usernamePlaceholder: 'Enter your account username',
-                passwordPlaceholder: 'Enter your password',
-                loginBtn: 'Sign In with Password',
-                orDivider: 'OR',
-                googleLoginBtn: 'Sign In with Google',
-                noAccount: "Don't have an account? Sign up now",
-                reportIssue: 'Need help? Report an Issue',
-                guideBtn: 'User Guide',
-                guideModalTitle: 'System User Guide',
-                regTabNormal: 'Password Sign-Up',
-                regTabGoogle: 'Google Sign-Up',
-                regSetAccount: 'Set Username',
-                regSetPassword: 'Set Password',
-                regAccountPlaceholder: 'Choose a username',
-                regPasswordPlaceholder: 'Choose a password',
-                regSendCode: 'Send Code',
-                regCodeLabel: 'Verification Code',
-                regCodePlaceholder: '6-digit verification code',
-                regEmailPlaceholder: 'Enter your email',
-                regNicknamePlaceholder: 'Display nickname in system',
-                regLastName: 'Last Name',
-                regFirstName: 'First Name',
-                regLastNamePlaceholder: 'e.g. Smith',
-                regFirstNamePlaceholder: 'e.g. John',
-                regPhonePlaceholder: 'Enter phone number',
-                regSubmitBtn: 'Submit Registration',
-                regBackLogin: 'Already have an account? Sign In',
-                googleLinkBtn: 'Connect Google Account',
-                googleLinked: 'Connected: ',
-                clearBtn: 'Clear'
-            }
-        };
+        window.loginI18n = {
+
+    "zh-TW": {
+        "titleLogin": "登入",
+        "titleRegister": "註冊帳號",
+        "titleProfile": "個人資料",
+        "titleEditProfile": "編輯個人資料",
+        "loadingText": "系統連線中，請稍候...",
+        "guestTitle": "您目前尚未登入",
+        "guestDesc": "部分應用程式功能需要登入後才能使用",
+        "guestLoginBtn": "點此登入 / 註冊帳號",
+        "returnAppBtn": "進入系統應用",
+        "editProfileBtn": "修改所有個人資料",
+        "switchAccountBtn": "切換帳戶",
+        "logoutBtn": "登出系統",
+        "deleteAccountBtn": "永久註銷帳號",
+        "changeAvatar": "更換大頭貼",
+        "uploadAvatar": "點擊上傳大頭貼",
+        "nicknameLabel": "公開暱稱",
+        "realNameLabel": "真實姓名",
+        "passwordLabel": "登入密碼",
+        "emailLabel": "電子郵件",
+        "genderLabel": "性別",
+        "birthdayLabel": "生日",
+        "phoneLabel": "聯絡電話",
+        "genderSelect": "請選擇",
+        "genderMale": "男",
+        "genderFemale": "女",
+        "genderOther": "其他",
+        "cancelBtn": "取消",
+        "saveBtn": "儲存變更",
+        "usernameLabel": "登入帳號",
+        "usernamePlaceholder": "請輸入您的帳號",
+        "passwordPlaceholder": "請輸入您的密碼",
+        "loginBtn": "一般登入系統",
+        "orDivider": "或",
+        "googleLoginBtn": "使用 Google 帳號登入",
+        "noAccount": "還沒有帳號？立即註冊",
+        "reportIssue": "遇到困難？回報問題",
+        "guideBtn": "使用說明",
+        "guideModalTitle": "系統使用說明",
+        "regTabNormal": "帳號密碼註冊",
+        "regTabGoogle": "Google 註冊",
+        "regSetAccount": "設定帳號",
+        "regSetPassword": "設定密碼",
+        "regAccountPlaceholder": "請輸入帳號",
+        "regPasswordPlaceholder": "請輸入密碼",
+        "regSendCode": "發送驗證碼",
+        "regCodeLabel": "驗證碼",
+        "regCodePlaceholder": "請輸入6位數驗證碼",
+        "regEmailPlaceholder": "請輸入電子郵件",
+        "regNicknamePlaceholder": "在系統中顯示的名稱",
+        "regLastName": "姓氏",
+        "regFirstName": "名字",
+        "regLastNamePlaceholder": "例: 王",
+        "regFirstNamePlaceholder": "例: 小明",
+        "regPhonePlaceholder": "請輸入聯絡電話",
+        "regSubmitBtn": "送出註冊資料",
+        "regBackLogin": "已有帳號？返回登入",
+        "googleLinkBtn": "連結 Google 帳號",
+        "googleLinked": "已連結：",
+        "clearBtn": "清除",
+        "tabPasswordLogin": "帳密登入",
+        "tabKeyLogin": "通行金鑰 (Key) 登入",
+        "guestKeyLoginBtn": "使用通行金鑰 (Key) 快速登入",
+        "keyDirectLoginTitle": "通行金鑰直接登入",
+        "keyUploadBtn": "上傳金鑰檔",
+        "keyPlaceholder": "貼上完整金鑰字串 (PDK1_...) 或上傳檔案",
+        "keyDesc": "持有有效金鑰即可直接登入，不需輸入帳號密碼，亦不需 Google 驗證。",
+        "keyLoginBtn": "以金鑰直接登入 (免密免驗證)",
+        "txtSwitchToKeyDirect": "改用通行金鑰快速免密登入",
+        "keyFileSelected": "已選取檔案：",
+        "passkeyManageTitle": "通行金鑰管理 (Key 免密免驗證登入)",
+        "passkeyManageDesc": "可生成免帳密、免 Google 驗證的快速通行金鑰，支援設定時間或使用次數自動刪除。",
+        "passkeyGenerateBtn": "生成新金鑰",
+        "passkeyNoKeys": "目前尚無建立中的通行金鑰",
+        "passkeyLoading": "正在讀取金鑰清單...",
+        "keyModalTitle": "生成全新通行金鑰 (Key)",
+        "keyModalDesc": "通行金鑰具備直接登入本帳號之完整權限（免密碼、免 Google 登入驗證）。您可以自訂自動刪除條件，到期或使用次數達標後，伺服器將自動刪除該金鑰。",
+        "keyNameLabel": "金鑰名稱 / 備註 (選填)",
+        "keyNamePlaceholder": "例如：我的筆電快捷金鑰、臨時免密金鑰",
+        "keyUnlimitedTitle": "不限 (永不自動刪除、永久有效)",
+        "keyUnlimitedDesc": "注意：此選項不可與時間限制或次數限制並存。",
+        "keyTimeSectionTitle": "時間自動刪除設定",
+        "keyTimeSectionNote": "兩者不可並存，可與次數並存",
+        "keyTimeNone": "不設定時間限制",
+        "keyTimeDatetime": "在指定日期時間後自動刪除",
+        "keyTimeDuration": "從生成起經過多久後自動刪除",
+        "keyUnitMinute": "分鐘後",
+        "keyUnitHour": "小時後",
+        "keyUnitDay": "天後",
+        "keyUnitWeek": "週後",
+        "keyUsesSectionTitle": "使用次數自動刪除設定",
+        "keyUsesSectionNote": "可與時間並存",
+        "keyUsesCheckbox": "使用幾次後自動刪除",
+        "keyUsesPlaceholder": "輸入使用次數 (如 1、5、10)",
+        "keyUsesUnit": "次",
+        "keySubmitGenerate": "立即生成金鑰",
+        "keyCreatedTitle": "通行金鑰生成成功！",
+        "keyCreatedDesc": "此金鑰僅完整顯示這一次，請務必立即複製或下載金鑰檔案妥善保存。",
+        "keyFullTextLabel": "長串通行金鑰字串：",
+        "keyCopyBtn": "複製長串金鑰",
+        "keyDownloadBtn": "下載金鑰檔案",
+        "keyCloseBtn": "我已妥善保存，關閉視窗",
+        "keyCopiedMsg": "金鑰已複製到剪貼簿！",
+        "keyDeleteConfirm": "確定要永久刪除此金鑰嗎？刪除後將無法再使用它登入。",
+        "keyChecking": "驗證中...",
+        "keyEmptyError": "請輸入金鑰或上傳金鑰檔案！",
+        "securityModalTitle": "註冊安全驗證",
+        "securityModalDesc": "系統將透過 Google reCAPTCHA 與連線檢測來確認您不是機器人。請完成下方驗證：",
+        "securityBtnVerify": "驗證並進入註冊",
+        "securityBtnChecking": "安全檢測中...",
+        "securityBtnRetry": "重試驗證",
+        "securityBtnCancel": "取消返回",
+        "txtFallbackCheck": "點此直接完成真人安全確認",
+        "securityCheckPassed": "安全檢測通過！即將為您開啟註冊視窗...",
+        "securityNeedRecaptcha": "請先勾選 reCAPTCHA 驗證框，或點擊下方備用真人確認！",
+        "securityServerTimeout": "伺服器檢測連線逾時，已為您自動放行。",
+        "googleNoticeTitle": "Google 登入提醒：",
+        "googleNoticeText": "若使用 Google 帳號登入時出現「您的管理員已封鎖存取權［組織帳號］」，請改用收取驗證碼方式進行登入。",
+        "accountSecurityTitle": "帳號安全與登入設定",
+        "googleBoundText": "目前綁定 Google 帳號：",
+        "changeGoogleBtn": "更改 Google 帳號",
+        "switchToNormalBtn": "切換為普通信箱 (需驗證)",
+        "normalLoginText": "目前使用普通信箱登入",
+        "bindGoogleBtn": "綁定 Google 帳號 (可無密碼登入)",
+        "switchModalTitle": "切換為普通信箱",
+        "switchModalDesc": "切換後，您將無法再使用 Google 無密碼登入，需透過新設定的信箱與密碼登入。",
+        "switchNewEmailLabel": "新的電子信箱",
+        "switchNewEmailPlaceholder": "輸入新的信箱",
+        "switchSendCodeBtn": "發送驗證碼",
+        "switchCodeLabel": "驗證碼",
+        "switchCodePlaceholder": "請輸入6碼驗證碼",
+        "switchNewPassLabel": "設定新密碼",
+        "switchNewPassPlaceholder": "設定登入密碼",
+        "switchConfirmBtn": "確認切換",
+        "officialAnnounceBadge": "官網公告",
+        "officialAnnounceLoading": "正在載入最新公告...",
+        "toggleAnnounceBtn": "官網公告",
+        "toggleAnnounceTitle": "設定是否顯示官網公告",
+        "closeAnnounceTitle": "隱藏此公告"
+    },
+    "zh-HK": {
+        "titleLogin": "登入",
+        "titleRegister": "註冊帳號",
+        "titleProfile": "個人資料",
+        "titleEditProfile": "編輯個人資料",
+        "loadingText": "系統連線中，請稍候...",
+        "guestTitle": "您目前尚未登入",
+        "guestDesc": "部分應用程式功能需要登入後才能使用",
+        "guestLoginBtn": "點此登入 / 註冊帳號",
+        "returnAppBtn": "進入系統應用",
+        "editProfileBtn": "修改所有個人資料",
+        "switchAccountBtn": "切換帳戶",
+        "logoutBtn": "登出系統",
+        "deleteAccountBtn": "永久註銷帳號",
+        "changeAvatar": "更換頭像",
+        "uploadAvatar": "點擊上載頭像",
+        "nicknameLabel": "公開暱稱",
+        "realNameLabel": "真實姓名",
+        "passwordLabel": "登入密碼",
+        "emailLabel": "電子郵件",
+        "genderLabel": "性別",
+        "birthdayLabel": "生日",
+        "phoneLabel": "聯絡電話",
+        "genderSelect": "請選擇",
+        "genderMale": "男",
+        "genderFemale": "女",
+        "genderOther": "其他",
+        "cancelBtn": "取消",
+        "saveBtn": "儲存變更",
+        "usernameLabel": "登入帳號",
+        "usernamePlaceholder": "請輸入您的帳號",
+        "passwordPlaceholder": "請輸入您的密碼",
+        "loginBtn": "一般登入系統",
+        "orDivider": "或",
+        "googleLoginBtn": "使用 Google 帳號登入",
+        "noAccount": "還沒有帳號？立即註冊",
+        "reportIssue": "遇到困難？回報問題",
+        "guideBtn": "使用說明",
+        "guideModalTitle": "系統使用說明",
+        "regTabNormal": "帳號密碼註冊",
+        "regTabGoogle": "Google 註冊",
+        "regSetAccount": "設定帳號",
+        "regSetPassword": "設定密碼",
+        "regAccountPlaceholder": "請輸入帳號",
+        "regPasswordPlaceholder": "請輸入密碼",
+        "regSendCode": "發送驗證碼",
+        "regCodeLabel": "驗證碼",
+        "regCodePlaceholder": "請輸入6位數驗證碼",
+        "regEmailPlaceholder": "請輸入電子郵件",
+        "regNicknamePlaceholder": "在系統中顯示的名稱",
+        "regLastName": "姓氏",
+        "regFirstName": "名字",
+        "regLastNamePlaceholder": "例: 王",
+        "regFirstNamePlaceholder": "例: 小明",
+        "regPhonePlaceholder": "請輸入聯絡電話",
+        "regSubmitBtn": "送出註冊資料",
+        "regBackLogin": "已有帳號？返回登入",
+        "googleLinkBtn": "連結 Google 帳號",
+        "googleLinked": "已連結：",
+        "clearBtn": "清除",
+        "tabPasswordLogin": "帳密登入",
+        "tabKeyLogin": "通行金鑰 (Key) 登入",
+        "guestKeyLoginBtn": "使用通行金鑰 (Key) 快速登入",
+        "keyDirectLoginTitle": "通行金鑰直接登入",
+        "keyUploadBtn": "上載金鑰檔",
+        "keyPlaceholder": "貼上完整金鑰字串 (PDK1_...) 或上載檔案",
+        "keyDesc": "持有有效金鑰即可直接登入，毋須帳號密碼或 Google 驗證。",
+        "keyLoginBtn": "以金鑰直接登入 (免密免驗證)",
+        "txtSwitchToKeyDirect": "改用通行金鑰快速免密登入",
+        "keyFileSelected": "已選取檔案：",
+        "passkeyManageTitle": "通行金鑰管理 (Key 免密免驗證登入)",
+        "passkeyManageDesc": "可生成免帳密、免 Google 驗證的快速通行金鑰，支援設定時間或使用次數自動刪除。",
+        "passkeyGenerateBtn": "生成新金鑰",
+        "passkeyNoKeys": "目前尚無建立中的通行金鑰",
+        "passkeyLoading": "正在讀取金鑰清單...",
+        "keyModalTitle": "生成全新通行金鑰 (Key)",
+        "keyModalDesc": "通行金鑰具備直接登入本帳號之完整權限（免密碼、免 Google 登入驗證）。您可以自訂自動刪除條件，到期或使用次數達標後，伺服器將自動刪除該金鑰。",
+        "keyNameLabel": "金鑰名稱 / 備註 (選填)",
+        "keyNamePlaceholder": "例如：我的筆電快捷金鑰、臨時免密金鑰",
+        "keyUnlimitedTitle": "不限 (永不自動刪除、永久有效)",
+        "keyUnlimitedDesc": "注意：此選項不可與時間限制或次數限制並存。",
+        "keyTimeSectionTitle": "時間自動刪除設定",
+        "keyTimeSectionNote": "兩者不可並存，可與次數並存",
+        "keyTimeNone": "不設定時間限制",
+        "keyTimeDatetime": "在指定日期時間後自動刪除",
+        "keyTimeDuration": "從生成起經過多久後自動刪除",
+        "keyUnitMinute": "分鐘後",
+        "keyUnitHour": "小時後",
+        "keyUnitDay": "天後",
+        "keyUnitWeek": "週後",
+        "keyUsesSectionTitle": "使用次數自動刪除設定",
+        "keyUsesSectionNote": "可與時間並存",
+        "keyUsesCheckbox": "使用幾次後自動刪除",
+        "keyUsesPlaceholder": "輸入使用次數 (如 1、5、10)",
+        "keyUsesUnit": "次",
+        "keySubmitGenerate": "立即生成金鑰",
+        "keyCreatedTitle": "通行金鑰生成成功！",
+        "keyCreatedDesc": "此金鑰僅完整顯示這一次，請務必立即複製或下載金鑰檔案妥善保存。",
+        "keyFullTextLabel": "長串通行金鑰字串：",
+        "keyCopyBtn": "複製長串金鑰",
+        "keyDownloadBtn": "下載金鑰檔案",
+        "keyCloseBtn": "我已妥善保存，關閉視窗",
+        "keyCopiedMsg": "金鑰已複製到剪貼簿！",
+        "keyDeleteConfirm": "確定要永久刪除此金鑰嗎？刪除後將無法再使用它登入。",
+        "keyChecking": "驗證中...",
+        "keyEmptyError": "請輸入金鑰或上載金鑰檔案！",
+        "securityModalTitle": "註冊安全驗證",
+        "securityModalDesc": "系統將透過 Google reCAPTCHA 與連線檢測確認您不是機器人。請完成下方驗證：",
+        "securityBtnVerify": "驗證並進入註冊",
+        "securityBtnChecking": "安全檢測中...",
+        "securityBtnRetry": "重試驗證",
+        "securityBtnCancel": "取消返回",
+        "txtFallbackCheck": "點此直接完成真人安全確認",
+        "securityCheckPassed": "安全檢測通過！即將為您打開註冊視窗...",
+        "securityNeedRecaptcha": "請先勾選 reCAPTCHA 驗證框，或點擊下方備用真人確認！",
+        "securityServerTimeout": "伺服器檢測連線逾時，已為您自動放行。",
+        "googleNoticeTitle": "Google 登入提醒：",
+        "googleNoticeText": "若使用 Google 帳號登入時出現「您的管理員已封鎖存取權［組織帳號］」，請改用收取驗證碼方式進行登入。",
+        "accountSecurityTitle": "帳號安全與登入設定",
+        "googleBoundText": "目前綁定 Google 帳號：",
+        "changeGoogleBtn": "更改 Google 帳號",
+        "switchToNormalBtn": "切換為普通信箱 (需驗證)",
+        "normalLoginText": "目前使用普通信箱登入",
+        "bindGoogleBtn": "綁定 Google 帳號 (可無密碼登入)",
+        "switchModalTitle": "切換為普通信箱",
+        "switchModalDesc": "切換後，您將無法再使用 Google 無密碼登入，需透過新設定的信箱與密碼登入。",
+        "switchNewEmailLabel": "新的電子信箱",
+        "switchNewEmailPlaceholder": "輸入新的信箱",
+        "switchSendCodeBtn": "發送驗證碼",
+        "switchCodeLabel": "驗證碼",
+        "switchCodePlaceholder": "請輸入6碼驗證碼",
+        "switchNewPassLabel": "設定新密碼",
+        "switchNewPassPlaceholder": "設定登入密碼",
+        "switchConfirmBtn": "確認切換",
+        "officialAnnounceBadge": "官網公告",
+        "officialAnnounceLoading": "正在載入最新公告...",
+        "toggleAnnounceBtn": "官網公告",
+        "toggleAnnounceTitle": "設定是否顯示官網公告",
+        "closeAnnounceTitle": "隱藏此公告"
+    },
+    "zh-CN": {
+        "titleLogin": "登录",
+        "titleRegister": "注册账号",
+        "titleProfile": "个人资料",
+        "titleEditProfile": "编辑个人资料",
+        "loadingText": "系统连接中，请稍候...",
+        "guestTitle": "您当前尚未登录",
+        "guestDesc": "部分应用功能需要登录后才能使用",
+        "guestLoginBtn": "点此登录 / 注册账号",
+        "returnAppBtn": "进入系统应用",
+        "editProfileBtn": "修改所有个人资料",
+        "switchAccountBtn": "切换账户",
+        "logoutBtn": "登出系统",
+        "deleteAccountBtn": "永久注销账号",
+        "changeAvatar": "更换头像",
+        "uploadAvatar": "点击上传头像",
+        "nicknameLabel": "公开昵称",
+        "realNameLabel": "真实姓名",
+        "passwordLabel": "登录密码",
+        "emailLabel": "电子邮箱",
+        "genderLabel": "性别",
+        "birthdayLabel": "生日",
+        "phoneLabel": "联系电话",
+        "genderSelect": "请选择",
+        "genderMale": "男",
+        "genderFemale": "女",
+        "genderOther": "其他",
+        "cancelBtn": "取消",
+        "saveBtn": "保存修改",
+        "usernameLabel": "登录账号",
+        "usernamePlaceholder": "请输入您的账号",
+        "passwordPlaceholder": "请输入您的密码",
+        "loginBtn": "一般登录系统",
+        "orDivider": "或",
+        "googleLoginBtn": "使用 Google 账号登录",
+        "noAccount": "还没有账号？立即注册",
+        "reportIssue": "遇到困难？反馈问题",
+        "guideBtn": "使用说明",
+        "guideModalTitle": "系统使用说明",
+        "regTabNormal": "账号密码注册",
+        "regTabGoogle": "Google 注册",
+        "regSetAccount": "设置账号",
+        "regSetPassword": "设置密码",
+        "regAccountPlaceholder": "请输入账号",
+        "regPasswordPlaceholder": "请输入密码",
+        "regSendCode": "发送验证码",
+        "regCodeLabel": "验证码",
+        "regCodePlaceholder": "请输入6位数验证码",
+        "regEmailPlaceholder": "请输入电子邮箱",
+        "regNicknamePlaceholder": "在系统中显示的名称",
+        "regLastName": "姓氏",
+        "regFirstName": "名字",
+        "regLastNamePlaceholder": "例: 王",
+        "regFirstNamePlaceholder": "例: 小明",
+        "regPhonePlaceholder": "请输入联系电话",
+        "regSubmitBtn": "提交注册资料",
+        "regBackLogin": "已有账号？返回登录",
+        "googleLinkBtn": "关联 Google 账号",
+        "googleLinked": "已关联：",
+        "clearBtn": "清除",
+        "tabPasswordLogin": "密码登录",
+        "tabKeyLogin": "通行密钥 (Key) 登录",
+        "guestKeyLoginBtn": "使用通行密钥 (Key) 快速登录",
+        "keyDirectLoginTitle": "通行密钥直接登录",
+        "keyUploadBtn": "上传密钥文件",
+        "keyPlaceholder": "粘贴完整密钥字符串 (PDK1_...) 或上传文件",
+        "keyDesc": "持有有效密钥即可直接登录，无需输入账号密码，亦无需 Google 验证。",
+        "keyLoginBtn": "使用密钥直接登录 (免密免验证)",
+        "txtSwitchToKeyDirect": "改用通行密钥快速免密登录",
+        "keyFileSelected": "已选取文件：",
+        "passkeyManageTitle": "通行密钥管理 (Key 免密免验证登录)",
+        "passkeyManageDesc": "可生成免账号密码、免 Google 验证的快速通行密钥，支持设定时间或使用次数自动删除。",
+        "passkeyGenerateBtn": "生成新密钥",
+        "passkeyNoKeys": "当前尚无创建的通行密钥",
+        "passkeyLoading": "正在读取密钥列表...",
+        "keyModalTitle": "生成全新通行密钥 (Key)",
+        "keyModalDesc": "通行密钥具备直接登录本账号之完整权限（免密码、免 Google 登录验证）。您可以自定义自动删除条件，到期或使用次数达标后，服务器将自动删除该密钥。",
+        "keyNameLabel": "密钥名称 / 备注 (选填)",
+        "keyNamePlaceholder": "例如：我的笔记本快捷密钥、临时免密密钥",
+        "keyUnlimitedTitle": "不限 (永不自动删除、永久有效)",
+        "keyUnlimitedDesc": "注意：此选项不可与时间限制或次数限制并存。",
+        "keyTimeSectionTitle": "时间自动删除设定",
+        "keyTimeSectionNote": "两者不可并存，可与次数并存",
+        "keyTimeNone": "不设定时间限制",
+        "keyTimeDatetime": "在指定日期时间后自动删除",
+        "keyTimeDuration": "从生成起经过多久后自动删除",
+        "keyUnitMinute": "分钟后",
+        "keyUnitHour": "小时后",
+        "keyUnitDay": "天后",
+        "keyUnitWeek": "周后",
+        "keyUsesSectionTitle": "使用次数自动删除设定",
+        "keyUsesSectionNote": "可与时间并存",
+        "keyUsesCheckbox": "使用几次后自动删除",
+        "keyUsesPlaceholder": "输入使用次数 (如 1、5、10)",
+        "keyUsesUnit": "次",
+        "keySubmitGenerate": "立即生成密钥",
+        "keyCreatedTitle": "通行密钥生成成功！",
+        "keyCreatedDesc": "此密钥仅完整显示这一次，请务必立即复制或下载密钥文件妥善保存。",
+        "keyFullTextLabel": "长串通行密钥字符串：",
+        "keyCopyBtn": "复制长串密钥",
+        "keyDownloadBtn": "下载密钥文件",
+        "keyCloseBtn": "我已妥善保存，关闭窗口",
+        "keyCopiedMsg": "密钥已复制到剪贴板！",
+        "keyDeleteConfirm": "确定要永久删除此密钥吗？删除后将无法再使用它登录。",
+        "keyChecking": "验证中...",
+        "keyEmptyError": "请输入密钥或上传密钥文件！",
+        "securityModalTitle": "注册安全验证",
+        "securityModalDesc": "系统将通过 Google reCAPTCHA 与网络检测确认您不是机器人。请完成下方验证：",
+        "securityBtnVerify": "验证并进入注册",
+        "securityBtnChecking": "安全检测中...",
+        "securityBtnRetry": "重试验证",
+        "securityBtnCancel": "取消返回",
+        "txtFallbackCheck": "点此直接完成真人安全确认",
+        "securityCheckPassed": "安全检测通过！即将为您打开注册窗口...",
+        "securityNeedRecaptcha": "请先勾选 reCAPTCHA 验证框，或点击下方备用真人确认！",
+        "securityServerTimeout": "服务器检测连接超时，已为您自动放行。",
+        "googleNoticeTitle": "Google 登录提醒：",
+        "googleNoticeText": "若使用 Google 账号登录时出现“您的管理员已屏蔽访问权限［组织账号］”，请改用接收验证码方式进行登录。",
+        "accountSecurityTitle": "账号安全与登录设置",
+        "googleBoundText": "当前绑定 Google 账号：",
+        "changeGoogleBtn": "更改 Google 账号",
+        "switchToNormalBtn": "切换为普通邮箱 (需验证)",
+        "normalLoginText": "当前使用普通邮箱登录",
+        "bindGoogleBtn": "绑定 Google 账号 (可无密码登录)",
+        "switchModalTitle": "切换为普通邮箱",
+        "switchModalDesc": "切换后，您将无法再使用 Google 无密码登录，需通过新设置的邮箱与密码登录。",
+        "switchNewEmailLabel": "新的电子邮箱",
+        "switchNewEmailPlaceholder": "输入新的邮箱",
+        "switchSendCodeBtn": "发送验证码",
+        "switchCodeLabel": "验证码",
+        "switchCodePlaceholder": "请输入6位数验证码",
+        "switchNewPassLabel": "设置新密码",
+        "switchNewPassPlaceholder": "设置登录密码",
+        "switchConfirmBtn": "确认切换",
+        "officialAnnounceBadge": "官网公告",
+        "officialAnnounceLoading": "正在加载最新公告...",
+        "toggleAnnounceBtn": "官网公告",
+        "toggleAnnounceTitle": "设置是否显示官网公告",
+        "closeAnnounceTitle": "隐藏此公告"
+    },
+    "ja": {
+        "titleLogin": "ログイン",
+        "titleRegister": "アカウント登録",
+        "titleProfile": "プロフィール",
+        "titleEditProfile": "プロフィール編集",
+        "loadingText": "サーバー接続中、少々お待ちください...",
+        "guestTitle": "現在ログインしていません",
+        "guestDesc": "一部のアプリ機能はログイン後にご利用いただけます",
+        "guestLoginBtn": "ログイン / アカウント登録",
+        "returnAppBtn": "アプリに戻る",
+        "editProfileBtn": "プロフィール情報を編集",
+        "switchAccountBtn": "アカウント切り替え",
+        "logoutBtn": "ログアウト",
+        "deleteAccountBtn": "アカウント完全削除",
+        "changeAvatar": "アイコン変更",
+        "uploadAvatar": "アイコン画像をアップロード",
+        "nicknameLabel": "公開ニックネーム",
+        "realNameLabel": "本名",
+        "passwordLabel": "ログインパスワード",
+        "emailLabel": "メールアドレス",
+        "genderLabel": "性別",
+        "birthdayLabel": "生年月日",
+        "phoneLabel": "電話番号",
+        "genderSelect": "選択してください",
+        "genderMale": "男性",
+        "genderFemale": "女性",
+        "genderOther": "その他",
+        "cancelBtn": "キャンセル",
+        "saveBtn": "変更を保存",
+        "usernameLabel": "ログインアカウント",
+        "usernamePlaceholder": "アカウント名を入力",
+        "passwordPlaceholder": "パスワードを入力",
+        "loginBtn": "一般ログイン",
+        "orDivider": "または",
+        "googleLoginBtn": "Googleアカウントでログイン",
+        "noAccount": "アカウントをお持ちでないですか？新規登録",
+        "reportIssue": "お困りですか？問題を報告",
+        "guideBtn": "利用説明",
+        "guideModalTitle": "システム利用説明",
+        "regTabNormal": "パスワード登録",
+        "regTabGoogle": "Google登録",
+        "regSetAccount": "アカウント名設定",
+        "regSetPassword": "パスワード設定",
+        "regAccountPlaceholder": "アカウント名を入力",
+        "regPasswordPlaceholder": "パスワードを入力",
+        "regSendCode": "認証コード送信",
+        "regCodeLabel": "認証コード",
+        "regCodePlaceholder": "6桁の認証コードを入力",
+        "regEmailPlaceholder": "メールアドレスを入力",
+        "regNicknamePlaceholder": "表示名を入力",
+        "regLastName": "姓",
+        "regFirstName": "名",
+        "regLastNamePlaceholder": "例: 山田",
+        "regFirstNamePlaceholder": "例: 太郎",
+        "regPhonePlaceholder": "電話番号を入力",
+        "regSubmitBtn": "登録情報を送信",
+        "regBackLogin": "アカウントをお持ちの方はこちら",
+        "googleLinkBtn": "Googleアカウント連携",
+        "googleLinked": "連携済み：",
+        "clearBtn": "クリア",
+        "tabPasswordLogin": "パスワードログイン",
+        "tabKeyLogin": "パスキー (Key) ログイン",
+        "guestKeyLoginBtn": "パスキー (Key) でスピードログイン",
+        "keyDirectLoginTitle": "パスキー直接ログイン",
+        "keyUploadBtn": "キーファイルをアップロード",
+        "keyPlaceholder": "キー文字列 (PDK1_...) を貼り付けるかファイルをアップロード",
+        "keyDesc": "有効なパスキーがあれば、パスワードや Google 認証なしで即座にログインできます。",
+        "keyLoginBtn": "キーで直接ログイン (パスワード・認証不要)",
+        "txtSwitchToKeyDirect": "パスキーでスピードログインに切り替え",
+        "keyFileSelected": "選択されたファイル：",
+        "passkeyManageTitle": "パスキー管理 (Key パスワード・認証不要ログイン)",
+        "passkeyManageDesc": "パスワードや Google 認証が不要な高速パスキーを生成できます。期限や使用回数での自動削除に対応。",
+        "passkeyGenerateBtn": "新規キー生成",
+        "passkeyNoKeys": "現在登録されているパスキーはありません",
+        "passkeyLoading": "キー一覧を読み込み中...",
+        "keyModalTitle": "新規パスキー (Key) を生成",
+        "keyModalDesc": "パスキーはこのアカウントへ直接ログインできる完全な権限を持ちます（パスワード・Google 認証不要）。期限や使用回数を設定すると、サーバーが自動的に削除します。",
+        "keyNameLabel": "キー名 / 備考 (任意)",
+        "keyNamePlaceholder": "例：ノートPC用キー、臨時ログインキー",
+        "keyUnlimitedTitle": "無制限 (自動削除なし・永久有効)",
+        "keyUnlimitedDesc": "注意：このオプションは時間制限や回数制限と併用できません。",
+        "keyTimeSectionTitle": "時間による自動削除設定",
+        "keyTimeSectionNote": "日時は併用不可、回数とは併用可能",
+        "keyTimeNone": "時間制限を設定しない",
+        "keyTimeDatetime": "指定日時に自動削除",
+        "keyTimeDuration": "生成から指定期間経過後に自動削除",
+        "keyUnitMinute": "分後",
+        "keyUnitHour": "時間後",
+        "keyUnitDay": "日後",
+        "keyUnitWeek": "週間後",
+        "keyUsesSectionTitle": "使用回数による自動削除設定",
+        "keyUsesSectionNote": "時間と併用可能",
+        "keyUsesCheckbox": "指定回数使用後に自動削除",
+        "keyUsesPlaceholder": "使用回数を入力 (例: 1、5、10)",
+        "keyUsesUnit": "回",
+        "keySubmitGenerate": "今すぐキーを生成",
+        "keyCreatedTitle": "パスキーが正常に生成されました！",
+        "keyCreatedDesc": "このキーの全容が表示されるのは今回限りです。必ず直ちにコピーまたはダウンロードして安全に保管してください。",
+        "keyFullTextLabel": "パスキー文字列：",
+        "keyCopyBtn": "キー文字列をコピー",
+        "keyDownloadBtn": "キーファイルをダウンロード",
+        "keyCloseBtn": "保存完了、ウィンドウを閉じる",
+        "keyCopiedMsg": "キーをクリップボードにコピーしました！",
+        "keyDeleteConfirm": "このキーを完全に削除してもよろしいですか？削除後はログインに使用できなくなります。",
+        "keyChecking": "認証中...",
+        "keyEmptyError": "キーを入力するかキーファイルをアップロードしてください！",
+        "securityModalTitle": "登録セキュリティ認証",
+        "securityModalDesc": "Google reCAPTCHA とネットワーク接続チェックでボットでないことを確認します。以下の認証を完了してください：",
+        "securityBtnVerify": "認証して登録へ進む",
+        "securityBtnChecking": "安全チェック中...",
+        "securityBtnRetry": "認証を再試行",
+        "securityBtnCancel": "戻る",
+        "txtFallbackCheck": "ここをクリックして直接人間の安全確認を完了",
+        "securityCheckPassed": "セキュリティ確認完了！登録画面を開きます...",
+        "securityNeedRecaptcha": "reCAPTCHAのチェックボックスを入れるか、下の予備ボタンで確認を完了してください！",
+        "securityServerTimeout": "サーバーチェックがタイムアウトしました。自動的に許可されました。",
+        "googleNoticeTitle": "Googleログインの注意点：",
+        "googleNoticeText": "Googleアカウントで「管理者がアクセスをブロックしました［組織アカウント］」と表示される場合は、認証コードによるログインをご利用ください。",
+        "accountSecurityTitle": "アカウントセキュリティとログイン設定",
+        "googleBoundText": "連携中のGoogleアカウント：",
+        "changeGoogleBtn": "Googleアカウントを変更",
+        "switchToNormalBtn": "通常メールに切り替え (要認証)",
+        "normalLoginText": "現在通常メールでログインしています",
+        "bindGoogleBtn": "Googleアカウント連携 (パスワード不要ログイン)",
+        "switchModalTitle": "通常メールアドレスへ切り替え",
+        "switchModalDesc": "切り替え後は Google パスワードレスログインが使用できなくなり、新しいメールとパスワードでログインします。",
+        "switchNewEmailLabel": "新しいメールアドレス",
+        "switchNewEmailPlaceholder": "新しいメールアドレスを入力",
+        "switchSendCodeBtn": "認証コード送信",
+        "switchCodeLabel": "認証コード",
+        "switchCodePlaceholder": "6桁の認証コードを入力",
+        "switchNewPassLabel": "新規パスワード設定",
+        "switchNewPassPlaceholder": "ログインパスワードを入力",
+        "switchConfirmBtn": "切り替えを確認",
+        "officialAnnounceBadge": "公式お知らせ",
+        "officialAnnounceLoading": "最新のお知らせを読み込み中...",
+        "toggleAnnounceBtn": "公式お知らせ",
+        "toggleAnnounceTitle": "公式お知らせの表示設定",
+        "closeAnnounceTitle": "お知らせを閉じる"
+    },
+    "en": {
+        "titleLogin": "Sign In",
+        "titleRegister": "Create Account",
+        "titleProfile": "User Profile",
+        "titleEditProfile": "Edit Profile",
+        "loadingText": "Connecting to server, please wait...",
+        "guestTitle": "You are not signed in",
+        "guestDesc": "Some features require authentication to access",
+        "guestLoginBtn": "Sign In / Register Account",
+        "returnAppBtn": "Return to Application",
+        "editProfileBtn": "Edit Profile Details",
+        "switchAccountBtn": "Switch Account",
+        "logoutBtn": "Sign Out",
+        "deleteAccountBtn": "Permanently Delete Account",
+        "changeAvatar": "Change Avatar",
+        "uploadAvatar": "Upload Avatar Image",
+        "nicknameLabel": "Public Nickname",
+        "realNameLabel": "Real Name",
+        "passwordLabel": "Password",
+        "emailLabel": "Email Address",
+        "genderLabel": "Gender",
+        "birthdayLabel": "Birthday",
+        "phoneLabel": "Phone Number",
+        "genderSelect": "Please select",
+        "genderMale": "Male",
+        "genderFemale": "Female",
+        "genderOther": "Other",
+        "cancelBtn": "Cancel",
+        "saveBtn": "Save Changes",
+        "usernameLabel": "Username / Account",
+        "usernamePlaceholder": "Enter your account",
+        "passwordPlaceholder": "Enter your password",
+        "loginBtn": "Standard Sign In",
+        "orDivider": "OR",
+        "googleLoginBtn": "Sign in with Google",
+        "noAccount": "Don't have an account? Sign Up",
+        "reportIssue": "Having trouble? Report Issue",
+        "guideBtn": "User Guide",
+        "guideModalTitle": "System User Guide",
+        "regTabNormal": "Password Sign-Up",
+        "regTabGoogle": "Google Sign-Up",
+        "regSetAccount": "Set Username",
+        "regSetPassword": "Set Password",
+        "regAccountPlaceholder": "Enter username",
+        "regPasswordPlaceholder": "Enter password",
+        "regSendCode": "Send Code",
+        "regCodeLabel": "Verification Code",
+        "regCodePlaceholder": "Enter 6-digit code",
+        "regEmailPlaceholder": "Enter email address",
+        "regNicknamePlaceholder": "Display name in system",
+        "regLastName": "Last Name",
+        "regFirstName": "First Name",
+        "regLastNamePlaceholder": "e.g. Smith",
+        "regFirstNamePlaceholder": "e.g. John",
+        "regPhonePlaceholder": "Enter phone number",
+        "regSubmitBtn": "Submit Registration",
+        "regBackLogin": "Already have an account? Sign In",
+        "googleLinkBtn": "Connect Google Account",
+        "googleLinked": "Connected:",
+        "clearBtn": "Clear",
+        "tabPasswordLogin": "Password Sign-In",
+        "tabKeyLogin": "Passkey (Key) Sign-In",
+        "guestKeyLoginBtn": "Quick Sign-In with Passkey (Key)",
+        "keyDirectLoginTitle": "Passkey Direct Sign-In",
+        "keyUploadBtn": "Upload Key File",
+        "keyPlaceholder": "Paste full key string (PDK1_...) or upload file",
+        "keyDesc": "Directly sign in with a valid key. No password or Google 2FA required.",
+        "keyLoginBtn": "Sign In with Key (No Password / No 2FA)",
+        "txtSwitchToKeyDirect": "Switch to Fast Passkey Sign-In",
+        "keyFileSelected": "File selected:",
+        "passkeyManageTitle": "Passkey Management (Key Passwordless Sign-In)",
+        "passkeyManageDesc": "Generate keys for instant sign-in without passwords or Google 2FA. Supports automatic deletion by time or usage limits.",
+        "passkeyGenerateBtn": "Generate New Key",
+        "passkeyNoKeys": "No passkeys created yet",
+        "passkeyLoading": "Loading passkeys...",
+        "keyModalTitle": "Generate New Passkey (Key)",
+        "keyModalDesc": "A passkey provides full access to sign into this account directly (no password or Google 2FA needed). You can set automatic deletion conditions.",
+        "keyNameLabel": "Key Name / Note (Optional)",
+        "keyNamePlaceholder": "e.g. Laptop Quick Key, Temporary Key",
+        "keyUnlimitedTitle": "Unlimited (Never auto-deleted, permanent)",
+        "keyUnlimitedDesc": "Note: This option cannot coexist with time or usage limits.",
+        "keyTimeSectionTitle": "Time-Based Auto-Deletion Settings",
+        "keyTimeSectionNote": "Datetime and duration are mutually exclusive; can coexist with usage limits",
+        "keyTimeNone": "No time limit",
+        "keyTimeDatetime": "Auto-delete after specified date & time",
+        "keyTimeDuration": "Auto-delete after specified duration from creation",
+        "keyUnitMinute": "minutes later",
+        "keyUnitHour": "hours later",
+        "keyUnitDay": "days later",
+        "keyUnitWeek": "weeks later",
+        "keyUsesSectionTitle": "Usage Limit Auto-Deletion Settings",
+        "keyUsesSectionNote": "Can coexist with time limits",
+        "keyUsesCheckbox": "Auto-delete after specified number of uses",
+        "keyUsesPlaceholder": "Enter usage limit (e.g. 1, 5, 10)",
+        "keyUsesUnit": "uses",
+        "keySubmitGenerate": "Generate Key Now",
+        "keyCreatedTitle": "Passkey Generated Successfully!",
+        "keyCreatedDesc": "This key will only be shown in full once. Please copy or download it immediately and store it safely.",
+        "keyFullTextLabel": "Full Passkey String:",
+        "keyCopyBtn": "Copy Full Key",
+        "keyDownloadBtn": "Download Key File",
+        "keyCloseBtn": "I Have Saved It Safely, Close Window",
+        "keyCopiedMsg": "Key copied to clipboard!",
+        "keyDeleteConfirm": "Are you sure you want to permanently delete this passkey? It cannot be used to sign in after deletion.",
+        "keyChecking": "Authenticating...",
+        "keyEmptyError": "Please enter a key or upload a key file!",
+        "securityModalTitle": "Registration Security Check",
+        "securityModalDesc": "We verify you are a human via Google reCAPTCHA and connection diagnostics. Please complete the check below:",
+        "securityBtnVerify": "Verify & Proceed to Registration",
+        "securityBtnChecking": "Performing Security Diagnostics...",
+        "securityBtnRetry": "Retry Verification",
+        "securityBtnCancel": "Cancel & Return",
+        "txtFallbackCheck": "Click Here to Complete Human Verification Instantly",
+        "securityCheckPassed": "Security check passed! Opening registration...",
+        "securityNeedRecaptcha": "Please complete the reCAPTCHA box, or click the human check fallback below!",
+        "securityServerTimeout": "Server check timed out, verification passed automatically.",
+        "googleNoticeTitle": "Google Sign-In Notice:",
+        "googleNoticeText": "If you encounter \"Access blocked: Your organization's administrator has blocked access\", please use email verification code sign-in instead.",
+        "accountSecurityTitle": "Account Security & Sign-In Settings",
+        "googleBoundText": "Connected Google Account: ",
+        "changeGoogleBtn": "Change Google Account",
+        "switchToNormalBtn": "Switch to Standard Email (Verification Required)",
+        "normalLoginText": "Currently signed in with standard email",
+        "bindGoogleBtn": "Connect Google Account (Passwordless Sign-In)",
+        "switchModalTitle": "Switch to Standard Email",
+        "switchModalDesc": "After switching, you will sign in with your new email and password instead of Google Sign-In.",
+        "switchNewEmailLabel": "New Email Address",
+        "switchNewEmailPlaceholder": "Enter new email address",
+        "switchSendCodeBtn": "Send Code",
+        "switchCodeLabel": "Verification Code",
+        "switchCodePlaceholder": "6-digit verification code",
+        "switchNewPassLabel": "Set New Password",
+        "switchNewPassPlaceholder": "Set login password",
+        "switchConfirmBtn": "Confirm Switch",
+        "officialAnnounceBadge": "Official Announcement",
+        "officialAnnounceLoading": "Loading latest announcement...",
+        "toggleAnnounceBtn": "Announcements",
+        "toggleAnnounceTitle": "Toggle official announcement display",
+        "closeAnnounceTitle": "Hide announcement"
+    }
+};
+
+        const loginI18n = window.loginI18n;
 
         function detectInitialLoginLanguage() {
             const isSet = localStorage.getItem('preferred_language_set');
@@ -1222,8 +1702,10 @@
             if (guestH2) guestH2.innerText = t.guestTitle;
             const guestP = document.querySelector('#guestView p');
             if (guestP) guestP.innerText = t.guestDesc;
-            const guestBtn = document.querySelector('#guestView button');
+            const guestBtn = document.getElementById('guestLoginBtn') || document.querySelector('#guestView button');
             if (guestBtn) guestBtn.innerText = t.guestLoginBtn;
+            const txtGuestKey = document.getElementById('txtGuestKeyLogin');
+            if (txtGuestKey) txtGuestKey.innerText = t.guestKeyLoginBtn;
 
             // Profile view buttons
             const retBtn = document.getElementById('returnAppBtn');
@@ -1235,7 +1717,7 @@
             const logoutBtn = document.querySelector('#profileView button[onclick*="handleLogout"]');
             if (logoutBtn) logoutBtn.innerText = t.logoutBtn;
             const delBtn = document.querySelector('#profileView button[onclick*="handleDeleteAccount"]');
-            if (delBtn) delBtn.innerHTML = `<i class="fas fa-trash"></i> ${t.deleteAccountBtn}`;
+            if (delBtn) delBtn.innerHTML = '<i class="fas fa-trash"></i> ' + t.deleteAccountBtn;
 
             // Edit profile labels
             const editLabels = document.querySelectorAll('#editProfileView label');
@@ -1255,7 +1737,13 @@
             const saveBtn = document.querySelector('#editProfileView button[onclick*="saveProfile"]');
             if (saveBtn) saveBtn.innerText = t.saveBtn;
 
-            // Login form
+            // Login View Tabs
+            const tabPass = document.getElementById('tabPasswordLogin');
+            if (tabPass) tabPass.innerHTML = '<i class="fas fa-lock"></i> ' + t.tabPasswordLogin;
+            const tabKey = document.getElementById('tabKeyLogin');
+            if (tabKey) tabKey.innerHTML = '<i class="fas fa-key text-emerald-600"></i> ' + t.tabKeyLogin;
+
+            // Login form (Tab 1)
             const loginLabels = document.querySelectorAll('#loginForm label');
             if (loginLabels[0]) loginLabels[0].innerText = t.usernameLabel;
             if (loginLabels[1]) loginLabels[1].innerText = t.passwordLabel;
@@ -1274,10 +1762,29 @@
                 if (img) gBtn.appendChild(img);
                 gBtn.appendChild(document.createTextNode(' ' + t.googleLoginBtn));
             }
+            const gNoticeTitle = document.getElementById('googleNoticeTitleText');
+            if (gNoticeTitle) gNoticeTitle.innerText = t.googleNoticeTitle;
+            const gNoticeBody = document.getElementById('googleNoticeBodyText');
+            if (gNoticeBody) gNoticeBody.innerText = t.googleNoticeText;
+            const txtSwitchKey = document.getElementById('txtSwitchToKeyDirect');
+            if (txtSwitchKey) txtSwitchKey.innerText = t.txtSwitchToKeyDirect;
+
             const toRegBtn = document.querySelector('#loginView button[onclick*="toggleView(\'register\')"]');
             if (toRegBtn) toRegBtn.innerText = t.noAccount;
             const toIssueBtn = document.querySelector('#loginView button[onclick*="openIssueModal"]');
             if (toIssueBtn) toIssueBtn.innerText = t.reportIssue;
+
+            // Login Key Panel (Tab 2)
+            const lblKeyTitle = document.getElementById('lblKeyDirectLoginTitle');
+            if (lblKeyTitle) lblKeyTitle.innerHTML = '<i class="fas fa-key text-emerald-600"></i> ' + t.keyDirectLoginTitle;
+            const txtUpload = document.getElementById('txtKeyUploadBtn');
+            if (txtUpload) txtUpload.innerText = t.keyUploadBtn;
+            const inpKey = document.getElementById('keyLoginInput');
+            if (inpKey) inpKey.placeholder = t.keyPlaceholder;
+            const txtKeyDesc = document.getElementById('txtKeyDesc');
+            if (txtKeyDesc) txtKeyDesc.innerText = t.keyDesc;
+            const txtKeyBtn = document.getElementById('txtKeyLoginBtn');
+            if (txtKeyBtn) txtKeyBtn.innerText = t.keyLoginBtn;
 
             // Register form
             const regTabNormal = document.getElementById('regTabNormal');
@@ -1335,6 +1842,122 @@
             const regBack = document.querySelector('#registerView button[onclick*="toggleView(\'login\')"]');
             if (regBack) regBack.innerText = t.regBackLogin;
 
+            // Account Security & Passkey Management (in Edit Profile)
+            const accSecTitle = document.getElementById('accountSecurityTitle');
+            if (accSecTitle) accSecTitle.innerText = t.accountSecurityTitle;
+            const txtGBound = document.getElementById('txtGoogleBound');
+            if (txtGBound) txtGBound.innerText = t.googleBoundText;
+            const txtChangeG = document.getElementById('txtChangeGoogleBtn');
+            if (txtChangeG) txtChangeG.innerText = t.changeGoogleBtn;
+            const txtSwitchNorm = document.getElementById('txtSwitchToNormalBtn');
+            if (txtSwitchNorm) txtSwitchNorm.innerText = t.switchToNormalBtn;
+            const txtNormAcc = document.getElementById('txtNormalAccount');
+            if (txtNormAcc) txtNormAcc.innerText = t.normalLoginText;
+            const txtBindG = document.getElementById('txtBindGoogleBtn');
+            if (txtBindG) txtBindG.innerText = t.bindGoogleBtn;
+            const passkeyTitle = document.getElementById('passkeyManageTitle');
+            if (passkeyTitle) passkeyTitle.innerHTML = '<i class="fas fa-key text-emerald-600"></i> <span>' + t.passkeyManageTitle + '</span>';
+            const passkeyDesc = document.getElementById('passkeyManageDesc');
+            if (passkeyDesc) passkeyDesc.innerText = t.passkeyManageDesc;
+            const txtGenKey = document.getElementById('txtPasskeyGenerateBtn');
+            if (txtGenKey) txtGenKey.innerText = t.passkeyGenerateBtn;
+
+            // Create Key Modal
+            const keyModTitle = document.getElementById('createKeyModalTitle');
+            if (keyModTitle) keyModTitle.innerHTML = '<i class="fas fa-key text-emerald-600"></i> ' + t.keyModalTitle;
+            const keyModDesc = document.getElementById('createKeyModalDesc');
+            if (keyModDesc) keyModDesc.innerText = t.keyModalDesc;
+            const lblKeyName = document.getElementById('lblKeyName');
+            if (lblKeyName) lblKeyName.innerText = t.keyNameLabel;
+            const inpKeyName = document.getElementById('keyNameInput');
+            if (inpKeyName) inpKeyName.placeholder = t.keyNamePlaceholder;
+            const txtUnlimTitle = document.getElementById('txtUnlimitedTitle');
+            if (txtUnlimTitle) txtUnlimTitle.innerText = t.keyUnlimitedTitle;
+            const txtUnlimDesc = document.getElementById('txtUnlimitedDesc');
+            if (txtUnlimDesc) txtUnlimDesc.innerText = t.keyUnlimitedDesc;
+            const txtTimeTitle = document.getElementById('txtTimeSectionTitle');
+            if (txtTimeTitle) txtTimeTitle.innerHTML = '<i class="fas fa-clock text-blue-600"></i> ' + t.keyTimeSectionTitle;
+            const txtTimeNote = document.getElementById('txtTimeSectionNote');
+            if (txtTimeNote) txtTimeNote.innerText = t.keyTimeSectionNote;
+            const txtTimeNone = document.getElementById('txtTimeNone');
+            if (txtTimeNone) txtTimeNone.innerText = t.keyTimeNone;
+            const txtTimeDt = document.getElementById('txtTimeDatetime');
+            if (txtTimeDt) txtTimeDt.innerText = t.keyTimeDatetime;
+            const txtTimeDur = document.getElementById('txtTimeDuration');
+            if (txtTimeDur) txtTimeDur.innerText = t.keyTimeDuration;
+            const optMinute = document.getElementById('optDurationMinute');
+            if (optMinute) optMinute.innerText = t.keyUnitMinute;
+            const optHour = document.getElementById('optDurationHour');
+            if (optHour) optHour.innerText = t.keyUnitHour;
+            const optDay = document.getElementById('optDurationDay');
+            if (optDay) optDay.innerText = t.keyUnitDay;
+            const optWeek = document.getElementById('optDurationWeek');
+            if (optWeek) optWeek.innerText = t.keyUnitWeek;
+            const txtUsesTitle = document.getElementById('txtUsesSectionTitle');
+            if (txtUsesTitle) txtUsesTitle.innerHTML = '<i class="fas fa-redo-alt text-amber-600"></i> ' + t.keyUsesSectionTitle;
+            const txtUsesNote = document.getElementById('txtUsesSectionNote');
+            if (txtUsesNote) txtUsesNote.innerText = t.keyUsesSectionNote;
+            const txtUsesChk = document.getElementById('txtUsesCheckbox');
+            if (txtUsesChk) txtUsesChk.innerText = t.keyUsesCheckbox;
+            const inpMaxUses = document.getElementById('keyMaxUsesInput');
+            if (inpMaxUses) inpMaxUses.placeholder = t.keyUsesPlaceholder;
+            const txtUsesUnit = document.getElementById('txtUsesUnit');
+            if (txtUsesUnit) txtUsesUnit.innerText = t.keyUsesUnit;
+            const btnCancelKey = document.getElementById('btnCancelCreateKey');
+            if (btnCancelKey) btnCancelKey.innerText = t.cancelBtn;
+            const btnSubKey = document.getElementById('btnSubmitGenerateKey');
+            if (btnSubKey) btnSubKey.innerText = t.keySubmitGenerate;
+
+            // Key Created Modal
+            const keyCreatedTitle = document.getElementById('keyCreatedTitle');
+            if (keyCreatedTitle) keyCreatedTitle.innerText = t.keyCreatedTitle;
+            const keyCreatedDesc = document.getElementById('keyCreatedDesc');
+            if (keyCreatedDesc) keyCreatedDesc.innerText = t.keyCreatedDesc;
+            const lblKeyFull = document.getElementById('lblKeyFullText');
+            if (lblKeyFull) lblKeyFull.innerText = t.keyFullTextLabel;
+            const txtCopyKey = document.getElementById('txtBtnCopyKey');
+            if (txtCopyKey) txtCopyKey.innerText = t.keyCopyBtn;
+            const txtDownKey = document.getElementById('txtBtnDownloadKey');
+            if (txtDownKey) txtDownKey.innerText = t.keyDownloadBtn;
+            const btnCloseCreated = document.getElementById('btnCloseKeyCreated');
+            if (btnCloseCreated) btnCloseCreated.innerText = t.keyCloseBtn;
+
+            // Captcha Modal
+            const secTitle = document.getElementById('securityModalTitle');
+            if (secTitle) secTitle.innerHTML = '<span class="text-2xl text-green-600"><i class="fas fa-shield-alt"></i></span> ' + t.securityModalTitle;
+            const secDesc = document.getElementById('securityModalDesc');
+            if (secDesc) secDesc.innerText = t.securityModalDesc;
+            const secBtn = document.getElementById('securityBtn');
+            if (secBtn) secBtn.innerHTML = '<i class="fas fa-check-circle"></i> ' + t.securityBtnVerify;
+            const txtFallback = document.getElementById('txtFallbackCheck');
+            if (txtFallback) txtFallback.innerText = t.txtFallbackCheck;
+            const secCancel = document.getElementById('securityBtnCancel');
+            if (secCancel) secCancel.innerText = t.securityBtnCancel;
+
+            // Switch Account Modal
+            const swTitle = document.getElementById('switchModalTitle');
+            if (swTitle) swTitle.innerText = t.switchModalTitle;
+            const swDesc = document.getElementById('switchModalDesc');
+            if (swDesc) swDesc.innerText = t.switchModalDesc;
+            const lblSwEmail = document.getElementById('lblSwitchNewEmail');
+            if (lblSwEmail) lblSwEmail.innerText = t.switchNewEmailLabel;
+            const inpSwEmail = document.getElementById('switchEmail');
+            if (inpSwEmail) inpSwEmail.placeholder = t.switchNewEmailPlaceholder;
+            const btnSwSend = document.getElementById('btnSwitchSendCode');
+            if (btnSwSend) btnSwSend.innerText = t.switchSendCodeBtn;
+            const lblSwCode = document.getElementById('lblSwitchCode');
+            if (lblSwCode) lblSwCode.innerText = t.switchCodeLabel;
+            const inpSwCode = document.getElementById('switchCode');
+            if (inpSwCode) inpSwCode.placeholder = t.switchCodePlaceholder;
+            const lblSwPass = document.getElementById('lblSwitchNewPass');
+            if (lblSwPass) lblSwPass.innerText = t.switchNewPassLabel;
+            const inpSwPass = document.getElementById('switchPassword');
+            if (inpSwPass) inpSwPass.placeholder = t.switchNewPassPlaceholder;
+            const btnSwCancel = document.getElementById('btnCancelSwitchNormal');
+            if (btnSwCancel) btnSwCancel.innerText = t.cancelBtn;
+            const btnSwConfirm = document.getElementById('btnConfirmSwitchNormal');
+            if (btnSwConfirm) btnSwConfirm.innerText = t.switchConfirmBtn;
+
             // Update current form title
             const title = document.getElementById('formTitle');
             if (title) {
@@ -1350,13 +1973,21 @@
             // 更新官網公告多語言
             if (window.cachedOfficialAnnouncement) {
                 const a = window.cachedOfficialAnnouncement;
-                const title = (a.titles && a.titles[lang]) ? a.titles[lang] : a.title;
+                const aTitle = (a.titles && a.titles[lang]) ? a.titles[lang] : a.title;
                 const titleEl = document.getElementById('loginOfficialAnnouncementTitle');
-                if (titleEl && title) titleEl.innerText = title;
+                if (titleEl && aTitle) titleEl.innerText = aTitle;
             }
 
             // 更新訪客監控資訊多語言
             if (window.renderLoginVisitorStats) window.renderLoginVisitorStats();
+
+            // 更新金鑰規則摘要提示文字
+            if (window.updateKeySummary) window.updateKeySummary();
+
+            // 若在編輯個人資料頁面，刷新金鑰清單多語言
+            if (window.cachedAccessKeys && window.renderLoadedAccessKeys) {
+                window.renderLoadedAccessKeys(window.cachedAccessKeys);
+            }
         };
 
         window.renderLoginVisitorStats = function() {
@@ -2009,6 +2640,33 @@ localStorage.removeItem('panda_session_token');
 
 
 
+        window.switchLoginTab = function(mode) {
+            const tabPass = document.getElementById('tabPasswordLogin');
+            const tabKey = document.getElementById('tabKeyLogin');
+            const panelPass = document.getElementById('loginPasswordPanel');
+            const panelKey = document.getElementById('loginKeyPanel');
+            if (mode === 'key') {
+                if (tabPass) tabPass.className = "w-1/2 py-2.5 rounded-lg text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5";
+                if (tabKey) tabKey.className = "w-1/2 py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-white text-emerald-700 shadow-sm transition flex items-center justify-center gap-1.5";
+                if (panelPass) panelPass.classList.add('hidden');
+                if (panelKey) panelKey.classList.remove('hidden');
+                setTimeout(() => {
+                    const inp = document.getElementById('keyLoginInput');
+                    if (inp) inp.focus();
+                }, 100);
+            } else {
+                if (tabPass) tabPass.className = "w-1/2 py-2.5 rounded-lg text-xs sm:text-sm font-bold bg-white text-green-700 shadow-sm transition flex items-center justify-center gap-1.5";
+                if (tabKey) tabKey.className = "w-1/2 py-2.5 rounded-lg text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5";
+                if (panelPass) panelPass.classList.remove('hidden');
+                if (panelKey) panelKey.classList.add('hidden');
+            }
+        };
+
+        window.switchToKeyLoginView = function() {
+            toggleView('login');
+            switchLoginTab('key');
+        };
+
         window.captchaVerified = false;
         window.toggleView = function(view) {
             if (view === 'register' && !window.captchaVerified) {
@@ -2037,7 +2695,7 @@ localStorage.removeItem('panda_session_token');
 
 
 
-            const t = (typeof loginI18n !== 'undefined' && loginI18n[window.currentLoginLang]) ? loginI18n[window.currentLoginLang] : null;
+            const t = (typeof window.loginI18n !== "undefined" && window.loginI18n && loginI18n[window.currentLoginLang]) ? loginI18n[window.currentLoginLang] : null;
             const title = document.getElementById('formTitle');
             const setTitleText = (txt) => {
                 if (title) title.innerText = txt;
@@ -2053,9 +2711,6 @@ localStorage.removeItem('panda_session_token');
             } else if (view === 'guest') {
                 document.getElementById('guestView').classList.remove('hidden');
                 setTitleText(t ? t.titleLogin : "登入");
-            } else if (view === 'editProfile') {
-                document.getElementById('editProfileView').classList.remove('hidden');
-                setTitleText(t ? t.titleEditProfile : "編輯個人資料");
             } else if (view === 'profile') {
 
                 document.getElementById('profileView').classList.remove('hidden');
@@ -2073,51 +2728,46 @@ localStorage.removeItem('panda_session_token');
                 document.getElementById('editProfileView').classList.remove('hidden');
 
                 document.getElementById('headerSection').classList.add('hidden');
+                setTitleText(t ? t.titleEditProfile : "編輯個人資料");
 
-                
+                if (currentUserData) {
+                    document.getElementById('editNickname').value = currentUserData.nickname || currentUserData.username || '';
 
-                document.getElementById('editNickname').value = currentUserData.nickname || currentUserData.username;
+                    document.getElementById('editRealName').value = currentUserData.realName || '';
 
-                document.getElementById('editRealName').value = currentUserData.realName || '';
+                    document.getElementById('editGender').value = currentUserData.gender || '';
 
-                document.getElementById('editGender').value = currentUserData.gender || '';
+                    document.getElementById('editBirthday').value = currentUserData.birthday || '';
 
-                document.getElementById('editBirthday').value = currentUserData.birthday || '';
+                    document.getElementById('editEmail').value = currentUserData.email || '';
 
+                    const langSel = document.getElementById('editLanguage');
+                    if (langSel) langSel.value = currentUserData.preferredLanguage || window.currentLoginLang || 'zh-TW';
 
-                document.getElementById('editEmail').value = currentUserData.email || '';
+                    const pwdInput = document.getElementById('editPassword');
+                    const pwdEmailContainer = pwdInput.parentElement.parentElement;
 
-                const langSel = document.getElementById('editLanguage');
-                if (langSel) langSel.value = currentUserData.preferredLanguage || window.currentLoginLang || 'zh-TW';
+                    if (currentUserData.isGoogle) {
+                        pwdEmailContainer.style.display = 'none';
+                        document.getElementById('googleAccountSettings').classList.remove('hidden');
+                        document.getElementById('normalAccountSettings').classList.add('hidden');
+                        document.getElementById('currentGoogleEmailDisplay').innerText = currentUserData.email || '';
+                    } else {
+                        pwdEmailContainer.style.display = 'grid';
+                        pwdInput.value = currentUserData.password || '';
+                        pwdInput.disabled = false;
+                        pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
+                        document.getElementById('googleAccountSettings').classList.add('hidden');
+                        document.getElementById('normalAccountSettings').classList.remove('hidden');
+                    }
 
-                
-
-                const pwdInput = document.getElementById('editPassword');
-                const emailInput = document.getElementById('editEmail');
-                
-                // Hide or show the container of password/email depending on Google account
-                // The container is the parent element of their parent elements
-                const pwdEmailContainer = pwdInput.parentElement.parentElement;
-                
-                if (currentUserData.isGoogle) {
-                    pwdEmailContainer.style.display = 'none';
-                    document.getElementById('googleAccountSettings').classList.remove('hidden');
-                    document.getElementById('normalAccountSettings').classList.add('hidden');
-                    document.getElementById('currentGoogleEmailDisplay').innerText = currentUserData.email;
-                } else {
-                    pwdEmailContainer.style.display = 'grid';
-                    pwdInput.value = currentUserData.password || '';
-                    pwdInput.disabled = false;
-                    pwdInput.className = "w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner";
-                    document.getElementById('googleAccountSettings').classList.add('hidden');
-                    document.getElementById('normalAccountSettings').classList.remove('hidden');
+                    document.getElementById('editAvatarPreview').src = currentUserData.avatar || getDefaultAvatar();
+                    window.currentEditAvatarBase64 = currentUserData.avatar || '';
                 }
 
-
-
-                document.getElementById('editAvatarPreview').src = currentUserData.avatar || getDefaultAvatar();
-
-                window.currentEditAvatarBase64 = currentUserData.avatar || '';
+                if (typeof loadAccessKeys === 'function') {
+                    loadAccessKeys();
+                }
 
             }
 
@@ -2406,6 +3056,432 @@ localStorage.removeItem('panda_session_token');
                     showMsg(res ? res.msg : "切換失敗", "error");
                 }
             });
+        };
+
+        // --- 通行金鑰 (Access Key) 功能實作 ---
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function getDefaultDatetimeLocal() {
+            const d = new Date(Date.now() + 24 * 3600 * 1000);
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        window.openCreateKeyModal = function() {
+            document.getElementById('keyNameInput').value = '';
+            document.getElementById('keyUnlimitedCheckbox').checked = false;
+            document.getElementById('radioTimeNone').checked = true;
+            document.getElementById('keyDatetimeInput').value = getDefaultDatetimeLocal();
+            document.getElementById('keyDurationValue').value = '1';
+            document.getElementById('keyDurationUnit').value = 'day';
+            document.getElementById('keyMaxUsesCheckbox').checked = false;
+            document.getElementById('keyMaxUsesInput').value = '1';
+
+            updateKeyFormState('init');
+            document.getElementById('createKeyModal').classList.remove('hidden');
+        };
+
+        window.closeCreateKeyModal = function() {
+            document.getElementById('createKeyModal').classList.add('hidden');
+        };
+
+        window.updateKeyFormState = function(trigger) {
+            const chkUnlimited = document.getElementById('keyUnlimitedCheckbox');
+            const radioNone = document.getElementById('radioTimeNone');
+            const radioDatetime = document.getElementById('radioTimeDatetime');
+            const radioDuration = document.getElementById('radioTimeDuration');
+            const inputDatetime = document.getElementById('keyDatetimeInput');
+            const inputDurationVal = document.getElementById('keyDurationValue');
+            const selectDurationUnit = document.getElementById('keyDurationUnit');
+            const chkMaxUses = document.getElementById('keyMaxUsesCheckbox');
+            const inputMaxUses = document.getElementById('keyMaxUsesInput');
+
+            if (trigger === 'unlimited') {
+                if (chkUnlimited.checked) {
+                    // 不限模式：不可與任何時間或次數選項並存，清空並禁用所有選項
+                    radioNone.checked = true;
+                    radioNone.disabled = true;
+                    radioDatetime.disabled = true;
+                    radioDuration.disabled = true;
+                    inputDatetime.disabled = true;
+                    inputDurationVal.disabled = true;
+                    selectDurationUnit.disabled = true;
+                    chkMaxUses.checked = false;
+                    chkMaxUses.disabled = true;
+                    inputMaxUses.disabled = true;
+                } else {
+                    // 取消不限模式
+                    radioNone.disabled = false;
+                    radioDatetime.disabled = false;
+                    radioDuration.disabled = false;
+                    chkMaxUses.disabled = false;
+                }
+            } else {
+                // 操作了時間或次數，自動取消「不限」模式
+                if (radioDatetime.checked || radioDuration.checked || chkMaxUses.checked) {
+                    chkUnlimited.checked = false;
+                }
+                radioNone.disabled = false;
+                radioDatetime.disabled = false;
+                radioDuration.disabled = false;
+                chkMaxUses.disabled = false;
+
+                // 時間不可並存：由 radio 按鈕保證互斥
+                inputDatetime.disabled = !radioDatetime.checked;
+                inputDurationVal.disabled = !radioDuration.checked;
+                selectDurationUnit.disabled = !radioDuration.checked;
+
+                // 次數限制
+                inputMaxUses.disabled = !chkMaxUses.checked;
+            }
+
+            updateKeySummary();
+        };
+
+        window.updateKeySummary = function() {
+            const summaryEl = document.getElementById('keySummaryText');
+            if (!summaryEl) return;
+            const lang = window.currentLoginLang || 'zh-TW';
+            const chkUnlimited = document.getElementById('keyUnlimitedCheckbox');
+            const radioDatetime = document.getElementById('radioTimeDatetime');
+            const radioDuration = document.getElementById('radioTimeDuration');
+            const inputDatetime = document.getElementById('keyDatetimeInput');
+            const inputDurationVal = document.getElementById('keyDurationValue');
+            const selectDurationUnit = document.getElementById('keyDurationUnit');
+            const chkMaxUses = document.getElementById('keyMaxUsesCheckbox');
+            const inputMaxUses = document.getElementById('keyMaxUsesInput');
+
+            const isZhTW = (lang === 'zh-TW' || lang === 'zh-HK');
+            const isZhCN = (lang === 'zh-CN');
+            const isJa = (lang === 'ja');
+
+            if (chkUnlimited.checked) {
+                if (isZhTW) summaryEl.innerHTML = '<span class="text-emerald-800 font-bold">規則摘要：</span>本金鑰為【永久有效且不限次數】，永不自動刪除。';
+                else if (isZhCN) summaryEl.innerHTML = '<span class="text-emerald-800 font-bold">规则摘要：</span>本密钥为【永久有效且不限次数】，永不自动删除。';
+                else if (isJa) summaryEl.innerHTML = '<span class="text-emerald-800 font-bold">ルール要約：</span>このキーは【無期限・回数無制限】で、自動削除されません。';
+                else summaryEl.innerHTML = '<span class="text-emerald-800 font-bold">Rule Summary:</span> This key is 【Permanent & Unlimited Uses】 and will never be automatically deleted.';
+                return;
+            }
+
+            let rules = [];
+            if (radioDatetime.checked) {
+                const dt = inputDatetime.value ? inputDatetime.value.replace('T', ' ') : '';
+                if (isZhTW) rules.push(dt ? `於 <strong class="text-blue-700">${dt}</strong> 到期自動刪除` : '於指定時間到期自動刪除');
+                else if (isZhCN) rules.push(dt ? `于 <strong class="text-blue-700">${dt}</strong> 到期自动删除` : '于指定时间到期自动删除');
+                else if (isJa) rules.push(dt ? `<strong class="text-blue-700">${dt}</strong> に期限切れとなり自動削除` : '指定日時に自動削除');
+                else rules.push(dt ? `automatically deleted on <strong class="text-blue-700">${dt}</strong>` : 'automatically deleted at specified time');
+            } else if (radioDuration.checked) {
+                const val = inputDurationVal.value || 1;
+                const unit = selectDurationUnit.value;
+                if (isZhTW) {
+                    const uMap = { minute: '分鐘', hour: '小時', day: '天', week: '週' };
+                    rules.push(`於 <strong class="text-blue-700">${val} ${uMap[unit] || '天'}後</strong> 自動刪除`);
+                } else if (isZhCN) {
+                    const uMap = { minute: '分钟', hour: '小时', day: '天', week: '周' };
+                    rules.push(`于 <strong class="text-blue-700">${val} ${uMap[unit] || '天'}后</strong> 自动删除`);
+                } else if (isJa) {
+                    const uMap = { minute: '分', hour: '時間', day: '日', week: '週間' };
+                    rules.push(`<strong class="text-blue-700">${val} ${uMap[unit] || '日'}後</strong> に自動削除`);
+                } else {
+                    const uMap = { minute: 'minutes', hour: 'hours', day: 'days', week: 'weeks' };
+                    rules.push(`automatically deleted after <strong class="text-blue-700">${val} ${uMap[unit] || 'days'}</strong>`);
+                }
+            }
+
+            if (chkMaxUses.checked) {
+                const uses = inputMaxUses.value || 1;
+                if (isZhTW) rules.push(`使用達 <strong class="text-amber-700">${uses} 次後</strong> 自動刪除`);
+                else if (isZhCN) rules.push(`使用达 <strong class="text-amber-700">${uses} 次后</strong> 自动删除`);
+                else if (isJa) rules.push(`使用回数が <strong class="text-amber-700">${uses} 回</strong> に達した後に自動削除`);
+                else rules.push(`automatically deleted after <strong class="text-amber-700">${uses} uses</strong>`);
+            }
+
+            if (rules.length === 0) {
+                if (isZhTW) summaryEl.innerHTML = '<span class="text-slate-500">請設定時間或次數刪除條件，或勾選「不限」。</span>';
+                else if (isZhCN) summaryEl.innerHTML = '<span class="text-slate-500">请设定时间或次数删除条件，或勾选“不限”。</span>';
+                else if (isJa) summaryEl.innerHTML = '<span class="text-slate-500">時間または回数の削除条件を設定するか、「無制限」を選択してください。</span>';
+                else summaryEl.innerHTML = '<span class="text-slate-500">Please set expiration time, usage limits, or check "Unlimited".</span>';
+            } else if (rules.length === 1) {
+                if (isZhTW) summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">規則摘要：</span>本金鑰將${rules[0]}。`;
+                else if (isZhCN) summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">规则摘要：</span>本密钥将${rules[0]}。`;
+                else if (isJa) summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">ルール要約：</span>このキーは${rules[0]}されます。`;
+                else summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">Rule Summary:</span> This key will be ${rules[0]}.`;
+            } else {
+                if (isZhTW) summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">規則摘要：</span>本金鑰將${rules.join('，或')}（<strong>任一條件先滿足即自動刪除失效</strong>）。`;
+                else if (isZhCN) summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">规则摘要：</span>本密钥将${rules.join('，或')}（<strong>任一条件先满足即自动删除失效</strong>）。`;
+                else if (isJa) summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">ルール要約：</span>このキーは${rules.join('、または')}（<strong>いずれかの条件を先に満たした時点で自動削除</strong>）。`;
+                else summaryEl.innerHTML = `<span class="text-emerald-800 font-bold">Rule Summary:</span> This key will be ${rules.join(', or ')} (<strong>whichever condition is met first</strong>).`;
+            }
+        };
+
+        window.submitGenerateKey = function() {
+            const name = document.getElementById('keyNameInput').value.trim();
+            const isUnlimited = document.getElementById('keyUnlimitedCheckbox').checked;
+
+            let timeMode = 'none';
+            let expiresAt = null;
+            let durationValue = null;
+            let durationUnit = 'day';
+
+            if (!isUnlimited) {
+                if (document.getElementById('radioTimeDatetime').checked) {
+                    timeMode = 'datetime';
+                    const dtVal = document.getElementById('keyDatetimeInput').value;
+                    if (!dtVal) return showMsg("請選擇指定過期的日期與時間", "error");
+                    expiresAt = new Date(dtVal).getTime();
+                    if (isNaN(expiresAt) || expiresAt <= Date.now()) {
+                        return showMsg("過期時間必須在未來！", "error");
+                    }
+                } else if (document.getElementById('radioTimeDuration').checked) {
+                    timeMode = 'duration';
+                    durationValue = parseInt(document.getElementById('keyDurationValue').value, 10);
+                    durationUnit = document.getElementById('keyDurationUnit').value;
+                    if (!durationValue || durationValue <= 0 || isNaN(durationValue)) {
+                        return showMsg("請輸入大於 0 的時長數值", "error");
+                    }
+                }
+            }
+
+            const enableMaxUses = !isUnlimited && document.getElementById('keyMaxUsesCheckbox').checked;
+            let maxUses = null;
+            if (enableMaxUses) {
+                maxUses = parseInt(document.getElementById('keyMaxUsesInput').value, 10);
+                if (!maxUses || maxUses <= 0 || isNaN(maxUses)) {
+                    return showMsg("請輸入大於 0 的使用次數上限", "error");
+                }
+            }
+
+            if (!isUnlimited && timeMode === 'none' && !enableMaxUses) {
+                return showMsg("請至少設定一項自動刪除條件（時間或次數），或勾選「不限」模式", "error");
+            }
+
+            const payload = {
+                name,
+                isUnlimited,
+                timeMode,
+                expiresAt,
+                durationValue,
+                durationUnit,
+                enableMaxUses,
+                maxUses
+            };
+
+            const submitBtn = document.getElementById('btnSubmitGenerateKey');
+            submitBtn.disabled = true;
+            submitBtn.innerText = "生成中...";
+
+            socket.emit('generateAccessKey', payload, (res) => {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "立即生成金鑰";
+                if (res && res.success) {
+                    closeCreateKeyModal();
+                    openKeyCreatedModal(res.key, res.keyInfo);
+                    loadAccessKeys();
+                    showMsg("通行金鑰生成成功！", "success");
+                } else {
+                    showMsg(res ? res.msg : "生成金鑰失敗", "error");
+                }
+            });
+        };
+
+        window.openKeyCreatedModal = function(keyString, keyInfo) {
+            window.latestCreatedKey = keyString;
+            document.getElementById('createdKeyFullText').value = keyString;
+            const btnCopy = document.getElementById('btnCopyCreatedKey');
+            if (btnCopy) btnCopy.innerHTML = '<i class="fas fa-copy text-emerald-600"></i> 複製長串金鑰';
+            document.getElementById('keyCreatedModal').classList.remove('hidden');
+        };
+
+        window.closeKeyCreatedModal = function() {
+            document.getElementById('keyCreatedModal').classList.add('hidden');
+            if (typeof loadAccessKeys === 'function') loadAccessKeys();
+        };
+
+        window.copyCreatedKey = function() {
+            if (!window.latestCreatedKey) return;
+            navigator.clipboard.writeText(window.latestCreatedKey).then(() => {
+                const btnCopy = document.getElementById('btnCopyCreatedKey');
+                if (btnCopy) btnCopy.innerHTML = '<i class="fas fa-check text-green-600"></i> 已複製到剪貼簿！';
+                showMsg("已複製長串金鑰至剪貼簿！", "success");
+            }).catch(() => {
+                showMsg("複製失敗，請手動全選複製", "error");
+            });
+        };
+
+        window.downloadCreatedKeyFile = function() {
+            if (!window.latestCreatedKey) return;
+            const blob = new Blob([window.latestCreatedKey], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const uname = (currentUserData && currentUserData.username) || 'user';
+            const nowStr = new Date().toISOString().slice(0, 10);
+            a.href = url;
+            a.download = `pandakey_${uname}_${nowStr}.pandakey`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMsg("金鑰檔案下載完成！", "success");
+        };
+
+        window.cachedAccessKeys = [];
+        window.renderLoadedAccessKeys = function(keys) {
+            const listEl = document.getElementById('accessKeyList');
+            if (!listEl) return;
+            const lang = window.currentLoginLang || 'zh-TW';
+            const dict = window.loginI18n || {}; const t = dict[lang] || dict['zh-TW'] || {};
+
+            if (!keys || keys.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-4 border border-dashed border-slate-200 rounded-xl bg-white">
+                        <i class="fas fa-key text-slate-300 text-xl mb-1 block"></i>
+                        <p class="text-xs text-slate-400">${t.passkeyNoKeys}</p>
+                        <button type="button" onclick="openCreateKeyModal()" class="mt-1 text-xs text-emerald-600 hover:text-emerald-700 font-bold underline">${t.passkeyGenerateBtn}</button>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            keys.forEach(k => {
+                const createTime = new Date(k.createdAt).toLocaleString(lang === 'en' ? 'en-US' : (lang === 'ja' ? 'ja-JP' : (lang === 'zh-CN' ? 'zh-CN' : 'zh-TW')), { hour12: false });
+                let statusBadge = '';
+                let detailRules = [];
+
+                if (k.isUnlimited) {
+                    const badgeTxt = (lang === 'en') ? 'Permanent' : (lang === 'ja' ? '無制限' : (lang === 'zh-CN' ? '永久不限' : '永久不限'));
+                    const ruleTxt = (lang === 'en') ? 'Permanent・Unlimited Uses' : (lang === 'ja' ? '永久有効・回数無制限' : (lang === 'zh-CN' ? '永久有效・不限次数' : '永久有效・不限次數'));
+                    statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">${badgeTxt}</span>`;
+                    detailRules.push(ruleTxt);
+                } else {
+                    if (k.expiresAt) {
+                        const expireTime = new Date(k.expiresAt).toLocaleString(lang === 'en' ? 'en-US' : (lang === 'ja' ? 'ja-JP' : (lang === 'zh-CN' ? 'zh-CN' : 'zh-TW')), { hour12: false });
+                        const isExpired = Date.now() > k.expiresAt;
+                        if (isExpired) {
+                            const expTxt = (lang === 'en') ? 'Expired (Auto-delete)' : (lang === 'ja' ? '期限切れ (自動削除)' : (lang === 'zh-CN' ? '已过期 (将自动删除)' : '已過期 (將自動刪除)'));
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">${expTxt}</span>`;
+                        } else {
+                            const valTxt = (lang === 'en') ? 'Active' : (lang === 'ja' ? '有効' : (lang === 'zh-CN' ? '有效中' : '有效中'));
+                            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">${valTxt}</span>`;
+                        }
+                        const expPrefix = (lang === 'en') ? 'Expires: ' : (lang === 'ja' ? '有効期限：' : (lang === 'zh-CN' ? '到期时间：' : '到期時間：'));
+                        detailRules.push(`${expPrefix}${expireTime}`);
+                    }
+                    if (k.maxUses) {
+                        const remaining = Math.max(0, k.maxUses - (k.usedCount || 0));
+                        if (lang === 'en') {
+                            detailRules.push(`Uses: ${k.usedCount || 0} / ${k.maxUses} (Remaining: ${remaining})`);
+                        } else if (lang === 'ja') {
+                            detailRules.push(`回数：使用済 ${k.usedCount || 0} / 上限 ${k.maxUses} 回 (残り ${remaining} 回)`);
+                        } else if (lang === 'zh-CN') {
+                            detailRules.push(`次数限制：已用 ${k.usedCount || 0} / 上限 ${k.maxUses} 次 (剩余 ${remaining} 次)`);
+                        } else {
+                            detailRules.push(`次數限制：已用 ${k.usedCount || 0} / 上限 ${k.maxUses} 次 (剩餘 ${remaining} 次)`);
+                        }
+                    }
+                }
+
+                const createdPrefix = (lang === 'en') ? 'Created: ' : (lang === 'ja' ? '作成日：' : (lang === 'zh-CN' ? '创建日：' : '建立日：'));
+                const defaultKeyName = (lang === 'en') ? 'Passkey' : (lang === 'ja' ? 'パスキー' : (lang === 'zh-CN' ? '通行密钥' : '通行金鑰'));
+
+                html += `
+                    <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-sm hover:border-emerald-300 transition">
+                        <div class="flex-1 min-w-0 pr-3">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-xs text-slate-800 truncate">${escapeHtml(k.name || defaultKeyName)}</span>
+                                ${statusBadge}
+                            </div>
+                            <div class="text-[11px] text-slate-500 space-y-0.5">
+                                <div>${createdPrefix}${createTime}</div>
+                                <div class="text-emerald-700 font-medium">${detailRules.join(' ｜ ')}</div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="deleteAccessKey('${k.id}')" class="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition" title="Delete">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            listEl.innerHTML = html;
+        };
+
+        window.loadAccessKeys = function() {
+            const listEl = document.getElementById('accessKeyList');
+            if (!listEl) return;
+            const lang = window.currentLoginLang || 'zh-TW';
+            const t = (typeof window.loginI18n !== "undefined" && window.loginI18n && loginI18n[lang]) ? loginI18n[lang] : loginI18n['zh-TW'];
+            listEl.innerHTML = `<div class="text-center py-3 text-xs text-slate-400">${t.passkeyLoading}</div>`;
+
+            socket.emit('getAccessKeys', (res) => {
+                if (!res || !res.success) {
+                    listEl.innerHTML = `<div class="text-center py-3 text-xs text-red-500">${res ? res.msg : 'Error loading keys'}</div>`;
+                    return;
+                }
+                window.cachedAccessKeys = res.keys || [];
+                window.renderLoadedAccessKeys(window.cachedAccessKeys);
+            });
+        };
+
+        window.deleteAccessKey = function(keyId) {
+            const lang = window.currentLoginLang || 'zh-TW';
+            const t = (typeof window.loginI18n !== "undefined" && window.loginI18n && loginI18n[lang]) ? loginI18n[lang] : loginI18n['zh-TW'];
+            if (!confirm(t.keyDeleteConfirm)) return;
+            socket.emit('deleteAccessKey', { keyId }, (res) => {
+                if (res && res.success) {
+                    showMsg(lang === 'en' ? 'Passkey deleted successfully' : (lang === 'ja' ? 'キーが削除されました' : (lang === 'zh-CN' ? '密钥已成功删除' : '金鑰已成功刪除')), 'success');
+                    loadAccessKeys();
+                } else {
+                    showMsg(res ? res.msg : 'Failed to delete key', 'error');
+                }
+            });
+        };
+
+        window.handleKeyFileSelect = function(input) {
+            if (!input.files || input.files.length === 0) return;
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = (e.target.result || '').trim();
+                if (!content) return showMsg("上傳的金鑰檔案內容為空", "error");
+                document.getElementById('keyLoginInput').value = content;
+                document.getElementById('keyFileNameText').innerText = file.name;
+                document.getElementById('keyFileNotice').classList.remove('hidden');
+                showMsg(`已讀取金鑰檔案: ${file.name}，可直接點擊登入`, "info");
+            };
+            reader.onerror = function() {
+                showMsg("讀取檔案失敗", "error");
+            };
+            reader.readAsText(file);
+        };
+
+        window.clearKeyFileInput = function() {
+            const fileInput = document.getElementById('keyLoginFileInput');
+            if (fileInput) fileInput.value = '';
+            document.getElementById('keyFileNotice').classList.add('hidden');
+            document.getElementById('keyLoginInput').value = '';
+        };
+
+        window.toggleKeyVisibility = function() {
+            const input = document.getElementById('keyLoginInput');
+            const icon = document.getElementById('keyEyeIcon');
+            if (!input || !icon) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        };
+
+        window.handleKeyLogin = function() {
+            const rawKey = document.getElementById('keyLoginInput').value.trim();
+            if (!rawKey) return showMsg("請輸入長串金鑰或上傳金鑰檔案", "error");
+            showMsg("通行金鑰校驗中...", "info");
+            socket.emit('keyLogin', { key: rawKey });
         };
 
         window.handleGoogleLogin = async function() {
@@ -2745,121 +3821,299 @@ window.sendRegVerificationCode = function() {
 };
 
 
-window.startSecurityCheck = function() {
-    const token = grecaptcha.getResponse();
+window.startSecurityCheck = async function() {
+    let token = '';
+    try {
+        if (typeof grecaptcha !== 'undefined' && grecaptcha.getResponse) {
+            token = grecaptcha.getResponse();
+        }
+    } catch(e) {}
+
+    const dict = window.loginI18n || {}; const curT = dict[window.currentLoginLang] || dict['zh-TW'] || {};
+
     if (!token) {
-        showMsg("請先勾選「我不是機器人」！", "error");
+        showMsg(curT?.securityNeedRecaptcha || "請先勾選「我不是機器人」！或點擊下方備用真人確認按鈕。", "info");
         return;
     }
     
-    document.getElementById("securityBtn").disabled = true;
-    document.getElementById("securityBtn").innerText = "取得定位中...";
-    
-    if (!navigator.geolocation) {
-        showMsg("您的瀏覽器不支援定位功能", "error");
-        document.getElementById("securityBtn").innerText = "驗證失敗";
-        return;
+    const secBtn = document.getElementById("securityBtn");
+    if (secBtn) {
+        secBtn.disabled = true;
+        secBtn.innerText = curT?.securityBtnChecking || "檢查安全連線中...";
     }
     
-    navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            document.getElementById("securityBtn").innerText = "檢查安全連線...";
-            
-            try {
-                const fetchPromise = fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
-                let geoData = {};
+    // GPS 非阻塞嘗試，不報錯不卡死
+    let gpsCountry = "UNKNOWN";
+    try {
+        if (navigator.geolocation) {
+            const pos = await new Promise((resolve) => {
+                const timer = setTimeout(() => resolve(null), 2000);
+                navigator.geolocation.getCurrentPosition(
+                    (p) => { clearTimeout(timer); resolve(p); },
+                    () => { clearTimeout(timer); resolve(null); },
+                    { timeout: 2000, maximumAge: 60000 }
+                );
+            });
+            if (pos && pos.coords) {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
                 try {
-                    const geoRes = await Promise.race([fetchPromise, timeoutPromise]);
-                    geoData = await geoRes.json();
-                } catch (fetchErr) {
-                    console.log('GPS API timeout or blocked, fallback to UNKNOWN');
-                }
-                const gpsCountry = geoData.countryCode || "UNKNOWN";
-                
-                const socketTimeout = setTimeout(() => {
-                    showMsg("伺服器沒有回應，請檢查網路！", "error");
-                    document.getElementById("securityBtn").disabled = false;
-                    document.getElementById("securityBtn").innerText = "重新驗證";
-                }, 8000);
-                
-                socket.emit('checkSecurity', { captchaToken: token, gpsCountry: gpsCountry }, (res) => {
-                    clearTimeout(socketTimeout);
-                    if (!res.success) {
-                        showMsg(res.msg, "error");
-                        grecaptcha.reset();
-                        document.getElementById("securityBtn").disabled = false;
-                        document.getElementById("securityBtn").innerText = "重新驗證";
-                    } else {
-                        showMsg("安全驗證通過！", "success");
-                        window.captchaVerified = true;
-                        document.getElementById('captchaOverlay').classList.add('hidden');
-                        toggleView('register');
-                    }
-                });
-            } catch (err) {
-                showMsg("無法解析定位資料", "error");
-                document.getElementById("securityBtn").disabled = false;
-                document.getElementById("securityBtn").innerText = "驗證";
+                    const geoRes = await Promise.race([
+                        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`),
+                        new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 2000))
+                    ]);
+                    const geoData = await geoRes.json();
+                    if (geoData && geoData.countryCode) gpsCountry = geoData.countryCode;
+                } catch(e) {}
             }
-        },
-        (error) => {
-            showMsg("請允許定位權限才能繼續註冊", "error");
-            document.getElementById("securityBtn").disabled = false;
-            document.getElementById("securityBtn").innerText = "驗證";
-        },
-        { timeout: 10000 }
-    );
+        }
+    } catch(e) {}
+
+    const socketTimeout = setTimeout(() => {
+        showMsg(curT?.securityServerTimeout || "伺服器回應逾時，請檢查網路連線", "error");
+        if (secBtn) {
+            secBtn.disabled = false;
+            secBtn.innerText = curT?.securityBtnRetry || "重新驗證";
+        }
+    }, 8000);
+    
+    socket.emit('checkSecurity', { captchaToken: token, gpsCountry: gpsCountry }, (res) => {
+        clearTimeout(socketTimeout);
+        if (!res || !res.success) {
+            showMsg(res?.msg || "安全驗證未通過，請重試", "error");
+            try { if (typeof grecaptcha !== 'undefined') grecaptcha.reset(); } catch(e) {}
+            if (secBtn) {
+                secBtn.disabled = false;
+                secBtn.innerText = curT?.securityBtnRetry || "重新驗證";
+            }
+        } else {
+            showMsg(curT?.securityCheckPassed || "安全驗證通過！", "success");
+            window.captchaVerified = true;
+            document.getElementById('captchaOverlay').classList.add('hidden');
+            toggleView('register');
+        }
+    });
+};
+
+window.startFallbackSecurityCheck = function() {
+    const curT = (typeof window.loginI18n !== "undefined" && window.loginI18n && loginI18n[window.currentLoginLang]) ? loginI18n[window.currentLoginLang] : null;
+    const fbBtn = document.getElementById("securityFallbackBtn");
+    if (fbBtn) {
+        fbBtn.disabled = true;
+        fbBtn.innerText = curT?.securityBtnChecking || "正在進行真人安全校驗...";
+    }
+    const token = 'LOCAL_HUMAN_CHECK_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+    socket.emit('checkSecurity', { captchaToken: token, gpsCountry: 'UNKNOWN' }, (res) => {
+        if (!res || !res.success) {
+            showMsg(res?.msg || "驗證失敗，請重試", "error");
+            if (fbBtn) {
+                fbBtn.disabled = false;
+                fbBtn.innerText = curT?.txtFallbackCheck || "點此直接完成真人安全確認";
+            }
+        } else {
+            showMsg(curT?.securityCheckPassed || "安全驗證通過！", "success");
+            window.captchaVerified = true;
+            document.getElementById('captchaOverlay').classList.add('hidden');
+            toggleView('register');
+        }
+    });
 };
 
 </script>
 
+<!-- 通行金鑰生成彈窗 -->
+<div id="createKeyModal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl relative transform transition-all max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div class="flex items-center justify-between mb-4 border-b pb-3">
+            <h3 id="createKeyModalTitle" class="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                <i class="fas fa-key text-emerald-600"></i> 生成全新通行金鑰 (Key)
+            </h3>
+            <button type="button" onclick="closeCreateKeyModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold p-1">✕</button>
+        </div>
+
+        <p id="createKeyModalDesc" class="text-xs text-slate-500 mb-4 leading-relaxed">
+            通行金鑰具備直接登入本帳號之完整權限（免密碼、免 Google 登入驗證）。您可以自訂自動刪除條件，到期或使用次數達標後，伺服器將自動刪除該金鑰。
+        </p>
+
+        <div class="space-y-4">
+            <!-- 金鑰名稱 -->
+            <div>
+                <label id="lblKeyName" class="block text-xs font-bold text-slate-700 mb-1">金鑰名稱 / 備註 (選填)</label>
+                <input type="text" id="keyNameInput" class="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="例如：我的筆電快捷金鑰、臨時免密金鑰">
+            </div>
+
+            <!-- 不限模式開關 (不可與任何選項並存) -->
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-emerald-50/30 transition">
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" id="keyUnlimitedCheckbox" onchange="updateKeyFormState('unlimited')" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+                    <div>
+                        <span id="txtUnlimitedTitle" class="text-xs font-bold text-slate-800">不限模式（永久有效且不限使用次數）</span>
+                        <p id="txtUnlimitedDesc" class="text-[11px] text-slate-500">勾選後將永不自動刪除（與時間或次數設定互斥，不可並存）</p>
+                    </div>
+                </label>
+            </div>
+
+            <!-- 時間自動刪除設定 (時間不可並存，單選 Radio) -->
+            <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                <div class="flex items-center justify-between">
+                    <span id="txtTimeSectionTitle" class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <i class="far fa-clock text-blue-600"></i> 時間自動刪除設定
+                    </span>
+                    <span id="txtTimeSectionNote" class="text-[10px] text-slate-400 font-medium">指定時間與時長不可並存</span>
+                </div>
+
+                <!-- 單選 1: 不設時間限制 -->
+                <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700 font-medium">
+                    <input type="radio" name="keyTimeOption" id="radioTimeNone" value="none" checked onchange="updateKeyFormState('time')" class="text-emerald-600 focus:ring-emerald-500">
+                    <span id="txtTimeNone">不設時間限制 (無過期日)</span>
+                </label>
+
+                <!-- 單選 2: 什麼時候自動刪除 (指定日期時間) -->
+                <div class="space-y-1.5 pl-6">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-800 font-bold">
+                        <input type="radio" name="keyTimeOption" id="radioTimeDatetime" value="datetime" onchange="updateKeyFormState('time')" class="text-emerald-600 focus:ring-emerald-500">
+                        <span id="txtTimeDatetime">什麼時候自動刪除（指定日期時間）</span>
+                    </label>
+                    <input type="datetime-local" id="keyDatetimeInput" onchange="updateKeySummary()" disabled class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white disabled:bg-slate-100 disabled:text-slate-400 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner">
+                </div>
+
+                <!-- 單選 3: 多久後自動刪除 (指定時長) -->
+                <div class="space-y-1.5 pl-6">
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-800 font-bold">
+                        <input type="radio" name="keyTimeOption" id="radioTimeDuration" value="duration" onchange="updateKeyFormState('time')" class="text-emerald-600 focus:ring-emerald-500">
+                        <span id="txtTimeDuration">多久後自動刪除（指定時長）</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="number" id="keyDurationValue" min="1" value="1" oninput="updateKeySummary()" disabled class="w-1/2 px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white disabled:bg-slate-100 disabled:text-slate-400 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="數值">
+                        <select id="keyDurationUnit" onchange="updateKeySummary()" disabled class="w-1/2 px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white disabled:bg-slate-100 disabled:text-slate-400 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner font-bold text-slate-700">
+                            <option id="optDurationMinute" value="minute">分鐘後</option>
+                            <option id="optDurationHour" value="hour">小時後</option>
+                            <option id="optDurationDay" value="day" selected>天後</option>
+                            <option id="optDurationWeek" value="week">週後</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 使用次數自動刪除設定 (可與時間並存) -->
+            <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div class="flex items-center justify-between">
+                    <span id="txtUsesSectionTitle" class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                        <i class="fas fa-redo-alt text-amber-600"></i> 使用次數自動刪除設定
+                    </span>
+                    <span id="txtUsesSectionNote" class="text-[10px] text-emerald-600 font-bold">可與時間並存</span>
+                </div>
+
+                <label class="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" id="keyMaxUsesCheckbox" onchange="updateKeyFormState('uses')" class="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500">
+                    <span id="txtUsesCheckbox" class="text-xs font-bold text-slate-800">使用幾次後自動刪除</span>
+                </label>
+
+                <div class="pl-6">
+                    <div class="flex items-center gap-2">
+                        <input type="number" id="keyMaxUsesInput" min="1" value="1" oninput="updateKeySummary()" disabled class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 bg-white disabled:bg-slate-100 disabled:text-slate-400 focus:ring-2 focus:ring-emerald-500 outline-none transition shadow-inner" placeholder="輸入使用次數 (如 1、5、10)">
+                        <span id="txtUsesUnit" class="text-xs text-slate-500 font-bold whitespace-nowrap">次</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 實時摘要提示區塊 -->
+            <div id="keySummaryText" class="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed font-medium">
+                <!-- 動態注入摘要 -->
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex gap-3 pt-2">
+                <button type="button" id="btnCancelCreateKey" onclick="closeCreateKeyModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl transition-all text-xs sm:text-sm">取消</button>
+                <button type="button" id="btnSubmitGenerateKey" onclick="submitGenerateKey()" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-lg transition-all text-xs sm:text-sm">立即生成金鑰</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 通行金鑰生成成功彈窗 -->
+<div id="keyCreatedModal" class="fixed inset-0 bg-black/60 z-[70] hidden flex items-center justify-center p-4 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-5 sm:p-8 max-w-lg w-full shadow-2xl relative transform transition-all space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div class="text-center">
+            <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 text-xl shadow-sm">
+                <i class="fas fa-check"></i>
+            </div>
+            <h3 id="keyCreatedTitle" class="text-base sm:text-lg font-bold text-slate-800">通行金鑰生成成功！</h3>
+            <p id="keyCreatedDesc" class="text-xs text-slate-500 mt-1">此金鑰僅完整顯示這一次，請務必立即複製或下載金鑰檔案妥善保存。</p>
+        </div>
+
+        <div class="space-y-2">
+            <label id="lblKeyFullText" class="block text-xs font-bold text-slate-700">長串通行金鑰字串：</label>
+            <textarea id="createdKeyFullText" readonly class="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-200 rounded-xl h-24 select-all outline-none resize-none break-all text-slate-700 shadow-inner leading-relaxed"></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <button type="button" onclick="copyCreatedKey()" id="btnCopyCreatedKey" class="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 text-xs shadow-sm">
+                <i class="fas fa-copy text-emerald-600"></i> <span id="txtBtnCopyKey">複製長串金鑰</span>
+            </button>
+            <button type="button" onclick="downloadCreatedKeyFile()" id="btnDownloadCreatedKey" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 text-xs shadow-md">
+                <i class="fas fa-download"></i> <span id="txtBtnDownloadKey">下載金鑰檔案</span>
+            </button>
+        </div>
+
+        <div class="pt-2">
+            <button type="button" id="btnCloseKeyCreated" onclick="closeKeyCreatedModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl transition text-xs sm:text-sm">我已妥善保存，關閉視窗</button>
+        </div>
+    </div>
+</div>
 
 <div id="switchAccountModal" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative transform transition-all">
-        <h3 class="text-xl font-bold text-slate-800 mb-2">切換為普通信箱</h3>
-        <p class="text-sm text-slate-500 mb-4">切換後，您將無法再使用 Google 無密碼登入，需透過新設定的信箱與密碼登入。</p>
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative transform transition-all max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <h3 id="switchModalTitle" class="text-lg sm:text-xl font-bold text-slate-800 mb-2">切換為普通信箱</h3>
+        <p id="switchModalDesc" class="text-xs sm:text-sm text-slate-500 mb-4">切換後，您將無法再使用 Google 無密碼登入，需透過新設定的信箱與密碼登入。</p>
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">新的電子信箱</label>
+                <label id="lblSwitchNewEmail" class="block text-xs sm:text-sm font-bold text-slate-700 mb-1">新的電子信箱</label>
                 <div class="flex gap-2">
                     <input type="email" id="switchEmail" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="輸入新的信箱">
                     <button type="button" onclick="sendSwitchVerificationCode()" id="btnSwitchSendCode" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-4 py-3 rounded-xl transition whitespace-nowrap">發送驗證碼</button>
                 </div>
             </div>
             <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">驗證碼</label>
+                <label id="lblSwitchCode" class="block text-xs sm:text-sm font-bold text-slate-700 mb-1">驗證碼</label>
                 <input type="text" id="switchCode" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="請輸入6碼驗證碼" maxlength="6">
             </div>
             <div>
-                <label class="block text-sm font-bold text-slate-700 mb-1">設定新密碼</label>
+                <label id="lblSwitchNewPass" class="block text-xs sm:text-sm font-bold text-slate-700 mb-1">設定新密碼</label>
                 <input type="password" id="switchPassword" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-green-500 outline-none transition shadow-inner" placeholder="設定登入密碼">
             </div>
             <div class="flex gap-3 pt-4">
-                <button type="button" onclick="closeSwitchToNormalModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-all">取消</button>
-                <button type="button" onclick="confirmSwitchToNormal()" class="w-1/2 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-all">確認切換</button>
+                <button type="button" id="btnCancelSwitchNormal" onclick="closeSwitchToNormalModal()" class="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 sm:py-3 rounded-xl transition-all text-xs sm:text-sm">取消</button>
+                <button type="button" id="btnConfirmSwitchNormal" onclick="confirmSwitchToNormal()" class="w-1/2 bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 sm:py-3 rounded-xl transition-all text-xs sm:text-sm">確認切換</button>
             </div>
         </div>
     </div>
 </div>
 
 <div id="captchaOverlay" class="fixed inset-0 bg-black/60 z-[60] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm border-t-4 border-green-500">
-        <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
-            <span class="text-2xl"><i class="fas fa-shield-alt"></i></span> 註冊安全驗證
+    <div class="bg-white rounded-2xl shadow-2xl p-5 sm:p-7 w-full max-w-sm border-t-4 border-green-500 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <h3 id="securityModalTitle" class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+            <span class="text-2xl text-green-600"><i class="fas fa-shield-alt"></i></span> 註冊安全驗證
         </h3>
-        <p class="text-sm text-slate-500 mb-4">系統將透過 Google reCAPTCHA 與網路連線檢測來確認您不是機器人。請完成下方驗證：</p>
+        <p id="securityModalDesc" class="text-xs sm:text-sm text-slate-500 mb-4 leading-relaxed">系統將透過 Google reCAPTCHA 與連線檢測來確認您不是機器人。請完成下方驗證：</p>
         
         <div class="flex flex-col gap-3 items-center">
-            <div class="g-recaptcha" data-sitekey="6LepxFktAAAAAI6RYTB8Ub29xIQ2PHeE1rJGXvKD"></div>
+            <div id="recaptchaContainer" class="min-h-[78px] flex items-center justify-center">
+                <div class="g-recaptcha" data-sitekey="6LepxFktAAAAAI6RYTB8Ub29xIQ2PHeE1rJGXvKD"></div>
+            </div>
             
-            <button id="securityBtn" type="button" onclick="startSecurityCheck()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-2 transition-all">驗證並進入註冊</button>
+            <button id="securityBtn" type="button" onclick="startSecurityCheck()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl mt-1 shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                <i class="fas fa-check-circle"></i> 驗證並進入註冊
+            </button>
+
+            <!-- 備用安全驗證 (若 Google reCAPTCHA 網路異常或受限時自動生效) -->
+            <button id="securityFallbackBtn" type="button" onclick="startFallbackSecurityCheck()" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold py-2.5 rounded-xl transition-all text-xs flex items-center justify-center gap-1.5">
+                <i class="fas fa-user-check"></i> <span id="txtFallbackCheck">點此直接完成真人安全確認</span>
+            </button>
         </div>
         
         <div class="mt-4 flex justify-center">
-            <button type="button" onclick="document.getElementById('captchaOverlay').classList.add('hidden')" class="text-sm text-slate-400 hover:text-slate-600 font-medium transition-colors">取消返回</button>
+            <button type="button" id="securityBtnCancel" onclick="document.getElementById('captchaOverlay').classList.add('hidden')" class="text-xs sm:text-sm text-slate-400 hover:text-slate-600 font-bold transition-colors">取消返回</button>
         </div>
     </div>
 </div>
