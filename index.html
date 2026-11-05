@@ -1735,30 +1735,148 @@
 
             <!-- Tab 4: 導覽列管理 -->
             <div id="admin-hub-tab-navbar" class="admin-hub-content-tab" style="display:none;">
-                <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:12px; border-radius:8px; margin-bottom:15px; font-size:13px; color:#2e7d32;">
-                    <i class="fas fa-info-circle"></i> 自訂官網頂部導覽列（NAV）捷徑項目，可自由新增外部網站、新專案或子網址連結。
+                <!-- 子分頁導覽按鈕 -->
+                <div style="display:flex; gap:8px; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; flex-wrap:wrap;">
+                    <button type="button" id="subTabBtn-nav-outer" onclick="switchNavAdminSubTab('outer')" class="admin-nav-subtab-btn active" style="padding:7px 15px; border-radius:6px; border:none; background:#2c5e32; color:#fff; font-weight:bold; cursor:pointer; font-size:13px; transition:0.2s;">
+                        <i class="fas fa-stream"></i> 最外層導覽列
+                    </button>
+                    <button type="button" id="subTabBtn-nav-software" onclick="switchNavAdminSubTab('software')" class="admin-nav-subtab-btn" style="padding:7px 15px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#475569; font-weight:bold; cursor:pointer; font-size:13px; transition:0.2s;">
+                        <i class="fas fa-cube"></i> 【自製軟體與網站】下拉選單
+                    </button>
+                    <button type="button" id="subTabBtn-nav-external" onclick="switchNavAdminSubTab('external')" class="admin-nav-subtab-btn" style="padding:7px 15px; border-radius:6px; border:1px solid #cbd5e1; background:#f8fafc; color:#475569; font-weight:bold; cursor:pointer; font-size:13px; transition:0.2s;">
+                        <i class="fas fa-external-link-alt"></i> 【外部連結】下拉選單
+                    </button>
                 </div>
-                <div style="font-weight:bold; font-size:13px; margin-bottom:6px; color:#333;">目前自訂導覽列項目：</div>
-                <div id="adminHubNavList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:15px;">
-                    <!-- 動態呈現自訂導覽列項目與刪除按鈕 -->
-                </div>
-                <div style="background:#f8fafc; border:1.5px solid #e2e8f0; padding:12px; border-radius:8px;">
-                    <div style="font-weight:bold; font-size:13px; margin-bottom:8px; color:#334155;"><i class="fas fa-plus-circle"></i> 新增導覽列項目</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
-                        <div>
-                            <label style="font-size:12px; color:#64748b; font-weight:bold;">顯示名稱：</label>
-                            <input type="text" id="adminHubNavName" placeholder="例如：討論專區、自製計算機" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+
+                <!-- 子分頁 1: 最外層導覽列 -->
+                <div id="nav-subtab-outer" class="nav-subtab-content" style="display:block;">
+                    <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:12px; border-radius:8px; margin-bottom:15px; font-size:13px; color:#2e7d32; line-height:1.5;">
+                        <i class="fas fa-info-circle"></i> <strong>最外層導覽列說明：</strong><br>
+                        • 系統預設的 3 個核心項目（<strong>回首頁</strong>、<strong>自製軟體與網站</strong>、<strong>外部連結</strong>）為網站固定骨幹，<strong>不可修改或刪除</strong>。<br>
+                        • 管理員可於下方自由新增、編輯或刪除最外層的<strong>額外自訂捷徑按鈕</strong>。
+                    </div>
+
+                    <div style="font-weight:bold; font-size:13px; margin-bottom:8px; color:#334155;">最外層導覽列項目清單：</div>
+                    <div id="adminHubOuterNavList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:15px;">
+                        <!-- 動態載入核心固定項目 + 自訂外層項目 -->
+                    </div>
+
+                    <div style="background:#f8fafc; border:1.5px solid #e2e8f0; padding:14px; border-radius:8px;">
+                        <div style="font-weight:bold; font-size:13px; margin-bottom:10px; color:#334155;"><i class="fas fa-plus-circle"></i> 新增最外層導覽項目</div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:10px;">
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">顯示名稱：</label>
+                                <input type="text" id="adminHubOuterNavName" placeholder="例如：討論專區、活動特輯" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">連結網址 (URL)：</label>
+                                <input type="text" id="adminHubOuterNavUrl" placeholder="例如：./forum/ 或 https://..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">圖示 Class (選填)：</label>
+                                <input type="text" id="adminHubOuterNavIcon" placeholder="例如：fas fa-star" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
                         </div>
-                        <div>
-                            <label style="font-size:12px; color:#64748b; font-weight:bold;">連結網址 (URL)：</label>
-                            <input type="text" id="adminHubNavUrl" placeholder="例如：https://... 或 ./my-tool/" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <label style="font-size:12.5px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="adminHubOuterNavBlank"> 開啟新分頁 (target="_blank")
+                            </label>
+                            <button type="button" onclick="addAdminHubNavItem('outer')" style="background:#2c5e32; color:white; border:none; padding:8px 18px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(44,94,50,0.3);"><i class="fas fa-plus"></i> 新增至最外層導覽列</button>
                         </div>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <label style="font-size:12.5px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
-                            <input type="checkbox" id="adminHubNavBlank"> 開啟新分頁 (target="_blank")
-                        </label>
-                        <button type="button" onclick="addAdminHubNavItem()" style="background:#2c5e32; color:white; border:none; padding:8px 18px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(44,94,50,0.3);"><i class="fas fa-plus"></i> 新增至導覽列</button>
+                </div>
+
+                <!-- 子分頁 2: 【自製軟體與網站】下拉選單 -->
+                <div id="nav-subtab-software" class="nav-subtab-content" style="display:none;">
+                    <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:12px; border-radius:8px; margin-bottom:15px; font-size:13px; color:#2e7d32; line-height:1.5;">
+                        <i class="fas fa-info-circle"></i> <strong>【自製軟體與網站】下拉選單說明：</strong><br>
+                        • 預設包含 4 個項目（<strong>胖達商城</strong>、<strong>探險者系列</strong>、<strong>遊戲專區</strong>、<strong>十兆分之一</strong>），您可點擊【編輯/替換】按鈕修改其名稱、網址與圖示，或將其刪除。<br>
+                        • 您也可以新增全新項目；選單底部固定保留「<strong>其它 (自製工具頁面)</strong>」入口。<br>
+                        • 如需還原，可隨時點擊【恢復預設 4 項目】按鈕。
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <div style="font-weight:bold; font-size:13px; color:#334155;">下拉選單內部項目列表：</div>
+                        <button type="button" onclick="resetSoftwareNavItems()" style="background:#f1f5f9; color:#b91c1c; border:1px solid #fecaca; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                            <i class="fas fa-undo"></i> 恢復預設 4 項目
+                        </button>
+                    </div>
+
+                    <div id="adminHubSoftwareNavList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:15px;">
+                        <!-- 動態載入自製軟體選單項目 -->
+                    </div>
+
+                    <div style="background:#f8fafc; border:1.5px solid #e2e8f0; padding:14px; border-radius:8px;">
+                        <div style="font-weight:bold; font-size:13px; margin-bottom:10px; color:#334155;"><i class="fas fa-plus-circle"></i> 新增至【自製軟體與網站】選單</div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:10px;">
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">顯示名稱：</label>
+                                <input type="text" id="adminHubSoftwareNavName" placeholder="例如：新版工具箱、作品展" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">連結網址 (URL)：</label>
+                                <input type="text" id="adminHubSoftwareNavUrl" placeholder="例如：./tools/ 或 https://..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">圖示 Class (選填)：</label>
+                                <input type="text" id="adminHubSoftwareNavIcon" placeholder="例如：fas fa-cube" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <label style="font-size:12.5px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="adminHubSoftwareNavBlank"> 開啟新分頁 (target="_blank")
+                            </label>
+                            <button type="button" onclick="addAdminHubNavItem('software')" style="background:#2c5e32; color:white; border:none; padding:8px 18px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(44,94,50,0.3);"><i class="fas fa-plus"></i> 新增至選單</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 子分頁 3: 【外部連結】下拉選單 -->
+                <div id="nav-subtab-external" class="nav-subtab-content" style="display:none;">
+                    <div style="background:#e8f5e9; border:1px solid #c8e6c9; padding:12px; border-radius:8px; margin-bottom:15px; font-size:13px; color:#2e7d32; line-height:1.5;">
+                        <i class="fas fa-info-circle"></i> <strong>【外部連結】下拉選單說明：</strong><br>
+                        • 預設包含 2 個項目（<strong>YouTube 頻道</strong>、<strong>Facebook</strong>），您可點擊【編輯/替換】按鈕修改其連結或名稱，或將其刪除。<br>
+                        • 您也可以新增其他官方社群（例如 Discord、Twitter/X、Instagram、GitHub 等）。<br>
+                        • 如需還原，可隨時點擊【恢復預設 2 項目】按鈕。
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <div style="font-weight:bold; font-size:13px; color:#334155;">下拉選單內部項目列表：</div>
+                        <button type="button" onclick="resetExternalNavItems()" style="background:#f1f5f9; color:#b91c1c; border:1px solid #fecaca; padding:4px 10px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:4px;">
+                            <i class="fas fa-undo"></i> 恢復預設 2 項目
+                        </button>
+                    </div>
+
+                    <div id="adminHubExternalNavList" style="display:flex; flex-direction:column; gap:6px; margin-bottom:15px;">
+                        <!-- 動態載入外部連結項目 -->
+                    </div>
+
+                    <div style="background:#f8fafc; border:1.5px solid #e2e8f0; padding:14px; border-radius:8px;">
+                        <div style="font-weight:bold; font-size:13px; margin-bottom:10px; color:#334155;"><i class="fas fa-plus-circle"></i> 新增至【外部連結】選單</div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-bottom:10px;">
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">顯示名稱：</label>
+                                <input type="text" id="adminHubExternalNavName" placeholder="例如：Discord 伺服器、GitHub" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">連結網址 (URL)：</label>
+                                <input type="text" id="adminHubExternalNavUrl" placeholder="例如：https://discord.gg/..." style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">圖示 Class (選填)：</label>
+                                <input type="text" id="adminHubExternalNavIcon" placeholder="例如：fab fa-discord" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#64748b; font-weight:bold; display:block; margin-bottom:3px;">圖示顏色 (選填)：</label>
+                                <input type="text" id="adminHubExternalNavColor" placeholder="例如：#5865F2" style="width:100%; padding:7px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+                            </div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <label style="font-size:12.5px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                                <input type="checkbox" id="adminHubExternalNavBlank" checked> 開啟新分頁 (target="_blank")
+                            </label>
+                            <button type="button" onclick="addAdminHubNavItem('external')" style="background:#2c5e32; color:white; border:none; padding:8px 18px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; box-shadow:0 2px 6px rgba(44,94,50,0.3);"><i class="fas fa-plus"></i> 新增至外部連結</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1804,7 +1922,46 @@
     </div>
 </div>
 
-        
+<!-- 導覽項目編輯 Modal -->
+<div id="editNavItemModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); backdrop-filter:blur(4px); z-index:100000; justify-content:center; align-items:center; padding:15px; box-sizing:border-box;">
+    <div style="background:#ffffff; color:#333; border-radius:12px; width:95%; max-width:480px; box-shadow:0 15px 35px rgba(0,0,0,0.3); border:1px solid #cbd5e1; overflow:hidden;">
+        <div style="background:linear-gradient(135deg, #1b5e20, #2c5e32); color:#ffffff; padding:12px 18px; display:flex; justify-content:space-between; align-items:center;">
+            <h4 id="editNavItemTitle" style="margin:0; font-size:15px; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-edit"></i> 編輯導覽項目
+            </h4>
+            <button type="button" onclick="closeEditNavItemModal()" style="background:transparent; border:none; color:#ffffff; font-size:18px; cursor:pointer; line-height:1;"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:16px 20px; display:flex; flex-direction:column; gap:12px;">
+            <input type="hidden" id="editNavCategory">
+            <input type="hidden" id="editNavIndex">
+            <div>
+                <label style="font-size:12.5px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">顯示名稱：</label>
+                <input type="text" id="editNavName" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+            </div>
+            <div>
+                <label style="font-size:12.5px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">連結網址 (URL)：</label>
+                <input type="text" id="editNavUrl" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+            </div>
+            <div>
+                <label style="font-size:12.5px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">圖示 Class (例如 fas fa-cube, fab fa-youtube)：</label>
+                <input type="text" id="editNavIcon" placeholder="fas fa-link" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+            </div>
+            <div>
+                <label style="font-size:12.5px; font-weight:bold; color:#334155; display:block; margin-bottom:4px;">圖示顏色 (例如 #ef4444，選填)：</label>
+                <input type="text" id="editNavColor" placeholder="#2c5e32" style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:13px; box-sizing:border-box; outline:none;">
+            </div>
+            <div>
+                <label style="font-size:12.5px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="editNavBlank"> 在新分頁開啟 (target="_blank")
+                </label>
+            </div>
+        </div>
+        <div style="padding:10px 18px; border-top:1px solid #e2e8f0; display:flex; justify-content:flex-end; gap:10px; background:#f8fafc;">
+            <button type="button" onclick="closeEditNavItemModal()" style="background:#94a3b8; color:white; border:none; padding:7px 14px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:bold;">取消</button>
+            <button type="button" onclick="saveEditNavItem()" style="background:#2c5e32; color:white; border:none; padding:7px 18px; border-radius:6px; font-size:13px; cursor:pointer; font-weight:bold;"><i class="fas fa-check"></i> 儲存修改</button>
+        </div>
+    </div>
+</div>
 
         <main>
             <section id="about" class="page-section active">
@@ -2378,6 +2535,10 @@
             const txtFb = document.getElementById('txtFacebook');
             if (txtFb) txtFb.innerText = t.facebook || 'Facebook';
 
+            if (typeof window.renderAllNavs === 'function') {
+                window.renderAllNavs();
+            }
+
             const notifLabel = document.getElementById('notificationLabel');
             if (notifLabel) notifLabel.innerText = t.notifLabel;
 
@@ -2495,7 +2656,9 @@
         // 頁面初次載入執行語言設定與自訂導覽列載入
         setTimeout(() => {
             changeSiteLanguage(window.currentSiteLang);
-            if (typeof renderCustomNavItems === 'function') {
+            if (typeof renderAllNavs === 'function') {
+                renderAllNavs();
+            } else if (typeof renderCustomNavItems === 'function') {
                 renderCustomNavItems();
             }
         }, 50);
@@ -2894,6 +3057,10 @@
                 activeBtn.style.color = '#1b5e20';
                 activeBtn.style.borderBottom = '2px solid #2c5e32';
             }
+
+            if (tabName === 'tab-navbar' && typeof window.renderAdminHubNavList === 'function') {
+                window.renderAdminHubNavList();
+            }
         };
 
         window.saveAdminHubAnnouncement = function() {
@@ -3074,13 +3241,31 @@
             } catch(e) {}
         };
 
+        const DEFAULT_SOFTWARE_NAV_ITEMS = [
+            { id: 'shop', name: '胖達商城', url: './shop/', icon: 'fas fa-store', targetBlank: false, transKey: 'shop', isDefault: true },
+            { id: 'seeker', name: '探險者系列', url: './Seeker/', icon: 'fas fa-compass', targetBlank: false, transKey: 'seeker', isDefault: true },
+            { id: 'game', name: '遊戲專區', url: './game/', icon: 'fas fa-gamepad', targetBlank: false, transKey: 'gameNav', isDefault: true },
+            { id: 'tenTrillion', name: '十兆分之一', url: './game/1%20in%2010%20trillion/', icon: 'fas fa-dice', targetBlank: false, transKey: 'tenTrillion', isDefault: true }
+        ];
+
+        const DEFAULT_EXTERNAL_NAV_ITEMS = [
+            { id: 'youtube', name: 'YouTube 頻道', url: 'https://www.youtube.com/@pandapandaAI', icon: 'fab fa-youtube', color: '#ef4444', targetBlank: true, transKey: 'youtube', isDefault: true },
+            { id: 'facebook', name: 'Facebook', url: 'https://www.facebook.com/profile.php?id=61578859210871&locale=zh_TW', icon: 'fab fa-facebook', color: '#1877f2', targetBlank: true, transKey: 'facebook', isDefault: true }
+        ];
+
+        // 最外層核心預設 3 大項目（全站固定骨幹，不可修改/刪除）
+        const CORE_OUTER_NAV_ITEMS = [
+            { id: 'home', name: '回首頁', url: './', icon: 'fas fa-home', isLocked: true },
+            { id: 'software', name: '自製軟體與網站', url: '#', icon: 'fas fa-cube', isLocked: true },
+            { id: 'external', name: '外部連結', url: '#', icon: 'fas fa-external-link-alt', isLocked: true }
+        ];
+
         window.getCustomNavItems = function() {
             try {
                 const stored = localStorage.getItem('panda_custom_nav_items');
                 if (stored) {
                     const arr = JSON.parse(stored);
                     if (Array.isArray(arr)) {
-                        // 排除與原生主導覽列重複的項目（例如十兆分之一已有專屬主標籤）
                         const cleaned = arr.filter(item => item && item.name && item.name !== '十兆分之一' && !item.url.includes('10%20trillion') && !item.url.includes('1 in 10 trillion'));
                         if (cleaned.length !== arr.length) {
                             localStorage.setItem('panda_custom_nav_items', JSON.stringify(cleaned));
@@ -3090,6 +3275,83 @@
                 }
             } catch(e) {}
             return [];
+        };
+
+        window.getSoftwareNavItems = function() {
+            try {
+                const stored = localStorage.getItem('panda_software_nav_items');
+                if (stored) {
+                    const arr = JSON.parse(stored);
+                    if (Array.isArray(arr) && arr.length > 0) return arr;
+                }
+            } catch(e) {}
+            return JSON.parse(JSON.stringify(DEFAULT_SOFTWARE_NAV_ITEMS));
+        };
+
+        window.getExternalNavItems = function() {
+            try {
+                const stored = localStorage.getItem('panda_external_nav_items');
+                if (stored) {
+                    const arr = JSON.parse(stored);
+                    if (Array.isArray(arr) && arr.length > 0) return arr;
+                }
+            } catch(e) {}
+            return JSON.parse(JSON.stringify(DEFAULT_EXTERNAL_NAV_ITEMS));
+        };
+
+        function getNavItemDisplayName(item) {
+            if (!item) return '';
+            if (item.isCustomName) return item.name;
+            const currentLang = window.currentSiteLang || 'zh-TW';
+            const dict = (typeof siteI18n !== 'undefined' && siteI18n[currentLang]) ? siteI18n[currentLang] : ((typeof siteI18n !== 'undefined' && siteI18n['zh-TW']) ? siteI18n['zh-TW'] : {});
+            if (item.transKey && dict && dict[item.transKey]) {
+                return dict[item.transKey];
+            }
+            return item.name;
+        }
+
+        window.renderSoftwareNavItems = function() {
+            const menu = document.getElementById('navSoftwareMenu');
+            if (!menu) return;
+            const items = window.getSoftwareNavItems();
+            const currentLang = window.currentSiteLang || 'zh-TW';
+            const dict = (typeof siteI18n !== 'undefined' && siteI18n[currentLang]) ? siteI18n[currentLang] : {};
+            const toolsOtherText = dict.toolsOther || '其它 (自製工具頁面)';
+
+            let html = '';
+            items.forEach((item, index) => {
+                if (!item || !item.name || !item.url) return;
+                const displayName = getNavItemDisplayName(item);
+                const iconClass = item.icon || 'fas fa-cube';
+                const colorStyle = item.color ? ` style="color:${escapeHtml(item.color)};"` : '';
+                const targetAttr = item.targetBlank ? ' target="_blank" rel="noopener noreferrer"' : '';
+                const idAttr = item.id ? ` id="navSoftwareItem_${escapeHtml(item.id)}"` : '';
+                html += `<a href="${escapeHtml(item.url)}"${targetAttr} class="nav-dropdown-item"${idAttr} itemprop="url"><span itemprop="name"><i class="${escapeHtml(iconClass)}"${colorStyle}></i> ${escapeHtml(displayName)}</span></a>`;
+            });
+
+            html += `<div class="nav-dropdown-divider"></div>`;
+            html += `<a href="#tools" class="nav-dropdown-item nav-link" data-page="tools" id="navToolsOther" itemprop="url"><span itemprop="name"><i class="fas fa-th-large"></i> ${escapeHtml(toolsOtherText)}</span></a>`;
+
+            menu.innerHTML = html;
+        };
+
+        window.renderExternalNavItems = function() {
+            const menu = document.getElementById('navExternalMenu');
+            if (!menu) return;
+            const items = window.getExternalNavItems();
+
+            let html = '';
+            items.forEach((item, index) => {
+                if (!item || !item.name || !item.url) return;
+                const displayName = getNavItemDisplayName(item);
+                const iconClass = item.icon || 'fas fa-external-link-alt';
+                const colorStyle = item.color ? ` style="color:${escapeHtml(item.color)};"` : '';
+                const targetAttr = item.targetBlank ? ' target="_blank" rel="noopener noreferrer"' : '';
+                const idAttr = item.id ? ` id="navExternalItem_${escapeHtml(item.id)}"` : '';
+                html += `<a href="${escapeHtml(item.url)}"${targetAttr} class="nav-dropdown-item"${idAttr}><i class="${escapeHtml(iconClass)}"${colorStyle}></i> <span${item.transKey ? ` id="txt${item.transKey.charAt(0).toUpperCase() + item.transKey.slice(1)}"` : ''}>${escapeHtml(displayName)}</span></a>`;
+            });
+
+            menu.innerHTML = html;
         };
 
         window.renderCustomNavItems = function() {
@@ -3109,41 +3371,190 @@
                 }
                 const span = document.createElement('span');
                 span.setAttribute('itemprop', 'name');
-                span.textContent = item.name;
+                if (item.icon) {
+                    const iconEl = document.createElement('i');
+                    iconEl.className = item.icon;
+                    if (item.color) iconEl.style.color = item.color;
+                    iconEl.style.marginRight = '5px';
+                    span.appendChild(iconEl);
+                }
+                span.appendChild(document.createTextNode(item.name));
                 a.appendChild(span);
                 container.appendChild(a);
             });
         };
 
+        window.renderAllNavs = function() {
+            if (typeof window.renderSoftwareNavItems === 'function') window.renderSoftwareNavItems();
+            if (typeof window.renderExternalNavItems === 'function') window.renderExternalNavItems();
+            if (typeof window.renderCustomNavItems === 'function') window.renderCustomNavItems();
+        };
+
+        window.switchNavAdminSubTab = function(subtab) {
+            ['outer', 'software', 'external'].forEach(key => {
+                const btn = document.getElementById(`subTabBtn-nav-${key}`);
+                const tab = document.getElementById(`nav-subtab-${key}`);
+                if (btn) {
+                    if (key === subtab) {
+                        btn.style.background = '#2c5e32';
+                        btn.style.color = '#fff';
+                        btn.style.border = 'none';
+                    } else {
+                        btn.style.background = '#f8fafc';
+                        btn.style.color = '#475569';
+                        btn.style.border = '1px solid #cbd5e1';
+                    }
+                }
+                if (tab) tab.style.display = (key === subtab) ? 'block' : 'none';
+            });
+        };
+
         window.renderAdminHubNavList = function() {
-            const container = document.getElementById('adminHubNavList');
+            renderAdminHubOuterNavList();
+            renderAdminHubSoftwareNavList();
+            renderAdminHubExternalNavList();
+        };
+
+        function renderAdminHubOuterNavList() {
+            const container = document.getElementById('adminHubOuterNavList');
             if (!container) return;
-            const items = window.getCustomNavItems();
-            if (items.length === 0) {
-                container.innerHTML = '<div style="color:#94a3b8; font-size:12.5px; padding:6px;">目前尚無自訂導覽列項目。</div>';
-                return;
-            }
+
             let html = '';
-            items.forEach((item, idx) => {
+            // 1. 預設 3 個核心項目（不可修改/刪除）
+            CORE_OUTER_NAV_ITEMS.forEach(core => {
                 html += `
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; padding:8px 12px; border-radius:6px; font-size:13px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; border:1px solid #cbd5e1; padding:8px 12px; border-radius:6px; font-size:13px;">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <i class="fas fa-link" style="color:#2c5e32;"></i>
-                            <strong style="color:#1e293b;">${escapeHtml(item.name)}</strong>
-                            <span style="color:#64748b; font-size:12px;">(${escapeHtml(item.url)})</span>
-                            ${item.targetBlank ? '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">新分頁</span>' : ''}
+                            <i class="${escapeHtml(core.icon)}" style="color:#64748b; width:16px; text-align:center;"></i>
+                            <strong style="color:#1e293b;">${escapeHtml(core.name)}</strong>
+                            <span style="color:#64748b; font-size:12px;">(${escapeHtml(core.url)})</span>
+                            <span style="font-size:11px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-weight:bold;">🔒 預設核心項目（不可改）</span>
                         </div>
-                        <button type="button" onclick="deleteAdminHubNavItem(${idx})" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-trash-alt"></i> 刪除</button>
+                        <div style="font-size:11px; color:#94a3b8; font-weight:bold;">全站核心</div>
                     </div>
                 `;
             });
-            container.innerHTML = html;
-        };
 
-        window.addAdminHubNavItem = function() {
-            const nameInput = document.getElementById('adminHubNavName');
-            const urlInput = document.getElementById('adminHubNavUrl');
-            const blankCheck = document.getElementById('adminHubNavBlank');
+            // 2. 自訂最外層項目
+            const items = window.getCustomNavItems();
+            if (items.length > 0) {
+                items.forEach((item, idx) => {
+                    html += `
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; padding:8px 12px; border-radius:6px; font-size:13px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <i class="${escapeHtml(item.icon || 'fas fa-link')}" style="color:#2c5e32; width:16px; text-align:center;"></i>
+                                <strong style="color:#1e293b;">${escapeHtml(item.name)}</strong>
+                                <span style="color:#64748b; font-size:12px;">(${escapeHtml(item.url)})</span>
+                                ${item.targetBlank ? '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">新分頁</span>' : ''}
+                                <span style="font-size:11px; background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px;">自訂外層</span>
+                            </div>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" onclick="openEditNavItemModal('outer', ${idx})" style="background:#0284c7; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-edit"></i> 編輯</button>
+                                <button type="button" onclick="deleteAdminHubNavItem('outer', ${idx})" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-trash-alt"></i> 刪除</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<div style="color:#94a3b8; font-size:12.5px; padding:6px; background:#fff; border:1px dashed #cbd5e1; border-radius:6px; text-align:center;">目前尚無額外自訂的最外層導覽項目，可在下方新增。</div>';
+            }
+
+            container.innerHTML = html;
+        }
+
+        function renderAdminHubSoftwareNavList() {
+            const container = document.getElementById('adminHubSoftwareNavList');
+            if (!container) return;
+
+            const items = window.getSoftwareNavItems();
+            let html = '';
+            items.forEach((item, idx) => {
+                const iconClass = item.icon || 'fas fa-cube';
+                const isDefaultItem = item.isDefault && !item.isCustomName;
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; padding:8px 12px; border-radius:6px; font-size:13px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="${escapeHtml(iconClass)}" style="color:#2c5e32; width:16px; text-align:center;"></i>
+                            <strong style="color:#1e293b;">${escapeHtml(item.name)}</strong>
+                            <span style="color:#64748b; font-size:12px;">(${escapeHtml(item.url)})</span>
+                            ${item.targetBlank ? '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">新分頁</span>' : ''}
+                            ${isDefaultItem ? '<span style="font-size:11px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px;">預設項目</span>' : '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">自訂/替換</span>'}
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" onclick="openEditNavItemModal('software', ${idx})" style="background:#0284c7; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-edit"></i> 編輯 / 替換</button>
+                            <button type="button" onclick="deleteAdminHubNavItem('software', ${idx})" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-trash-alt"></i> 刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // 固定底部項目：其它 (自製工具頁面)
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px dashed #cbd5e1; padding:8px 12px; border-radius:6px; font-size:13px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-th-large" style="color:#64748b; width:16px; text-align:center;"></i>
+                        <strong style="color:#64748b;">其它 (自製工具頁面)</strong>
+                        <span style="color:#94a3b8; font-size:12px;">(#tools)</span>
+                        <span style="font-size:11px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-weight:bold;">🔒 固定底部入口</span>
+                    </div>
+                    <div style="font-size:11px; color:#94a3b8;">固定導航至 #tools</div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        function renderAdminHubExternalNavList() {
+            const container = document.getElementById('adminHubExternalNavList');
+            if (!container) return;
+
+            const items = window.getExternalNavItems();
+            let html = '';
+            items.forEach((item, idx) => {
+                const iconClass = item.icon || 'fas fa-external-link-alt';
+                const colorStyle = item.color ? `color:${escapeHtml(item.color)};` : 'color:#2c5e32;';
+                const isDefaultItem = item.isDefault && !item.isCustomName;
+                html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; padding:8px 12px; border-radius:6px; font-size:13px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="${escapeHtml(iconClass)}" style="${colorStyle} width:16px; text-align:center;"></i>
+                            <strong style="color:#1e293b;">${escapeHtml(item.name)}</strong>
+                            <span style="color:#64748b; font-size:12px;">(${escapeHtml(item.url)})</span>
+                            ${item.targetBlank ? '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">新分頁</span>' : ''}
+                            ${isDefaultItem ? '<span style="font-size:11px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:4px;">預設項目</span>' : '<span style="font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px;">自訂/替換</span>'}
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button type="button" onclick="openEditNavItemModal('external', ${idx})" style="background:#0284c7; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-edit"></i> 編輯 / 替換</button>
+                            <button type="button" onclick="deleteAdminHubNavItem('external', ${idx})" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:4px; font-size:12px; cursor:pointer;"><i class="fas fa-trash-alt"></i> 刪除</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        window.addAdminHubNavItem = function(category) {
+            if (!category) category = 'outer';
+            let nameInput, urlInput, iconInput, colorInput, blankCheck;
+            if (category === 'outer') {
+                nameInput = document.getElementById('adminHubOuterNavName');
+                urlInput = document.getElementById('adminHubOuterNavUrl');
+                iconInput = document.getElementById('adminHubOuterNavIcon');
+                blankCheck = document.getElementById('adminHubOuterNavBlank');
+            } else if (category === 'software') {
+                nameInput = document.getElementById('adminHubSoftwareNavName');
+                urlInput = document.getElementById('adminHubSoftwareNavUrl');
+                iconInput = document.getElementById('adminHubSoftwareNavIcon');
+                blankCheck = document.getElementById('adminHubSoftwareNavBlank');
+            } else if (category === 'external') {
+                nameInput = document.getElementById('adminHubExternalNavName');
+                urlInput = document.getElementById('adminHubExternalNavUrl');
+                iconInput = document.getElementById('adminHubExternalNavIcon');
+                colorInput = document.getElementById('adminHubExternalNavColor');
+                blankCheck = document.getElementById('adminHubExternalNavBlank');
+            }
+
             if (!nameInput || !urlInput) return;
             const name = nameInput.value.trim();
             const url = urlInput.value.trim();
@@ -3151,29 +3562,186 @@
                 alert('請填寫導覽項目名稱與連結網址');
                 return;
             }
-            const items = window.getCustomNavItems();
-            items.push({
+
+            const newItem = {
                 name: name,
                 url: url,
-                targetBlank: blankCheck ? blankCheck.checked : false
-            });
-            localStorage.setItem('panda_custom_nav_items', JSON.stringify(items));
+                icon: iconInput ? iconInput.value.trim() : '',
+                color: colorInput ? colorInput.value.trim() : '',
+                targetBlank: blankCheck ? blankCheck.checked : false,
+                isCustomName: true
+            };
+
+            if (category === 'outer') {
+                const items = window.getCustomNavItems();
+                items.push(newItem);
+                localStorage.setItem('panda_custom_nav_items', JSON.stringify(items));
+            } else if (category === 'software') {
+                const items = window.getSoftwareNavItems();
+                items.push(newItem);
+                localStorage.setItem('panda_software_nav_items', JSON.stringify(items));
+            } else if (category === 'external') {
+                const items = window.getExternalNavItems();
+                items.push(newItem);
+                localStorage.setItem('panda_external_nav_items', JSON.stringify(items));
+            }
+
             nameInput.value = '';
             urlInput.value = '';
-            if (blankCheck) blankCheck.checked = false;
+            if (iconInput) iconInput.value = '';
+            if (colorInput) colorInput.value = '';
+            if (blankCheck) blankCheck.checked = (category === 'external');
+
+            window.renderAllNavs();
             window.renderAdminHubNavList();
-            window.renderCustomNavItems();
-            alert(`已成功將「${name}」新增至導覽列！`);
+            alert(`已成功新增「${name}」！`);
         };
 
-        window.deleteAdminHubNavItem = function(idx) {
-            const items = window.getCustomNavItems();
-            if (idx >= 0 && idx < items.length) {
-                const removed = items.splice(idx, 1);
-                localStorage.setItem('panda_custom_nav_items', JSON.stringify(items));
-                window.renderAdminHubNavList();
-                window.renderCustomNavItems();
+        window.deleteAdminHubNavItem = function(category, idx) {
+            if (typeof idx === 'undefined' && typeof category === 'number') {
+                idx = category;
+                category = 'outer';
             }
+            let catName = '此項目';
+            if (category === 'outer') catName = '最外層導覽項目';
+            if (category === 'software') catName = '自製軟體項目';
+            if (category === 'external') catName = '外部連結項目';
+
+            if (!confirm(`確定要刪除該${catName}嗎？`)) return;
+
+            if (category === 'outer') {
+                const items = window.getCustomNavItems();
+                if (idx >= 0 && idx < items.length) {
+                    items.splice(idx, 1);
+                    localStorage.setItem('panda_custom_nav_items', JSON.stringify(items));
+                }
+            } else if (category === 'software') {
+                const items = window.getSoftwareNavItems();
+                if (idx >= 0 && idx < items.length) {
+                    items.splice(idx, 1);
+                    localStorage.setItem('panda_software_nav_items', JSON.stringify(items));
+                }
+            } else if (category === 'external') {
+                const items = window.getExternalNavItems();
+                if (idx >= 0 && idx < items.length) {
+                    items.splice(idx, 1);
+                    localStorage.setItem('panda_external_nav_items', JSON.stringify(items));
+                }
+            }
+
+            window.renderAllNavs();
+            window.renderAdminHubNavList();
+        };
+
+        window.resetSoftwareNavItems = function() {
+            if (confirm('確定要將【自製軟體與網站】下拉選單恢復為預設的 4 個項目嗎？（胖達商城、探險者系列、遊戲專區、十兆分之一）')) {
+                localStorage.removeItem('panda_software_nav_items');
+                window.renderAllNavs();
+                window.renderAdminHubNavList();
+                alert('已成功恢復【自製軟體與網站】預設項目！');
+            }
+        };
+
+        window.resetExternalNavItems = function() {
+            if (confirm('確定要將【外部連結】下拉選單恢復為預設的 2 個項目嗎？（YouTube 頻道、Facebook）')) {
+                localStorage.removeItem('panda_external_nav_items');
+                window.renderAllNavs();
+                window.renderAdminHubNavList();
+                alert('已成功恢復【外部連結】預設項目！');
+            }
+        };
+
+        window.openEditNavItemModal = function(category, idx) {
+            let item;
+            if (category === 'outer') {
+                const items = window.getCustomNavItems();
+                item = items[idx];
+            } else if (category === 'software') {
+                const items = window.getSoftwareNavItems();
+                item = items[idx];
+            } else if (category === 'external') {
+                const items = window.getExternalNavItems();
+                item = items[idx];
+            }
+
+            if (!item) return;
+
+            document.getElementById('editNavCategory').value = category;
+            document.getElementById('editNavIndex').value = idx;
+            document.getElementById('editNavName').value = item.name || '';
+            document.getElementById('editNavUrl').value = item.url || '';
+            document.getElementById('editNavIcon').value = item.icon || '';
+            document.getElementById('editNavColor').value = item.color || '';
+            document.getElementById('editNavBlank').checked = !!item.targetBlank;
+
+            let title = '編輯導覽項目';
+            if (category === 'outer') title = '編輯最外層導覽項目';
+            if (category === 'software') title = '編輯 / 替換自製軟體項目';
+            if (category === 'external') title = '編輯 / 替換外部連結項目';
+            document.getElementById('editNavItemTitle').innerHTML = `<i class="fas fa-edit"></i> ${title}`;
+
+            const modal = document.getElementById('editNavItemModal');
+            if (modal) modal.style.display = 'flex';
+        };
+
+        window.closeEditNavItemModal = function() {
+            const modal = document.getElementById('editNavItemModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.saveEditNavItem = function() {
+            const category = document.getElementById('editNavCategory').value;
+            const idx = parseInt(document.getElementById('editNavIndex').value, 10);
+            const name = document.getElementById('editNavName').value.trim();
+            const url = document.getElementById('editNavUrl').value.trim();
+            const icon = document.getElementById('editNavIcon').value.trim();
+            const color = document.getElementById('editNavColor').value.trim();
+            const targetBlank = document.getElementById('editNavBlank').checked;
+
+            if (!name || !url) {
+                alert('請填寫名稱與連結網址');
+                return;
+            }
+
+            if (category === 'outer') {
+                const items = window.getCustomNavItems();
+                if (items[idx]) {
+                    items[idx].name = name;
+                    items[idx].url = url;
+                    items[idx].icon = icon;
+                    items[idx].color = color;
+                    items[idx].targetBlank = targetBlank;
+                    items[idx].isCustomName = true;
+                    localStorage.setItem('panda_custom_nav_items', JSON.stringify(items));
+                }
+            } else if (category === 'software') {
+                const items = window.getSoftwareNavItems();
+                if (items[idx]) {
+                    items[idx].name = name;
+                    items[idx].url = url;
+                    items[idx].icon = icon;
+                    items[idx].color = color;
+                    items[idx].targetBlank = targetBlank;
+                    items[idx].isCustomName = true;
+                    localStorage.setItem('panda_software_nav_items', JSON.stringify(items));
+                }
+            } else if (category === 'external') {
+                const items = window.getExternalNavItems();
+                if (items[idx]) {
+                    items[idx].name = name;
+                    items[idx].url = url;
+                    items[idx].icon = icon;
+                    items[idx].color = color;
+                    items[idx].targetBlank = targetBlank;
+                    items[idx].isCustomName = true;
+                    localStorage.setItem('panda_external_nav_items', JSON.stringify(items));
+                }
+            }
+
+            window.renderAllNavs();
+            window.renderAdminHubNavList();
+            window.closeEditNavItemModal();
+            alert(`已成功儲存「${name}」修改！`);
         };
 
         function showBroadcast(message) {
@@ -3874,7 +4442,9 @@
                     loadingIndicator.style.display = 'none';
 
                     // 渲染動態自訂導覽列項目
-                    if (typeof renderCustomNavItems === 'function') {
+                    if (typeof renderAllNavs === 'function') {
+                        renderAllNavs();
+                    } else if (typeof renderCustomNavItems === 'function') {
                         renderCustomNavItems();
                     }
 
@@ -4188,14 +4758,14 @@
                 }
             });
 
-            document.querySelectorAll('.nav-dropdown-item').forEach(item => {
-                item.addEventListener('click', () => {
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('.nav-dropdown-item')) {
                     document.querySelectorAll('.nav-dropdown').forEach(d => {
                         d.classList.remove('is-open');
                         const toggle = d.querySelector('.nav-dropdown-toggle');
                         if (toggle) toggle.setAttribute('aria-expanded', 'false');
                     });
-                });
+                }
             });
         });
     
