@@ -54,7 +54,7 @@ for d in "$HOME/Desktop" "$HOME/桌面"; do
     fi
 done
 
-echo "✅ Google 遠端桌面 捷徑與獨立應用程式已成功部署至應用程式選單與桌面！"
-echo "🚀 正在為您啟動 Google 遠端桌面..."
+echo "[完成] Google 遠端桌面 捷徑與獨立應用程式已成功部署至應用程式選單與桌面！"
+echo "[啟動] 正在為您啟動 Google 遠端桌面..."
 
 exec "$CHOSEN_BROWSER" --app="https://remotedesktop.google.com/access" --class="GoogleRemoteDesktop" --name="Google Remote Desktop" "$@" >/dev/null 2>&1 &
