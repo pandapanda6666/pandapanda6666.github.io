@@ -1,5 +1,5 @@
 // =========================================================================
-// PandaPanda UAV Simulator - Controller & Sensor Input System (v4.025)
+// PandaPanda UAV Simulator - Controller & Sensor Input System (v4.035)
 // 支援 Switch 搖桿 (藍牙連線 / ZR ZL 翻滾 / 雙搖桿) & Rabboni 六軸體感 & 鍵盤
 // =========================================================================
 
@@ -110,6 +110,7 @@ let rabboniWsAttempts = 0;
 let rabboniWsTargetPort = 50500;
 
 async function resolveRabboniWsUrl() {
+    const isLocalHost = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '');
     if (window.location && window.location.protocol && window.location.protocol.startsWith('http')) {
         try {
             const resp = await fetch('/api/server_info?t=' + Date.now(), { cache: 'no-store' });
@@ -122,18 +123,27 @@ async function resolveRabboniWsUrl() {
             }
         } catch(e) {}
     }
-    return `ws://127.0.0.1:${rabboniWsTargetPort}/rab`;
+    // 嚴格限制：僅在本地環境 (127.0.0.1 / localhost) 允許連線本地 WebSocket 中介。
+    // 在 GitHub Pages 等公網線上環境下，若無本地服務則完全不發起連線，徹底杜絕 ERR_CONNECTION_REFUSED 報錯
+    if (isLocalHost) {
+        return `ws://127.0.0.1:${rabboniWsTargetPort}/rab`;
+    }
+    return null;
 }
 
 async function initRabboniWS() {
     if (rabboniSocket) return;
     const wsUrl = await resolveRabboniWsUrl();
+    if (!wsUrl) return; // 線上環境或無本地中介，靜默退出，不進行無效輪詢
     try {
         rabboniSocket = new WebSocket(wsUrl);
     } catch(e) {
-        rabboniWsAttempts++;
-        const nextDelay = rabboniWsAttempts > 3 ? 15000 : 3000;
-        setTimeout(initRabboniWS, nextDelay);
+        const isLocalHost = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '');
+        if (isLocalHost) {
+            rabboniWsAttempts++;
+            const nextDelay = rabboniWsAttempts > 3 ? 15000 : 3000;
+            setTimeout(initRabboniWS, nextDelay);
+        }
         return;
     }
     
@@ -242,9 +252,12 @@ async function initRabboniWS() {
 
     rabboniSocket.onclose = () => {
         rabboniSocket = null;
-        rabboniWsAttempts++;
-        const nextDelay = rabboniWsAttempts > 3 ? 15000 : 3000;
-        setTimeout(initRabboniWS, nextDelay);
+        const isLocalHost = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' || window.location.hostname === '');
+        if (isLocalHost) {
+            rabboniWsAttempts++;
+            const nextDelay = rabboniWsAttempts > 3 ? 15000 : 3000;
+            setTimeout(initRabboniWS, nextDelay);
+        }
     };
 }
 initRabboniWS();
@@ -375,13 +388,13 @@ function saveRabboniSettings() {
         config: controlConfig
     };
     try {
-        localStorage.setItem('uav_control_settings_v4', JSON.stringify(settings));
+        localStorage.setItem('uav_control_settings_v5', JSON.stringify(settings));
     } catch(e) {}
 }
 
 function loadRabboniSettings() {
     try {
-        let saved = localStorage.getItem('uav_control_settings_v4');
+        let saved = localStorage.getItem('uav_control_settings_v5');
         if (saved) {
             let settings = JSON.parse(saved);
             if (settings.selection) rabboniSelection = settings.selection;

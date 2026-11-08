@@ -1,3 +1,3 @@
 // Auto-generated version metadata
-window.UAV_VERSION = "v4.034";
-window.UAV_CHANGELOG = "全面升級動態彈性通訊埠架構（徹底根治 127.0.0.1 / 50500 拒絕連線與占用問題）、引進前端心跳看門狗與通訊埠智慧自動發現、相容 file 協定與模型本機載入。";
+window.UAV_VERSION = "v4.035";
+window.UAV_CHANGELOG = "修復 3D 物理引擎 globalThrottleVal 變數初始化例外、修復 BGM 按鈕引號渲染、消除公網網頁版 WebSocket 拒絕連線報錯、恢復日本手預設值與真實無人機天線及起落腳墊比例。";

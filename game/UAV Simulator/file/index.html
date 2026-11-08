@@ -184,11 +184,11 @@
         <button id="rabboniBtn" style="display:none;" onclick="document.getElementById('rabboni-modal').style.display='flex'" style="background-color:#009688;">Rabboni 遙控器設定 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-left:5px;"><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line><rect x="2" y="6" width="20" height="12" rx="2"></rect></svg></button>
         <button id="modeSwitchBtn">目前模式：日本手</button>
         <div class="instructions" id="instructionsText">
-            [美國手 操作說明]<br>
-            上下鍵：油門 (螺旋槳加速)<br>
-            左右鍵：水平轉動 (Yaw)<br>
-            W S 鍵：前後傾斜 (Pitch)<br>
-            A D 鍵：左右傾斜 (Roll)<br>
+            [日本手 Mode 1 操作說明]<br>
+            上下鍵：油門升降 (上=升, 下=降)<br>
+            左右鍵：副翼橫滾 (左傾/右傾)<br>
+            W S 鍵：俯仰前後 (W=前傾俯衝, S=後仰抬頭)<br>
+            A D 鍵：水平偏航 (A=左轉, D=右轉)<br>
             C 鍵：第三人稱跟隨旋轉切換<br>
             Q / E 鍵：特技翻滾 (Flip)<br><br>
             [滑鼠操作]<br>
@@ -349,10 +349,10 @@
                         <div style="color:#ddd; line-height:1.7; font-size:15px; margin-bottom: 20px;">
                             <h3 style="color:#FFC107; border-bottom:1px solid #555; padding-bottom:5px;"><svg class="svg-icon" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"></rect><line x1="6" y1="12" x2="10" y2="12"></line><line x1="8" y1="10" x2="8" y2="14"></line><line x1="15" y1="13" x2="15.01" y2="13"></line><line x1="18" y1="11" x2="18.01" y2="11"></line></svg>基本操作</h3>
                             <ul>
-                                <li><code>W / S</code>：油門 (控制上升 / 下降)</li>
-                                <li><code>A / D</code>：偏航 (原地左右轉向)</li>
-                                <li><code>↑ / ↓</code>：俯仰 (機身前後傾斜)</li>
-                                <li><code>← / →</code>：翻滾 (機身左右側飛)</li>
+                                <li><code>↑ / ↓</code>：油門升降 (控制上升 / 下降)</li>
+                                <li><code>← / →</code>：副翼橫滾 (機身左右側飛)</li>
+                                <li><code>W / S</code>：俯仰前後 (機身前傾俯衝 / 後仰抬頭)</li>
+                                <li><code>A / D</code>：偏航轉向 (原地左右偏航轉向)</li>
                                 <li><code>[V]</code>：切換視角 (第一人稱/第三人稱)</li>
                                 <li><code>[C]</code>：第三人稱視角跟隨機身旋轉 (開/關)</li>
                                 <li><code>[T]</code>：切換飛行模式 (自穩/特技)</li>
@@ -410,7 +410,7 @@
                         </div>
                         <div style="margin-bottom:20px; border-top:1px solid #444; padding-top:20px; margin-top:20px;">
                             <label style="color:#ddd; margin-right:15px; font-size:18px;">背景音樂 (BGM):</label>
-                            <button onclick="let b=document.getElementById('bgm-player'); if(b.paused){b.play();this.innerText='<svg class="svg-icon" viewBox="0 0 24 24" style="width:12px; height:12px;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg> 暫停音樂';}else{b.pause();this.innerText='▶ 播放音樂';}" style="padding:10px 20px; background:#E91E63; color:white; border:none; border-radius:4px; cursor:pointer; font-size:16px;">▶ 播放音樂</button>
+                            <button id="bgmToggleBtn" onclick="toggleBgm(this)" style="padding:10px 20px; background:#E91E63; color:white; border:none; border-radius:4px; cursor:pointer; font-size:16px;">[播放音樂]</button>
                         </div>
 
                     </div>
@@ -544,6 +544,20 @@
                 isAudioEnabled = false; audioBtn.innerHTML = '開啟引擎音效 <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> (點擊啟用)'; audioBtn.classList.remove('active');
             }
         });
+
+        function toggleBgm(btn) {
+            const b = document.getElementById('bgm-player');
+            if (!b) return;
+            const targetBtn = btn || document.getElementById('bgmToggleBtn');
+            if (b.paused) {
+                b.play().catch(e => console.log('BGM play caught:', e));
+                if (targetBtn) targetBtn.innerText = '[暫停音樂]';
+            } else {
+                b.pause();
+                if (targetBtn) targetBtn.innerText = '[播放音樂]';
+            }
+        }
+        window.toggleBgm = toggleBgm;
 
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x87CEEB, 0.015);
@@ -1397,12 +1411,17 @@
                   droneGroup.add(fin);
             }
 
-            // VTX 圖傳天線 (Lollipop)
+            // VTX 圖傳天線 (真實 FPV Lollipop 緊湊天線比例)
             if (!config.isPlastic && !config.isCetus) {
-                const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.18*s), new THREE.MeshStandardMaterial({color:0x111}));
-                antStem.position.set(0, config.stackHeight*s, bodyL*0.9); antStem.rotation.x = -Math.PI / 4;
-                const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.03*s), tpuMat);
-                antHead.position.set(0, 0.09*s, 0); antStem.add(antHead);
+                const antStem = new THREE.Mesh(new THREE.CylinderGeometry(0.003*s, 0.003*s, 0.09*s), new THREE.MeshStandardMaterial({color:0x111, roughness:0.7}));
+                antStem.position.set(0, config.stackHeight*s * 0.8, bodyL*0.75); 
+                antStem.rotation.x = -Math.PI / 4;
+                const antHead = new THREE.Mesh(new THREE.SphereGeometry(0.016*s, 16, 16), tpuMat);
+                antHead.position.set(0, 0.045*s, 0); 
+                const antRing = new THREE.Mesh(new THREE.TorusGeometry(0.0165*s, 0.002*s, 8, 24), new THREE.MeshBasicMaterial({color: 0xffffff}));
+                antRing.rotation.x = Math.PI / 2;
+                antHead.add(antRing);
+                antStem.add(antHead);
                 droneGroup.add(antStem);
             }
 
@@ -1486,12 +1505,12 @@
                 propGroup.userData = { blades: blades, blur: blurMesh };
                 propellers.push(propGroup);
 
-                // 4支專屬馬達垂直起落支撐柱 (如圖2: 直筒俐落碳纖維/TPU柱，嚴禁展示架寬底座)
+                // 馬達下方簡潔耐磨 TPU 起落腳墊 (實用低趴吸震設計，嚴禁展示架寬底或長椅腳柱)
                 const legG = new THREE.Group();
                 legG.name = 'proc_landing_leg';
-                const legH = 0.045 * s;
-                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.004*s, 0.004*s, legH, 12), new THREE.MeshStandardMaterial({color: 0x181818, roughness: 0.8}));
-                strut.position.copy(motorPos); strut.position.y -= legH / 2;
+                const legH = 0.016 * s;
+                const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.006*s, 0.008*s, legH, 12), new THREE.MeshStandardMaterial({color: 0x222222, roughness: 0.85}));
+                strut.position.copy(motorPos); strut.position.y -= (legH / 2 + 0.002*s);
                 legG.add(strut);
                 armGroup.add(legG);
 
@@ -2104,7 +2123,11 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
             let actualMaxYaw = Math.PI; 
             targetPitch = -inputPitch * maxTilt; targetRoll = inputRoll * maxTilt; 
             
-
+            // 提早計算油門倍率與全域油門值，杜絕 TDZ (Temporal Dead Zone) ReferenceError
+            const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
+            const rawThr = activeDroneObj ? activeDroneObj.thr : 1.0;
+            const thrMultiplier = Math.min(Math.max(isFinite(rawThr) ? rawThr : 1.0, 0.1), 10.0);
+            globalThrottleVal = Math.max(0, inputThrottle * thrMultiplier);
             
             let trigFlip = (typeof pollFlipTriggers === 'function') ? pollFlipTriggers() : ((typeof isRabboniTriggerPressed === 'function' && isRabboniTriggerPressed()) ? 1 : 0);
             if (flipState === 0 && trigFlip !== 0 && currentPage === 'page-D' && !window.droneCrashed) {
@@ -2163,14 +2186,6 @@ let globalTotalSpeed = 0, globalThrottleVal = 0;
                 droneGroup.rotation.set(window.droneBasePitch, window.droneYaw, window.droneBaseRoll, 'YXZ');
             }
 
-            
-const activeDroneObj = activeDrones.find(d => d.id === currentDroneId);
-            // 限制油門倍率安全上限，防止使用者輸入 999999999 導致浮點數溢位摧毀旋轉與移動
-            const rawThr = activeDroneObj ? activeDroneObj.thr : 1.0;
-            const thrMultiplier = Math.min(Math.max(isFinite(rawThr) ? rawThr : 1.0, 0.1), 10.0);
-            const globalThrottleVal = Math.max(0, inputThrottle * thrMultiplier);
- 
-            
             // Propeller visual logic based on Hover mode
             let globalTotalSpeed = 0.05;
             if (globalThrottleVal > 0 || Math.abs(inputPitch) > 0 || Math.abs(inputRoll) > 0 || Math.abs(inputYaw) > 0) {
@@ -2925,7 +2940,7 @@ renderer.render(scene, camera);
                 <!-- 2. Y 軸轉動 (Yaw) -->
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
                     <td style="padding:6px 4px; font-weight:bold;">2. Y 軸轉動 (左右旋轉)</td>
-                    <td style="padding:6px 4px;"><select id="r-yaw-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
+                    <td style="padding:6px 4px;"><select id="r-yaw-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
                     <td style="padding:6px 4px;">
                         <select id="r-yaw-mode" onchange="updateRabboniConf()">
                             <option value="sync">A. 同步角度</option>
@@ -2943,7 +2958,7 @@ renderer.render(scene, camera);
                 <!-- 3. Z 軸轉動 (Roll) -->
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
                     <td style="padding:6px 4px; font-weight:bold;">3. Z 軸轉動 (左右傾斜)</td>
-                    <td style="padding:6px 4px;"><select id="r-roll-stick" onchange="updateRabboniConf()"><option value="A" selected>搖桿 A</option><option value="B">搖桿 B</option></select></td>
+                    <td style="padding:6px 4px;"><select id="r-roll-stick" onchange="updateRabboniConf()"><option value="A">搖桿 A</option><option value="B" selected>搖桿 B</option></select></td>
                     <td style="padding:6px 4px;">
                         <select id="r-roll-mode" onchange="updateRabboniConf()">
                             <option value="sync" selected>A. 同步角度</option>
@@ -3638,7 +3653,7 @@ renderer.render(scene, camera);
                 banner.style.zIndex = '99999';
                 banner.style.textAlign = 'center';
                 banner.style.pointerEvents = 'none';
-                banner.innerHTML = '💥 無人機已撞擊解體墜毀！<br><span style="font-size:14px; font-weight:normal; color:#ffdcdc;">請按鍵盤【R】鍵或下方按鈕重新起飛</span>';
+                banner.innerHTML = '[墜毀警示] 無人機已撞擊解體墜毀！<br><span style="font-size:14px; font-weight:normal; color:#ffdcdc;">請按鍵盤【R】鍵或下方按鈕重新起飛</span>';
                 document.body.appendChild(banner);
             }
             banner.style.display = 'block';
@@ -3722,7 +3737,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.034';
+        const CURRENT_VERSION = 'v4.035';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -3934,7 +3949,7 @@ renderer.render(scene, camera);
     </div>
 </div>
 
-<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.033</div>
+<div id="version-label" style="position: absolute; bottom: 10px; right: 10px; color: white; font-size: 14px; z-index: 9999; text-shadow: 1px 1px 2px black;">v4.035</div>
 
 <audio id="bgm-player" loop preload="auto">
     <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3" type="audio/mpeg">
