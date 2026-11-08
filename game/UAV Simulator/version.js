@@ -1,3 +1,3 @@
 // Auto-generated version metadata
-window.UAV_VERSION = "v4.033";
-window.UAV_CHANGELOG = "徹底修復 JavaScript 語法錯誤 (intactProps 重複聲明崩潰)、修復 pythonw 無頭模式 sys.stderr 空指針異常導致 8849 載入失敗、完全還原官方發布下載頁面與遊戲本體解耦隔離、預設日本手 (Mode 1)、3D 正統立體路障錐與俐落直柱起落架。";
+window.UAV_VERSION = "v4.034";
+window.UAV_CHANGELOG = "全面升級動態彈性通訊埠架構（徹底根治 127.0.0.1 / 50500 拒絕連線與占用問題）、引進前端心跳看門狗與通訊埠智慧自動發現、相容 file 協定與模型本機載入。";

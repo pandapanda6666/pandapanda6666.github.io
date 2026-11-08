@@ -3722,7 +3722,7 @@ renderer.render(scene, camera);
         // ==========================================
         // GITHUB 自動檢測更新系統 (GitHub Auto Updater)
         // ==========================================
-        const CURRENT_VERSION = 'v4.033';
+        const CURRENT_VERSION = 'v4.034';
         let latestRemoteVersionInfo = null;
 
         async function checkGitHubUpdate(isManual = false) {
@@ -4132,6 +4132,25 @@ renderer.render(scene, camera);
                 cb(ts);
             });
         };
+    })();
+
+    // 桌面版後端心跳連線 (解決多進程瀏覽器提前結束問題)
+    (function initServerHeartbeat() {
+        if (window.location && window.location.protocol && window.location.protocol.startsWith('http')) {
+            setInterval(() => {
+                fetch('/api/heartbeat?t=' + Date.now()).catch(() => {});
+            }, 1500);
+
+            window.addEventListener('beforeunload', () => {
+                try {
+                    if (navigator.sendBeacon) {
+                        navigator.sendBeacon('/api/heartbeat?closing=1');
+                    } else {
+                        fetch('/api/heartbeat?closing=1', { method: 'POST', keepalive: true }).catch(() => {});
+                    }
+                } catch(e) {}
+            });
+        }
     })();
 </script>
 

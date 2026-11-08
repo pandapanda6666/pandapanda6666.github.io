@@ -106,14 +106,44 @@ class Rabboni {
     }
 }
 
-function initRabboniWS() {
+let rabboniWsAttempts = 0;
+let rabboniWsTargetPort = 50500;
+
+async function resolveRabboniWsUrl() {
+    if (window.location && window.location.protocol && window.location.protocol.startsWith('http')) {
+        try {
+            const resp = await fetch('/api/server_info?t=' + Date.now(), { cache: 'no-store' });
+            if (resp.ok) {
+                const info = await resp.json();
+                if (info && info.ws_port) {
+                    rabboniWsTargetPort = info.ws_port;
+                    return `ws://127.0.0.1:${info.ws_port}/rab`;
+                }
+            }
+        } catch(e) {}
+    }
+    return `ws://127.0.0.1:${rabboniWsTargetPort}/rab`;
+}
+
+async function initRabboniWS() {
     if (rabboniSocket) return;
+    const wsUrl = await resolveRabboniWsUrl();
     try {
-        rabboniSocket = new WebSocket('ws://localhost:50500/rab');
+        rabboniSocket = new WebSocket(wsUrl);
     } catch(e) {
-        setTimeout(initRabboniWS, 3000);
+        rabboniWsAttempts++;
+        const nextDelay = rabboniWsAttempts > 3 ? 15000 : 3000;
+        setTimeout(initRabboniWS, nextDelay);
         return;
     }
+    
+    rabboniSocket.onopen = () => {
+        rabboniWsAttempts = 0;
+    };
+
+    rabboniSocket.onerror = () => {
+        // 抑制無效連線氣泡錯誤
+    };
     
     rabboniSocket.onmessage = (event) => {
         try {
@@ -212,7 +242,9 @@ function initRabboniWS() {
 
     rabboniSocket.onclose = () => {
         rabboniSocket = null;
-        setTimeout(initRabboniWS, 3000);
+        rabboniWsAttempts++;
+        const nextDelay = rabboniWsAttempts > 3 ? 15000 : 3000;
+        setTimeout(initRabboniWS, nextDelay);
     };
 }
 initRabboniWS();
