@@ -4156,6 +4156,9 @@
 
       // 5. 檢查網址參數 ?room=ROOM_ID 自動加入
       this.checkUrlRoomParam();
+
+      // 6. 生境大世界休眠與沉睡監聽（離開網頁、切換分頁或長時間閒置防憑空消失）
+      this.initSleepCycleListeners();
     },
 
     initRooms() {
@@ -4202,7 +4205,8 @@
                 speciesName: "北極狐",
                 age: 2,
                 gender: "雌性",
-                status: "在浮冰裂隙警戒搜尋獵物",
+                status: "在浮冰裂隙的雪洞中蜷縮沉睡中",
+                isSleeping: true,
                 isCreator: false,
                 disclosure: { showNickname: true, showEmail: false }
               }
@@ -4336,6 +4340,99 @@
         ? "【十兆多人即時共生已開啟】\n你將與同生境的其他物種玩家共同生活在同個世界，時間無法暫停，突發抉擇先選擇先贏！"
         : "【已切換為單人沉浸模式】\n你可自由掌控時間推演與閱讀步調。"
       );
+    },
+
+    _isPlayerSleeping: false,
+
+    initSleepCycleListeners() {
+      // 1. 分頁可見度變化 (切至其他分頁 -> 進入自然打盹；切回分頁 -> 甦醒)
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          this.setPlayerSleepState(true, "打盹");
+        } else {
+          this.setPlayerSleepState(false, "甦醒");
+        }
+      });
+
+      // 2. 離開網頁、關閉分頁或重新整理 -> 尋找巢穴進入深睡
+      window.addEventListener("pagehide", () => {
+        this.setPlayerSleepState(true, "深睡");
+      });
+      window.addEventListener("beforeunload", () => {
+        this.setPlayerSleepState(true, "深睡");
+      });
+
+      // 3. 閒置檢測 (超過 3 分鐘無任何鍵盤、滑鼠或觸控操作 -> 自動閉目休眠)
+      let idleTimer = null;
+      const resetIdle = () => {
+        if (this._isPlayerSleeping && !document.hidden) {
+          this.setPlayerSleepState(false, "甦醒");
+        }
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          this.setPlayerSleepState(true, "打盹");
+        }, 180000); // 3 分鐘閒置
+      };
+
+      ["mousemove", "keydown", "touchstart", "scroll"].forEach(evt => {
+        window.addEventListener(evt, resetIdle, { passive: true });
+      });
+      resetIdle();
+    },
+
+    setPlayerSleepState(isSleeping, reason = "") {
+      const wasSleeping = !!this._isPlayerSleeping;
+      if (wasSleeping === isSleeping) return;
+      this._isPlayerSleeping = isSleeping;
+
+      const nick = state.currentUser?.nickname || "你";
+      const spName = (state.currentLife?.species?.name) || "生靈";
+      const statusText = isSleeping
+        ? (reason === "深睡" ? "在避風洞穴深處蜷曲沉睡中" : "在岩縫隱密處閉目打盹中")
+        : "自睡夢中甦醒，巡視生境領地邊界";
+
+      // 更新當前房間中的自己狀態
+      if (state.activeRoom && state.activeRoom.members) {
+        const userEmail = (state.currentUser?.email || "").trim().toLowerCase();
+        const me = state.activeRoom.members.find(m =>
+          (m.email && m.email.toLowerCase() === userEmail) || m.nickname === state.currentUser?.nickname
+        );
+        if (me) {
+          me.isSleeping = isSleeping;
+          me.status = statusText;
+          me.lastSeen = Date.now();
+          this.saveRooms();
+          this.syncRoomPeersToUI();
+          this.renderRoomMembersPane();
+        }
+      }
+
+      // 廣播休眠與甦醒生態動態
+      const feedEl = el.mpLiveFeed || document.getElementById("mpLiveFeed");
+      if (feedEl) {
+        if (isSleeping) {
+          feedEl.innerHTML = `
+            <span class="mp-feed-item"><i class="fas fa-moon" style="color:#a78bfa;"></i> 【生靈休眠】[${escapeHtml(spName)}] <strong>${escapeHtml(nick)}</strong> 尋得安全避風處進入沉睡休憩態，等待下一次甦醒...</span>
+          `;
+        } else {
+          feedEl.innerHTML = `
+            <span class="mp-feed-item"><i class="fas fa-sun" style="color:#fbbf24;"></i> 【生靈甦醒】[${escapeHtml(spName)}] <strong>${escapeHtml(nick)}</strong> 自睡夢中甦醒，抖落晨霜重新踏上荒野探索！</span>
+          `;
+        }
+      }
+
+      // 若有通訊伺服器連線，向大世界房間廣播狀態
+      if (this.socket && this.socket.connected) {
+        try {
+          this.socket.emit("playerStatusUpdate", {
+            roomId: state.activeRoom?.id,
+            nickname: nick,
+            isSleeping,
+            status: statusText,
+            timestamp: Date.now()
+          });
+        } catch (e) {}
+      }
     },
 
     bindRoomEvents() {
@@ -4851,7 +4948,9 @@
         speciesName: (state.currentLife && state.currentLife.species && state.currentLife.species.name) || "冒險生靈",
         age: state.currentAge || 1,
         gender: (state.currentLife && state.currentLife.gender) || "雄性",
-        status: "剛剛踏入房間共同生活",
+        status: "在線巡視生境領地邊界",
+        isSleeping: false,
+        lastSeen: Date.now(),
         isCreator: room.creator?.email === userEmail,
         disclosure: disclosure || { showNickname: true, showEmail: false }
       };
@@ -4893,16 +4992,19 @@
       // 轉換房間成員至 peers 清單
       const room = state.activeRoom;
       this.peers = (room.members || []).map(m => ({
+        id: m.id,
         name: m.nickname,
         speciesName: m.speciesName,
         gender: m.gender,
         age: m.age,
-        status: m.status
+        status: m.status,
+        isSleeping: !!m.isSleeping,
+        lastSeen: m.lastSeen || Date.now()
       }));
 
       state.mpPeers = this.peers;
       this.renderPeersUI();
-      if (el.mpCardTitle) el.mpCardTitle.textContent = `【${room.name}】在線成員`;
+      if (el.mpCardTitle) el.mpCardTitle.textContent = `【${room.name}】共生名單`;
     },
 
     updateRoomBannerUI() {
@@ -4993,8 +5095,9 @@
     },
 
     renderRoomMembersPane() {
-      if (!el.roomMembersCardsList) return;
-      el.roomMembersCardsList.innerHTML = "";
+      const listEl = el.roomMembersCardsList || document.getElementById("roomMembersCardsList");
+      if (!listEl) return;
+      listEl.innerHTML = "";
 
       const room = state.activeRoom || this.rooms[0];
       const isCreator = room && room.creator && (room.creator.email?.toLowerCase() === state.currentUser.email?.toLowerCase() || room.creator.username === state.currentUser.username);
@@ -5052,24 +5155,28 @@
         const isMe = (m.email?.toLowerCase() === state.currentUser.email?.toLowerCase() || m.nickname === state.currentUser.nickname);
         const canKick = isCreator && !m.isCreator && !isMe;
         const isProtected = state.guardianPacts && !!state.guardianPacts[m.id];
+        const isSleeping = !!m.isSleeping;
         const protectBtn = !isMe ? `
-          <button type="button" class="btn-protect-member ${isProtected ? 'active' : ''}" onclick="MultiplayerHabitatEngine.toggleGuardianPact('${m.id}')" title="${isProtected ? '已建立荒野互助守護同盟' : '與此同伴締結荒野互助守護契約'}">
-            <i class="fas ${isProtected ? 'fa-shield-halved' : 'fa-shield-heart'}"></i> ${isProtected ? '守護同盟' : '互助守護'}
+          <button type="button" class="btn-protect-member ${isProtected ? 'active' : ''}" onclick="MultiplayerHabitatEngine.toggleGuardianPact('${m.id}')" title="${isSleeping ? '為沉睡中的夥伴守夜警戒，抵禦荒野掠食' : (isProtected ? '已建立荒野互助守護同盟' : '與此同伴締結荒野互助守護契約')}">
+            <i class="fas ${isProtected ? 'fa-shield-halved' : (isSleeping ? 'fa-shield-cat' : 'fa-shield-heart')}"></i> ${isProtected ? '守護同盟' : (isSleeping ? '守護沉睡' : '互助守護')}
           </button>
         ` : '';
 
         li.innerHTML = `
           <div class="member-left">
-            <div class="member-avatar-circle"><i class="fas ${m.isCreator ? 'fa-crown' : 'fa-paw'}"></i></div>
+            <div class="member-avatar-circle" style="${isSleeping ? 'background:rgba(99,102,241,0.15); color:#a78bfa;' : ''}">
+              <i class="fas ${m.isCreator ? 'fa-crown' : (isSleeping ? 'fa-moon' : 'fa-paw')}"></i>
+            </div>
             <div class="member-info-col">
               <div class="member-name-row">
                 <span>${escapeHtml(displayNick)}</span>
                 ${m.isCreator ? '<span class="room-type-pill" style="font-size:10px; background:#b45309;">房主</span>' : ''}
                 ${isMe ? '<span class="room-type-pill" style="font-size:10px; background:#10b981;">你</span>' : ''}
+                ${isSleeping ? '<span class="room-type-pill" style="font-size:10px; background:#6366f1;"><i class="fas fa-moon"></i> 沉睡休眠</span>' : '<span class="room-type-pill" style="font-size:10px; background:#10b981;"><i class="fas fa-circle-dot"></i> 活躍在線</span>'}
                 ${isProtected ? '<span class="room-type-pill" style="font-size:10px; background:#059669;"><i class="fas fa-shield-halved"></i> 守護同盟</span>' : ''}
               </div>
               <div class="member-email-sub">${displayEmail}</div>
-              <div class="member-species-tag">${escapeHtml(m.speciesName || '生靈')} · ${m.age || 1}歲 · ${escapeHtml(m.gender || '雄性')} · ${escapeHtml(m.status || '在線共生')}</div>
+              <div class="member-species-tag">${escapeHtml(m.speciesName || '生靈')} · ${m.age || 1}歲 · ${escapeHtml(m.gender || '雄性')} · ${escapeHtml(m.status || (isSleeping ? '在巢穴中沉睡' : '在線共生'))}</div>
             </div>
           </div>
           <div class="member-right-status" style="display:flex; align-items:center; gap:6px;">
@@ -5077,7 +5184,7 @@
             ${canKick ? `<button type="button" class="btn-kick-member" onclick="MultiplayerHabitatEngine.kickMember('${m.id}')"><i class="fas fa-user-minus"></i> 請離</button>` : ''}
           </div>
         `;
-        el.roomMembersCardsList.appendChild(li);
+        listEl.appendChild(li);
       });
     },
 
@@ -5251,15 +5358,20 @@
         const randName = sampleNames[Math.floor(Math.random() * sampleNames.length)] + (i + 1);
         const randGender = genders[Math.floor(Math.random() * genders.length)];
         const randAge = Math.floor(Math.random() * 8) + 1;
-        const statuses = ["在近處警戒覓食", "穿梭於灌木林地", "探尋水源地", "盤旋巡視領地", "警惕隱匿穴中"];
+        const isSleeping = (i === 1); // 讓同生境其中一隻夥伴處於自然休眠沉睡狀態
+        const statuses = isSleeping
+          ? ["在洞穴深處蜷曲沉睡中", "在樹洞暖草間閉目休眠中", "在避風岩縫中平穩深睡"]
+          : ["在近處警戒覓食", "穿梭於灌木林地", "探尋水源地", "盤旋巡視領地", "警惕隱匿穴中"];
         const randStatus = statuses[Math.floor(Math.random() * statuses.length)];
 
         this.peers.push({
+          id: "peer_auto_" + i,
           name: randName,
           speciesName: randSp.name,
           gender: randGender,
           age: randAge,
-          status: randStatus
+          status: randStatus,
+          isSleeping: isSleeping
         });
       }
 
@@ -5269,26 +5381,32 @@
     },
 
     renderPeersUI() {
-      if (!el.mpPeersList) return;
-      el.mpPeersList.innerHTML = "";
-      if (el.mpPeersCountBadge) {
-        el.mpPeersCountBadge.textContent = `${this.peers.length} 隻共生中`;
+      const peersList = el.mpPeersList || document.getElementById("mpPeersList");
+      if (!peersList) return;
+      peersList.innerHTML = "";
+      const countBadge = el.mpPeersCountBadge || document.getElementById("mpPeersCountBadge");
+      if (countBadge) {
+        countBadge.textContent = `${this.peers.length} 隻共生中`;
       }
 
       this.peers.forEach(p => {
         const li = document.createElement("li");
-        li.className = "mp-peer-item";
+        li.className = `mp-peer-item ${p.isSleeping ? 'sleeping' : ''}`;
+        const avatarIcon = p.isSleeping ? 'fa-moon' : 'fa-paw';
+        const statusClass = p.isSleeping ? 'mp-peer-sleeping' : '';
+        const statusIcon = p.isSleeping ? '<i class="fas fa-moon"></i> ' : '';
+
         li.innerHTML = `
           <div class="mp-peer-left">
-            <i class="fas fa-paw mp-peer-avatar"></i>
+            <i class="fas ${avatarIcon} mp-peer-avatar" style="${p.isSleeping ? 'color:#a78bfa;' : ''}"></i>
             <div class="mp-peer-info">
               <span class="mp-peer-name">${escapeHtml(p.name)}</span>
               <span class="mp-peer-species">${escapeHtml(p.speciesName)} · ${p.age}歲 · ${escapeHtml(p.gender)}</span>
             </div>
           </div>
-          <span class="mp-peer-status-tag">${escapeHtml(p.status)}</span>
+          <span class="mp-peer-status-tag ${statusClass}">${statusIcon}${escapeHtml(p.status)}</span>
         `;
-        el.mpPeersList.appendChild(li);
+        peersList.appendChild(li);
       });
     },
 
@@ -5300,15 +5418,22 @@
         "在飲水點附近警惕張望，與同族保持聯絡",
         "發出低沉呼喚，確認領地邊界安寧",
         "搶先抓獲了冰原下的微弱獵物",
-        "察覺到暴風雪將至，正加速往巢穴奔馳"
+        "察覺到暴風雪將至，正加速往巢穴奔馳",
+        "在洞穴深處沉睡休息，呼吸平穩悠長",
+        "悄悄靠近沉睡中的同伴，為其擔任守夜哨兵",
+        "在暖陽微光下伸了個懶腰，從淺眠中甦醒"
       ];
 
       this.feedTimer = setInterval(() => {
         if (!el.mpLiveFeed || this.peers.length === 0) return;
         const p = this.peers[Math.floor(Math.random() * this.peers.length)];
         const act = feeds[Math.floor(Math.random() * feeds.length)];
+        const isSleepAct = act.includes("沉睡") || act.includes("淺眠");
+        const iconHtml = isSleepAct
+          ? '<i class="fas fa-moon" style="color:#a78bfa;"></i>'
+          : '<i class="fas fa-bolt" style="color:#10b981;"></i>';
         el.mpLiveFeed.innerHTML = `
-          <span class="mp-feed-item"><i class="fas fa-bolt" style="color:#10b981;"></i> [${escapeHtml(p.speciesName)}] <strong>${escapeHtml(p.name)}</strong> ${escapeHtml(act)}</span>
+          <span class="mp-feed-item">${iconHtml} [${escapeHtml(p.speciesName)}] <strong>${escapeHtml(p.name)}</strong> ${escapeHtml(act)}</span>
         `;
       }, 7000);
     },
@@ -6164,6 +6289,11 @@
       togglePageLayoutMode,
       MultiplayerHabitatEngine,
     };
+    window.MultiplayerHabitatEngine = MultiplayerHabitatEngine;
   });
+  if (typeof window !== "undefined" && typeof MultiplayerHabitatEngine !== "undefined") {
+    window.MultiplayerHabitatEngine = MultiplayerHabitatEngine;
+    if (window.__gameEngine) window.__gameEngine.MultiplayerHabitatEngine = MultiplayerHabitatEngine;
+  }
 })();
 
