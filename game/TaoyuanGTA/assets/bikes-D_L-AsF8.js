@@ -1,0 +1,1 @@
+var e=[{id:`bike-scooter`,kind:`scooter`,name:{zh:`我的速克達`,en:`My scooter`},paint:9426628,glyph:`🛵`},{id:`bike-motorcycle`,kind:`motorcycle`,name:{zh:`我的檔車`,en:`My motorcycle`},paint:1908257,glyph:`🏍️`},{id:`bike-superbike`,kind:`superbike`,name:{zh:`我的重機`,en:`My superbike`},paint:13112863,glyph:`🏍️`}],t=Object.fromEntries(e.map(e=>[e.id,e]));export{e as n,t};

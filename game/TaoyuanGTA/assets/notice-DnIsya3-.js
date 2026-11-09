@@ -1,0 +1,1 @@
+var e=`taipei-rush-cloud-notice-v1`;function t(t,n=``){try{sessionStorage.setItem(e,JSON.stringify({notice:t,detail:n}))}catch{}}function n(){try{let t=sessionStorage.getItem(e);sessionStorage.removeItem(e);let n=t?JSON.parse(t):null;return n&&typeof n.notice==`string`?{notice:n.notice,detail:typeof n.detail==`string`?n.detail:``}:null}catch{return null}}export{n,t};

@@ -1,0 +1,1 @@
+import{a as e,c as t,d as n,f as r,i,l as a,n as o,o as s,p as c,r as l,s as u,t as d,u as f}from"./avatar-DMQBqptl.js";export{r as BIP_MAP,c as BipedAdapter,d as RocketboxAvatar,o as avatarManifest,f as avatarMaterial,l as avatarTextureMode,i as createAvatar,e as loadAvatarAsset,s as pickLod,u as preloadAvatars,t as releaseAvatarAsset,a as setAvatarRenderer,n as setSss};

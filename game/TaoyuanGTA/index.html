@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <script>
+      (function() {
+        var path = window.location.pathname;
+        var dir = path.substring(0, path.lastIndexOf('/') + 1);
+        if (!dir.endsWith('/')) dir += '/';
+        window.__GAME_BASE__ = dir;
+
+        // Stub google tag manager
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function() {};
+
+        // Patch fetch
+        var _fetch = window.fetch;
+        window.fetch = function(input, init) {
+          if (typeof input === 'string') {
+            if (input.startsWith('/assets/') || input.startsWith('/avatars/') || input.startsWith('/title/') || input.startsWith('/icons/') || input.startsWith('/splash/') || input.startsWith('/og/')) {
+              input = window.__GAME_BASE__ + input.slice(1);
+            } else if (input.startsWith('/api/')) {
+              // Return dummy locale or fake responses
+              return Promise.resolve(new Response(JSON.stringify({ lang: 'zh', ok: true }), { headers: { 'Content-Type': 'application/json' } }));
+            }
+          } else if (input && input.url) {
+            try {
+              var u = new URL(input.url);
+              if (u.pathname.startsWith('/assets/') || u.pathname.startsWith('/avatars/') || u.pathname.startsWith('/title/')) {
+                input = new Request(window.__GAME_BASE__ + u.pathname.slice(1), init);
+              }
+            } catch(e) {}
+          }
+          return _fetch.call(this, input, init);
+        };
+
+        // Patch Worker
+        var _Worker = window.Worker;
+        window.Worker = function(scriptURL, options) {
+          if (typeof scriptURL === 'string') {
+            if (scriptURL.startsWith('/assets/') || scriptURL.startsWith('/avatars/')) {
+              scriptURL = window.__GAME_BASE__ + scriptURL.slice(1);
+            }
+          } else if (scriptURL instanceof URL) {
+            if (scriptURL.pathname.startsWith('/assets/') || scriptURL.pathname.startsWith('/avatars/')) {
+              scriptURL = new URL(window.__GAME_BASE__ + scriptURL.pathname.slice(1), window.location.origin);
+            }
+          }
+          return new _Worker(scriptURL, options);
+        };
+      })();
+    </script>
+  
+
+  
+    <script>(function(){try{
+var L={"taipei-gta.vercel.app":"https://www.taipei-rush.app","taipei-gta-taipei-dream-team.vercel.app":"https://www.taipei-rush.app","taipei-rush-legacy-test.vercel.app":"https://taipei-rush-preview.vercel.app"},K=new RegExp("^(taipei-rush-|hong-kong-gta-|kaohsiung-rush-|tokyo-rush-|london-rush-|taichung-rush-|mumbai-rush-|tainan-rush-|gta-travel-|tgta-device-)"),X=new RegExp("(cloud|auth|pkce|session|probe|handoff|identities)"),S=["taipei-rush-save-v1","hong-kong-gta-save-v1","kaohsiung-rush-save-v1","tokyo-rush-save-v1","london-rush-save-v1","taichung-rush-save-v1","mumbai-rush-save-v1","tainan-rush-save-v1"];
+var ls=window.localStorage,host=location.hostname,to=L[host];
+function pack(){var items={},n=0;
+for(var i=0;i<ls.length;i++){var k=ls.key(i);if(k&&K.test(k)&&!X.test(k)){items[k]=ls.getItem(k);n++;}}
+if(!n)return '';var b=btoa(unescape(encodeURIComponent(JSON.stringify({v:1,from:host,items:items})))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');return b.length<1500000?'#tr-handoff='+b:'';}
+function installed(){try{var nv=window.navigator,mm=window.matchMedia;if(nv&&nv.standalone===true)return true;if(!mm)return false;
+return mm('(display-mode: standalone)').matches||mm('(display-mode: fullscreen)').matches||mm('(display-mode: minimal-ui)').matches;}catch(e){return false;}}
+function receive(){var m=/^#tr-handoff=([A-Za-z0-9_-]+)$/.exec(location.hash);if(!m)return;
+history.replaceState(history.state,'',location.pathname+location.search);
+var b64=m[1].replace(/-/g,'+').replace(/_/g,'/');while(b64.length%4)b64+='=';
+var d=JSON.parse(decodeURIComponent(escape(atob(b64))));if(!d||d.v!==1||!d.items)return;
+function parse(s){try{return JSON.parse(s);}catch(e){return null;}}
+function len(a){return a&&a.length||0;}
+function score(s){if(!s||typeof s!=='object')return [-1,0,0,0];var st=s.stats||{};return [len(s.completedMissions),len(s.collectibles),+st.playTime||0,Date.parse(s.lastPlayedAt||'')||0];}
+function better(a,b){var x=score(a),y=score(b);for(var i=0;i<4;i++){if(y[i]!==x[i])return y[i]>x[i];}return false;}
+var moved=0;
+for(var k in d.items){if(!Object.prototype.hasOwnProperty.call(d.items,k)||!K.test(k)||X.test(k))continue;
+var inc=d.items[k];if(typeof inc!=='string')continue;
+if(S.indexOf(k)>=0){var id=parse(ls.getItem(k+':identities-v1'));
+if(id&&id.slots&&id.active&&id.active!=='guest'){var g=id.slots.guest||{data:null,backups:[]};
+if(g.data===null||g.data===undefined){g.data=parse(inc);}else if(JSON.stringify(g.data)!==JSON.stringify(parse(inc))){
+if(better(g.data,parse(inc))){ls.setItem(k+':handoff-v1',JSON.stringify(g.data));g.data=parse(inc);}else ls.setItem(k+':handoff-v1',inc);}
+if(!g.backups)g.backups=[];id.slots.guest=g;
+var act=id.slots[id.active];if(act&&better(act.data,parse(inc))){var bk={id:'handoff-'+Date.now()+'-'+k.length,date:new Date().toISOString(),data:parse(inc),reason:'legacy'};act.backups=[bk].concat(act.backups||[]).slice(0,3);act.undo=bk.id;}
+ls.setItem(k+':identities-v1',JSON.stringify(id));moved++;continue;}
+var mine=ls.getItem(k);
+if(mine===null){ls.setItem(k,inc);moved++;}
+else if(mine!==inc){if(better(parse(mine),parse(inc))){ls.setItem(k+':handoff-v1',mine);ls.setItem(k,inc);}else ls.setItem(k+':handoff-v1',inc);moved++;}
+continue;}
+if(ls.getItem(k)===null){ls.setItem(k,inc);moved++;}}
+ls.setItem('taipei-rush-handoff-v1',JSON.stringify({from:String(d.from||''),at:Date.now(),moved:moved}));}
+if(false){receive();
+if(installed()){window.__trLegacyApp=1;return;}
+var h=pack();window.__trHandoff=1;location.replace(to+location.pathname+location.search+h);return;}
+var p=/^\?(.*&)?tr-pull=([a-z0-9.-]+)(&.*)?$/.exec(location.search);
+if(p&&L[p[2]]==='https://'+host){var q=((p[1]||'')+(p[3]||'').slice(1)).replace(/&$/,'');
+var back=pack();window.__trHandoff=1;location.replace('https://'+p[2]+location.pathname+(q?'?'+q:'')+back);return;}
+receive();
+}catch(e){}})();</script>
+    <script>(function(){try{var q=new URLSearchParams(location.search),r=q.get('region'),rec=null;
+try{rec=JSON.parse(localStorage.getItem("gta-travel-v1")||'null');}catch(e){}
+function go(p){var s=q.toString();location.replace(p+(s?'?'+s:''));}
+if(q.has('auth'))return;
+var P={"hong-kong":"/hong-kong/","kaohsiung":"/kaohsiung/","tokyo":"/tokyo/","london":"/london/","taichung":"/taichung/","mumbai":"/mumbai/","tainan":"/tainan/","paris":"/paris/"},A={"hong-kong":"/hong-kong/","hk":"/hong-kong/","kaohsiung":"/kaohsiung/","kh":"/kaohsiung/","tokyo":"/tokyo/","tk":"/tokyo/","london":"/london/","ldn":"/london/","taichung":"/taichung/","tc":"/taichung/","mumbai":"/mumbai/","mb":"/mumbai/","tainan":"/tainan/","tn":"/tainan/","paris":"/paris/"};
+if(r&&A[r]){q.delete('region');go(A[r]);return;}
+if(r==='taipei'||q.has('autoplay')||q.has('spawn')||q.has('cam')||q.has('menu'))return;
+if(navigator.onLine===false)return;
+var t=rec&&rec.ticket;
+}catch(e){}})();</script>
+
+    <meta charset="UTF-8" />
+    <script>
+      // Saved language wins; browser language is provisional until main.ts resolves the country.
+      function rushLoaderLang() {
+        try { var sv = JSON.parse(localStorage.getItem('taipei-rush-save-v1') || '{}'); var l = sv && sv.settings && sv.settings.lang; if (l === 'zh' || l === 'en') return l; } catch (e) {}
+        try { var record = JSON.parse(localStorage.getItem('gta-travel-v1') || '{}'); var shared = record && record.shared && record.shared.settings && record.shared.settings.lang; if (shared === 'zh' || shared === 'en') return shared; } catch (e) {}
+        return /^zh(?:[-_](?:tw|hant)(?:[-_]|$)|$)/i.test((navigator.languages && navigator.languages[0]) || navigator.language || '') ? 'zh' : 'en';
+      }
+      document.documentElement.lang = rushLoaderLang() === 'en' ? 'en' : 'zh-Hant-TW';
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <title>《桃園狂飆》TAOYUAN RUSH · 桃園GTA 免費開放世界，瀏覽器直接玩</title>
+    <meta name="description" content="《桃園狂飆》免費、免下載的開放世界桃園遊戲：打開瀏覽器就能騎機車穿梭桃園國際機場、青埔高鐵特區、大溪老街、中壢觀光夜市與機捷站，電腦手機都能玩。TAOYUAN RUSH: a free open-world Taoyuan game you play right in your browser." />
+    <meta name="application-name" content="桃園狂飆" />
+    <meta name="theme-color" content="#07080c" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="桃園狂飆" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="桃園狂飆" />
+    <meta property="og:title" content="《桃園狂飆》去桃園狂飆" />
+    <meta property="og:description" content="騎上機車，去桃園狂飆！瀏覽器就能玩的開放世界桃園。An open-world Taoyuan you can play in your browser." />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:url" content="https://www.taipei-rush.app/" />
+    <meta property="og:image" content="https://www.taipei-rush.app/og/taipei.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="《臺北狂飆》分享卡：騎上機車，去臺北狂飆！手機畫面裡的臺北101與騎車遊戲畫面" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="《桃園狂飆》去桃園狂飆 · TAOYUAN RUSH" />
+    <meta name="twitter:description" content="騎上機車，去桃園狂飆！瀏覽器就能玩的開放世界桃園。An open-world Taoyuan you can play in your browser." />
+    <meta name="twitter:image" content="https://www.taipei-rush.app/og/taipei.jpg" />
+    <link rel="canonical" href="https://www.taipei-rush.app/" />
+    <!-- search: Google's site name and game card (WebSite + VideoGame); the crawlable copy is #about in <body> -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://www.taipei-rush.app/#website",
+            "name": "桃園狂飆",
+            "alternateName": ["《桃園狂飆》", "TAOYUAN RUSH", "Taoyuan Rush"],
+            "url": "https://www.taipei-rush.app/",
+            "inLanguage": ["zh-Hant-TW", "en"]
+          },
+          {
+            "@type": "VideoGame",
+            "name": "桃園狂飆",
+            "alternateName": "TAOYUAN RUSH",
+            "url": "https://www.taipei-rush.app/",
+            "image": "https://www.taipei-rush.app/og-image.jpg",
+            "description": "《桃園狂飆》免費、免下載的開放世界桃園遊戲：打開瀏覽器就能騎機車穿梭桃園國際機場、青埔高鐵特區、大溪老街、中壢觀光夜市與機捷站，電腦手機都能玩。TAOYUAN RUSH: a free open-world Taoyuan game you play right in your browser.",
+            "genre": ["Open world", "Driving", "Action"],
+            "gamePlatform": ["Web browser", "PC", "Mobile"],
+            "applicationCategory": "Game",
+            "operatingSystem": "Any (web browser)",
+            "inLanguage": ["zh-Hant-TW", "en"],
+            "isAccessibleForFree": true,
+            "isPartOf": { "@id": "https://www.taipei-rush.app/#website" }
+          }
+        ]
+      }
+    </script>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+    <!-- iOS home-screen launch images, both orientations (iOS picks the one matching the launch orientation; the game
+         plays in portrait too): no blank flash before the inline loader paints. Every iPhone since the X / SE 2 + iPads.
+         Generated by src/ui/tools/splash.mjs (prints these tags). -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2868x1320.png" /> <!-- iPhone 16 / 17 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1320x2868.png" /> <!-- iPhone 16 / 17 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2796x1290.png" /> <!-- iPhone 14 / 15 Pro Max, 15 / 16 Plus -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1290x2796.png" /> <!-- iPhone 14 / 15 Pro Max, 15 / 16 Plus -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2778x1284.png" /> <!-- iPhone 12 / 13 Pro Max, 14 Plus -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1284x2778.png" /> <!-- iPhone 12 / 13 Pro Max, 14 Plus -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2736x1260.png" /> <!-- iPhone Air -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1260x2736.png" /> <!-- iPhone Air -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2688x1242.png" /> <!-- iPhone XS Max, 11 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1242x2688.png" /> <!-- iPhone XS Max, 11 Pro Max -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-1792x828.png" /> <!-- iPhone XR, 11 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-828x1792.png" /> <!-- iPhone XR, 11 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2208x1242.png" /> <!-- iPhone 8 Plus -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1242x2208.png" /> <!-- iPhone 8 Plus -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2622x1206.png" /> <!-- iPhone 16 Pro, 17, 17 Pro -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1206x2622.png" /> <!-- iPhone 16 Pro, 17, 17 Pro -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2556x1179.png" /> <!-- iPhone 14 / 15 Pro, 15, 16 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1179x2556.png" /> <!-- iPhone 14 / 15 Pro, 15, 16 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2532x1170.png" /> <!-- iPhone 12 / 13 / 14, 16e -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1170x2532.png" /> <!-- iPhone 12 / 13 / 14, 16e -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: landscape)" href="./splash/launch-2436x1125.png" /> <!-- iPhone X / XS / 11 Pro, 12 / 13 mini -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./splash/launch-1125x2436.png" /> <!-- iPhone X / XS / 11 Pro, 12 / 13 mini -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-1334x750.png" /> <!-- iPhone SE 2 / 3, 8 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-750x1334.png" /> <!-- iPhone SE 2 / 3, 8 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2752x2064.png" /> <!-- iPad Pro 13" (M4) -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 1032px) and (device-height: 1376px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-2064x2752.png" /> <!-- iPad Pro 13" (M4) -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2732x2048.png" /> <!-- iPad Pro 12.9", iPad Air 13" -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-2048x2732.png" /> <!-- iPad Pro 12.9", iPad Air 13" -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1210px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2420x1668.png" /> <!-- iPad Pro 11" (M4) -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1210px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1668x2420.png" /> <!-- iPad Pro 11" (M4) -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2388x1668.png" /> <!-- iPad Pro 11", iPad Air 11" -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1668x2388.png" /> <!-- iPad Pro 11", iPad Air 11" -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2224x1668.png" /> <!-- iPad Air 3, iPad Pro 10.5" -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1668x2224.png" /> <!-- iPad Air 3, iPad Pro 10.5" -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2360x1640.png" /> <!-- iPad Air 4 / 5, iPad 10 / A16 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1640x2360.png" /> <!-- iPad Air 4 / 5, iPad 10 / A16 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2160x1620.png" /> <!-- iPad 7 / 8 / 9 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1620x2160.png" /> <!-- iPad 7 / 8 / 9 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2048x1536.png" /> <!-- iPad 9.7", iPad mini 5 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1536x2048.png" /> <!-- iPad 9.7", iPad mini 5 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape)" href="./splash/launch-2266x1488.png" /> <!-- iPad mini 6 / 7 -->
+    <link rel="apple-touch-startup-image" media="screen and (device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./splash/launch-1488x2266.png" /> <!-- iPad mini 6 / 7 -->
+    <style>html,body{overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%;-moz-text-size-adjust:100%;text-size-adjust:100%;background:#07080c;width:100%;height:100%;margin:0;overflow:hidden}body,#app{position:fixed;inset:0}.sr-only{clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;width:1px;height:1px;margin:-1px;padding:0;position:absolute;overflow:hidden}#loader{--sa-l:env(safe-area-inset-left,0px);--sa-r:env(safe-area-inset-right,0px);--sa-b:env(safe-area-inset-bottom,0px);--m:clamp(20px, 3.4vw, 68px);z-index:100;color:#f4f1ea;-webkit-font-smoothing:antialiased;background:#07080c url(data:image/webp;base64,UklGRigBAABXRUJQVlA4IBwBAACwCQCdASpAACQAPsFQoEunpKMht/caqPAYCWMAuRg1B02tA8TcaNUyRt9/6lanlsGGlPWUh4Xk/Cy2AB0fl+ZuDKTiuM1S17079JgSlJV/0/n7rqdVAAD+9CQ+7d01Y/dX1IO2W44xvbd3WlHFwJ2rsoyjFQedrIyuWMTue3ZWTN8/Zo8ws0s/vpAltIfPDySi0ByBv1V/oa6Le98fkvwXDSEzjmLhr4dvmIFPhjqhn2iQkVWGqwB7dyGrPRBuq2KNxyvqn3UNFNqguF6Dsb1idah32LDnLOP4AT1HVGTFVqIAJKU5E6f71dUUKlBNI4Hwl0VOTSdVPPr9gBlQrfBkhWGo0KayRRy40NRAPNPnJDOmUipfclTVCQAAAA==) 50%/cover no-repeat;font-family:PingFang TC,Noto Sans TC,Microsoft JhengHei,Heiti TC,system-ui,sans-serif;transition:opacity .45s ease-in;position:fixed;inset:0;overflow:hidden}#loader .ld-photo img{object-fit:cover;object-position:50% 50%;opacity:0;width:100%;height:100%;transition:opacity .35s ease-out;display:block;position:absolute;inset:0}#loader .ld-photo.on img{opacity:1}#loader .ld-grade{pointer-events:none;background:linear-gradient(#05050900 63%,#0505092e 75%,#0505099e 89%,#050509e6 100%),linear-gradient(90deg,#05050980 0%,#05050900 34%),radial-gradient(at 62% 40%,#0000 55%,#0006 100%);position:absolute;inset:0}#loader .ld-logo{left:calc(var(--m) + var(--sa-l));bottom:calc(var(--m) + var(--sa-b));z-index:2;width:clamp(230px,27vw,520px);position:absolute}#loader .ld-logo svg{filter:drop-shadow(0 .6vw 1.4vw #0000008c);width:100%;height:auto;display:block;overflow:visible}#loader .ld-studio{left:calc(var(--m) + var(--sa-l));bottom:calc(var(--m) + var(--sa-b));z-index:2;width:clamp(200px,19vw,360px);position:absolute}#loader .ld-studio svg{filter:drop-shadow(0 .5vw 1.2vw #0009);width:100%;height:auto;display:block;overflow:visible}#loader:not(.city) .ld-logo,#loader:not(.city) .ld-tip,#loader.city .ld-studio{display:none}#loader .ld-prog{right:calc(var(--m) + var(--sa-r));bottom:calc(var(--m) + var(--sa-b));z-index:2;width:clamp(220px,21vw,420px);position:absolute}#loader .ld-row{align-items:center;gap:12px;display:flex}#loader .ld-spin{border:2.5px solid #ffffff2e;border-top-color:#fff;border-radius:50%;flex:none;width:22px;height:22px;animation:.8s linear infinite ldSpin}@keyframes ldSpin{to{transform:rotate(360deg)}}#loader .ld-stage{text-shadow:0 1px 3px #00000080;flex:1;min-width:0;line-height:1.25}#loader .ld-stage b{letter-spacing:.04em;white-space:nowrap;text-overflow:ellipsis;font-size:clamp(14px,.85vw,18px);font-weight:700;display:block;overflow:hidden}html[lang=en] #loader .ld-stage b{letter-spacing:.01em}html[lang=en] #loader .ld-stage small{letter-spacing:.08em}#loader .ld-stage small{letter-spacing:.14em;text-transform:uppercase;color:#f4f1eab3;white-space:nowrap;text-overflow:ellipsis;margin-top:3px;font:700 clamp(10.5px,.6vw,12.5px)/1.2 Avenir Next Condensed,Bahnschrift,DIN Condensed,Roboto Condensed,Arial Narrow,sans-serif;display:block;overflow:hidden}#loader .ld-pct{font-variant-numeric:tabular-nums;letter-spacing:.02em;text-align:right;text-shadow:0 1px 4px #00000073;flex:none;min-width:2.3em;font:600 clamp(28px,2vw,42px)/1 DIN Condensed,Bahnschrift,Avenir Next Condensed,Roboto Condensed,Arial Narrow,sans-serif}#loader .ld-pct i{opacity:.6;margin-left:2px;font-size:.5em;font-style:normal}#loader .ld-track{background:#fff3;height:3px;margin-top:14px;position:relative;overflow:hidden}#loader .ld-fill{transform-origin:0;background:#fff;transition:transform .6s cubic-bezier(.3,.7,.3,1);position:absolute;inset:0;transform:scaleX(0)}#loader .ld-fill:after{content:"";background:linear-gradient(90deg,#0000,#e0262f);width:36px;position:absolute;top:-3px;bottom:-3px;right:0}#loader .ld-sweep{background:linear-gradient(90deg,#0000,#ffffff80,#0000);width:30%;animation:1.4s ease-in-out infinite ldSweep;position:absolute;top:0;bottom:0}#loader.has-pct .ld-sweep{display:none}@keyframes ldSweep{0%{transform:translate(-110%)}to{transform:translate(360%)}}#loader .ld-tip{left:50%;bottom:calc(var(--m) + var(--sa-b) - 2px);z-index:2;width:min(36vw,620px);position:absolute;transform:translate(-46%)}#loader .ld-tip-k{letter-spacing:.3em;text-transform:uppercase;color:#ff6a6f;align-items:center;gap:8px;font:700 clamp(11px,.65vw,13px)/1 PingFang TC,Noto Sans TC,Avenir Next Condensed,Bahnschrift,sans-serif;display:inline-flex}#loader .ld-tip-k:before{content:"";background:#e0262f;width:18px;height:2px}#loader .ld-tips{color:#f4f1eaeb;text-shadow:0 1px 3px #0000008c;text-wrap:pretty;margin-top:10px;font-size:clamp(14px,.9vw,19px);line-height:1.55}#loader .ld-err{z-index:3;background:#08080ceb;border-left:3px solid #e0262f;max-width:80vw;padding:18px 24px;font-size:15px;line-height:1.6;display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}#loader .ld-err button{color:#fff;cursor:pointer;pointer-events:auto;background:#d81f2a;border:1px solid #ffffff73;border-radius:4px;min-width:9em;min-height:44px;margin:16px auto 0;padding:8px 18px;font:700 15px/1.2 PingFang TC,Noto Sans TC,system-ui,sans-serif;display:block}#loader.failed .ld-err{pointer-events:auto;display:block}#loader.failed .ld-spin{border-top-color:#e0262f;animation:none}#loader #loader-bar,#loader #loader-label{display:none}@media (max-width:900px),(max-height:520px){#loader .ld-tip{display:none}#loader .ld-logo{width:clamp(170px,34vw,300px)}#loader .ld-studio{width:clamp(150px,26vw,240px)}#loader .ld-prog{width:clamp(170px,34vw,300px)}#loader .ld-pct{font-size:24px}}@media (orientation:portrait) and (max-width:1024px){#loader{background-position:50% 30%}#loader .ld-photo img{object-position:50% 0%}}@media (orientation:portrait) and (max-width:700px){#loader .ld-logo{left:50%;bottom:calc(var(--m) + var(--sa-b) + 110px);width:min(78vw,340px);transform:translate(-50%)}#loader .ld-studio{left:50%;bottom:calc(var(--m) + var(--sa-b) + 120px);width:min(64vw,280px);transform:translate(-50%)}#loader .ld-prog{width:min(78vw,340px);left:50%;right:auto;transform:translate(-50%)}#loader .ld-grade{background:linear-gradient(#05050900 60%,#050509b8 78%,#050509f2 100%),radial-gradient(at 50% 30%,#0000 55%,#0006 100%)}}#loader.leaving{pointer-events:none;transition:opacity .42s ease-in .24s}#loader.shell{visibility:hidden;pointer-events:none;transition:opacity .42s ease-in,visibility 0s .42s;opacity:0!important}#loader.leaving .ld-prog,#loader.leaving .ld-tip,#loader.leaving .ld-rot{opacity:0;transition:opacity .16s linear}#loader.leaving:not(.flip) .ld-logo{opacity:0;transition:opacity .2s linear}#loader .ld-rot{left:50%;top:calc(env(safe-area-inset-top,0px) + 7vh);z-index:2;letter-spacing:.06em;white-space:nowrap;background:#08080cb8;border-left:3px solid #e0262f;align-items:center;gap:12px;padding:9px 16px 9px 12px;font-size:14px;font-weight:700;display:flex;position:absolute;transform:translate(-50%)}#loader .ld-rot i{border:2px solid #fff;border-radius:3px;width:22px;height:13px}@media (prefers-reduced-motion:reduce){#loader .ld-spin,#loader .ld-sweep{animation:none}#loader .ld-photo img{transition:none}}</style>
+    <!-- Google tag (gtag.js) -->
+    <script async src=""></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-01PKTS9XKV');
+    </script>
+    <script>!/[?&]world=1(&|$)/.test(location.search)&&["world2-B-M-FbtT","worldData-DaTTF5jn","sightsData-BtAFTse6","roadClearance-DaxjrDD0","terrainTilesField-BCqyj6MF"].forEach(function(n){var l=document.createElement('link');l.rel='modulepreload';l.crossOrigin='';l.href='./assets/'+n+'.js';document.head.appendChild(l)})</script>
+    <script type="module" crossorigin src="./assets/game-Bf3Nuyky.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/rolldown-runtime-DK3Fl9T5.js">
+    <link rel="modulepreload" crossorigin href="./assets/modulepreload-polyfill-P2Xu9kJm.js">
+    <link rel="modulepreload" crossorigin href="./assets/three-DOzogIjw.js">
+    <link rel="modulepreload" crossorigin href="./assets/city-CTXTesGj.js">
+    <link rel="modulepreload" crossorigin href="./assets/cities-DQ0VZ9Jl.js">
+    <link rel="modulepreload" crossorigin href="./assets/shared-CRjbn4xj.js">
+    <link rel="modulepreload" crossorigin href="./assets/bikes-D_L-AsF8.js">
+    <link rel="modulepreload" crossorigin href="./assets/cars-ZP5q1oDn.js">
+    <link rel="modulepreload" crossorigin href="./assets/preload-helper-BZ1Pz5am.js">
+    <link rel="modulepreload" crossorigin href="./assets/handedness-D3ZAWs11.js">
+    <link rel="modulepreload" crossorigin href="./assets/engine-Codfgizn.js">
+    <link rel="modulepreload" crossorigin href="./assets/dom-DZNhMrZO.js">
+    <link rel="modulepreload" crossorigin href="./assets/icons-XjZx6Mlv.js">
+    <link rel="modulepreload" crossorigin href="./assets/BufferGeometryUtils-D-eauQ6u.js">
+    <link rel="modulepreload" crossorigin href="./assets/prefs-CgBXyfYA.js">
+    <link rel="modulepreload" crossorigin href="./assets/world-BrfbAKQq.js">
+    <link rel="modulepreload" crossorigin href="./assets/actors-Bylsh3_5.js">
+    <link rel="modulepreload" crossorigin href="./assets/session-TQO8OiSQ.js">
+    <link rel="modulepreload" crossorigin href="./assets/catalog-HUW0A9xE.js">
+    <link rel="modulepreload" crossorigin href="./assets/site-JAOMJbPO.js">
+    <link rel="modulepreload" crossorigin href="./assets/site-DflAq5-T.js">
+    <link rel="modulepreload" crossorigin href="./assets/contestRules-BkP7wJPE.js">
+    <link rel="modulepreload" crossorigin href="./assets/partnerRules-Dhf9ptkQ.js">
+    <link rel="modulepreload" crossorigin href="./assets/grid-BKZ1nnFM.js">
+    <link rel="modulepreload" crossorigin href="./assets/layout-DD_kNe2e.js">
+    <link rel="modulepreload" crossorigin href="./assets/site-DDhd4kk3.js">
+    <link rel="modulepreload" crossorigin href="./assets/layout-DpNo67S-.js">
+    <link rel="modulepreload" crossorigin href="./assets/game-Bf3Nuyky.js">
+    <link rel="modulepreload" crossorigin href="./assets/content-DYpD8yiI.js">
+    <link rel="stylesheet" crossorigin href="./assets/game-Dn5cjxEi.css">
+    <style>#loader .fl{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 9vh);transform:translateX(-50%);z-index:3;width:min(720px,88vw);
+padding:14px 20px 16px;background:rgba(8,9,13,.78);border:1px solid rgba(255,255,255,.12);border-top:3px solid #c8102e;border-radius:10px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-ui,sans-serif;color:#f4f1ea}
+#loader .fl-top{display:flex;align-items:center;gap:10px;font:800 12px "Avenir Next Condensed","Bahnschrift","DIN Condensed","Roboto Condensed","Arial Narrow",sans-serif;letter-spacing:.2em;color:#ff8a90;text-transform:uppercase}
+#loader .fl-top b{color:#fff;font-size:14px;letter-spacing:.14em;padding:2px 7px;border:1px solid rgba(255,255,255,.45);border-radius:3px}
+#loader .fl-top span{margin-left:auto;color:#cfcac0}
+#loader .fl-route{display:flex;align-items:center;gap:14px;margin-top:10px}
+#loader .fl-ap{min-width:4.6em}
+#loader .fl-ap.r{text-align:right}
+#loader .fl-ap b{display:block;font:800 34px/1 "Avenir Next Condensed","Bahnschrift","DIN Condensed","Roboto Condensed","Arial Narrow",sans-serif;letter-spacing:.02em}
+#loader .fl-ap small{display:block;margin-top:3px;font-size:13px;font-weight:800;color:#d8d3c8}
+#loader .fl-line{position:relative;flex:1;height:2px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.55) 0 6px,transparent 6px 12px)}
+#loader .fl-line i{position:absolute;left:0;top:0;bottom:0;width:calc(var(--fp,0) * 1%);background:#fff;transition:width .6s cubic-bezier(.3,.7,.3,1)}
+#loader .fl-line em{position:absolute;top:50%;left:calc(var(--fp,0) * 1%);transform:translate(-50%,-55%);font-style:normal;font-size:24px;color:#fff;text-shadow:0 0 10px rgba(255,90,98,.8);transition:left .6s cubic-bezier(.3,.7,.3,1)}
+#loader .fl-eta{margin-top:10px;font-size:13px;color:#d8d3c8;display:flex;justify-content:space-between;gap:12px}
+#loader .fl-eta b{color:#fff}
+#loader.flight .ld-tip{display:none}
+@media (max-width:700px){#loader .fl{top:calc(env(safe-area-inset-top,0px) + 4vh);padding:10px 14px 12px}#loader .fl-ap b{font-size:26px}}
+#loader.rail .fl{border-top-color:#f26a21}
+#loader.rail .fl-line em{text-shadow:0 0 10px rgba(242,106,33,.8)}</style>
+      <link rel="modulepreload" crossorigin href="./assets/landing-DV0-VaLv.js">
+    <link rel="modulepreload" crossorigin href="./assets/notice-DnIsya3-.js">
+    <link rel="modulepreload" crossorigin href="./assets/accounts-BSIHoUP6.js">
+    <link rel="modulepreload" crossorigin href="./assets/tabs-C1IhIOn4.js">
+    <link rel="modulepreload" crossorigin href="./assets/dom-CgUgNCmq.js">
+    <link rel="modulepreload" crossorigin href="./assets/text-DwMuBoGJ.js">
+    <link rel="modulepreload" crossorigin href="./assets/boot-BixXX5W7.js">
+    <link rel="modulepreload" crossorigin href="./assets/controllers-C6zHmCqp.js">
+    <link rel="modulepreload" crossorigin href="./assets/contract-CR9GDeJy.js">
+  </head>
+  <body>
+    <div id="app"></div>
+    <!-- crawlable copy for search engines and screen readers: the game is all canvas, so without this Google only has
+         the meta description. Visually hidden (clipped, not display:none) and says only what the title screen shows. -->
+    <section id="about" class="sr-only" lang="zh-Hant-TW">
+      <h1>《桃園狂飆》去桃園狂飆 · TAOYUAN RUSH</h1>
+      <p>《桃園狂飆》是在瀏覽器裡就能玩的開放世界桃園：不用下載，騎上機車穿梭桃園國際機場、青埔高鐵特區、大溪老街、中壢觀光夜市與機捷站，電腦和手機都能玩。</p>
+      <p lang="en">TAOYUAN RUSH is an open-world Taoyuan you can play right in your browser — no download. Ride a scooter through Taoyuan Airport, Qingpu, Daxi, and night markets, on desktop or phone.</p>
+      <h2>更多城市 · More cities</h2>
+      <ul>
+        <li><a tabindex="-1" href="../TaipeiGTA/">《臺北狂飆》TAIPEI RUSH</a></li>
+        <li><a tabindex="-1" href="/kaohsiung/">《高雄狂飆》KAOHSIUNG RUSH</a></li>
+        <li><a tabindex="-1" href="/taichung/">《臺中狂飆》TAICHUNG RUSH</a></li>
+        <li><a tabindex="-1" href="/tainan/">《臺南狂飆》TAINAN RUSH</a></li>
+        <li><a tabindex="-1" href="/hong-kong/">《香港狂飆》HONG KONG RUSH</a></li>
+        <li><a tabindex="-1" href="/tokyo/">《東京狂飆》TOKYO RUSH</a></li>
+        <li><a tabindex="-1" href="/seoul/">《首爾狂飆》SEOUL RUSH</a></li>
+        <li><a tabindex="-1" href="/jakarta/">《雅加達狂飆》JAKARTA RUSH</a></li>
+        <li><a tabindex="-1" href="/mumbai/">《孟買狂飆》MUMBAI RUSH</a></li>
+        <li><a tabindex="-1" href="/london/">《倫敦狂飆》LONDON RUSH</a></li>
+        <li><a tabindex="-1" href="/paris/">《巴黎狂飆》PARIS RUSH</a></li>
+      </ul>
+      <p><a tabindex="-1" href="/support.html">支持我們 · Support</a> · <a tabindex="-1" href="/privacy.html">隱私權 · Privacy</a> · <a tabindex="-1" href="/terms.html">條款 · Terms</a></p>
+    </section>
+    <div id="loader" role="progressbar" aria-label="桃園狂飆 載入中" aria-valuemin="0" aria-valuemax="100">
+      <!-- key art: the nine cities (scripts/cover-art.mjs, from each city's in-game title art). Portrait phones / tablets
+           get the 3 × 3 grid; landscape up to 1024 px wide (phones) the 1600 px file whatever their DPR (sizes 50vw); desktops
+           1600 / 2560 px. Requested by the loader script once the entry scripts have run (data-* → real attributes),
+           never in competition with the JS boot; the inline blurred placeholder (#loader background) covers until then. -->
+      <picture class="ld-photo" aria-hidden="true">
+        <source media="(orientation: portrait) and (max-width: 1024px)" data-srcset="./title/cover-portrait.webp 960w" sizes="100vw" />
+        <img data-src="./title/cover-1600.webp" data-srcset="./title/cover-1600.webp 1600w, /title/cover-2560.webp 2560w" sizes="(max-width: 1024px) 50vw, 100vw" width="2560" height="1440" alt="" fetchpriority="high" decoding="async" />
+      </picture>
+      <div class="ld-grade" aria-hidden="true"></div>
+      <div class="ld-logo">
+        <svg viewBox="0 0 492 214" role="img" aria-label="桃園狂飆 去桃園狂飆">
+          <g font-family="'PingFang TC','Noto Sans TC','Microsoft JhengHei','Heiti TC',sans-serif">
+            <rect x="4" y="4" width="104" height="206" rx="3" fill="#d81f2a" stroke="#09090c" stroke-width="6"/>
+            <rect x="13.5" y="13.5" width="85" height="187" fill="none" stroke="#fff" stroke-width="2.4" opacity=".92"/>
+            <text x="56" y="95" font-size="72" font-weight="900" fill="#fff" text-anchor="middle">桃</text>
+            <text x="56" y="182" font-size="72" font-weight="900" fill="#fff" text-anchor="middle">園</text>
+            <g font-size="142" font-weight="900" stroke="#09090c" stroke-width="5" paint-order="stroke" transform="skewX(-6)">
+              <text x="146" y="141" fill="#d81f2a">狂飆</text>
+              <text x="140" y="135" fill="#fff">狂飆</text>
+            </g>
+            <rect x="126" y="160" width="232" height="46" fill="#09090c"/>
+            <text x="142" y="193" font-size="28" font-weight="800" fill="#fff" letter-spacing="7">去桃園狂飆</text>
+            <text x="370" y="179" font-size="11" font-weight="800" fill="#ff4b52" letter-spacing="2" font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">TAOYUAN</text>
+            <text x="370" y="197" font-size="13" font-weight="800" fill="#fff" letter-spacing="3.2" font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">RUSH</text>
+          </g>
+        </svg>
+      </div>
+      <div class="ld-studio">
+        <svg viewBox="0 0 400 84" role="img" aria-label="Rush Studio">
+          <g font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif" font-weight="900">
+            <rect x="4" y="10" width="12" height="64" fill="#d81f2a" transform="skewX(-8)"/>
+            <g font-size="72" stroke="#09090c" stroke-width="4" paint-order="stroke" transform="skewX(-8)">
+              <text x="40" y="72" fill="#d81f2a" textLength="168" lengthAdjust="spacingAndGlyphs">RUSH</text>
+              <text x="35" y="67" fill="#fff" textLength="168" lengthAdjust="spacingAndGlyphs">RUSH</text>
+            </g>
+            <text x="222" y="66" font-size="40" font-weight="800" fill="#fff" stroke="#09090c" stroke-width="3" paint-order="stroke" textLength="170" lengthAdjust="spacingAndGlyphs">STUDIO</text>
+          </g>
+        </svg>
+      </div>
+      <!-- English mode: the English lockup (= src/ui/brandEnglish.ts englishLogoSVG), swapped in before the first paint -->
+      <template id="ld-logo-en">
+        <svg viewBox="0 0 492 214" role="img" aria-label="Taoyuan Rush — Full throttle through Taoyuan">
+          <g font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">
+            <rect x="4" y="4" width="104" height="206" rx="3" fill="#d81f2a" stroke="#09090c" stroke-width="6"/>
+            <rect x="13.5" y="13.5" width="85" height="187" fill="none" stroke="#fff" stroke-width="2.4" opacity=".92"/>
+            <text x="56" y="94" font-size="58" font-weight="900" fill="#fff" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">TAO</text>
+            <text x="56" y="180" font-size="52" font-weight="900" fill="#fff" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">YUAN</text>
+            <g font-size="150" font-weight="900" stroke="#09090c" stroke-width="5" paint-order="stroke" transform="skewX(-6)">
+              <text x="152" y="141" fill="#d81f2a" textLength="318" lengthAdjust="spacingAndGlyphs">RUSH</text>
+              <text x="146" y="135" fill="#fff" textLength="318" lengthAdjust="spacingAndGlyphs">RUSH</text>
+            </g>
+            <rect x="126" y="160" width="232" height="46" fill="#09090c"/>
+            <text x="142" y="192" font-size="25" font-weight="800" fill="#fff" textLength="200" lengthAdjust="spacingAndGlyphs">FULL THROTTLE</text>
+            <text x="370" y="179" font-size="13" font-weight="800" fill="#ff4b52" textLength="54" lengthAdjust="spacingAndGlyphs">THROUGH</text>
+            <text x="370" y="197" font-size="11" font-weight="800" fill="#fff" textLength="54" lengthAdjust="spacingAndGlyphs">TAOYUAN</text>
+          </g>
+        </svg>
+      </template>
+      <script>
+        (function () {
+          try {
+            var L = document.getElementById('loader'), lg = L && L.querySelector('.ld-logo'), tp = document.getElementById('ld-logo-en');
+            var zhLogo = lg && lg.innerHTML;
+            function syncLogo() {
+              var en = document.documentElement.lang === 'en';
+              if (lg && tp) lg.innerHTML = en ? tp.innerHTML : zhLogo;
+              if (L) L.setAttribute('aria-label', en ? 'Taoyuan Rush loading' : '桃園狂飆 載入中');
+              document.title = en ? 'Taoyuan Rush · Full throttle through Taoyuan' : '桃園狂飆 · 去桃園狂飆';
+            }
+            syncLogo();
+            // a straight-to-Taipei load (?autoplay without ?menu) shows 《臺北狂飆》 from the first paint (src/main.ts sets
+            // .city for the other direct loads once it runs)
+            var qs = location.search;
+            if (L && /[?&]autoplay(=|&|$)/.test(qs) && !/[?&]menu(=|&|$)/.test(qs)) L.classList.add('city');
+            if (window.MutationObserver) {
+              var languageObserver = new MutationObserver(syncLogo);
+              languageObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+              L.addEventListener('loader:dispose', function () { languageObserver.disconnect(); }, { once: true });
+            }
+          } catch (e) {}
+        })();
+      </script>
+      <div class="ld-tip">
+        <div class="ld-tip-k" id="ld-tip-k">臺北小知識</div>
+        <div class="ld-tips" id="ld-tips"></div>
+      </div>
+      <div class="ld-prog">
+        <div class="ld-row">
+          <div class="ld-spin"></div>
+          <div class="ld-stage"><b id="ld-stage">準備中</b><small id="ld-stage-en">Preparing</small></div>
+          <div class="ld-pct" id="ld-pct">0<i>%</i></div>
+        </div>
+        <div class="ld-track"><div class="ld-fill" id="ld-fill"></div><div class="ld-sweep"></div></div>
+      </div>
+      <div class="ld-err" id="ld-err"></div>
+      <!-- sinks written by src/main.ts (read by the loader script below) -->
+      <i id="loader-bar"></i><span id="loader-label"></span>
+    </div>
+    <script>
+      /* Boot watchdog (round 6 stability, RC1). The game is one module graph (the entry + 7 modulepreloaded chunks): if
+         any request of it fails (a network blip, or the HTML of a previous deploy asking for chunks that now 404) or
+         stalls, src/main.ts never runs and the loader used to sit at 「準備中 0%」 forever, with no message. Here:
+           - a module script / modulepreload error before main.ts ran → fail at once;
+           - main.ts has not started 20 s after the page (30 s on phones / tablets) while no request finished for 15 s
+             → fail; after it started: no loading report (main.ts bumps window.__tgtaTick) and no finished request for
+             60 s (75 s on phones / tablets — the player stage alone may wait 30 s for the heroes + 10 s for the mocap
+             pack before its fallbacks) → fail. Paused while the page is hidden, waits for a tap (.failed) or the global
+             title waits for a city (.shell — src/main.ts: Taipei's world builds only when it is picked);
+           - fail → ONE automatic cache-busting reload per 5 min (sessionStorage 'tgta-boot-retry'; main.ts clears it once
+             a load succeeds and strips ?r= from the address bar), else the error box with a Reload button (never a loop).
+             Before either reload the entry chunks are re-requested (fetch, cache: 'no-cache' — a 304 for the good ones):
+             WebKit keeps a FAILED modulepreload in its in-process memory cache and hands it to the next page (a one-off
+             503 on one chunk failed the retry too), and the re-request replaces that entry.
+         window.__tgtaLoaderError(text) shows the error box (the loader script's 「載入失敗」 path uses it too). */
+      (function () {
+        var L = document.getElementById('loader');
+        if (!L) return;
+        var EN = document.documentElement.lang === 'en';
+        var compact = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+        var RETRY = 'tgta-boot-retry';
+        var t0 = Date.now(), lastTick = t0, nRes = -1, done = false, iv = 0;
+        function retryUrl() {
+          var q = '';
+          try { var p = new URLSearchParams(location.search); p.set('r', String(Date.now())); q = '?' + p.toString(); } catch (e) { q = '?r=' + Date.now(); }
+          return location.pathname + q + location.hash;
+        }
+        function retry() {
+          var go = function () { location.replace(retryUrl()); };
+          try {
+            var urls = [].map.call(document.querySelectorAll('link[rel=modulepreload], script[type=module][src]'), function (el) { return el.href || el.src; });
+            var ps = urls.filter(function (u) { return u && u.indexOf(location.origin + '/') === 0; }).map(function (u) {
+              return fetch(u, { cache: 'no-cache', credentials: 'same-origin' }).catch(function () {});
+            });
+            Promise.race([Promise.all(ps), new Promise(function (r) { setTimeout(r, 6000); })]).then(go, go);
+          } catch (e) { go(); }
+        }
+        function showError(text) {
+          EN = document.documentElement.lang === 'en';
+          L.classList.add('failed');
+          L.setAttribute('role', 'group');
+          L.setAttribute('aria-label', EN ? 'Loading interrupted' : '載入中斷');
+          var box = document.getElementById('ld-err');
+          if (!box) return;
+          box.textContent = '';
+          var msg = document.createElement('div');
+          msg.textContent = text;
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = EN ? 'Reload' : '重新載入';
+          btn.addEventListener('click', function () {
+            try { sessionStorage.removeItem(RETRY); } catch (e) {}
+            btn.disabled = true;
+            retry();
+          });
+          box.appendChild(msg);
+          box.appendChild(btn);
+        }
+        window.__tgtaLoaderError = showError;
+        function bootFail(kind) {
+          EN = document.documentElement.lang === 'en';
+          if (done || !L.isConnected) return;
+          done = true;
+          clearInterval(iv);
+          var last = 0, canRetry = false;
+          try { last = Number(sessionStorage.getItem(RETRY)) || 0; sessionStorage.setItem(RETRY, String(Date.now())); canRetry = true; } catch (e) {}
+          console.warn('[boot] loading ' + (kind === 'module' ? 'failed (a script did not load)' : kind === 'start' ? 'never started' : 'stalled') + (canRetry && !(last && Date.now() - last < 300000) ? ' — reloading once' : ''));
+          if (canRetry && !(last && Date.now() - last < 300000)) {
+            // (a moment for the other elements' errors of this failure, then the refresh + reload)
+            setTimeout(retry, 300);
+            return;
+          }
+          showError(EN ? 'Taoyuan Rush could not finish loading (the network or a server file failed). Please reload.' : '桃園狂飆 無法完成載入（網路或伺服器檔案異常），請重新載入。');
+        }
+        // a failed module script / modulepreload of the entry graph (after main.ts ran, lazy chunks are core's business)
+        window.addEventListener('error', function (e) {
+          var t = e && e.target;
+          if (window.__tgtaBoot || !t || t === window || !t.tagName) return;
+          if ((t.tagName === 'SCRIPT' && t.type === 'module') || (t.tagName === 'LINK' && /modulepreload/.test(t.rel || ''))) bootFail('module');
+        }, true);
+        // finished requests count as progress (a slow network is not a stalled one)
+        try { new PerformanceObserver(function () { lastTick = Date.now(); }).observe({ type: 'resource', buffered: false }); } catch (e) {}
+        iv = setInterval(function () {
+          var now = Date.now();
+          if (!L.isConnected || L.style.opacity === '0') return clearInterval(iv);
+          if (document.hidden || L.classList.contains('failed') || L.classList.contains('shell')) { lastTick = now; return; }
+          try { var n = performance.getEntriesByType('resource').length; if (n !== nRes) { nRes = n; lastTick = now; } } catch (e) {}
+          var tick = window.__tgtaTick || 0;
+          if (tick > lastTick) lastTick = tick;
+          if (!window.__tgtaBoot) {
+            if (now - t0 > (compact ? 30000 : 20000) && now - lastTick > 15000) bootFail('start');
+          } else if (now - lastTick > (compact ? 75000 : 60000)) bootFail('stall');
+        }, 5000);
+      })();
+    </script>
+    <script>
+      /* Loader: a static key-art photo (an in-game screenshot, public/title/cover-*.webp, the nine cities) under a static gradient; maps
+         raw init labels to localized, monotonic, duration-weighted progress; one Taipei / controls tip in the saved
+         language. Only the progress indicator moves. */
+      (function () {
+        var L = document.getElementById('loader');
+        if (!L) return;
+        var observers = [];
+        var lang = document.documentElement.lang === 'en' ? 'en' : 'zh';
+        var EN = lang === 'en';
+        if (EN) document.documentElement.lang = 'en';
+
+        // ---------------------------------------------------------------- photo
+        // Requested once the entry scripts have run (DOMContentLoaded waits for the module graph): a 180–350 KB image
+        // fetched in parallel delayed main.ts by ~250 ms at 10 Mbit/s. Until it is decoded — or if it fails — the
+        // inline blurred placeholder; shown once decoded (never half-painted rows). A later source switch (rotation →
+        // the portrait crop) keeps the current picture until the new one has loaded.
+        var ph = L.querySelector('.ld-photo'), im = ph && ph.querySelector('img');
+        function reveal() { if (im && im.naturalWidth) ph.classList.add('on'); }
+        function loadPhoto() {
+          if (!im || !L.isConnected || im.getAttribute('srcset')) return;
+          var so = ph.querySelector('source');
+          if (so) so.srcset = so.getAttribute('data-srcset');
+          im.addEventListener('load', function () { if (im.decode) im.decode().then(reveal, reveal); else reveal(); });
+          im.srcset = im.getAttribute('data-srcset');
+          im.src = im.getAttribute('data-src');
+        }
+        document.addEventListener('DOMContentLoaded', loadPhoto, { once: true });
+
+        // ---------------------------------------------------------------- tip (one per load, static)
+        var TIPS = [
+          ['桃園國際機場是臺灣最重要的門戶，機捷串聯臺北、林口與桃園高鐵。', 'Taoyuan International Airport is Taiwan’s gateway, linked by the Airport MRT.'],
+          ['青埔高鐵特區擁有全臺首座露天美式暢貨中心與橫濱八景島 Xpark 水族館。', 'Qingpu features open-air outlet shopping and the Xpark aquarium.'],
+          ['走到機車或汽車旁按 F（手把 Y）就能騎上去；機車可以靈巧鑽車縫。', 'Press F (gamepad Y) next to a scooter or car to ride it. Scooters can filter through traffic.'],
+          ['大溪豆干遠近馳名，大溪老街保留了華麗古典的巴洛克風牌樓。', 'Daxi dried tofu is famous across Taiwan, and Daxi Old Street features ornate Baroque facades.'],
+          ['便利商店的茶葉蛋可以回血，一顆只要 13 元。', 'Tea eggs from convenience stores restore health — only NT$13.'],
+          ['按 M 打開地圖，點一下就能設定導航；按 T 打開手機接任務。', 'Press M for the map and click to set GPS. Press T to open your phone for jobs.'],
+          ['石門水庫活魚多吃聞名遐邇，還可以欣賞壯觀的水壩與湖光山色。', 'Shihmen Reservoir is renowned for freshwater fish dining and scenic dam views.'],
+          ['下雨天路面濕滑，煞車距離會變長。', 'Rain makes the roads slippery — brake earlier.'],
+          ['中壢觀光夜市與桃園觀光夜市越夜越熱鬧：地瓜球、排骨酥、忠貞米干。', 'Night markets in Zhongli and Taoyuan bustle with sweet potato balls, ribs, and migan noodles.'],
+          ['拉拉山以香甜多汁的水蜜桃聞名，還有壯觀神聖的紅檜巨木群。', 'Lalashan is famed for juicy peaches and ancient giant red cypress trees.'],
+          ['按住 Shift（手把 B）衝刺；開車時空白鍵是手煞車。', 'Hold Shift (gamepad B) to sprint. In a vehicle, Space is the handbrake.'],
+          ['虎頭山公園是桃園人的後花園，可俯瞰整個桃園都會區的璀璨日夜景。', 'Hutoushan Park is Taoyuan’s backyard, overlooking panoramic views of the city skyline.'],
+        ];
+        document.getElementById('ld-tip-k').textContent = EN ? 'Taoyuan tip' : '桃園小知識';
+        var tipIndex = (Math.random() * TIPS.length) | 0;
+        document.getElementById('ld-tips').textContent = TIPS[tipIndex][EN ? 1 : 0];
+
+        // ---------------------------------------------------------------- progress
+        // main.ts writes the RAW stage key into #loader-label ('streets', 'districts'… 'ready' = shader warm-up) and the
+        // progress WITHIN that stage as #loader-bar width. This loader owns the weights: each stage's share of the bar
+        // is its measured init time (M-class laptop, high, round 4: districts ≈ 1.4 s now that it reports per pack, the
+        // shader compile + warm frames ≈ 1.1 s), so the bar moves at an even speed. A localized label (older main.ts)
+        // is mapped back through LABEL_KEY; an unknown key keeps the bar where it is (monotonic).
+        var ORDER = ['audio', 'environment', 'streets', 'buildings', 'landmarks', 'districts', 'culture', 'transit', 'player',
+          'vehicles', 'traffic', 'peds', 'police', 'missions', 'camera', 'ui', 'ready'];
+        var WEIGHT = {
+          audio: 0.3, environment: 3.8, streets: 5.2, buildings: 5.2, landmarks: 2.2, districts: 13.5, culture: 1.5, transit: 0.7,
+          player: 0.5, vehicles: 1.3, traffic: 0.3, peds: 1.1, police: 1, missions: 0.4, camera: 0.1, ui: 0.5, ready: 11,
+        };
+        var BASE = {}, TOTAL = 0;
+        ORDER.forEach(function (k) { BASE[k] = TOTAL; TOTAL += WEIGHT[k]; });
+        /** global 0..1 for (stage key, progress within it); NaN for an unknown key */
+        function globalOf(key, local) {
+          if (!(key in BASE)) return NaN;
+          return (BASE[key] + WEIGHT[key] * Math.max(0, Math.min(1, local || 0))) / TOTAL;
+        }
+        var STAGES = {
+          loading: ['載入中', 'Loading'], audio: ['調校聲音', 'Tuning the soundscape'], environment: ['天空、山與河', 'Sky, hills & rivers'],
+          streets: ['鋪設街道', 'Laying the streets'], buildings: ['蓋起公寓與騎樓', 'Walk-ups & arcades'], landmarks: ['青埔特區與桃園地標', 'Qingpu & Taoyuan landmarks'],
+          districts: ['街區與巷弄', 'Neighbourhoods & alleys'], culture: ['夜市與廟宇', 'Night markets & temples'], transit: ['捷運路網', 'MRT network'],
+          player: ['主角', 'Protagonists'], vehicles: ['機車與汽車', 'Scooters & cars'], traffic: ['車流', 'Traffic'], peds: ['行人', 'Pedestrians'],
+          police: ['警察', 'Police'], missions: ['任務', 'Missions'], camera: ['攝影機', 'Camera'], ui: ['介面', 'Interface'],
+          shaders: ['點亮霓虹', 'Lighting the neon'], ready: ['去桃園狂飆！', "Let's ride!"],
+        };
+        var LABEL_KEY = {
+          '載入中…': 'loading', 'Loading…': 'loading', '調音中': 'audio', 'Tuning the radio': 'audio', '天空與天氣': 'environment', 'Sky & weather': 'environment',
+          '鋪設街道': 'streets', 'Paving the streets': 'streets', '蓋起街屋與騎樓': 'buildings', 'Raising the blocks': 'buildings',
+          '青埔特區與桃園地標': 'landmarks', '臺北101與地標': 'landmarks', '台北101與地標': 'landmarks', 'Taipei 101 & landmarks': 'landmarks', '街區細節': 'districts', 'Neighbourhood details': 'districts',
+          '夜市與廟宇': 'culture', 'Night markets & temples': 'culture', '捷運': 'transit', 'MRT': 'transit', '主角': 'player', 'Protagonist': 'player',
+          '機車與汽車': 'vehicles', 'Scooters & cars': 'vehicles', '車流': 'traffic', 'Traffic': 'traffic', '行人': 'peds', 'Pedestrians': 'peds',
+          '警察': 'police', 'Police': 'police', '任務': 'missions', 'Missions': 'missions', '攝影機': 'camera', 'Camera': 'camera', '介面': 'ui', 'Interface': 'ui',
+          '點亮霓虹': 'shaders', 'Lighting the neon': 'shaders', '去桃園狂飆！': 'ready', '去臺北狂飆！': 'ready', "Let's ride!": 'ready',
+        };
+        var shownP = 0, curStage = '';
+        var fill = document.getElementById('ld-fill'), pct = document.getElementById('ld-pct');
+        var stZh = document.getElementById('ld-stage'), stEn = document.getElementById('ld-stage-en');
+        function setStageText(key, raw) {
+          var s = STAGES[key];
+          // unknown key (a new module): show what main.ts wrote rather than freezing on the previous stage
+          stZh.textContent = s ? s[EN ? 1 : 0] : raw || (EN ? 'Loading' : '載入中');
+          stEn.textContent = s && !EN ? s[1] : '';
+        }
+        function show(p) {
+          p = Math.max(shownP, Math.min(1, p));
+          shownP = p;
+          fill.style.transform = 'scaleX(' + p.toFixed(4) + ')';
+          var n = Math.floor(p * 100);
+          pct.firstChild.nodeValue = String(n);
+          L.setAttribute('aria-valuenow', String(n));
+          L.classList.add('has-pct');
+        }
+        function onLoading(raw, f) {
+          if (/^載入失敗|Failed/.test(raw)) {
+            var detail = raw.replace(/^(?:載入失敗：?|Failed to load:\s*)/i, '');
+            var text = EN ? 'Taoyuan Rush failed to load. Please reload. (' + detail + ')' : '桃園狂飆 載入失敗，請重新載入。（' + detail + '）';
+            // the boot watchdog's error box (with a Reload button); plain text if that script is missing
+            if (window.__tgtaLoaderError) window.__tgtaLoaderError(text);
+            else { L.classList.add('failed'); document.getElementById('ld-err').textContent = text; }
+            return;
+          }
+          var key = lab.getAttribute('data-key') || LABEL_KEY[raw] || String(raw).split(':')[0].trim();
+          if (key === 'shaders') key = 'ready';
+          if (key !== curStage) {
+            curStage = key;
+            setStageText(key, raw);
+          }
+          var g = globalOf(key, f);
+          if (isFinite(g)) show(g);
+        }
+        // main.ts writes the stage key (or a localized label + data-key) and the in-stage width % into these sinks
+        var bar = document.getElementById('loader-bar'), lab = document.getElementById('loader-label');
+        var lastRaw = '', lastW = '';
+        function poll() {
+          var raw = (lab.textContent || '').trim(), w = bar.style.width || '';
+          var k = raw + '|' + (lab.getAttribute('data-key') || '');
+          if (k === lastRaw && w === lastW) return;
+          lastRaw = k; lastW = w;
+          onLoading(raw, w ? parseFloat(w) / 100 : NaN);
+        }
+        // leaving: the progress UI fades first, the brand mark glides into the title logo (FLIP), then the art
+        function leave() {
+          if (L.classList.contains('leaving')) return;
+          setStageText('ready'); show(1);
+          L.classList.add('leaving');
+          var logo = L.querySelector('.ld-logo'), to = document.querySelector('.ti.show .ti-logo-svg');
+          if (!logo || !to) return;
+          var a = logo.getBoundingClientRect(), b = to.getBoundingClientRect();
+          if (!a.width || !b.width) return;
+          var s = b.width / a.width, ex = 0, ey = 0;
+          try { var cm = new DOMMatrix(getComputedStyle(logo).transform); ex = cm.e; ey = cm.f; } catch (e) {}
+          a = { left: a.left - ex, top: a.top - ey };
+          logo.style.transformOrigin = '0 0';
+          logo.style.transition = 'transform .5s cubic-bezier(.5,0,.2,1), opacity .25s linear .42s';
+          logo.style.transform = 'translate3d(' + (b.left - a.left).toFixed(1) + 'px,' + (b.top - a.top).toFixed(1) + 'px,0) scale(' + s.toFixed(4) + ')';
+          logo.style.opacity = '0';
+          L.classList.add('flip');
+        }
+        if (window.MutationObserver) {
+          var labelObserver = new MutationObserver(poll);
+          labelObserver.observe(lab, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['data-key'] });
+          var barObserver = new MutationObserver(poll);
+          barObserver.observe(bar, { attributes: true, attributeFilter: ['style'] });
+          var loaderObserver = new MutationObserver(function () {
+            if (L.style.opacity === '0') leave();
+          });
+          loaderObserver.observe(L, { attributes: true, attributeFilter: ['style'] });
+          var languageObserver = new MutationObserver(syncLanguage);
+          languageObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+          observers.push(labelObserver, barObserver, loaderObserver, languageObserver);
+        }
+        setStageText('loading');
+        stZh.textContent = EN ? 'Preparing' : '準備中'; stEn.textContent = EN ? '' : 'Preparing';
+        // portrait phones: the game is landscape — say so early, while it loads
+        try {
+          if (matchMedia('(orientation: portrait) and (max-width: 700px)').matches) {
+            var rot = document.createElement('div'); rot.className = 'ld-rot';
+            rot.innerHTML = '<i></i><span>' + (EN ? 'Turn your phone sideways for the best view' : '橫放手機體驗更佳') + '</span>';
+            L.appendChild(rot);
+          }
+        } catch (e) {}
+
+        // main.ts may resolve a different country after the first paint; keep the entire loader in sync.
+        function syncLanguage() {
+          var next = document.documentElement.lang === 'en' ? 'en' : 'zh';
+          if (next === lang) return;
+          lang = next; EN = lang === 'en';
+          document.getElementById('ld-tip-k').textContent = EN ? 'Taoyuan tip' : '桃園小知識';
+          document.getElementById('ld-tips').textContent = TIPS[tipIndex][EN ? 1 : 0];
+          if (curStage) setStageText(curStage, (lab.textContent || '').trim());
+          else { stZh.textContent = EN ? 'Preparing' : '準備中'; stEn.textContent = EN ? '' : 'Preparing'; }
+          var rotationText = L.querySelector('.ld-rot span');
+          if (rotationText) rotationText.textContent = (EN ? 'Turn your phone sideways for the best view' : '橫放手機體驗更佳');
+        }
+
+        // main.ts, right before it removes the loader: drop the observers and the decoded photo
+        L.addEventListener('loader:dispose', function () {
+          observers.forEach(function (o) { o.disconnect(); });
+          if (ph && ph.parentNode) ph.parentNode.removeChild(ph);
+        }, { once: true });
+      })();
+    </script>
+    <!-- (Vercel Web Analytics is imported lazily by main.ts — a static second entry made its chunk part of the boot) -->
+    <script>(function(){try{var L=document.getElementById('loader');if(!L)return;
+var rec=JSON.parse(localStorage.getItem("gta-travel-v1")||'null'),t=rec&&rec.ticket;
+if(!t||t.to!=="taipei"||!t.from)return;
+var C={"taipei":{"zh":"臺北","en":"Taipei","code":"TSA","rail":"TPE","utc":8},"hong-kong":{"zh":"香港","en":"Hong Kong","code":"HKG","rail":"HKG","utc":8},"kaohsiung":{"zh":"高雄","en":"Kaohsiung","code":"KHH","rail":"ZUY","utc":8},"tokyo":{"zh":"東京","en":"Tokyo","code":"HND","rail":"HND","utc":9},"london":{"zh":"倫敦","en":"London","code":"LHR","rail":"LHR","utc":0},"taichung":{"zh":"臺中","en":"Taichung","code":"RMQ","rail":"TAC","utc":8},"mumbai":{"zh":"孟買","en":"Mumbai","code":"BOM","rail":"BOM","utc":5.5},"tainan":{"zh":"臺南","en":"Tainan","code":"TNN","rail":"TNN","utc":8},"paris":{"zh":"巴黎","en":"Paris","code":"CDG","rail":"CDG","utc":1}},a=C[t.from],b=C[t.to];if(!a||!b)return;var en=t.lang==='en',hsr=t.mode==='hsr';
+function hm(m){m=((Math.round(m)%1440)+1440)%1440;return(m<600?'0':'')+Math.floor(m/60)+':'+(m%60<10?'0':'')+m%60;}
+var eta=hm((t.depMin||0)+(t.hours||2)*60+(typeof t.tz==='number'?t.tz:(b.utc==null?8:b.utc)-(a.utc==null?8:a.utc))*60);
+L.classList.add('flight');
+var d=document.createElement('div');d.className='fl';d.setAttribute('aria-hidden','true');
+if(hsr)L.classList.add('rail');
+d.innerHTML='<div class="fl-top"><b>'+String(t.flight||'').replace(/[<>&]/g,'')+'</b>'+(hsr?(en?'High Speed Rail':'高鐵 HIGH SPEED RAIL'):(en?'RUSH AIR':'狂飆航空 RUSH AIR'))+'<span class="fl-st">'+(hsr?(en?'On the way':'行駛中 · On the way'):(en?'In flight':'飛行中 · In flight'))+'</span></div>'
++'<div class="fl-route"><div class="fl-ap"><b>'+(hsr?a.rail:a.code)+'</b><small>'+(en?a.en:a.zh)+'</small></div><div class="fl-line"><i></i><em>'+(hsr?'▶':'✈')+'</em></div><div class="fl-ap r"><b>'+(hsr?b.rail:b.code)+'</b><small>'+(en?b.en:b.zh)+'</small></div></div>'
++'<div class="fl-eta"><span>'+(en?'Arriving':'預計抵達')+' <b>'+eta+'</b> '+(en?'local time':'當地時間')+'</span><span>'+(en?'Welcome to ':'歡迎來到')+(en?b.en:b.zh)+'</span></div>';
+L.appendChild(d);
+var pct=document.getElementById('ld-pct'),st=d.querySelector('.fl-st'),last=-1;
+function upd(){var n=pct?parseInt(pct.textContent,10)||0:0;n=Math.max(4,Math.min(100,n));if(n===last)return;last=n;d.style.setProperty('--fp',String(n));
+if(n>=96&&st)st.textContent=hsr?(en?'Arriving':'即將到站 · Arriving'):(en?'Landing':'即將降落 · Landing');}
+upd();if(window.MutationObserver&&pct){var o=new MutationObserver(upd);o.observe(pct,{childList:true,characterData:true,subtree:true});
+L.addEventListener('loader:dispose',function(){o.disconnect();},{once:true});}
+}catch(e){}})();</script>
+    <script>(function(){try{var box=document.getElementById('ld-err');if(!box||!window.MutationObserver)return;
+var rec=null;try{rec=JSON.parse(localStorage.getItem("gta-travel-v1")||'null');}catch(e){}
+var O={"hong-kong":{"page":"/hong-kong/?region=hong-kong","zh":"香港","en":"Hong Kong","gzh":"香港狂飆","gen":"Hong Kong Rush"},"kaohsiung":{"page":"/kaohsiung/?region=kaohsiung","zh":"高雄","en":"Kaohsiung","gzh":"高雄狂飆","gen":"Kaohsiung Rush"},"tokyo":{"page":"/tokyo/?region=tokyo","zh":"東京","en":"Tokyo","gzh":"東京狂飆","gen":"Tokyo Rush"},"london":{"page":"/london/?region=london","zh":"倫敦","en":"London","gzh":"倫敦狂飆","gen":"London Rush"},"taichung":{"page":"/taichung/?region=taichung","zh":"臺中","en":"Taichung","gzh":"臺中狂飆","gen":"Taichung Rush"},"mumbai":{"page":"/mumbai/?region=mumbai","zh":"孟買","en":"Mumbai","gzh":"孟買狂飆","gen":"Mumbai Rush"},"tainan":{"page":"/tainan/?region=tainan","zh":"臺南","en":"Tainan","gzh":"臺南狂飆","gen":"Tainan Rush"},"paris":{"page":"/paris/?region=paris","zh":"巴黎","en":"Paris","gzh":"巴黎狂飆","gen":"Paris Rush"}},t=rec&&rec.ticket,fl=!!(t&&t.to==="taipei"&&O[t.from]),o=fl?O[t.from]:O["hong-kong"],hsr=!!(t&&t.mode==='hsr');
+if(!fl)return;if(!o)return;
+function add(){if(!box.firstChild||box.querySelector('.ld-city'))return;
+var r=box.querySelector('button'),en=r?r.textContent==='Reload':!!(t&&t.lang==='en');
+var b=document.createElement('button');b.type='button';b.className='ld-city';b.style.background='transparent';
+b.textContent=fl?(en?(hsr?'Cancel the trip · back to ':'Cancel the flight · back to ')+o.en:(hsr?'取消車票 · 返回':'取消航班 · 返回')+o.zh):(en?'Go to '+o.gen:'前往《'+o.gzh+'》');
+b.addEventListener('click',function(){b.disabled=true;location.replace(o.page);});
+box.appendChild(b);}
+new MutationObserver(add).observe(box,{childList:true});add();
+}catch(e){}})();</script>
+  </body>
+</html>
