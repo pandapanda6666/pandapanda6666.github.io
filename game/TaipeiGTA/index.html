@@ -1,6 +1,221 @@
+<!-- 請記得將此網頁的網址，加入伺服器管理面板的 CORS 授權網域白名單中，否則會無法連線 -->
 <!doctype html>
 <html lang="zh-Hant-TW">
   <head>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- Global Error Catching, SSO Login, Multiplayer & Cloud Save -->
+    <script>
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+          if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+          originalWarn.apply(console, args);
+      };
+      window.onerror = function(msg, url, line) { 
+          if (typeof socket !== 'undefined' && socket && socket.connected) socket.emit('logError', { errorMsg: msg, url: url, line: line }); 
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+          if (typeof socket !== 'undefined' && socket && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
+      });
+
+      const appId = window.location.hostname + window.location.pathname;
+      let socket = null;
+      window.socket = null;
+      let currentUser = null;
+
+      function showServerError(msg) {
+        let errEl = document.getElementById('server-error-banner');
+        if (!errEl) {
+          errEl = document.createElement('div');
+          errEl.id = 'server-error-banner';
+          errEl.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:100001; background:rgba(216,31,42,0.92); color:#fff; padding:10px 24px; border-radius:8px; font-weight:bold; font-size:14px; box-shadow:0 4px 16px rgba(0,0,0,0.5); text-align:center; pointer-events:auto; font-family:sans-serif;';
+          document.body.appendChild(errEl);
+        }
+        errEl.textContent = msg;
+      }
+
+      function renderUserProfile(res) {
+        const authContainer = document.getElementById('authContainer');
+        if (!authContainer) return;
+        const avatarUrl = res.avatar || 'https://pandapanda6666.github.io/shop/coin.svg';
+        const nick = res.nickname || res.username || '玩家';
+        const avatarHTML = '<img src="' + avatarUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
+        authContainer.innerHTML = [
+          '<div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer; background:rgba(255,255,255,0.92); padding:4px 10px; border-radius:24px; box-shadow:0 2px 10px rgba(0,0,0,0.25); backdrop-filter:blur(6px);" id="user-profile-toggle">',
+          '    <div class="user-info" style="display:flex;align-items:center;gap:8px;">',
+          '        <div class="avatar" style="width:34px;height:34px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">' + avatarHTML + '</div>',
+          '        <div class="details" style="display:flex;flex-direction:column;text-align:left;">',
+          '            <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;line-height:1.2;">已登入</span>',
+          '            <span class="name" title="' + nick + '" style="font-size:13px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">' + nick + '</span>',
+          '        </div>',
+          '    </div>',
+          '    <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>',
+          '    <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:white; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.2); min-width:150px; z-index:100000; overflow:hidden;">',
+          '        <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px;">',
+          '            <svg style="width:16px;height:16px;fill:#555;" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
+          '            帳號設定',
+          '        </div>',
+          '        <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f; display:flex; align-items:center; gap:8px;">',
+          '            <svg style="width:16px;height:16px;fill:#d32f2f;" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>',
+          '            登出',
+          '        </div>',
+          '    </div>',
+          '</div>'
+        ].join('\n');
+
+        const toggle = document.getElementById('user-profile-toggle');
+        const dropdown = document.getElementById('user-dropdown');
+        toggle.onclick = function(e) {
+          e.stopPropagation();
+          dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        };
+        document.getElementById('btn-settings').onclick = function(e) {
+          e.stopPropagation();
+          window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=editProfile&from=' + encodeURIComponent(window.location.href);
+        };
+        document.getElementById('btn-logout').onclick = function(e) {
+          e.stopPropagation();
+          localStorage.removeItem('panda_session_token');
+          window.location.reload();
+        };
+      }
+
+      function renderGuestUI() {
+        const authContainer = document.getElementById('authContainer');
+        if (!authContainer) return;
+        authContainer.innerHTML = [
+          '<button id="btn-login-trigger" style="background:#2e7d32; color:#fff; border:none; padding:7px 15px; border-radius:20px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 2px 8px rgba(0,0,0,0.3); display:flex; align-items:center; gap:6px; backdrop-filter:blur(4px);">',
+          '    <svg style="width:15px;height:15px;fill:#fff;" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>',
+          '    登入 / 註冊',
+          '</button>'
+        ].join('\n');
+        document.getElementById('btn-login-trigger').onclick = function() {
+          window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
+        };
+      }
+
+      function handleAuth() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let token = urlParams.get('token') || localStorage.getItem('panda_session_token');
+        if (token) {
+          socket.emit('tokenLogin', { token: token });
+          socket.on('loginResult', function(data) {
+            if (data && data.success) {
+              currentUser = data.user || data;
+              localStorage.setItem('panda_session_token', data.token || token);
+              window.history.replaceState({}, document.title, window.location.pathname);
+              renderUserProfile(currentUser);
+              socket.emit('logAppMessage', { appId: appId, message: '使用者登入成功: ' + (currentUser.nickname || currentUser.username || '玩家'), type: 'info' });
+            } else {
+              localStorage.removeItem('panda_session_token');
+              renderGuestUI();
+            }
+          });
+        } else {
+          renderGuestUI();
+        }
+      }
+
+      function initCloudStorage() {
+        socket.emit('getAppData', { appId: appId }, function(res) {
+          if (res && res.success && res.data) {
+            try {
+              for (const [k, v] of Object.entries(res.data)) {
+                if (typeof v === 'object') {
+                  localStorage.setItem(k, JSON.stringify(v));
+                } else if (typeof v === 'string') {
+                  localStorage.setItem(k, v);
+                }
+              }
+              console.log('Cloud app data restored successfully.');
+            } catch(e) {}
+          }
+        });
+
+        const _setItem = localStorage.setItem.bind(localStorage);
+        localStorage.setItem = function(k, v) {
+          _setItem(k, v);
+          if (socket && socket.connected && (k.includes('rush') || k.includes('gta') || k.includes('save') || k === 'panda_game_save')) {
+            try {
+              const dataObj = JSON.parse(v);
+              socket.emit('saveAppData', { appId: appId, data: { [k]: dataObj } });
+            } catch(e) {
+              socket.emit('saveAppData', { appId: appId, data: { [k]: v } });
+            }
+          }
+        };
+      }
+
+      async function initNetworkAndAuth() {
+        let serverUrl = null;
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('server')) {
+          serverUrl = urlParams.get('server');
+        } else {
+          try {
+            const resp = await fetch('https://pandapanda6666.github.io/login-hub/server_url.txt');
+            if (!resp.ok) throw new Error('Fetch failed');
+            const text = await resp.text();
+            serverUrl = atob(text.trim().split('').reverse().join(''));
+          } catch(e) {
+            console.error('Failed to get server url:', e);
+            showServerError('伺服器連線失敗，請稍後再試');
+            return;
+          }
+        }
+
+        if (!serverUrl || serverUrl.includes('localhost') || serverUrl.includes('127.0.0.1')) {
+          showServerError('伺服器連線失敗，請稍後再試');
+          return;
+        }
+
+        try {
+          socket = io(serverUrl, { transports: ['websocket'] });
+          window.socket = socket;
+        } catch(e) {
+          showServerError('伺服器連線失敗，請稍後再試');
+          return;
+        }
+
+        socket.on('connect', function() {
+          console.log('Socket connected to:', serverUrl);
+          socket.emit('initClientInfo', { location: '未知地點', device: navigator.userAgent });
+          socket.emit('joinGameRoom', { room: appId, characterData: {} });
+          handleAuth();
+          initCloudStorage();
+          socket.emit('logAppMessage', { appId: appId, message: '進入遊戲世界', type: 'info' });
+        });
+
+        socket.on('connect_error', function(err) {
+          console.warn('Socket connection error:', err);
+        });
+
+        socket.on('playerJoined', function(data) {
+          if (window.__handlePlayerJoined) window.__handlePlayerJoined(data);
+        });
+
+        socket.on('playerStateUpdated', function(data) {
+          if (window.__handlePlayerStateUpdated) window.__handlePlayerStateUpdated(data);
+        });
+
+        socket.on('appData', function(data) {
+          if (window.__handleAppData) window.__handleAppData(data);
+        });
+
+        socket.on('playerLeft', function(data) {
+          if (window.__handlePlayerLeft) window.__handlePlayerLeft(data);
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+        initNetworkAndAuth();
+      });
+      document.addEventListener('click', function() {
+        const d = document.getElementById('user-dropdown');
+        if (d) d.style.display = 'none';
+      });
+    </script>
+
+
     <script>
       (function() {
         var path = window.location.pathname;
@@ -186,7 +401,23 @@ var t=rec&&rec.ticket;
     <meta name="twitter:description" content="騎上機車，去臺北狂飆！瀏覽器就能玩的開放世界臺北。An open-world Taipei you can play in your browser." />
     <meta name="twitter:image" content="https://www.taipei-rush.app/og/taipei.jpg" />
     <link rel="canonical" href="https://www.taipei-rush.app/" />
-    <!-- search: Google's site name and game card (WebSite + VideoGame); the crawlable copy is #about in <body> -->
+    <!-- search: Google's site name and game card (WebSite + VideoGame); the crawlable copy is #about in <body>
+    <!-- SSO User Profile / Login Button Container -->
+    <div id="auth-header-panel" style="position:fixed; top:14px; right:16px; z-index:99999; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
+      <div id="authContainer"></div>
+    </div>
+
+    <!-- Report Issue Floating Button -->
+    <button id="btn-report-issue" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from='+encodeURIComponent(window.location.href);" style="position:fixed; bottom:22px; right:20px; z-index:99999; background:rgba(20,20,25,0.85); color:#ff6b6b; border:1px solid rgba(255,107,107,0.4); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:bold; cursor:pointer; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; box-shadow:0 2px 10px rgba(0,0,0,0.3); transition:all 0.2s; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(20,20,25,0.85)'">
+      <svg style="width:14px;height:14px;fill:#ff6b6b;" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>
+      回報問題
+    </button>
+
+    <!-- Copyright Footer -->
+    <div id="site-copyright-footer" style="position:fixed; bottom:6px; left:50%; transform:translateX(-50%); z-index:99998; font-size:11px; color:rgba(255,255,255,0.5); text-shadow:0 1px 3px rgba(0,0,0,0.85); pointer-events:auto; text-align:center; white-space:nowrap; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
+      <a href="https://pandapanda6666.github.io" target="_blank" style="color:inherit; text-decoration:none;">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+    </div>
+ -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -359,7 +590,7 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
         <li><a tabindex="-1" href="/london/">《倫敦狂飆》LONDON RUSH</a></li>
         <li><a tabindex="-1" href="/paris/">《巴黎狂飆》PARIS RUSH</a></li>
       </ul>
-      <p><a tabindex="-1" href="/support.html">支持我們 · Support</a> · <a tabindex="-1" href="/privacy.html">隱私權 · Privacy</a> · <a tabindex="-1" href="/terms.html">條款 · Terms</a></p>
+      
     </section>
     <div id="loader" role="progressbar" aria-label="臺北狂飆 載入中" aria-valuemin="0" aria-valuemax="100">
       <!-- key art: the nine cities (scripts/cover-art.mjs, from each city's in-game title art). Portrait phones / tablets
@@ -389,18 +620,7 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
           </g>
         </svg>
       </div>
-      <div class="ld-studio">
-        <svg viewBox="0 0 400 84" role="img" aria-label="Rush Studio">
-          <g font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif" font-weight="900">
-            <rect x="4" y="10" width="12" height="64" fill="#d81f2a" transform="skewX(-8)"/>
-            <g font-size="72" stroke="#09090c" stroke-width="4" paint-order="stroke" transform="skewX(-8)">
-              <text x="40" y="72" fill="#d81f2a" textLength="168" lengthAdjust="spacingAndGlyphs">RUSH</text>
-              <text x="35" y="67" fill="#fff" textLength="168" lengthAdjust="spacingAndGlyphs">RUSH</text>
-            </g>
-            <text x="222" y="66" font-size="40" font-weight="800" fill="#fff" stroke="#09090c" stroke-width="3" paint-order="stroke" textLength="170" lengthAdjust="spacingAndGlyphs">STUDIO</text>
-          </g>
-        </svg>
-      </div>
+      
       <!-- English mode: the English lockup (= src/ui/brandEnglish.ts englishLogoSVG), swapped in before the first paint -->
       <template id="ld-logo-en">
         <svg viewBox="0 0 492 214" role="img" aria-label="Taipei Rush — Full throttle through Taipei">
