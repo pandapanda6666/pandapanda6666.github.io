@@ -1,0 +1,1 @@
+var e={x:-825,z:-399,gateX:-825,gateZ:-375.3},t={x:-825,z:-344,gateX:-825,gateZ:-320.7},n=[{minX:-857.8,minZ:-421.1,maxX:-791.3,maxZ:-376.3,scope:`all`,label:`ddc-song-park-world2`},{minX:-857.8,minZ:-363.7,maxX:-791.3,maxZ:-321.9,scope:`all`,label:`ddc-presbyterian-church-world2`}];export{e as n,n as r,t};
