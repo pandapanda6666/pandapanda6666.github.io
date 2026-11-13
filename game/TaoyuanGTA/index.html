@@ -152,63 +152,14 @@
       }
 
       function renderUserProfile(res) {
-        const authContainer = document.getElementById('authContainer');
-        if (!authContainer) return;
-        const avatarUrl = res.avatar || 'https://pandapanda6666.github.io/shop/coin.svg';
-        const nick = res.nickname || res.username || '玩家';
-        const avatarHTML = '<img src="' + avatarUrl + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';
-        authContainer.innerHTML = [
-          '<div class="user-profile-panel" style="position:relative; display:flex;align-items:center;gap:10px; cursor:pointer; background:rgba(255,255,255,0.92); padding:4px 10px; border-radius:24px; box-shadow:0 2px 10px rgba(0,0,0,0.25); backdrop-filter:blur(6px);" id="user-profile-toggle">',
-          '    <div class="user-info" style="display:flex;align-items:center;gap:8px;">',
-          '        <div class="avatar" style="width:34px;height:34px;border-radius:50%;background:#e8f5e9;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid #c8e6c9;">' + avatarHTML + '</div>',
-          '        <div class="details" style="display:flex;flex-direction:column;text-align:left;">',
-          '            <span class="status" style="font-size:11px;color:#2e7d32;font-weight:bold;line-height:1.2;">已登入</span>',
-          '            <span class="name" title="' + nick + '" style="font-size:13px;font-weight:bold;color:#1b5e20;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2;">' + nick + '</span>',
-          '        </div>',
-          '    </div>',
-          '    <svg style="width:16px;height:16px;fill:#1b5e20;" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>',
-          '    <div id="user-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:8px; background:white; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.2); min-width:150px; z-index:100000; overflow:hidden;">',
-          '        <div id="btn-settings" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#333; border-bottom:1px solid #eee; display:flex; align-items:center; gap:8px;">',
-          '            <svg style="width:16px;height:16px;fill:#555;" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>',
-          '            帳號設定',
-          '        </div>',
-          '        <div id="btn-logout" style="padding:12px 16px; cursor:pointer; font-size:14px; font-weight:bold; color:#d32f2f; display:flex; align-items:center; gap:8px;">',
-          '            <svg style="width:16px;height:16px;fill:#d32f2f;" viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>',
-          '            登出',
-          '        </div>',
-          '    </div>',
-          '</div>'
-        ].join('\n');
-
-        const toggle = document.getElementById('user-profile-toggle');
-        const dropdown = document.getElementById('user-dropdown');
-        toggle.onclick = function(e) {
-          e.stopPropagation();
-          dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        };
-        document.getElementById('btn-settings').onclick = function(e) {
-          e.stopPropagation();
-          window.location.href = 'https://pandapanda6666.github.io/login-hub/?action=editProfile&from=' + encodeURIComponent(window.location.href);
-        };
-        document.getElementById('btn-logout').onclick = function(e) {
-          e.stopPropagation();
-          localStorage.removeItem('panda_session_token');
-          window.location.reload();
-        };
+        window.currentUser = res;
+        try { localStorage.setItem('panda_user_profile', JSON.stringify(res)); } catch(e) {}
+        if (typeof window.syncTitlePandaAuthUI === 'function') window.syncTitlePandaAuthUI();
       }
 
       function renderGuestUI() {
-        const authContainer = document.getElementById('authContainer');
-        if (!authContainer) return;
-        authContainer.innerHTML = [
-          '<button id="btn-login-trigger" style="background:#2e7d32; color:#fff; border:none; padding:7px 15px; border-radius:20px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow:0 2px 8px rgba(0,0,0,0.3); display:flex; align-items:center; gap:6px; backdrop-filter:blur(4px);">',
-          '    <svg style="width:15px;height:15px;fill:#fff;" viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>',
-          '    登入 / 註冊',
-          '</button>'
-        ].join('\n');
-        document.getElementById('btn-login-trigger').onclick = function() {
-          window.location.href = 'https://pandapanda6666.github.io/login-hub/?require=1&from=' + encodeURIComponent(window.location.href);
-        };
+        window.currentUser = null;
+        if (typeof window.syncTitlePandaAuthUI === 'function') window.syncTitlePandaAuthUI();
       }
 
       function handleAuth() {
@@ -497,7 +448,7 @@ var t=rec&&rec.ticket;
       document.documentElement.lang = rushLoaderLang() === 'en' ? 'en' : 'zh-Hant-TW';
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-    <title>《桃園狂飆》TAOYUAN RUSH · 桃園GTA 免費開放世界，瀏覽器直接玩</title>
+    <title>桃園GTA · 免費開放世界 瀏覽器直接玩</title>
     <meta name="description" content="《桃園狂飆》免費、免下載的開放世界桃園遊戲：打開瀏覽器就能騎機車穿梭桃園國際機場、青埔高鐵特區、大溪老街、中壢觀光夜市與機捷站，電腦手機都能玩。TAOYUAN RUSH: a free open-world Taoyuan game you play right in your browser." />
     <meta name="application-name" content="桃園狂飆" />
     <meta name="theme-color" content="#07080c" />
@@ -516,7 +467,7 @@ var t=rec&&rec.ticket;
     <meta property="og:image" content="./og/taipei.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="《臺北狂飆》分享卡：騎上機車，去臺北狂飆！手機畫面裡的臺北101與騎車遊戲畫面" />
+    <meta property="og:image:alt" content="《桃園GTA》分享卡：騎上機車，去桃園GTA！手機畫面裡的臺北101與騎車遊戲畫面" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="《桃園狂飆》去桃園狂飆 · TAOYUAN RUSH" />
     <meta name="twitter:description" content="騎上機車，去桃園狂飆！瀏覽器就能玩的開放世界桃園。An open-world Taoyuan you can play in your browser." />
@@ -675,27 +626,6 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
     <link rel="modulepreload" crossorigin href="./assets/contract-CR9GDeJy.js">
   </head>
   <body>
-    <!-- SSO User Profile / Performance / Login Button Container -->
-    <div id="auth-header-panel" style="position:fixed; top:14px; right:16px; z-index:99999; display:flex; align-items:center; gap:8px; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
-      <!-- Performance Quick Switcher -->
-      <button id="btn-perf-mode" onclick="togglePerformanceMode()" style="background:rgba(20,20,25,0.85); color:#4caf50; border:1px solid rgba(76,175,80,0.4); border-radius:20px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(0,0,0,0.25);" title="點擊切換畫質/效能模式">
-        <svg style="width:14px;height:14px;fill:#4caf50;" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
-        <span id="perf-mode-label">流暢模式 (60FPS)</span>
-      </button>
-      <div id="authContainer"></div>
-    </div>
-
-    <!-- Report Issue Floating Button -->
-    <button id="btn-report-issue" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from='+encodeURIComponent(window.location.href);" style="position:fixed; bottom:22px; right:20px; z-index:99999; background:rgba(20,20,25,0.85); color:#ff6b6b; border:1px solid rgba(255,107,107,0.4); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:bold; cursor:pointer; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; box-shadow:0 2px 10px rgba(0,0,0,0.3); transition:all 0.2s; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(20,20,25,0.85)'">
-      <svg style="width:14px;height:14px;fill:#ff6b6b;" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>
-      回報問題
-    </button>
-
-    <!-- Copyright Footer -->
-    <div id="site-copyright-footer" style="position:fixed; bottom:6px; left:50%; transform:translateX(-50%); z-index:99998; font-size:11px; color:rgba(255,255,255,0.5); text-shadow:0 1px 3px rgba(0,0,0,0.85); pointer-events:auto; text-align:center; white-space:nowrap; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
-      <a href="https://pandapanda6666.github.io" target="_blank" style="color:inherit; text-decoration:none;">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
-    </div>
-
     <div id="app"></div>
     <!-- crawlable copy for search engines and screen readers: the game is all canvas, so without this Google only has
          the meta description. Visually hidden (clipped, not display:none) and says only what the title screen shows. -->
@@ -705,7 +635,7 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
       <p lang="en">TAOYUAN RUSH is an open-world Taoyuan you can play right in your browser — no download. Ride a scooter through Taoyuan Airport, Qingpu, Daxi, and night markets, on desktop or phone.</p>
       <h2>更多城市 · More cities</h2>
       <ul>
-        <li><a tabindex="-1" href="../TaipeiGTA/">《臺北狂飆》TAIPEI RUSH</a></li>
+        <li><a tabindex="-1" href="../TaipeiGTA/">《桃園GTA》TAIPEI RUSH</a></li>
         <li><a tabindex="-1" href="/kaohsiung/">《高雄狂飆》KAOHSIUNG RUSH</a></li>
         <li><a tabindex="-1" href="/taichung/">《臺中狂飆》TAICHUNG RUSH</a></li>
         <li><a tabindex="-1" href="/tainan/">《臺南狂飆》TAINAN RUSH</a></li>
@@ -719,7 +649,7 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
       </ul>
       
     </section>
-    <div id="loader" role="progressbar" aria-label="桃園狂飆 載入中" aria-valuemin="0" aria-valuemax="100">
+    <div id="loader" role="progressbar" aria-label="桃園GTA 載入中" aria-valuemin="0" aria-valuemax="100">
       <!-- key art: the nine cities (scripts/cover-art.mjs, from each city's in-game title art). Portrait phones / tablets
            get the 3 × 3 grid; landscape up to 1024 px wide (phones) the 1600 px file whatever their DPR (sizes 50vw); desktops
            1600 / 2560 px. Requested by the loader script once the entry scripts have run (data-* → real attributes),
@@ -730,40 +660,40 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
       </picture>
       <div class="ld-grade" aria-hidden="true"></div>
       <div class="ld-logo">
-        <svg viewBox="0 0 492 214" role="img" aria-label="桃園狂飆 去桃園狂飆">
+        <svg viewBox="0 0 492 214" role="img" aria-label="桃園GTA 桃園狂飆">
           <g font-family="'PingFang TC','Noto Sans TC','Microsoft JhengHei','Heiti TC',sans-serif">
-            <rect x="4" y="4" width="104" height="206" rx="3" fill="#d81f2a" stroke="#09090c" stroke-width="6"/>
-            <rect x="13.5" y="13.5" width="85" height="187" fill="none" stroke="#fff" stroke-width="2.4" opacity=".92"/>
+            <rect x="4" y="4" width="104" height="206" rx="6" fill="#e65100" stroke="#09090c" stroke-width="6"/>
+            <rect x="13.5" y="13.5" width="85" height="187" fill="none" stroke="#ffd54f" stroke-width="2.4" opacity=".92"/>
             <text x="56" y="95" font-size="72" font-weight="900" fill="#fff" text-anchor="middle">桃</text>
             <text x="56" y="182" font-size="72" font-weight="900" fill="#fff" text-anchor="middle">園</text>
             <g font-size="142" font-weight="900" stroke="#09090c" stroke-width="5" paint-order="stroke" transform="skewX(-6)">
-              <text x="146" y="141" fill="#d81f2a">狂飆</text>
-              <text x="140" y="135" fill="#fff">狂飆</text>
+              <text x="146" y="141" fill="#e65100">GTA</text>
+              <text x="140" y="135" fill="#ffb300">GTA</text>
             </g>
-            <rect x="126" y="160" width="232" height="46" fill="#09090c"/>
-            <text x="142" y="193" font-size="28" font-weight="800" fill="#fff" letter-spacing="7">去桃園狂飆</text>
-            <text x="370" y="179" font-size="11" font-weight="800" fill="#ff4b52" letter-spacing="2" font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">TAOYUAN</text>
-            <text x="370" y="197" font-size="13" font-weight="800" fill="#fff" letter-spacing="3.2" font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">RUSH</text>
+            <rect x="126" y="160" width="232" height="46" rx="4" fill="#09090c"/>
+            <text x="142" y="193" font-size="26" font-weight="800" fill="#ffd54f" letter-spacing="4">航空新城狂飆</text>
+            <text x="370" y="179" font-size="14" font-weight="800" fill="#ff9800" letter-spacing="3" font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">TAOYUAN</text>
+            <text x="370" y="197" font-size="14" font-weight="800" fill="#ffd54f" letter-spacing="3" font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">GTA</text>
           </g>
         </svg>
       </div>
       
       <!-- English mode: the English lockup (= src/ui/brandEnglish.ts englishLogoSVG), swapped in before the first paint -->
       <template id="ld-logo-en">
-        <svg viewBox="0 0 492 214" role="img" aria-label="Taoyuan Rush — Full throttle through Taoyuan">
+        <svg viewBox="0 0 492 214" role="img" aria-label="Taoyuan GTA">
           <g font-family="'Avenir Next Condensed','Bahnschrift','DIN Condensed','Roboto Condensed','Arial Narrow',sans-serif">
-            <rect x="4" y="4" width="104" height="206" rx="3" fill="#d81f2a" stroke="#09090c" stroke-width="6"/>
-            <rect x="13.5" y="13.5" width="85" height="187" fill="none" stroke="#fff" stroke-width="2.4" opacity=".92"/>
-            <text x="56" y="94" font-size="58" font-weight="900" fill="#fff" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">TAO</text>
-            <text x="56" y="180" font-size="52" font-weight="900" fill="#fff" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">YUAN</text>
-            <g font-size="150" font-weight="900" stroke="#09090c" stroke-width="5" paint-order="stroke" transform="skewX(-6)">
-              <text x="152" y="141" fill="#d81f2a" textLength="318" lengthAdjust="spacingAndGlyphs">RUSH</text>
-              <text x="146" y="135" fill="#fff" textLength="318" lengthAdjust="spacingAndGlyphs">RUSH</text>
+            <rect x="4" y="4" width="104" height="206" rx="6" fill="#e65100" stroke="#09090c" stroke-width="6"/>
+            <rect x="13.5" y="13.5" width="85" height="187" fill="none" stroke="#ffd54f" stroke-width="2.4" opacity=".92"/>
+            <text x="56" y="94" font-size="64" font-weight="900" fill="#fff" text-anchor="middle">TAO</text>
+            <text x="56" y="180" font-size="64" font-weight="900" fill="#fff" text-anchor="middle">YUAN</text>
+            <g font-size="146" font-weight="900" stroke="#09090c" stroke-width="5" paint-order="stroke" transform="skewX(-6)">
+              <text x="146" y="141" fill="#e65100">GTA</text>
+              <text x="140" y="135" fill="#ffb300">GTA</text>
             </g>
-            <rect x="126" y="160" width="232" height="46" fill="#09090c"/>
-            <text x="142" y="192" font-size="25" font-weight="800" fill="#fff" textLength="200" lengthAdjust="spacingAndGlyphs">FULL THROTTLE</text>
-            <text x="370" y="179" font-size="13" font-weight="800" fill="#ff4b52" textLength="54" lengthAdjust="spacingAndGlyphs">THROUGH</text>
-            <text x="370" y="197" font-size="11" font-weight="800" fill="#fff" textLength="54" lengthAdjust="spacingAndGlyphs">TAOYUAN</text>
+            <rect x="126" y="160" width="232" height="46" rx="4" fill="#09090c"/>
+            <text x="136" y="192" font-size="24" font-weight="800" fill="#ffd54f" letter-spacing="2">AEROTROPOLIS</text>
+            <text x="370" y="179" font-size="14" font-weight="800" fill="#ff9800" letter-spacing="3">TAOYUAN</text>
+            <text x="370" y="197" font-size="14" font-weight="800" fill="#ffd54f" letter-spacing="3">GTA</text>
           </g>
         </svg>
       </template>
@@ -779,7 +709,7 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
               document.title = en ? 'Taoyuan Rush · Full throttle through Taoyuan' : '桃園狂飆 · 去桃園狂飆';
             }
             syncLogo();
-            // a straight-to-Taipei load (?autoplay without ?menu) shows 《臺北狂飆》 from the first paint (src/main.ts sets
+            // a straight-to-Taipei load (?autoplay without ?menu) shows 《桃園GTA》 from the first paint (src/main.ts sets
             // .city for the other direct loads once it runs)
             var qs = location.search;
             if (L && /[?&]autoplay(=|&|$)/.test(qs) && !/[?&]menu(=|&|$)/.test(qs)) L.classList.add('city');
@@ -985,7 +915,7 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
           '夜市與廟宇': 'culture', 'Night markets & temples': 'culture', '捷運': 'transit', 'MRT': 'transit', '主角': 'player', 'Protagonist': 'player',
           '機車與汽車': 'vehicles', 'Scooters & cars': 'vehicles', '車流': 'traffic', 'Traffic': 'traffic', '行人': 'peds', 'Pedestrians': 'peds',
           '警察': 'police', 'Police': 'police', '任務': 'missions', 'Missions': 'missions', '攝影機': 'camera', 'Camera': 'camera', '介面': 'ui', 'Interface': 'ui',
-          '點亮霓虹': 'shaders', 'Lighting the neon': 'shaders', '去桃園狂飆！': 'ready', '去臺北狂飆！': 'ready', "Let's ride!": 'ready',
+          '點亮霓虹': 'shaders', 'Lighting the neon': 'shaders', '去桃園狂飆！': 'ready', '去桃園GTA！': 'ready', "Let's ride!": 'ready',
         };
         var shownP = 0, curStage = '';
         var fill = document.getElementById('ld-fill'), pct = document.getElementById('ld-pct');
