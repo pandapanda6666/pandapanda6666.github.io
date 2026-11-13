@@ -153,11 +153,18 @@
 
       function renderUserProfile(res) {
         window.currentUser = res;
+        window.__PANDA_USER__ = res;
+        try { localStorage.setItem("panda_user_info", JSON.stringify(res)); } catch(e){}
+        if (typeof window.__RENDER_SSO__ === "function") window.__RENDER_SSO__();
+        window.currentUser = res;
         try { localStorage.setItem('panda_user_profile', JSON.stringify(res)); } catch(e) {}
         if (typeof window.syncTitlePandaAuthUI === 'function') window.syncTitlePandaAuthUI();
       }
 
       function renderGuestUI() {
+        window.currentUser = null;
+        window.__PANDA_USER__ = null;
+        if (typeof window.__RENDER_SSO__ === "function") window.__RENDER_SSO__();
         window.currentUser = null;
         if (typeof window.syncTitlePandaAuthUI === 'function') window.syncTitlePandaAuthUI();
       }
