@@ -17,10 +17,128 @@
           if (typeof socket !== 'undefined' && socket && socket.connected) socket.emit('logError', { errorMsg: 'Promise異常: ' + (event.reason ? event.reason.message || event.reason : '未知錯誤'), url: window.location.href, line: 0 });
       });
 
+      // 筆電與桌機效能自動調校 (針對高解析度筆電與內建顯卡最佳化)
+      (function() {
+        try {
+          const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || ((navigator.maxTouchPoints || 0) > 1 && /Macintosh/.test(navigator.userAgent));
+          const urlParams = new URLSearchParams(window.location.search);
+
+          // 1. DPR 防爆降壓機制：筆電螢幕通常開啟 125%~200% Windows 縮放，導致 Canvas 被迫渲染 3K~5K 超高解析度
+          // 若 URL 無強制指定 dpr，桌機/筆電環境自動將 window.devicePixelRatio 上限安全限制為 1.0，瞬間降低 50%~75% 像素著色負擔
+          if (!isMobile && !urlParams.has('dpr')) {
+            const rawDpr = window.devicePixelRatio || 1;
+            const safeDpr = Math.min(rawDpr, 1.0);
+            try {
+              Object.defineProperty(window, 'devicePixelRatio', {
+                get: function() { return safeDpr; },
+                configurable: true
+              });
+            } catch(e) {}
+          }
+
+          // 2. 檢測 GPU 是否為筆電內顯 (Intel UHD / Iris Xe / AMD Vega / Radeon Graphics)
+          let isIntegratedGpu = false;
+          try {
+            const c = document.createElement('canvas');
+            const gl = c.getContext('webgl');
+            if (gl) {
+              const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+              const ren = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL).toLowerCase() : '';
+              if (/intel|uhd|iris|hd graphics|radeon(?:\(tm\))?\s+graphics|vega|swiftshader|llvmpipe|basic render/i.test(ren)) {
+                isIntegratedGpu = true;
+              }
+              gl.getExtension('WEBGL_lose_context')?.loseContext();
+            }
+          } catch(e) {}
+
+          // 3. 若為筆電內顯，且使用者尚未手動指定畫質，預設自動採用「流暢模式 (Low)」避免因物理 PBR 材質與即時陰影導致畫面定格卡死
+          if (!isMobile && !urlParams.has('quality')) {
+            const saveKey = 'taipei-rush-save-v1';
+            let save = null;
+            try {
+              save = JSON.parse(localStorage.getItem(saveKey) || 'null');
+            } catch(e) {}
+            if (!save || !save.settings || !save.settings.quality || save.settings.quality === 'auto') {
+              save = save || {};
+              save.settings = save.settings || {};
+              if (isIntegratedGpu) {
+                save.settings.quality = 'low';
+                try {
+                  localStorage.setItem(saveKey, JSON.stringify(save));
+                } catch(e) {}
+              }
+            }
+          }
+        } catch(e) {
+          console.warn('效能自動調校模組執行異常:', e);
+        }
+      })();
+
       const appId = window.location.hostname + window.location.pathname;
       let socket = null;
       window.socket = null;
       let currentUser = null;
+
+      function updatePerfButtonLabel() {
+        const lbl = document.getElementById('perf-mode-label');
+        const btn = document.getElementById('btn-perf-mode');
+        if (!lbl || !btn) return;
+        const p = new URLSearchParams(window.location.search);
+        let q = p.get('quality');
+        if (!q) {
+          try {
+            const s = JSON.parse(localStorage.getItem('taipei-rush-save-v1') || '{}');
+            q = s.settings && s.settings.quality;
+          } catch(e) {}
+        }
+        q = q || 'low';
+        const svgIcon = btn.querySelector('svg');
+        if (q === 'low') {
+          lbl.textContent = '流暢模式 (60FPS)';
+          btn.style.borderColor = 'rgba(76,175,80,0.5)';
+          btn.style.color = '#4caf50';
+          if (svgIcon) svgIcon.style.fill = '#4caf50';
+        } else if (q === 'high' || q === 'ultra') {
+          lbl.textContent = '極致畫質';
+          btn.style.borderColor = 'rgba(255,152,0,0.5)';
+          btn.style.color = '#ff9800';
+          if (svgIcon) svgIcon.style.fill = '#ff9800';
+        } else {
+          lbl.textContent = '標準畫質';
+          btn.style.borderColor = 'rgba(33,150,243,0.5)';
+          btn.style.color = '#2196f3';
+          if (svgIcon) svgIcon.style.fill = '#2196f3';
+        }
+      }
+
+      function togglePerformanceMode() {
+        const p = new URLSearchParams(window.location.search);
+        let cur = p.get('quality');
+        if (!cur) {
+          try {
+            const s = JSON.parse(localStorage.getItem('taipei-rush-save-v1') || '{}');
+            cur = s.settings && s.settings.quality;
+          } catch(e) {}
+        }
+        cur = cur || 'low';
+
+        let next = 'medium';
+        if (cur === 'low') next = 'medium';
+        else if (cur === 'medium') next = 'high';
+        else next = 'low';
+
+        try {
+          const s = JSON.parse(localStorage.getItem('taipei-rush-save-v1') || '{}');
+          s.settings = s.settings || {};
+          s.settings.quality = next;
+          localStorage.setItem('taipei-rush-save-v1', JSON.stringify(s));
+        } catch(e) {}
+
+        p.set('quality', next);
+        if (next === 'low') p.set('dpr', '1');
+        else p.delete('dpr');
+        window.location.search = p.toString();
+      }
 
       function showServerError(msg) {
         let errEl = document.getElementById('server-error-banner');
@@ -183,17 +301,60 @@
           handleAuth();
           initCloudStorage();
           socket.emit('logAppMessage', { appId: appId, message: '進入遊戲世界', type: 'info' });
+          requestAnimationFrame(tickMultiplayerSync);
         });
 
         socket.on('connect_error', function(err) {
           console.warn('Socket connection error:', err);
         });
 
+        const remotePlayers = new Map();
+        let lastSyncTime = 0;
+        function tickMultiplayerSync() {
+          requestAnimationFrame(tickMultiplayerSync);
+          if (!socket || !socket.connected || !window.__GAME_CTX__ || !window.__GAME_CTX__.player) return;
+          const now = performance.now();
+          if (now - lastSyncTime < 100) return;
+          lastSyncTime = now;
+
+          const player = window.__GAME_CTX__.player;
+          const pos = player.position;
+          if (!pos) return;
+          socket.emit('syncPlayerState', {
+            room: appId,
+            position: { x: Number(pos.x.toFixed(2)), y: Number(pos.y.toFixed(2)), z: Number(pos.z.toFixed(2)) },
+            rotation: player.heading || 0,
+            character: player.character || 'jie',
+            vehicle: player.vehicle ? player.vehicle.kind : null
+          });
+        }
+
         socket.on('playerJoined', function(data) {
+          if (data && data.allPlayers) {
+            data.allPlayers.forEach(p => {
+              if (p.id !== socket.id) remotePlayers.set(p.id, p);
+            });
+          }
           if (window.__handlePlayerJoined) window.__handlePlayerJoined(data);
         });
 
         socket.on('playerStateUpdated', function(data) {
+          if (!data || !data.playerId || data.playerId === socket.id) return;
+          remotePlayers.set(data.playerId, data);
+          if (window.__GAME_CTX__ && window.__GAME_CTX__.scene && window.THREE) {
+            let m = window.__GAME_CTX__.scene.getObjectByName('player_' + data.playerId);
+            if (!m && data.position) {
+              const geo = new window.THREE.CylinderGeometry(0.3, 0.3, 1.8, 8);
+              const mat = new window.THREE.MeshLambertMaterial({ color: 0x00ff88 });
+              m = new window.THREE.Mesh(geo, mat);
+              m.name = 'player_' + data.playerId;
+              window.__GAME_CTX__.scene.add(m);
+            }
+            if (m && data.position) {
+              m.position.set(data.position.x, data.position.y, data.position.z);
+              if (data.rotation) m.rotation.y = data.rotation;
+            }
+          }
           if (window.__handlePlayerStateUpdated) window.__handlePlayerStateUpdated(data);
         });
 
@@ -202,12 +363,19 @@
         });
 
         socket.on('playerLeft', function(data) {
+          if (!data || !data.playerId) return;
+          remotePlayers.delete(data.playerId);
+          if (window.__GAME_CTX__ && window.__GAME_CTX__.scene) {
+            const m = window.__GAME_CTX__.scene.getObjectByName('player_' + data.playerId);
+            if (m) window.__GAME_CTX__.scene.remove(m);
+          }
           if (window.__handlePlayerLeft) window.__handlePlayerLeft(data);
         });
       }
 
       document.addEventListener('DOMContentLoaded', function() {
         initNetworkAndAuth();
+        updatePerfButtonLabel();
       });
       document.addEventListener('click', function() {
         const d = document.getElementById('user-dropdown');
@@ -315,7 +483,7 @@
     </script>
   
     <script>(function(){try{
-var L={"taipei-gta.vercel.app":"https://www.taipei-rush.app","taipei-gta-taipei-dream-team.vercel.app":"https://www.taipei-rush.app","taipei-rush-legacy-test.vercel.app":"https://taipei-rush-preview.vercel.app"},K=new RegExp("^(taipei-rush-|hong-kong-gta-|kaohsiung-rush-|tokyo-rush-|london-rush-|taichung-rush-|mumbai-rush-|tainan-rush-|gta-travel-|tgta-device-)"),X=new RegExp("(cloud|auth|pkce|session|probe|handoff|identities)"),S=["taipei-rush-save-v1","hong-kong-gta-save-v1","kaohsiung-rush-save-v1","tokyo-rush-save-v1","london-rush-save-v1","taichung-rush-save-v1","mumbai-rush-save-v1","tainan-rush-save-v1"];
+var L={},K=new RegExp("^(taipei-rush-|hong-kong-gta-|kaohsiung-rush-|tokyo-rush-|london-rush-|taichung-rush-|mumbai-rush-|tainan-rush-|gta-travel-|tgta-device-)"),X=new RegExp("(cloud|auth|pkce|session|probe|handoff|identities)"),S=["taipei-rush-save-v1","hong-kong-gta-save-v1","kaohsiung-rush-save-v1","tokyo-rush-save-v1","london-rush-save-v1","taichung-rush-save-v1","mumbai-rush-save-v1","tainan-rush-save-v1"];
 var ls=window.localStorage,host=location.hostname,to=L[host];
 function pack(){var items={},n=0;
 for(var i=0;i<ls.length;i++){var k=ls.key(i);if(k&&K.test(k)&&!X.test(k)){items[k]=ls.getItem(k);n++;}}
@@ -391,51 +559,35 @@ var t=rec&&rec.ticket;
     <meta property="og:title" content="《臺北狂飆》去臺北狂飆" />
     <meta property="og:description" content="騎上機車，去臺北狂飆！瀏覽器就能玩的開放世界臺北。An open-world Taipei you can play in your browser." />
     <meta property="og:locale" content="zh_TW" />
-    <meta property="og:url" content="https://www.taipei-rush.app/" />
-    <meta property="og:image" content="https://www.taipei-rush.app/og/taipei.jpg" />
+    <meta property="og:url" content="https://pandapanda6666.github.io/game/TaipeiGTA/" />
+    <meta property="og:image" content="./og/taipei.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="《臺北狂飆》分享卡：騎上機車，去臺北狂飆！手機畫面裡的臺北101與騎車遊戲畫面" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="《臺北狂飆》去臺北狂飆 · TAIPEI RUSH" />
     <meta name="twitter:description" content="騎上機車，去臺北狂飆！瀏覽器就能玩的開放世界臺北。An open-world Taipei you can play in your browser." />
-    <meta name="twitter:image" content="https://www.taipei-rush.app/og/taipei.jpg" />
-    <link rel="canonical" href="https://www.taipei-rush.app/" />
-    <!-- search: Google's site name and game card (WebSite + VideoGame); the crawlable copy is #about in <body>
-    <!-- SSO User Profile / Login Button Container -->
-    <div id="auth-header-panel" style="position:fixed; top:14px; right:16px; z-index:99999; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
-      <div id="authContainer"></div>
-    </div>
-
-    <!-- Report Issue Floating Button -->
-    <button id="btn-report-issue" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from='+encodeURIComponent(window.location.href);" style="position:fixed; bottom:22px; right:20px; z-index:99999; background:rgba(20,20,25,0.85); color:#ff6b6b; border:1px solid rgba(255,107,107,0.4); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:bold; cursor:pointer; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; box-shadow:0 2px 10px rgba(0,0,0,0.3); transition:all 0.2s; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(20,20,25,0.85)'">
-      <svg style="width:14px;height:14px;fill:#ff6b6b;" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>
-      回報問題
-    </button>
-
-    <!-- Copyright Footer -->
-    <div id="site-copyright-footer" style="position:fixed; bottom:6px; left:50%; transform:translateX(-50%); z-index:99998; font-size:11px; color:rgba(255,255,255,0.5); text-shadow:0 1px 3px rgba(0,0,0,0.85); pointer-events:auto; text-align:center; white-space:nowrap; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
-      <a href="https://pandapanda6666.github.io" target="_blank" style="color:inherit; text-decoration:none;">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
-    </div>
- -->
+    <meta name="twitter:image" content="./og/taipei.jpg" />
+    <link rel="canonical" href="https://pandapanda6666.github.io/game/TaipeiGTA/" />
+    <!-- search: Google's site name and game card (WebSite + VideoGame); the crawlable copy is #about in <body> -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@graph": [
           {
             "@type": "WebSite",
-            "@id": "https://www.taipei-rush.app/#website",
+            "@id": "https://pandapanda6666.github.io/game/TaipeiGTA/#website",
             "name": "臺北狂飆",
             "alternateName": ["《臺北狂飆》", "TAIPEI RUSH", "Taipei Rush"],
-            "url": "https://www.taipei-rush.app/",
+            "url": "https://pandapanda6666.github.io/game/TaipeiGTA/",
             "inLanguage": ["zh-Hant-TW", "en"]
           },
           {
             "@type": "VideoGame",
             "name": "臺北狂飆",
             "alternateName": "TAIPEI RUSH",
-            "url": "https://www.taipei-rush.app/",
-            "image": "https://www.taipei-rush.app/og-image.jpg",
+            "url": "https://pandapanda6666.github.io/game/TaipeiGTA/",
+            "image": "./og/taipei.jpg",
             "description": "《臺北狂飆》免費、免下載的開放世界臺北遊戲：打開瀏覽器就能騎機車穿梭西門町、夜市、臺北101 與捷運站，電腦手機都能玩。TAIPEI RUSH: a free open-world Taipei game you play right in your browser.",
             "genre": ["Open world", "Driving", "Action"],
             "gamePlatform": ["Web browser", "PC", "Mobile"],
@@ -443,7 +595,7 @@ var t=rec&&rec.ticket;
             "operatingSystem": "Any (web browser)",
             "inLanguage": ["zh-Hant-TW", "en"],
             "isAccessibleForFree": true,
-            "isPartOf": { "@id": "https://www.taipei-rush.app/#website" }
+            "isPartOf": { "@id": "https://pandapanda6666.github.io/game/TaipeiGTA/#website" }
           }
         ]
       }
@@ -570,6 +722,27 @@ font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Heiti TC",system-
     <link rel="modulepreload" crossorigin href="./assets/contract-CR9GDeJy.js">
   </head>
   <body>
+    <!-- SSO User Profile / Performance / Login Button Container -->
+    <div id="auth-header-panel" style="position:fixed; top:14px; right:16px; z-index:99999; display:flex; align-items:center; gap:8px; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
+      <!-- Performance Quick Switcher -->
+      <button id="btn-perf-mode" onclick="togglePerformanceMode()" style="background:rgba(20,20,25,0.85); color:#4caf50; border:1px solid rgba(76,175,80,0.4); border-radius:20px; padding:6px 12px; font-size:12px; font-weight:bold; cursor:pointer; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(0,0,0,0.25);" title="點擊切換畫質/效能模式">
+        <svg style="width:14px;height:14px;fill:#4caf50;" viewBox="0 0 24 24"><path d="M7 2v11h3v9l7-12h-4l4-8z"/></svg>
+        <span id="perf-mode-label">流暢模式 (60FPS)</span>
+      </button>
+      <div id="authContainer"></div>
+    </div>
+
+    <!-- Report Issue Floating Button -->
+    <button id="btn-report-issue" onclick="window.location.href='https://pandapanda6666.github.io/login-hub/?action=reportIssue&from='+encodeURIComponent(window.location.href);" style="position:fixed; bottom:22px; right:20px; z-index:99999; background:rgba(20,20,25,0.85); color:#ff6b6b; border:1px solid rgba(255,107,107,0.4); border-radius:20px; padding:6px 14px; font-size:12px; font-weight:bold; cursor:pointer; backdrop-filter:blur(6px); display:flex; align-items:center; gap:6px; box-shadow:0 2px 10px rgba(0,0,0,0.3); transition:all 0.2s; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;" onmouseover="this.style.background='rgba(255,107,107,0.2)'" onmouseout="this.style.background='rgba(20,20,25,0.85)'">
+      <svg style="width:14px;height:14px;fill:#ff6b6b;" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V6h2v4z"/></svg>
+      回報問題
+    </button>
+
+    <!-- Copyright Footer -->
+    <div id="site-copyright-footer" style="position:fixed; bottom:6px; left:50%; transform:translateX(-50%); z-index:99998; font-size:11px; color:rgba(255,255,255,0.5); text-shadow:0 1px 3px rgba(0,0,0,0.85); pointer-events:auto; text-align:center; white-space:nowrap; font-family:'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;">
+      <a href="https://pandapanda6666.github.io" target="_blank" style="color:inherit; text-decoration:none;">版權所有 © 2026 PandaPanda的AI日常 All Rights Reserved.</a>
+    </div>
+
     <div id="app"></div>
     <!-- crawlable copy for search engines and screen readers: the game is all canvas, so without this Google only has
          the meta description. Visually hidden (clipped, not display:none) and says only what the title screen shows. -->
@@ -979,7 +1152,7 @@ L.classList.add('flight');
 var d=document.createElement('div');d.className='fl';d.setAttribute('aria-hidden','true');
 if(hsr)L.classList.add('rail');
 d.innerHTML='<div class="fl-top"><b>'+String(t.flight||'').replace(/[<>&]/g,'')+'</b>'+(hsr?(en?'High Speed Rail':'高鐵 HIGH SPEED RAIL'):(en?'RUSH AIR':'狂飆航空 RUSH AIR'))+'<span class="fl-st">'+(hsr?(en?'On the way':'行駛中 · On the way'):(en?'In flight':'飛行中 · In flight'))+'</span></div>'
-+'<div class="fl-route"><div class="fl-ap"><b>'+(hsr?a.rail:a.code)+'</b><small>'+(en?a.en:a.zh)+'</small></div><div class="fl-line"><i></i><em>'+(hsr?'▶':'✈')+'</em></div><div class="fl-ap r"><b>'+(hsr?b.rail:b.code)+'</b><small>'+(en?b.en:b.zh)+'</small></div></div>'
++'<div class="fl-route"><div class="fl-ap"><b>'+(hsr?a.rail:a.code)+'</b><small>'+(en?a.en:a.zh)+'</small></div><div class="fl-line"><i></i><em>'+(hsr?'▶':'<svg style="width:14px;height:14px;display:inline-block;vertical-align:middle;fill:currentColor;" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>')+'</em></div><div class="fl-ap r"><b>'+(hsr?b.rail:b.code)+'</b><small>'+(en?b.en:b.zh)+'</small></div></div>'
 +'<div class="fl-eta"><span>'+(en?'Arriving':'預計抵達')+' <b>'+eta+'</b> '+(en?'local time':'當地時間')+'</span><span>'+(en?'Welcome to ':'歡迎來到')+(en?b.en:b.zh)+'</span></div>';
 L.appendChild(d);
 var pct=document.getElementById('ld-pct'),st=d.querySelector('.fl-st'),last=-1;
