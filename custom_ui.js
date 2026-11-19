@@ -1,19 +1,308 @@
-
-// --- PandaPanda 官方站點自訂 UI 與輔助元件 ---
-// 官方唯一正本網址: https://pandapanda6666.github.io/
+// =========================================================================
+// PandaPanda 智慧網域橋接與全域導覽系統 (Smart Domain Bridge & Global Navigation)
+// 舊網站: pandapanda6666.github.io
+// 新網站: pandapandaai.vercel.app
+// 本腳本設計為根目錄無關 (Root-Agnostic)，在任何子目錄皆可自動生效
+// =========================================================================
 (function() {
-    // 確保所有子頁面指向正本首頁，移除任何過期的遷移殘留
-    function cleanupMigrationArtifacts() {
-        const oldBanner = document.getElementById('domain-migration-notice');
-        if (oldBanner) oldBanner.remove();
-        const oldContainer = document.getElementById('footer-new-site-container') || document.getElementById('new-site-footer-btn-container');
+    'use strict';
+
+    var OLD_HOST = 'pandapanda6666.github.io';
+    var NEW_HOST = 'pandapandaai.vercel.app';
+    var OLD_ORIGIN = 'https://' + OLD_HOST;
+    var NEW_ORIGIN = 'https://' + NEW_HOST;
+
+    var curHost = window.location.hostname;
+    var isOld = (curHost === OLD_HOST);
+    var isNew = (curHost === NEW_HOST);
+    var isLocal = (curHost === 'localhost' || curHost === '127.0.0.1' || window.location.protocol === 'file:');
+
+    // 支援以 URL 參數指定偏好，如 ?stay=old, ?from=new, ?stay=1
+    var searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has('stay') || searchParams.has('legacy') || searchParams.get('from') === 'new') {
+        try {
+            sessionStorage.setItem('prefer_legacy_site', 'true');
+            localStorage.setItem('prefer_legacy_site', 'true');
+        } catch(e) {}
+    } else if (searchParams.get('prefer') === 'new' || searchParams.has('migrated')) {
+        try {
+            sessionStorage.removeItem('prefer_legacy_site');
+            localStorage.removeItem('prefer_legacy_site');
+        } catch(e) {}
+    }
+
+    var preferLegacy = false;
+    try {
+        preferLegacy = (sessionStorage.getItem('prefer_legacy_site') === 'true' || localStorage.getItem('prefer_legacy_site') === 'true');
+    } catch(e) {}
+
+    // ---------------------------------------------------------------------
+    // 1. 一進入立即重新導向不詢問 (舊網站 -> 新網站)
+    // ---------------------------------------------------------------------
+    if (isOld && !preferLegacy) {
+        var targetSearch = new URLSearchParams(window.location.search);
+        targetSearch.set('migrated', '1');
+        var searchStr = targetSearch.toString();
+        var targetUrl = NEW_ORIGIN + window.location.pathname + (searchStr ? ('?' + searchStr) : '') + window.location.hash;
+        window.location.replace(targetUrl);
+        return; // 立即終止後續解析，防畫面閃爍
+    }
+
+    // ---------------------------------------------------------------------
+    // 2. 全域網站控制工具 (window.PandaSite)
+    // ---------------------------------------------------------------------
+    window.PandaSite = {
+        isOldSite: isOld,
+        isNewSite: isNew,
+        isLocal: isLocal,
+        oldOrigin: OLD_ORIGIN,
+        newOrigin: NEW_ORIGIN,
+        currentOrigin: window.location.origin,
+        
+        // 切換至舊網站
+        switchToOldSite: function() {
+            try {
+                sessionStorage.setItem('prefer_legacy_site', 'true');
+                localStorage.setItem('prefer_legacy_site', 'true');
+            } catch(e) {}
+            var s = new URLSearchParams(window.location.search);
+            s.delete('migrated');
+            s.set('stay', 'old');
+            var sStr = s.toString();
+            window.location.href = OLD_ORIGIN + window.location.pathname + (sStr ? ('?' + sStr) : '') + window.location.hash;
+        },
+        
+        // 切換至新網站
+        switchToNewSite: function() {
+            try {
+                sessionStorage.removeItem('prefer_legacy_site');
+                localStorage.removeItem('prefer_legacy_site');
+            } catch(e) {}
+            var s = new URLSearchParams(window.location.search);
+            s.delete('stay');
+            s.set('migrated', '1');
+            var sStr = s.toString();
+            window.location.href = NEW_ORIGIN + window.location.pathname + (sStr ? ('?' + sStr) : '') + window.location.hash;
+        }
+    };
+
+    // ---------------------------------------------------------------------
+    // 3. 新網站：跳出「網站網址已搬遷」提示橫幅，提供回到舊網站按鈕
+    // ---------------------------------------------------------------------
+    function renderMigrationBanner() {
+        if (!isNew && !searchParams.has('migrated')) return;
+
+        try {
+            if (sessionStorage.getItem('migration_banner_dismissed') === 'true') {
+                return;
+            }
+        } catch(e) {}
+
+        if (document.getElementById('site-migration-banner')) return;
+
+        var banner = document.createElement('div');
+        banner.id = 'site-migration-banner';
+        banner.setAttribute('role', 'alert');
+        banner.style.cssText = [
+            'position: fixed',
+            'top: 0',
+            'left: 0',
+            'right: 0',
+            'width: 100%',
+            'background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
+            'color: #ffffff',
+            'padding: 10px 16px',
+            'font-size: 13.5px',
+            'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            'z-index: 10000000',
+            'box-shadow: 0 4px 18px rgba(0,0,0,0.25)',
+            'display: flex',
+            'align-items: center',
+            'justify-content: space-between',
+            'flex-wrap: wrap',
+            'gap: 10px',
+            'box-sizing: border-box',
+            'animation: bannerSlideDown 0.3s ease-out'
+        ].join(';');
+
+        banner.innerHTML = [
+            '<style>',
+            '@keyframes bannerSlideDown { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }',
+            '.migration-banner-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px; font-size: 12.5px; font-weight: 600; cursor: pointer; text-decoration: none !important; transition: all 0.2s ease; border: none; }',
+            '.migration-btn-return { background: rgba(255, 255, 255, 0.22); color: #ffffff !important; border: 1px solid rgba(255, 255, 255, 0.55); }',
+            '.migration-btn-return:hover { background: rgba(255, 255, 255, 0.35); transform: translateY(-1px); }',
+            '.migration-btn-dismiss { background: #52b788; color: #081c15 !important; }',
+            '.migration-btn-dismiss:hover { background: #74c69d; transform: translateY(-1px); }',
+            '</style>',
+            '<div style="display:flex; align-items:center; gap:8px; flex:1; min-width:260px;">',
+            '  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">',
+            '    <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"></path>',
+            '    <line x1="6" y1="1" x2="6" y2="4"></line><line x1="10" y1="1" x2="10" y2="4"></line><line x1="14" y1="1" x2="14" y2="4"></line>',
+            '  </svg>',
+            '  <span><strong>網站網址已搬遷！</strong> 官方全新網址為 <strong>pandapandaai.vercel.app</strong>。</span>',
+            '</div>',
+            '<div style="display:flex; align-items:center; gap:8px;">',
+            '  <button type="button" id="migration-return-btn" class="migration-banner-btn migration-btn-return" title="返回舊版網站 (GitHub Pages)">',
+            '    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+            '      <line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline>',
+            '    </svg>',
+            '    <span>回到舊網站</span>',
+            '  </button>',
+            '  <button type="button" id="migration-dismiss-btn" class="migration-banner-btn migration-btn-dismiss" title="我知道了，留在新版網站">',
+            '    <span>我知道了</span>',
+            '  </button>',
+            '</div>'
+        ].join('\n');
+
+        document.documentElement.appendChild(banner);
+
+        var returnBtn = banner.querySelector('#migration-return-btn');
+        var dismissBtn = banner.querySelector('#migration-dismiss-btn');
+
+        if (returnBtn) {
+            returnBtn.addEventListener('click', function() {
+                window.PandaSite.switchToOldSite();
+            });
+        }
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', function() {
+                try {
+                    sessionStorage.setItem('migration_banner_dismissed', 'true');
+                } catch(e) {}
+                banner.style.animation = 'bannerSlideDown 0.25s ease-in reverse';
+                setTimeout(function() { banner.remove(); }, 240);
+            });
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // 4. 導覽列雙向動態切換按鈕 (自動偵測當前網域)
+    // ---------------------------------------------------------------------
+    function updateNavigationSwitch() {
+        if (document.getElementById('site-nav-version-switch')) return;
+
+        // 尋找導覽容器：優先相容官網首頁與各大子系統
+        var mainNav = document.getElementById('mainNavBar');
+        var langSelect = document.getElementById('siteLangSelect');
+        var topNavControls = document.querySelector('.top-nav .nav-controls');
+        var topNav = document.querySelector('.top-nav');
+        var genericNav = document.querySelector('header nav') || document.querySelector('nav');
+
+        var targetContainer = null;
+        var insertBeforeNode = null;
+
+        if (mainNav) {
+            targetContainer = mainNav;
+            insertBeforeNode = (langSelect && langSelect.parentNode === mainNav) ? langSelect : null;
+        } else if (topNavControls) {
+            targetContainer = topNavControls;
+        } else if (topNav) {
+            targetContainer = topNav;
+        } else if (genericNav) {
+            targetContainer = genericNav;
+        } else {
+            return;
+        }
+
+        var switchLink = document.createElement('a');
+        switchLink.id = 'site-nav-version-switch';
+        switchLink.className = 'pill-btn site-version-switch-btn';
+        switchLink.style.cssText = [
+            'display: inline-flex',
+            'align-items: center',
+            'gap: 6px',
+            'text-decoration: none !important',
+            'cursor: pointer',
+            'font-weight: 600',
+            'font-size: 13px',
+            'padding: 5px 12px',
+            'border-radius: 18px',
+            'border: 1.5px solid #2e7d32',
+            'background: rgba(46, 125, 50, 0.08)',
+            'color: #1b4332 !important',
+            'transition: all 0.2s ease',
+            'margin: 0 4px',
+            'white-space: nowrap'
+        ].join(';');
+
+        if (isNew || (!isOld && !isLocal)) {
+            // 在新網站：導覽列顯示「舊網站」
+            switchLink.title = '切換至舊網站 (pandapanda6666.github.io)';
+            switchLink.href = 'javascript:void(0);';
+            switchLink.innerHTML = [
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+                '  <polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>',
+                '</svg>',
+                '<span>舊網站</span>'
+            ].join('');
+            switchLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.PandaSite.switchToOldSite();
+            });
+        } else {
+            // 在舊網站 (或本地)：導覽列顯示「新網站」
+            switchLink.title = '切換至新網站 (pandapandaai.vercel.app)';
+            switchLink.href = 'javascript:void(0);';
+            switchLink.innerHTML = [
+                '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+                '  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>',
+                '  <polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>',
+                '</svg>',
+                '<span>新網站</span>'
+            ].join('');
+            switchLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.PandaSite.switchToNewSite();
+            });
+        }
+
+        // 插入至指定位置
+        if (insertBeforeNode) {
+            targetContainer.insertBefore(switchLink, insertBeforeNode);
+        } else {
+            targetContainer.appendChild(switchLink);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // 5. 全站網址智慧動態適應 (修復網址不完善問題，任何根目錄皆適用)
+    // ---------------------------------------------------------------------
+    function adaptAllPageUrls() {
+        var currentOrigin = window.location.origin;
+        var currentHost = window.location.hostname;
+
+        // 若當前在 Vercel (新網站) 或其它網域：自動將頁面中所有寫死 pandapanda6666.github.io 的內部連結改寫為當前網域
+        if (currentHost !== OLD_HOST) {
+            var allLinks = document.querySelectorAll('a[href*="pandapanda6666.github.io"]');
+            allLinks.forEach(function(a) {
+                if (a.id === 'site-nav-version-switch' || a.id === 'migration-return-btn') return;
+                try {
+                    var parsed = new URL(a.href);
+                    a.href = currentOrigin + parsed.pathname + parsed.search + parsed.hash;
+                } catch(e) {}
+            });
+        }
+
+        // 清理各子頁面舊版殘留的過期節點
+        var oldContainer = document.getElementById('footer-new-site-container') || document.getElementById('new-site-footer-btn-container');
         if (oldContainer) oldContainer.remove();
+        var oldNotice = document.getElementById('domain-migration-notice');
+        if (oldNotice) oldNotice.remove();
+    }
+
+    // ---------------------------------------------------------------------
+    // 初始化執行
+    // ---------------------------------------------------------------------
+    function init() {
+        renderMigrationBanner();
+        updateNavigationSwitch();
+        adaptAllPageUrls();
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', cleanupMigrationArtifacts);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        cleanupMigrationArtifacts();
+        init();
     }
 })();
 
@@ -95,8 +384,9 @@ if (window.io) {
         }
     };
 }
-// ----------------------------------------------
-﻿const customUIStyles = `
+
+// --- Panda Modal System ---
+const customUIStyles = `
 <style>
 .panda-modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -223,6 +513,5 @@ window.pandaPrompt = function(msg, defaultText="", title="請輸入") {
     });
 };
 
-// Override native functions globally but wrap them in async (CAUTION: calling code must be modified if relying on synchronous returns)
+// Override native functions globally
 window.alert = function(msg) { pandaAlert(msg); };
-// confirm and prompt must be replaced by pandaConfirm and pandaPrompt in caller code directly
