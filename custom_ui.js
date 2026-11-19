@@ -39,7 +39,10 @@
     // ---------------------------------------------------------------------
     // 1. 一進入立即重新導向不詢問 (舊網站 -> 新網站)
     // ---------------------------------------------------------------------
-    if (isOld && !preferLegacy) {
+    // 檢查是否為搜尋引擎爬蟲 (Googlebot, Bingbot 等)：爬蟲免重定向，讓其完整抓取內容並依據 Canonical 正確索引新網域
+    var isBot = /bot|googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot|sogou|exabot|facebot|facebookexternalhit|ia_archiver/i.test(navigator.userAgent || '');
+
+    if (isOld && !preferLegacy && !isBot) {
         var targetSearch = new URLSearchParams(window.location.search);
         targetSearch.set('migrated', '1');
         var searchStr = targetSearch.toString();
