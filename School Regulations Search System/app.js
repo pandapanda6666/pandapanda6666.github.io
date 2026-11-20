@@ -71,29 +71,42 @@ const selDistrict = document.getElementById('sel-district');
 const selSchool = document.getElementById('sel-school');
 const btnViewPdf = document.getElementById('btn-view-pdf');
 
-// Fetch file tree directly from GitHub API
-async function loadGitHubTree() {
+function getPdfUrl(relPath) {
+    // 優先使用同源相對路徑，徹底避免跨域與重定向問題
+    const encoded = relPath.split('/').map(encodeURIComponent).join('/');
+    return '../' + encoded;
+}
+
+// 載入學校校規目錄結構：優先本地靜態 JSON，依序降級至快取、伺服器 Proxy 與 GitHub API
+async function loadSchoolTree() {
     try {
-        const repoUrl = 'https://api.github.com/repos/pandapanda6666/pandapanda6666.github.io/git/trees/main?recursive=1';
-        
+        let data = null;
+
+        // 1. 第一優先：同源讀取本地靜態 school_tree.json (0 延遲，無 API 限制，最高穩定性)
+        try {
+            const staticRes = await fetch('./school_tree.json?v=' + Date.now());
+            if (staticRes.ok) {
+                data = await staticRes.json();
+            }
+        } catch(staticErr) {
+            console.warn("Static school_tree.json unavailable, falling back to cache/API", staticErr);
+        }
+
+        // 2. 第二優先：檢查 localStorage 快取
         const cacheKey = 'gh_cache_school_tree';
         const cachedData = localStorage.getItem(cacheKey);
-        let data = null;
-        let useCache = false;
-
-        if (cachedData) {
+        if (!data && cachedData) {
             try {
                 const parsed = JSON.parse(cachedData);
-                // Cache for 60 minutes for the school tree to avoid rate limit
                 if (Date.now() - parsed.time < 3600000) {
                     data = parsed.data;
-                    useCache = true;
                 }
             } catch(e) {}
         }
 
-        if (!useCache) {
-            
+        // 3. 第三優先：後端代理 API 或 GitHub API
+        if (!data) {
+            const repoUrl = 'https://api.github.com/repos/pandapanda6666/pandapanda6666.github.io/git/trees/main?recursive=1';
             let res;
             try {
                 const ssoRes = await fetch('../login-hub/server_url.txt');
@@ -112,15 +125,17 @@ async function loadGitHubTree() {
             }
 
             if (!res.ok) {
-                if ((res.status === 403 || res.status === 429) && cachedData) {
-                    console.warn("GitHub API rate limit exceeded, using expired cache for school tree.");
+                if (cachedData) {
+                    console.warn("API failed, using expired cache for school tree.");
                     data = JSON.parse(cachedData).data;
                 } else {
-                    throw new Error("GitHub API failed");
+                    throw new Error("All data sources failed");
                 }
             } else {
                 data = await res.json();
-                localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: data }));
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data: data }));
+                } catch(e) {}
             }
         }
         
@@ -129,7 +144,7 @@ async function loadGitHubTree() {
         const baseFolder = 'School Regulations Search System/';
         for (let item of data.tree) {
             if (item.type === 'blob' && item.path.startsWith(baseFolder) && item.path.toLowerCase().endsWith('.pdf')) {
-                // Ignore backup folders
+                // 排除備份與版本資料夾
                 if(item.path.includes('備份') || item.path.includes('版本') || item.path.includes('iƥj')) continue;
                 
                 const relativePath = item.path.substring(baseFolder.length);
@@ -161,8 +176,8 @@ async function loadGitHubTree() {
         
         updateDropdowns();
     } catch(e) {
-        console.error("Failed to load GitHub tree", e);
-        document.getElementById('chat-box').innerHTML = '<p class="text-danger">無法載入 GitHub 目錄結構，請確認網路連線或 API 限制。</p>';
+        console.error("Failed to load school tree", e);
+        document.getElementById('chat-box').innerHTML = '<p class="text-danger">無法載入校規目錄結構，請重新整理頁面或確認網路連線。</p>';
     }
 }
 
@@ -247,15 +262,21 @@ function updateDropdowns() {
             }
             
             // For viewing manually
-            currentPdfUrl = 'https://pandapanda6666.github.io/' + currentPdfPaths[0].split('/').map(encodeURIComponent).join('/');
+            currentPdfUrl = getPdfUrl(currentPdfPaths[0]);
             btnViewPdf.disabled = false;
             
             document.getElementById('chat-box').innerHTML = '<div class="text-center text-primary mt-4"><div class="spinner-border mb-3"></div><p>正在下載並解析校規 PDF 檔案內容...</p></div>';
             
             fullSchoolText = "";
             for(let path of currentPdfPaths) {
-                const url = 'https://pandapanda6666.github.io/' + path.split('/').map(encodeURIComponent).join('/');
-                fullSchoolText += await extractTextFromPDFUrl(url) + "\n\n";
+                const url = getPdfUrl(path);
+                let text = await extractTextFromPDFUrl(url);
+                if (!text) {
+                    // 同源讀取失敗時，嘗試 fallback 至舊站網址
+                    const fallbackUrl = 'https://pandapanda6666.github.io/' + path.split('/').map(encodeURIComponent).join('/');
+                    text = await extractTextFromPDFUrl(fallbackUrl);
+                }
+                fullSchoolText += text + "\n\n";
             }
             
             // Better chunking: Split by sentences to give precise highlights, but keep context for AI
@@ -311,6 +332,7 @@ btnViewPdf.addEventListener('click', () => {
 async function extractTextFromPDFUrl(url) {
     try {
         const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const arrayBuffer = await res.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
         let texts = [];
@@ -321,7 +343,7 @@ async function extractTextFromPDFUrl(url) {
         }
         return texts.join('\n');
     } catch(e) {
-        console.error("Error reading PDF", e);
+        console.error("Error reading PDF from " + url, e);
         return "";
     }
 }
@@ -672,7 +694,7 @@ window.navigateHighlight = function(direction) {
 // Initial render
 renderHistory();
 // Load the file index dynamically
-loadGitHubTree();
+loadSchoolTree();
 
 window.restoreHistoryTurn = function(index) {
     const turn = chatHistory[index];
