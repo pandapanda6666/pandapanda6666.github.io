@@ -91,9 +91,13 @@
 
     // ---------------------------------------------------------------------
     // 3. 新網站：跳出「網站網址已搬遷」提示橫幅，提供回到舊網站按鈕
+    // (僅在從舊官網重定向或帶參數進入新官網時才顯示，正常開啟絕對不顯示)
     // ---------------------------------------------------------------------
     function renderMigrationBanner() {
-        if (!isNew && !searchParams.has('migrated')) return;
+        var hasMigratedParam = (searchParams.get('migrated') === '1' || searchParams.get('from') === 'legacy' || searchParams.get('from') === 'old');
+        if (!hasMigratedParam) {
+            return; // 正常造訪新官網或站內點擊，絕對不顯示橫幅！
+        }
 
         try {
             if (sessionStorage.getItem('migration_banner_dismissed') === 'true') {
@@ -114,10 +118,10 @@
             'width: 100%',
             'background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%)',
             'color: #ffffff',
-            'padding: 10px 16px',
+            'padding: 8px 16px',
             'font-size: 13.5px',
             'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            'z-index: 10000000',
+            'z-index: 9999999',
             'box-shadow: 0 4px 18px rgba(0,0,0,0.25)',
             'display: flex',
             'align-items: center',
@@ -157,13 +161,31 @@
             '</div>'
         ].join('\n');
 
-        document.documentElement.appendChild(banner);
+        (document.body || document.documentElement).appendChild(banner);
+
+        // 避免遮蔽頂部導覽列：動態增加 body padding-top
+        var bannerHeight = banner.offsetHeight || 44;
+        var originalBodyPadTop = document.body ? document.body.style.paddingTop : '';
+        if (document.body) {
+            var curPad = parseInt(window.getComputedStyle(document.body).paddingTop || '0', 10);
+            document.body.style.paddingTop = (curPad + bannerHeight) + 'px';
+        }
+
+        function cleanMigrationParams() {
+            try {
+                var url = new URL(window.location.href);
+                url.searchParams.delete('migrated');
+                url.searchParams.delete('from');
+                window.history.replaceState({}, '', url.toString());
+            } catch(e) {}
+        }
 
         var returnBtn = banner.querySelector('#migration-return-btn');
         var dismissBtn = banner.querySelector('#migration-dismiss-btn');
 
         if (returnBtn) {
             returnBtn.addEventListener('click', function() {
+                cleanMigrationParams();
                 window.PandaSite.switchToOldSite();
             });
         }
@@ -172,6 +194,10 @@
                 try {
                     sessionStorage.setItem('migration_banner_dismissed', 'true');
                 } catch(e) {}
+                cleanMigrationParams();
+                if (document.body) {
+                    document.body.style.paddingTop = originalBodyPadTop;
+                }
                 banner.style.animation = 'bannerSlideDown 0.25s ease-in reverse';
                 setTimeout(function() { banner.remove(); }, 240);
             });
@@ -428,7 +454,13 @@ const customUIStyles = `
 .panda-btn-secondary:hover { background: #e5e7eb; }
 </style>
 `;
-document.head.insertAdjacentHTML('beforeend', customUIStyles);
+if (document.head) {
+    document.head.insertAdjacentHTML('beforeend', customUIStyles);
+} else {
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.head) document.head.insertAdjacentHTML('beforeend', customUIStyles);
+    });
+}
 
 window.pandaAlert = function(msg, title="提示") {
     return new Promise(resolve => {
@@ -443,7 +475,7 @@ window.pandaAlert = function(msg, title="提示") {
                 </div>
             </div>
         `;
-        document.body.appendChild(overlay);
+        (document.body || document.documentElement).appendChild(overlay);
         setTimeout(() => overlay.classList.add('active'), 10);
         
         const close = () => {
@@ -468,7 +500,7 @@ window.pandaConfirm = function(msg, title="請確認") {
                 </div>
             </div>
         `;
-        document.body.appendChild(overlay);
+        (document.body || document.documentElement).appendChild(overlay);
         setTimeout(() => overlay.classList.add('active'), 10);
         
         const close = (res) => {
@@ -495,7 +527,7 @@ window.pandaPrompt = function(msg, defaultText="", title="請輸入") {
                 </div>
             </div>
         `;
-        document.body.appendChild(overlay);
+        (document.body || document.documentElement).appendChild(overlay);
         setTimeout(() => {
             overlay.classList.add('active');
             overlay.querySelector('input').focus();
