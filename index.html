@@ -689,12 +689,25 @@
             text-decoration: none;
             display: block;
             color: inherit;
+            position: relative;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
         .project-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
             border-color: var(--primary-color);
+        }
+
+        /* 桌面懸停時專案名稱完整展開 (自製專區名稱完整顯示支援) */
+        .project-card:hover .project-title {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow: visible !important;
+            text-overflow: unset !important;
+            line-height: 1.35 !important;
         }
 
         .project-card.disabled-project {
@@ -790,6 +803,183 @@
         .arrow-icon {
             color: var(--secondary-color);
             flex-shrink: 0;
+        }
+
+        /* 桌面版專案名稱浮動提示標籤 (Desktop Tooltip) */
+        #project-hover-tooltip {
+            position: fixed;
+            display: none;
+            z-index: 9999999;
+            background: rgba(15, 23, 42, 0.94);
+            color: #ffffff;
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.4;
+            max-width: 320px;
+            word-break: break-word;
+            pointer-events: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            backdrop-filter: blur(8px);
+        }
+        #project-hover-tooltip::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 6px 0 6px;
+            border-style: solid;
+            border-color: rgba(15, 23, 42, 0.94) transparent transparent transparent;
+        }
+
+        /* 手機版長按專案全名彈出視窗 (Mobile Long-Press Modal) */
+        #project-fullname-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10000000;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            animation: pmodalFadeIn 0.2s ease-out;
+        }
+        @keyframes pmodalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .project-modal-card {
+            background: #ffffff;
+            border-radius: 20px;
+            max-width: 440px;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(44, 94, 50, 0.25);
+            animation: pmodalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+        @keyframes pmodalPopIn {
+            from { transform: scale(0.92) translateY(12px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .project-modal-header {
+            padding: 18px 20px 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 1px solid #f1f5f9;
+            background: #f8fafc;
+        }
+        .project-modal-icon-wrap {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+        .project-modal-icon-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .project-modal-title-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+        .project-modal-tag {
+            font-size: 11px;
+            font-weight: 700;
+            color: #2c5e32;
+            background: rgba(44, 94, 50, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+        .project-modal-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #1b4332;
+            margin: 0;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+        .project-modal-body {
+            padding: 16px 20px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #475569;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .project-modal-footer {
+            padding: 14px 20px 18px 20px;
+            background: #f8fafc;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .project-modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .project-modal-btn-open {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: #2c5e32;
+            color: #ffffff !important;
+            font-weight: 700;
+            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            text-decoration: none !important;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+        }
+        .project-modal-btn-open:hover {
+            background: #1e3f22;
+        }
+        .project-modal-btn-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #e2e8f0;
+            color: #334155;
+            font-weight: 600;
+            font-size: 14px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .project-modal-btn-close:hover {
+            background: #cbd5e1;
+        }
+        .project-modal-hint {
+            font-size: 11.5px;
+            color: #94a3b8;
+            text-align: center;
+            margin: 0;
         }
 
         /* 專案分頁控制項樣式 (嚴格無表情符號，現代感卡片主題適配) */
@@ -3458,7 +3648,7 @@
                             <i class="${escapeHtml(core.icon)}" style="color:#64748b; width:16px; text-align:center;"></i>
                             <strong style="color:#1e293b;">${escapeHtml(core.name)}</strong>
                             <span style="color:#64748b; font-size:12px;">(${escapeHtml(core.url)})</span>
-                            <span style="font-size:11px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-weight:bold;">🔒 預設核心項目（不可改）</span>
+                            <span style="font-size:11px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-weight:bold;"><i class="fas fa-lock"></i> 預設核心項目（不可改）</span>
                         </div>
                         <div style="font-size:11px; color:#94a3b8; font-weight:bold;">全站核心</div>
                     </div>
@@ -3525,7 +3715,7 @@
                         <i class="fas fa-th-large" style="color:#64748b; width:16px; text-align:center;"></i>
                         <strong style="color:#64748b;">其它 (自製工具頁面)</strong>
                         <span style="color:#94a3b8; font-size:12px;">(#tools)</span>
-                        <span style="font-size:11px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-weight:bold;">🔒 固定底部入口</span>
+                        <span style="font-size:11px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:4px; font-weight:bold;"><i class="fas fa-lock"></i> 固定底部入口</span>
                     </div>
                     <div style="font-size:11px; color:#94a3b8;">固定導航至 #tools</div>
                 </div>
@@ -4543,17 +4733,19 @@
                 pageItems.forEach(item => {
                     const iconClass = item.iconType || 'fas fa-cube';
                     let cardHTML = '';
+                    const safeName = escapeHtml(item.name);
+                    const safeDesc = escapeHtml(item.desc);
                     if (item.isDisabled) {
                         cardHTML = `
-                            <a href="javascript:void(0);" onclick="handleDisabledProjectClick('${escapeHtml(item.name)}')" class="project-card disabled-project" title="${escapeHtml(item.name)} 目前暫不開放">
+                            <a href="javascript:void(0);" onclick="handleDisabledProjectClick('${safeName}')" class="project-card disabled-project" data-fullname="${safeName}" data-desc="${safeDesc}" data-icon="${item.icon}" data-icontype="${iconClass}" data-disabled="true" title="${safeName} 目前暫不開放">
                                 <div class="card-content">
                                     <div class="img-container">
-                                        <img src="${item.icon}" alt="${escapeHtml(item.name)}" class="project-img" 
+                                        <img src="${item.icon}" alt="${safeName}" class="project-img" 
                                              onerror="handleImageError(this, '${iconClass}')">
                                     </div>
                                     <div class="text-content">
-                                        <h3 class="project-title">${escapeHtml(item.name)}</h3>
-                                        <p class="project-desc">${escapeHtml(item.desc)}</p>
+                                        <h3 class="project-title" title="${safeName}">${safeName}</h3>
+                                        <p class="project-desc">${safeDesc}</p>
                                         <div class="disabled-status-badge"><i class="fas fa-ban"></i> 暫不開放</div>
                                     </div>
                                     <div class="arrow-icon" style="color: #94a3b8;">
@@ -4564,15 +4756,15 @@
                         `;
                     } else {
                         cardHTML = `
-                            <a href="${item.url}" class="project-card">
+                            <a href="${item.url}" class="project-card" data-fullname="${safeName}" data-desc="${safeDesc}" data-url="${item.url}" data-icon="${item.icon}" data-icontype="${iconClass}" data-disabled="false" title="${safeName}">
                                 <div class="card-content">
                                     <div class="img-container">
-                                        <img src="${item.icon}" alt="${escapeHtml(item.name)}" class="project-img" 
+                                        <img src="${item.icon}" alt="${safeName}" class="project-img" 
                                              onerror="handleImageError(this, '${iconClass}')">
                                     </div>
                                     <div class="text-content">
-                                        <h3 class="project-title">${escapeHtml(item.name)}</h3>
-                                        <p class="project-desc">${escapeHtml(item.desc)}</p>
+                                        <h3 class="project-title" title="${safeName}">${safeName}</h3>
+                                        <p class="project-desc">${safeDesc}</p>
                                     </div>
                                     <div class="arrow-icon">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -4707,6 +4899,242 @@
                 if (inp) { inp.value = ''; inp.focus(); }
                 handleSiteSearch('');
             };
+
+            // =========================================================================
+            // 自製專區專案名稱完整顯示支援 (桌面懸停 Tooltip 與 手機長按互動)
+            // =========================================================================
+            (function() {
+                let tooltipElem = null;
+                let modalElem = null;
+
+                function getOrCreateTooltip() {
+                    if (!tooltipElem) {
+                        tooltipElem = document.getElementById('project-hover-tooltip');
+                        if (!tooltipElem) {
+                            tooltipElem = document.createElement('div');
+                            tooltipElem.id = 'project-hover-tooltip';
+                            document.body.appendChild(tooltipElem);
+                        }
+                    }
+                    return tooltipElem;
+                }
+
+                function getOrCreateModal() {
+                    if (!modalElem) {
+                        modalElem = document.getElementById('project-fullname-modal');
+                        if (!modalElem) {
+                            modalElem = document.createElement('div');
+                            modalElem.id = 'project-fullname-modal';
+                            modalElem.innerHTML = `
+                                <div class="project-modal-card" role="dialog" aria-modal="true">
+                                    <div class="project-modal-header">
+                                        <div class="project-modal-icon-wrap" id="pmodal-icon-box">
+                                            <img id="pmodal-icon-img" src="" alt="">
+                                        </div>
+                                        <div class="project-modal-title-wrap">
+                                            <span class="project-modal-tag" id="pmodal-badge">[自製專區]</span>
+                                            <h3 class="project-modal-title" id="pmodal-title"></h3>
+                                        </div>
+                                    </div>
+                                    <div class="project-modal-body" id="pmodal-desc"></div>
+                                    <div class="project-modal-footer">
+                                        <div class="project-modal-actions">
+                                            <a id="pmodal-btn-open" href="#" class="project-modal-btn-open">
+                                                <span>開啟專案</span>
+                                                <i class="fas fa-arrow-right"></i>
+                                            </a>
+                                            <button type="button" id="pmodal-btn-close" class="project-modal-btn-close">關閉</button>
+                                        </div>
+                                        <p class="project-modal-hint">提示：長按卡片即可檢視完整全名與說明</p>
+                                    </div>
+                                </div>
+                            `;
+                            document.body.appendChild(modalElem);
+
+                            const closeBtn = modalElem.querySelector('#pmodal-btn-close');
+                            if (closeBtn) {
+                                closeBtn.addEventListener('click', closeFullnameModal);
+                            }
+                            modalElem.addEventListener('click', function(e) {
+                                if (e.target === modalElem) {
+                                    closeFullnameModal();
+                                }
+                            });
+                            document.addEventListener('keydown', function(e) {
+                                if (e.key === 'Escape' && modalElem && modalElem.style.display === 'flex') {
+                                    closeFullnameModal();
+                                }
+                            });
+                        }
+                    }
+                    return modalElem;
+                }
+
+                window.showProjectFullnameModal = function(name, desc, url, icon, iconType, isDisabled) {
+                    const m = getOrCreateModal();
+                    const titleEl = m.querySelector('#pmodal-title');
+                    const descEl = m.querySelector('#pmodal-desc');
+                    const iconBox = m.querySelector('#pmodal-icon-box');
+                    const openBtn = m.querySelector('#pmodal-btn-open');
+                    const badgeEl = m.querySelector('#pmodal-badge');
+
+                    if (titleEl) titleEl.textContent = name || '';
+                    if (descEl) descEl.textContent = desc || '無詳細說明';
+                    if (badgeEl) badgeEl.textContent = isDisabled ? '[暫不開放]' : '[自製專區]';
+
+                    if (iconBox) {
+                        iconBox.innerHTML = '';
+                        const img = document.createElement('img');
+                        img.src = icon || './favicon-48x48.png';
+                        img.alt = name || '';
+                        img.onerror = function() {
+                            iconBox.innerHTML = `<i class="${iconType || 'fas fa-cube'}" style="font-size:24px; color:#2c5e32;"></i>`;
+                        };
+                        iconBox.appendChild(img);
+                    }
+
+                    if (openBtn) {
+                        if (isDisabled) {
+                            openBtn.style.display = 'none';
+                        } else {
+                            openBtn.style.display = 'inline-flex';
+                            openBtn.href = url || '#';
+                        }
+                    }
+
+                    m.style.display = 'flex';
+                };
+
+                window.closeFullnameModal = function() {
+                    if (modalElem) {
+                        modalElem.style.display = 'none';
+                    }
+                };
+
+                // 桌面版 Tooltip 事件監聽 (滑鼠懸停顯示完整名稱)
+                document.addEventListener('mouseover', function(e) {
+                    const titleEl = e.target.closest('.project-title');
+                    const card = e.target.closest('.project-card');
+                    if (titleEl || card) {
+                        const targetCard = card || titleEl.closest('.project-card');
+                        if (!targetCard) return;
+                        const fullname = targetCard.getAttribute('data-fullname') || (titleEl ? titleEl.textContent : '');
+                        if (!fullname) return;
+
+                        // 判斷是否為觸控裝置
+                        if (window.matchMedia('(pointer: coarse)').matches) return;
+
+                        const tip = getOrCreateTooltip();
+                        tip.textContent = fullname;
+                        tip.style.display = 'block';
+
+                        const targetAnchor = titleEl || targetCard;
+                        const rect = targetAnchor.getBoundingClientRect();
+                        tip.style.left = (rect.left + rect.width / 2) + 'px';
+                        tip.style.top = (rect.top - 6) + 'px';
+                    }
+                });
+
+                document.addEventListener('mousemove', function(e) {
+                    if (tooltipElem && tooltipElem.style.display === 'block') {
+                        if (!e.target.closest('.project-card') && !e.target.closest('.project-title')) {
+                            tooltipElem.style.display = 'none';
+                        }
+                    }
+                });
+
+                document.addEventListener('mouseout', function(e) {
+                    const titleEl = e.target.closest('.project-title');
+                    const card = e.target.closest('.project-card');
+                    if (titleEl || card) {
+                        if (tooltipElem) tooltipElem.style.display = 'none';
+                    }
+                });
+
+                // 手機版長按事件監聽 (380ms 觸發顯示全名彈出視窗)
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let longPressTimer = null;
+                let activeCard = null;
+                let longPressTriggered = false;
+                let suppressClickUntil = 0;
+
+                document.addEventListener('touchstart', function(e) {
+                    const card = e.target.closest('.project-card');
+                    if (!card) return;
+
+                    const touch = e.touches[0];
+                    touchStartX = touch.clientX;
+                    touchStartY = touch.clientY;
+                    activeCard = card;
+                    longPressTriggered = false;
+
+                    if (longPressTimer) clearTimeout(longPressTimer);
+                    longPressTimer = setTimeout(function() {
+                        if (!activeCard) return;
+                        longPressTriggered = true;
+                        suppressClickUntil = Date.now() + 800;
+
+                        if (navigator.vibrate) {
+                            try { navigator.vibrate(40); } catch(vErr) {}
+                        }
+
+                        const name = activeCard.getAttribute('data-fullname') || '';
+                        const desc = activeCard.getAttribute('data-desc') || '';
+                        const url = activeCard.getAttribute('data-url') || activeCard.getAttribute('href') || '';
+                        const icon = activeCard.getAttribute('data-icon') || '';
+                        const iconType = activeCard.getAttribute('data-icontype') || 'fas fa-cube';
+                        const isDisabled = activeCard.getAttribute('data-disabled') === 'true';
+
+                        window.showProjectFullnameModal(name, desc, url, icon, iconType, isDisabled);
+                    }, 380);
+                }, { passive: true });
+
+                document.addEventListener('touchmove', function(e) {
+                    if (!longPressTimer) return;
+                    const touch = e.touches[0];
+                    const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+                    if (dist > 10) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                        activeCard = null;
+                    }
+                }, { passive: true });
+
+                document.addEventListener('touchend', function(e) {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                    if (longPressTriggered) {
+                        e.preventDefault();
+                        longPressTriggered = false;
+                    }
+                    activeCard = null;
+                }, { passive: false });
+
+                document.addEventListener('touchcancel', function() {
+                    if (longPressTimer) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                    activeCard = null;
+                    longPressTriggered = false;
+                });
+
+                // 攔截長按觸發後的點擊跳轉事件 (防止查看全名時跳轉)
+                document.addEventListener('click', function(e) {
+                    if (Date.now() < suppressClickUntil) {
+                        const card = e.target.closest('.project-card');
+                        if (card) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            return false;
+                        }
+                    }
+                }, true); // 使用 capture phase 優先攔截
+            })();
 
             window.checkUrlSearchParams = function() {
                 const urlParams = new URLSearchParams(window.location.search);

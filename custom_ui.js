@@ -36,6 +36,33 @@
         preferLegacy = (sessionStorage.getItem('prefer_legacy_site') === 'true' || localStorage.getItem('prefer_legacy_site') === 'true');
     } catch(e) {}
 
+    // 檢查是否從遷移而來（保留至記憶體供橫幅判定，隨後立即清理網址列）
+    var hasMigratedParam = (searchParams.get('migrated') === '1' || searchParams.get('from') === 'legacy' || searchParams.get('from') === 'old');
+
+    // ---------------------------------------------------------------------
+    // 網址列參數立即清理機制 (保持標準乾淨路徑，避免殘留 ?migrated=1 等標記)
+    // ---------------------------------------------------------------------
+    function cleanMigrationParams() {
+        try {
+            if (window.history && window.history.replaceState) {
+                var url = new URL(window.location.href);
+                if (url.searchParams.has('migrated') || url.searchParams.has('from') || url.searchParams.has('prefer')) {
+                    url.searchParams.delete('migrated');
+                    url.searchParams.delete('from');
+                    url.searchParams.delete('prefer');
+                    var newSearch = url.searchParams.toString();
+                    var cleanUrl = url.pathname + (newSearch ? ('?' + newSearch) : '') + url.hash;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+            }
+        } catch(e) {}
+    }
+
+    // 若當前已在新網站或非舊站環境，立即抹除 URL 上的遷移參數，讓網址列永遠保持標準乾淨路徑
+    if (isNew || (!isOld && !isLocal)) {
+        cleanMigrationParams();
+    }
+
     // ---------------------------------------------------------------------
     // 1. 一進入立即重新導向不詢問 (舊網站 -> 新網站)
     // ---------------------------------------------------------------------
@@ -94,7 +121,6 @@
     // (僅在從舊官網重定向或帶參數進入新官網時才顯示，正常開啟絕對不顯示)
     // ---------------------------------------------------------------------
     function renderMigrationBanner() {
-        var hasMigratedParam = (searchParams.get('migrated') === '1' || searchParams.get('from') === 'legacy' || searchParams.get('from') === 'old');
         if (!hasMigratedParam) {
             return; // 正常造訪新官網或站內點擊，絕對不顯示橫幅！
         }
@@ -169,15 +195,6 @@
         if (document.body) {
             var curPad = parseInt(window.getComputedStyle(document.body).paddingTop || '0', 10);
             document.body.style.paddingTop = (curPad + bannerHeight) + 'px';
-        }
-
-        function cleanMigrationParams() {
-            try {
-                var url = new URL(window.location.href);
-                url.searchParams.delete('migrated');
-                url.searchParams.delete('from');
-                window.history.replaceState({}, '', url.toString());
-            } catch(e) {}
         }
 
         var returnBtn = banner.querySelector('#migration-return-btn');
@@ -323,6 +340,9 @@
     // 初始化執行
     // ---------------------------------------------------------------------
     function init() {
+        if (isNew || (!isOld && !isLocal)) {
+            cleanMigrationParams();
+        }
         renderMigrationBanner();
         updateNavigationSwitch();
         adaptAllPageUrls();
